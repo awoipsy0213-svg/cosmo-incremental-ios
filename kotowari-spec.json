@@ -1,0 +1,1433 @@
+{
+  "title": "理（ことわり）",
+  "version": "2026-11-13",
+  "status": "仕様参照データ（未実装の機構は表示のみ）",
+  "principles": [
+    "流動",
+    "空間",
+    "変化",
+    "因果",
+    "秩序",
+    "可能性"
+  ],
+  "concepts": [
+    {
+      "id": "TC001",
+      "name": "衝突",
+      "principles": [
+        "流動"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC002",
+      "name": "移動",
+      "principles": [
+        "流動"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC003",
+      "name": "座標",
+      "principles": [
+        "空間"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC004",
+      "name": "周囲",
+      "principles": [
+        "空間"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC005",
+      "name": "進化",
+      "principles": [
+        "変化"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC006",
+      "name": "退化",
+      "principles": [
+        "変化"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC007",
+      "name": "事象",
+      "principles": [
+        "因果"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC008",
+      "name": "結果",
+      "principles": [
+        "因果"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC009",
+      "name": "法則",
+      "principles": [
+        "秩序"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC010",
+      "name": "均衡",
+      "principles": [
+        "秩序"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC011",
+      "name": "希望",
+      "principles": [
+        "可能性"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC012",
+      "name": "混沌",
+      "principles": [
+        "可能性"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC013",
+      "name": "軌跡",
+      "principles": [
+        "流動",
+        "空間"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC014",
+      "name": "漂流",
+      "principles": [
+        "流動",
+        "空間"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC015",
+      "name": "速度",
+      "principles": [
+        "流動",
+        "空間"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC016",
+      "name": "湾曲",
+      "principles": [
+        "流動",
+        "変化"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC017",
+      "name": "加速",
+      "principles": [
+        "流動",
+        "変化"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC018",
+      "name": "減速",
+      "principles": [
+        "流動",
+        "変化"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC019",
+      "name": "連鎖",
+      "principles": [
+        "流動",
+        "因果"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC020",
+      "name": "波及",
+      "principles": [
+        "流動",
+        "因果"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC021",
+      "name": "作用",
+      "principles": [
+        "流動",
+        "因果"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC022",
+      "name": "周期",
+      "principles": [
+        "流動",
+        "秩序"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC023",
+      "name": "律動",
+      "principles": [
+        "流動",
+        "秩序"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC024",
+      "name": "循環",
+      "principles": [
+        "流動",
+        "秩序"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC025",
+      "name": "分岐",
+      "principles": [
+        "流動",
+        "可能性"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC026",
+      "name": "逸脱",
+      "principles": [
+        "流動",
+        "可能性"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC027",
+      "name": "飛躍",
+      "principles": [
+        "流動",
+        "可能性"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC028",
+      "name": "歪み",
+      "principles": [
+        "空間",
+        "変化"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC029",
+      "name": "圧縮",
+      "principles": [
+        "空間",
+        "変化"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC030",
+      "name": "膨張",
+      "principles": [
+        "空間",
+        "変化"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC031",
+      "name": "距離",
+      "principles": [
+        "空間",
+        "因果"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC032",
+      "name": "到達",
+      "principles": [
+        "空間",
+        "因果"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC033",
+      "name": "伝播",
+      "principles": [
+        "空間",
+        "因果"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC034",
+      "name": "境界",
+      "principles": [
+        "空間",
+        "秩序"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC035",
+      "name": "領域",
+      "principles": [
+        "空間",
+        "秩序"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC036",
+      "name": "配置",
+      "principles": [
+        "空間",
+        "秩序"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC037",
+      "name": "方向",
+      "principles": [
+        "空間",
+        "可能性"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC038",
+      "name": "次元",
+      "principles": [
+        "空間",
+        "可能性"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC039",
+      "name": "彼方",
+      "principles": [
+        "空間",
+        "可能性"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC040",
+      "name": "過程",
+      "principles": [
+        "変化",
+        "因果"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC041",
+      "name": "転機",
+      "principles": [
+        "変化",
+        "因果"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC042",
+      "name": "変転",
+      "principles": [
+        "変化",
+        "因果"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC043",
+      "name": "適応",
+      "principles": [
+        "変化",
+        "秩序"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC044",
+      "name": "安定",
+      "principles": [
+        "変化",
+        "秩序"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC045",
+      "name": "形成",
+      "principles": [
+        "変化",
+        "秩序"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC046",
+      "name": "選択",
+      "principles": [
+        "変化",
+        "可能性"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC047",
+      "name": "多様",
+      "principles": [
+        "変化",
+        "可能性"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC048",
+      "name": "創発",
+      "principles": [
+        "変化",
+        "可能性"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC049",
+      "name": "規則",
+      "principles": [
+        "因果",
+        "秩序"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC050",
+      "name": "恒常",
+      "principles": [
+        "因果",
+        "秩序"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC051",
+      "name": "帰結",
+      "principles": [
+        "因果",
+        "秩序"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC052",
+      "name": "偶然",
+      "principles": [
+        "因果",
+        "可能性"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC053",
+      "name": "必然",
+      "principles": [
+        "因果",
+        "可能性"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC054",
+      "name": "運命",
+      "principles": [
+        "因果",
+        "可能性"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC055",
+      "name": "確率",
+      "principles": [
+        "秩序",
+        "可能性"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC056",
+      "name": "自由",
+      "principles": [
+        "秩序",
+        "可能性"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC057",
+      "name": "調和",
+      "principles": [
+        "秩序",
+        "可能性"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC058",
+      "name": "遷移",
+      "principles": [
+        "流動",
+        "空間",
+        "変化"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC059",
+      "name": "波紋",
+      "principles": [
+        "流動",
+        "空間",
+        "因果"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC060",
+      "name": "天則",
+      "principles": [
+        "流動",
+        "空間",
+        "秩序"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC061",
+      "name": "越境",
+      "principles": [
+        "流動",
+        "空間",
+        "可能性"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC062",
+      "name": "奔流",
+      "principles": [
+        "流動",
+        "変化",
+        "因果"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC063",
+      "name": "輪廻",
+      "principles": [
+        "流動",
+        "変化",
+        "秩序"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC064",
+      "name": "兆し",
+      "principles": [
+        "流動",
+        "変化",
+        "可能性"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC065",
+      "name": "幽玄",
+      "principles": [
+        "流動",
+        "因果",
+        "秩序"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC066",
+      "name": "邂逅",
+      "principles": [
+        "流動",
+        "因果",
+        "可能性"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC067",
+      "name": "顕現",
+      "principles": [
+        "流動",
+        "秩序",
+        "可能性"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC068",
+      "name": "幻想",
+      "principles": [
+        "空間",
+        "変化",
+        "因果"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC069",
+      "name": "定理",
+      "principles": [
+        "空間",
+        "変化",
+        "秩序"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC070",
+      "name": "呼応",
+      "principles": [
+        "空間",
+        "変化",
+        "可能性"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC071",
+      "name": "異界",
+      "principles": [
+        "空間",
+        "因果",
+        "秩序"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC072",
+      "name": "未知",
+      "principles": [
+        "空間",
+        "因果",
+        "可能性"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC073",
+      "name": "継承",
+      "principles": [
+        "空間",
+        "秩序",
+        "可能性"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC074",
+      "name": "構造",
+      "principles": [
+        "変化",
+        "因果",
+        "秩序"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC075",
+      "name": "宿命",
+      "principles": [
+        "変化",
+        "因果",
+        "可能性"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC076",
+      "name": "矛盾",
+      "principles": [
+        "変化",
+        "秩序",
+        "可能性"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    },
+    {
+      "id": "TC077",
+      "name": "摂理",
+      "principles": [
+        "因果",
+        "秩序",
+        "可能性"
+      ],
+      "effect": null,
+      "status": "効果未決定"
+    }
+  ],
+  "resources": [
+    {
+      "id": "UR1-01",
+      "rank": 1,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR1-02",
+      "rank": 1,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR1-03",
+      "rank": 1,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR1-04",
+      "rank": 1,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR1-05",
+      "rank": 1,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR1-06",
+      "rank": 1,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR1-07",
+      "rank": 1,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR1-08",
+      "rank": 1,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR1-09",
+      "rank": 1,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR1-10",
+      "rank": 1,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR1-11",
+      "rank": 1,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR1-12",
+      "rank": 1,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR1-13",
+      "rank": 1,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR1-14",
+      "rank": 1,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR1-15",
+      "rank": 1,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR2-01",
+      "rank": 2,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR2-02",
+      "rank": 2,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR2-03",
+      "rank": 2,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR2-04",
+      "rank": 2,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR2-05",
+      "rank": 2,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR2-06",
+      "rank": 2,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR2-07",
+      "rank": 2,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR2-08",
+      "rank": 2,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR2-09",
+      "rank": 2,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR2-10",
+      "rank": 2,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR3-01",
+      "rank": 3,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR3-02",
+      "rank": 3,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR3-03",
+      "rank": 3,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR3-04",
+      "rank": 3,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR3-05",
+      "rank": 3,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR3-06",
+      "rank": 3,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR3-07",
+      "rank": 3,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR3-08",
+      "rank": 3,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR4-01",
+      "rank": 4,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR4-02",
+      "rank": 4,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR4-03",
+      "rank": 4,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR4-04",
+      "rank": 4,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR4-05",
+      "rank": 4,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR5-01",
+      "rank": 5,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR5-02",
+      "rank": 5,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR5-03",
+      "rank": 5,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    },
+    {
+      "id": "UR6-01",
+      "rank": 6,
+      "name": null,
+      "effect": null,
+      "status": "未決定"
+    }
+  ],
+  "planetStats": [
+    {
+      "id": "PS01",
+      "name": "質量",
+      "role": "獲得時の基礎個数",
+      "status": "確定"
+    },
+    {
+      "id": "PS02",
+      "name": "密度",
+      "role": "効果未決定",
+      "status": "未決定"
+    },
+    {
+      "id": "PS03",
+      "name": "圧力",
+      "role": "崩壊報酬×1.1（適用条件未決定）",
+      "status": "一部確定"
+    },
+    {
+      "id": "PS04",
+      "name": "安定",
+      "role": "破壊後の残留率（初期0%）",
+      "status": "一部確定"
+    },
+    {
+      "id": "PS05",
+      "name": "温度",
+      "role": "効果未決定",
+      "status": "未決定"
+    },
+    {
+      "id": "PS06",
+      "name": "活性",
+      "role": "成長速度×1.01（適用条件未決定）",
+      "status": "一部確定"
+    },
+    {
+      "id": "PS07",
+      "name": "エネルギー",
+      "role": "効果未決定",
+      "status": "未決定"
+    },
+    {
+      "id": "PS08",
+      "name": "重力",
+      "role": "効果未決定",
+      "status": "未決定"
+    },
+    {
+      "id": "PS09",
+      "name": "加速度",
+      "role": "効果未決定",
+      "status": "未決定"
+    },
+    {
+      "id": "PS10",
+      "name": "放射",
+      "role": "効果未決定",
+      "status": "未決定"
+    },
+    {
+      "id": "PS11",
+      "name": "磁場",
+      "role": "効果未決定",
+      "status": "未決定"
+    },
+    {
+      "id": "PS12",
+      "name": "硬度",
+      "role": "破壊への耐性（式未決定）",
+      "status": "一部確定"
+    },
+    {
+      "id": "PS13",
+      "name": "純度",
+      "role": "R2出現条件を緩和",
+      "status": "一部確定"
+    },
+    {
+      "id": "PS14",
+      "name": "多様性",
+      "role": "不利な属性の出現傾向を上げる",
+      "status": "一部確定"
+    },
+    {
+      "id": "PS15",
+      "name": "星齢",
+      "role": "惑星誕生からの経過時間",
+      "status": "確定"
+    }
+  ],
+  "sourceSystems": [
+    {
+      "id": "SRC01",
+      "name": null,
+      "maxLevel": 1000000,
+      "milestoneCount": 21,
+      "specialEffectCount": 7,
+      "status": "名称・個別効果要照合"
+    },
+    {
+      "id": "SRC02",
+      "name": null,
+      "maxLevel": 1000000,
+      "milestoneCount": 21,
+      "specialEffectCount": 7,
+      "status": "名称・個別効果要照合"
+    },
+    {
+      "id": "SRC03",
+      "name": null,
+      "maxLevel": 1000000,
+      "milestoneCount": 21,
+      "specialEffectCount": 7,
+      "status": "名称・個別効果要照合"
+    },
+    {
+      "id": "SRC04",
+      "name": null,
+      "maxLevel": 1000000,
+      "milestoneCount": 21,
+      "specialEffectCount": 7,
+      "status": "名称・個別効果要照合"
+    },
+    {
+      "id": "SRC05",
+      "name": null,
+      "maxLevel": 1000000,
+      "milestoneCount": 21,
+      "specialEffectCount": 7,
+      "status": "名称・個別効果要照合"
+    },
+    {
+      "id": "SRC06",
+      "name": null,
+      "maxLevel": 1000000,
+      "milestoneCount": 21,
+      "specialEffectCount": 7,
+      "status": "名称・個別効果要照合"
+    },
+    {
+      "id": "SRC07",
+      "name": null,
+      "maxLevel": 1000000,
+      "milestoneCount": 21,
+      "specialEffectCount": 7,
+      "status": "名称・個別効果要照合"
+    },
+    {
+      "id": "SRC08",
+      "name": null,
+      "maxLevel": 1000000,
+      "milestoneCount": 21,
+      "specialEffectCount": 7,
+      "status": "名称・個別効果要照合"
+    },
+    {
+      "id": "SRC09",
+      "name": null,
+      "maxLevel": 1000000,
+      "milestoneCount": 21,
+      "specialEffectCount": 7,
+      "status": "名称・個別効果要照合"
+    },
+    {
+      "id": "SRC10",
+      "name": null,
+      "maxLevel": 1000000,
+      "milestoneCount": 21,
+      "specialEffectCount": 7,
+      "status": "名称・個別効果要照合"
+    },
+    {
+      "id": "SRC11",
+      "name": null,
+      "maxLevel": 1000000,
+      "milestoneCount": 21,
+      "specialEffectCount": 7,
+      "status": "名称・個別効果要照合"
+    },
+    {
+      "id": "SRC12",
+      "name": null,
+      "maxLevel": 1000000,
+      "milestoneCount": 21,
+      "specialEffectCount": 7,
+      "status": "名称・個別効果要照合"
+    },
+    {
+      "id": "SRC13",
+      "name": null,
+      "maxLevel": 1000000,
+      "milestoneCount": 21,
+      "specialEffectCount": 7,
+      "status": "名称・個別効果要照合"
+    },
+    {
+      "id": "SRC14",
+      "name": null,
+      "maxLevel": 1000000,
+      "milestoneCount": 21,
+      "specialEffectCount": 7,
+      "status": "名称・個別効果要照合"
+    },
+    {
+      "id": "SRC15",
+      "name": null,
+      "maxLevel": 1000000,
+      "milestoneCount": 21,
+      "specialEffectCount": 7,
+      "status": "名称・個別効果要照合"
+    },
+    {
+      "id": "SRC16",
+      "name": null,
+      "maxLevel": 1000000,
+      "milestoneCount": 21,
+      "specialEffectCount": 7,
+      "status": "名称・個別効果要照合"
+    },
+    {
+      "id": "SRC17",
+      "name": null,
+      "maxLevel": 1000000,
+      "milestoneCount": 21,
+      "specialEffectCount": 7,
+      "status": "名称・個別効果要照合"
+    },
+    {
+      "id": "SRC18",
+      "name": null,
+      "maxLevel": 1000000,
+      "milestoneCount": 21,
+      "specialEffectCount": 7,
+      "status": "名称・個別効果要照合"
+    },
+    {
+      "id": "SRC19",
+      "name": null,
+      "maxLevel": 1000000,
+      "milestoneCount": 21,
+      "specialEffectCount": 7,
+      "status": "名称・個別効果要照合"
+    },
+    {
+      "id": "SRC20",
+      "name": null,
+      "maxLevel": 1000000,
+      "milestoneCount": 21,
+      "specialEffectCount": 7,
+      "status": "名称・個別効果要照合"
+    },
+    {
+      "id": "SRC21",
+      "name": null,
+      "maxLevel": 1000000,
+      "milestoneCount": 21,
+      "specialEffectCount": 7,
+      "status": "名称・個別効果要照合"
+    },
+    {
+      "id": "SRC22",
+      "name": null,
+      "maxLevel": 1000000,
+      "milestoneCount": 21,
+      "specialEffectCount": 7,
+      "status": "名称・個別効果要照合"
+    },
+    {
+      "id": "SRC23",
+      "name": null,
+      "maxLevel": 1000000,
+      "milestoneCount": 21,
+      "specialEffectCount": 7,
+      "status": "名称・個別効果要照合"
+    },
+    {
+      "id": "SRC24",
+      "name": null,
+      "maxLevel": 1000000,
+      "milestoneCount": 21,
+      "specialEffectCount": 7,
+      "status": "名称・個別効果要照合"
+    },
+    {
+      "id": "SRC25",
+      "name": null,
+      "maxLevel": 1000000,
+      "milestoneCount": 21,
+      "specialEffectCount": 7,
+      "status": "名称・個別効果要照合"
+    },
+    {
+      "id": "SRC26",
+      "name": null,
+      "maxLevel": 1000000,
+      "milestoneCount": 21,
+      "specialEffectCount": 7,
+      "status": "名称・個別効果要照合"
+    },
+    {
+      "id": "SRC27",
+      "name": null,
+      "maxLevel": 1000000,
+      "milestoneCount": 21,
+      "specialEffectCount": 7,
+      "status": "名称・個別効果要照合"
+    },
+    {
+      "id": "SRC28",
+      "name": null,
+      "maxLevel": 1000000,
+      "milestoneCount": 21,
+      "specialEffectCount": 7,
+      "status": "名称・個別効果要照合"
+    },
+    {
+      "id": "SRC29",
+      "name": null,
+      "maxLevel": 1000000,
+      "milestoneCount": 21,
+      "specialEffectCount": 7,
+      "status": "名称・個別効果要照合"
+    },
+    {
+      "id": "SRC30",
+      "name": null,
+      "maxLevel": 1000000,
+      "milestoneCount": 21,
+      "specialEffectCount": 7,
+      "status": "名称・個別効果要照合"
+    }
+  ],
+  "boost": {
+    "initialCapacitySeconds": 3600,
+    "onlineEarnSecondsPerHour": 600,
+    "offlineEarnSecondsPerHour": 900,
+    "speedMultiplier": null
+  },
+  "offline": {
+    "initialEfficiency": 0.3,
+    "initialCapSeconds": 1800
+  }
+}
