@@ -1,0 +1,8 @@
+{
+  "appId": "app.cosmo.incremental.personal",
+  "appName": "Cosmo Incremental",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "automatic"
+  }
+}
