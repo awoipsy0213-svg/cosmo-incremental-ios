@@ -1,1 +1,30 @@
 
+workflows:
+  ios-build:
+    name: Cosmo Incremental iOS
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      node: 22
+      xcode: latest
+    scripts:
+      - name: Install dependencies
+        script: |
+          npm install
+      - name: Generate iOS project
+        script: |
+          npx cap add ios
+          npx cap sync ios
+      - name: Build unsigned iOS app
+        script: |
+          xcodebuild -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            -derivedDataPath build \
+            build
+    artifacts:
+      - build/Build/Products/Release-iphoneos/App.app
+
