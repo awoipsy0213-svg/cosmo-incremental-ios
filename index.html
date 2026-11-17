@@ -7,18 +7,19 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="理">
-<title>《理》— 星雲ネオン Ver.3.2</title>
+<title>《理》— 星雲ネオン Ver.3.3</title>
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./neon-icon-192.png">
 <link rel="icon" href="./neon-icon-192.png">
 <link rel="stylesheet" href="./organic-original.css">
 <link rel="stylesheet" href="./mobile.css">
 <link rel="stylesheet" href="./neon-theme.css">
+<link rel="stylesheet" href="./live-ui.css">
 </head>
 <body class="kw-app">
 <div id="appRoot">
   <div class="app-top">
-    <div class="brand"><span class="brand-mark">理</span><span class="brand-caption">KOTOWARI<br><span id="buildLabel">3.2 · NEON</span></span></div>
+    <div class="brand"><span class="brand-mark">理</span><span class="brand-caption">KOTOWARI<br><span id="buildLabel">3.3 · LIVE</span></span></div>
     <div class="top-actions"><span id="saveIndicator" role="status" aria-label="保存状態">準備中</span><button class="icon-button" data-action="organizer" aria-label="設定と保存を開く">≡</button></div>
   </div>
   <div id="noticeBar" class="notice-bar" role="status" hidden><span id="noticeText"></span><button data-action="dismiss-notice" aria-label="案内を閉じる">×</button></div>
@@ -42,11 +43,11 @@
   <aside id="sheet" class="kw-sheet" data-state="closed" aria-label="ステージ操作パネル" hidden>
     <div id="sheetHandle" class="kw-sheet-heading"><div><span class="sheet-overline">CONTROLS</span><h2 id="sheetHeading">刹那</h2></div><div class="sheet-buttons"><button class="icon-button" data-action="expand" aria-label="リストを全表示" id="expandButton">↗</button><button class="icon-button" data-action="collapse-sheet" aria-label="パネルを収納">⌄</button></div></div>
     <nav id="childTabs" class="child-tabs" aria-label="ステージ内タブ"></nav>
-    <div id="purchaseToolbar" class="purchase-toolbar" hidden><span>購入数</span><div role="group" aria-label="購入モード"><button data-buy-mode="1">×1</button><button data-buy-mode="10">×10</button><button data-buy-mode="NEXT">NEXT</button><button data-buy-mode="MAX">MAX</button></div><span class="trial-mark">数値は仮</span></div>
+    <div id="purchaseToolbar" class="purchase-toolbar" hidden><span>購入数</span><div role="group" aria-label="購入モード"><button data-buy-mode="1">×1</button><button data-buy-mode="10">×10</button><button data-buy-mode="NEXT">NEXT</button><button data-buy-mode="MAX">MAX</button></div><button id="purchaseFilterToggle" type="button" data-action="filter-affordable" aria-pressed="false">購入可能のみ</button><span class="trial-mark">数値は仮</span><div id="purchaseLiveSummary" class="purchase-live-summary" aria-live="off">購入状況を計算中</div></div>
     <div id="sheetBody" class="kw-sheet-body" tabindex="-1"></div>
   </aside>
   <nav id="stageNav" class="stage-nav" aria-label="ステージ切り替え" hidden></nav>
-  <dialog id="organizerDrawer" class="organizer-drawer"><div class="drawer-head"><div><small>WORLD ORGANIZER</small><h2>管理</h2></div><button class="icon-button" data-action="close-drawer" aria-label="管理メニューを閉じる">×</button></div><div id="organizerLinks"></div><div class="drawer-foot">VERSION 3.2.0<br>Ver.3.1のゲーム仕様＋星雲ネオン配色</div></dialog>
+  <dialog id="organizerDrawer" class="organizer-drawer"><div class="drawer-head"><div><small>WORLD ORGANIZER</small><h2>管理</h2></div><button class="icon-button" data-action="close-drawer" aria-label="管理メニューを閉じる">×</button></div><div id="organizerLinks"></div><div class="drawer-foot">VERSION 3.3.0<br>リアルタイム強化UI＋購入支援</div></dialog>
   <dialog id="confirmDialog" class="confirm-dialog"><h2 id="confirmTitle"></h2><p id="confirmText"></p><div class="dialog-actions"><button id="confirmNo">戻る</button><button id="confirmYes">実行する</button></div></dialog>
   <div id="birthOverlay" class="birth-overlay" aria-hidden="true"><span>存在 <b>1</b></span></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>

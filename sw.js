@@ -1,5 +1,5 @@
 /* Versioned, scope-specific cache. Does not delete saves or another app's cache. */
-const VERSION = "3.2.0-neon";
+const VERSION = "3.3.0-live";
 const PREFIX = "kotowari-handoff:" + new URL(self.registration.scope).pathname + ":";
 const CACHE = PREFIX + VERSION;
 const RELATIVE = [
@@ -7,6 +7,8 @@ const RELATIVE = [
   "organic-original.css",
   "mobile.css",
   "neon-theme.css",
+  "live-ui.css",
+  "purchase-insights.mjs",
   "content.mjs",
   "balance-config.mjs",
   "numbers.mjs",
@@ -37,8 +39,8 @@ const URLS = RELATIVE.map(path => new URL(path, self.registration.scope).href);
 // content and icons are helpful offline, but their absence must not prevent a
 // GitHub Pages update when an iPhone upload missed a subfolder.
 const CORE_FILES = [
-  "index.html", "organic-original.css", "mobile.css", "neon-theme.css",
-  "content.mjs", "balance-config.mjs", "numbers.mjs", "game.mjs",
+  "index.html", "organic-original.css", "mobile.css", "neon-theme.css", "live-ui.css",
+  "purchase-insights.mjs", "content.mjs", "balance-config.mjs", "numbers.mjs", "game.mjs",
   "save.mjs", "app.mjs", "manifest.webmanifest"
 ];
 const CORE_URLS = CORE_FILES.map(path => new URL(path, self.registration.scope).href);

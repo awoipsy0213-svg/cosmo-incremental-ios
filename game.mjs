@@ -33,7 +33,7 @@ export function createState(now=Date.now(),mode="normal") {
     engraving:{active:[],draft:null,observationUnlocked:false},
     boost:{seconds:0,active:false,upgrades:[0,0,0,0,0]},
     counters:{taps:0,orbsSpent:"0",sourcePurchases:0,conversions:0,onlineSeconds:0,offlineSeconds:0},
-    achievements:[],events:[],settings:{compact:true,reducedMotion:false,highContrast:false,
+    achievements:[],events:[],settings:{compact:true,showPurchaseHints:true,affordableOnly:false,holdToBuy:true,reducedMotion:false,highContrast:false,
       lowPower:false,confirmConvergence:true,showOffline:true,notation:"auto"},
     migration:null
   };

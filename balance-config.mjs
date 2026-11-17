@@ -2,7 +2,7 @@
 // null = 未決定。nullを汎用倍率で埋めない。
 // provisionalの値は遊べる基盤の動作確認用で、正式な採用値ではない。
 export const CONFIG = {
-  version: "3.1.0",
+  version: "3.3.0",
   schemaVersion: 31,
   confirmed: {
     sourceMaxLevel: 1000000,
@@ -27,7 +27,12 @@ export const CONFIG = {
       tap: {baseCost:10, growth:1.5, amount:1, maxLevel:1000000},
       amplify: {baseCost:200, growth:2, multiplier:1.5, maxLevel:1000000}
     },
-    source: {baseCost:100, tierScale:1.4, costGrowth:1.075, productionPerLevel:0.02},
+    // 3.3 PLAYTEST: source production was 0.02, causing ~5000s payback
+    // for the first 100-orb source. 0.4 is a *provisional* pacing trial.
+    // The first source now pays for itself in ~250s of idle time.
+    // This is not a confirmed Source effect or final progression curve.
+    source: {baseCost:100, tierScale:1.4, costGrowth:1.075, productionPerLevel:0.4},
+    ui: {refreshMs:150, holdStartMs:480, holdRepeatMs:180},
     convergence: {baseCost:1000, costGrowth:1.1, existencePerStep:0.001, spend:"all"},
     // firstSourceは時導入と自動生産の接続を確認するための仮ルール。
     timeUnlock: "firstSource",

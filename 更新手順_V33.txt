@@ -1,0 +1,12 @@
+《理》Ver.3.3 LIVE UI更新
+
+1. 現在のゲームの設定→保存からJSONバックアップを書き出し、保管してください。
+2. ブラウザ/PWA版のGitHub `awoipsy0213-svg/cosmo-incremental-ios` `main` 直下を更新します。
+3. `index.html`,`app.mjs`,`game.mjs`,`balance-config.mjs`,`sw.js`,`live-ui.css`,`purchase-insights.mjs`,`README.md` と今回の報告書などが更新・追加されます。
+4. `www`, `legacy`, `codemagic.yaml`, `capacitor.config.json` は削除しないでください。
+5. GitHub Pagesの公開成功後、Safariで同じURLを開き、 `3.3 · LIVE` を確認してください。
+6. ホーム画面PWAが旧版の場合、オンラインで開き、「保存して更新」の案内が出たら押してください。セーブを消す操作は不要です。
+
+リアルタイム購入: 強化ボタンが購入可能になると水色に光り、残量・目安時間が即時更新されます。
+購入の長押しは、指を離すと即座に止まります。自動マクロの解放ではありません。
+源の毎秒生産係数のみ試験用として0.02→0.4に変更しています。確定数値ではありません。

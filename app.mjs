@@ -3,6 +3,7 @@ import {CONTENT} from "./content.mjs";
 import {A,formatAmount} from "./numbers.mjs";
 import * as G from "./game.mjs";
 import {SaveStore,KEYS,decode,encode} from "./save.mjs";
+import {purchaseInsight,shortDuration,formatTaps} from "./purchase-insights.mjs";
 
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -22,6 +23,7 @@ let currentStage="existence",currentSub="moment",sheetState="closed";
 let lastFrame=Date.now(),hiddenAt=null,lastSavedAt=0,lastPanelRender=0,lastInteraction=0;
 let toastTimer,importDraft="",offlineReport=null,updateWorker=null,confirmedAction=null;
 let navDigest="",notice="",busyBirth=false;
+let holdPurchase=null,skipClickFor=null;
 const f=(n,p=2)=>formatAmount(n,p,state?.settings.notation);
 const duration=seconds=>{
   seconds=Math.max(0,Math.floor(seconds));
@@ -89,6 +91,7 @@ function applySettings(){
   document.body.classList.toggle("high-contrast",state.settings.highContrast);
   document.body.classList.toggle("low-power",state.settings.lowPower);
   document.body.classList.toggle("readonly-mode",readOnly);
+  document.body.classList.toggle("filter-affordable",state.settings.affordableOnly);
 }
 function setSheet(which){
   sheetState=which;$("sheet").dataset.state=which;$("sheet").hidden=which==="closed";
@@ -152,23 +155,29 @@ function renderWorld(){
     $("worldHint").textContent="《生命》の詳細システムは設計中です。";
   }
 }
+function quoteText(q){
+  if(q.count) return `+${q.count.toLocaleString("ja-JP")} · ${f(q.cost)}`;
+  // MAX used to say only "資源不足", hiding the next actual price.
+  if(q.reason==="資源不足"&&A(q.cost).cmp(0)>0) return `次の1Lv · ${f(q.cost)}`;
+  return esc(q.reason||"購入不可");
+}
 function cardQuote(kind,id){
-  const q=G.purchaseQuote(state,kind,id);
-  return `<button class="buy-button" data-purchase="${kind}" data-id="${id}" ${!q.enabled||readOnly?"disabled":""} aria-label="${esc((kind==="source"?CONTENT.sources.find(x=>x.id===id).name:CONTENT.moment.find(x=>x.id===id).name)+"を購入")}">${q.count?`+${q.count.toLocaleString("ja-JP")} · ${f(q.cost)}`:esc(q.reason)}${q.count?'<small>オーブ</small>':""}</button>`;
+  const q=G.purchaseQuote(state,kind,id),name=kind==="source"?CONTENT.sources.find(x=>x.id===id).name:CONTENT.moment.find(x=>x.id===id).name;
+  return `<button class="buy-button" data-purchase="${kind}" data-id="${id}" ${!q.enabled||readOnly?"disabled":""} aria-label="${esc(name+"を購入")}">${quoteText(q)}<small>オーブ</small></button><div class="live-buy-hint" data-live-hint aria-live="off"></div><div class="buy-progress" aria-hidden="true"><i style="width:0%"></i></div>`;
 }
 function momentHTML(){
   const q=G.convergenceQuote(state);
   return `<p class="panel-intro">通常資源のオーブと、収束で得る《存在》は別です。強化の価格・効果量は調整用の仮値です。</p>
-    <div class="row-grid">${CONTENT.moment.map(x=>`<article class="kw-card"><div class="card-top"><strong>${x.name}</strong><span class="badge">仮</span></div><small>Lv.${state.moment[x.id].toLocaleString("ja-JP")}</small><small>${x.id==="tap"?"タップ +1 / Lv.":"タップ倍率 ×1.5 / Lv."}</small>${cardQuote("moment",x.id)}</article>`).join("")}</div>
-    <h3>収束</h3><div class="kw-card"><strong>獲得予定 +${f(q.reward,3)} 存在</strong><p>必要量を越えても、オーブは貯め続けられます。自動では収束しません。</p><button class="wide-button" data-action="converge" ${!q.steps||readOnly?"disabled":""}>収束する · 次まで ${f(q.nextRemaining)} オーブ</button><p class="tiny">報酬単位 +0.001 は基準案。必要量・全消費の規則は仮実装です。</p></div>`;
+    <div class="row-grid">${CONTENT.moment.map(x=>`<article class="kw-card purchase-card" data-purchase-card><div class="card-top"><strong>${x.name}</strong><span class="badge">仮</span></div><small data-moment-level="${x.id}">Lv.${state.moment[x.id].toLocaleString("ja-JP")}</small><small>${x.id==="tap"?"タップ +1 / Lv.":"タップ倍率 ×1.5 / Lv."}</small>${cardQuote("moment",x.id)}</article>`).join("")}</div>
+    <h3>収束</h3><div class="kw-card"><strong data-convergence-reward>獲得予定 +${f(q.reward,3)} 存在</strong><p>必要量を越えても、オーブは貯め続けられます。自動では収束しません。</p><button class="wide-button" data-action="converge" ${!q.steps||readOnly?"disabled":""}>収束する · 次まで ${f(q.nextRemaining)} オーブ</button><p class="tiny">報酬単位 +0.001 は基準案。必要量・全消費の規則は仮実装です。</p></div>`;
 }
 function sourcesHTML(){
   const ms=CONFIG.confirmed.sourceMilestones;
   return `<p class="panel-intro">30種 · 最大Lv.1,000,000 · 21節目。名前は仮名、7能力の配置・未決定効果は「？？？」です。</p>
   <div class="row-grid">${CONTENT.sources.map((x,i)=>{
     const v=state.sources[x.id],done=ms.filter(m=>m<=v.level).length,next=ms.find(m=>m>v.level),prev=[0,...ms].filter(m=>m<=v.level).at(-1),ratio=next?(v.level-prev)/(next-prev):1;
-    return `<article class="kw-card source-card"><div class="card-top"><strong>${String(i+1).padStart(2,"0")} ${x.name}</strong></div>
-    <small>Lv.${v.level.toLocaleString("ja-JP")} / ＋${v.plus}</small><button class="more-button source-detail-button" data-source-detail="${x.id}" aria-label="${x.name}の詳細">⋯</button><div class="slim-progress"><i style="width:${Math.max(0,Math.min(100,ratio*100))}%"></i></div>
+    return `<article class="kw-card source-card purchase-card" data-purchase-card><div class="card-top"><strong>${String(i+1).padStart(2,"0")} ${x.name}</strong></div>
+    <small data-source-level="${x.id}">Lv.${v.level.toLocaleString("ja-JP")} / ＋${v.plus}</small><button class="more-button source-detail-button" data-source-detail="${x.id}" aria-label="${x.name}の詳細">⋯</button><div class="slim-progress"><i style="width:${Math.max(0,Math.min(100,ratio*100))}%"></i></div>
     <div class="source-meta"><span>節目 ${done}/21</span><span>次 ${next?next.toLocaleString("ja-JP"):"MAX"}</span></div>
     ${cardQuote("source",x.id)}
      ${v.level===1000000?`<button class="wide-button" data-breakthrough="${x.id}" ${mode!=="lab"?"disabled":""}>＋循環 ${mode==="lab"?"（仮の個別突破）":"要確認"}</button>`:""}</article>`;
@@ -263,11 +272,11 @@ function guideHTML(){
   <div class="kw-card"><strong>この版の範囲</strong><p>設定データに「確定」「暫定」「要確認」「未決定」を保持しています。価格・速度など動作確認用の値と、正式仕様は別です。</p><button class="wide-button" data-organizer="spec">反映済みと未決定を確認</button></div></div>`;
 }
 function settingsHTML(){
-  const labels=[["compact","コンパクト表示","2列で多くの項目を表示"],["reducedMotion","動きを減らす","発光・波紋・開閉演出を抑える"],["highContrast","読みやすい境界線","文字と境界のコントラストを調整"],["lowPower","省電力","背景アニメーションを停止"],["confirmConvergence","収束前に確認","仮のリセット範囲を確認する"],["showOffline","復帰時に報告","オフラインの進行とBOOSTを表示"]];
+  const labels=[["compact","コンパクト表示","2列で多くの項目を表示"],["showPurchaseHints","購入見込みを表示","足りない額・自動生成での目安・獲得量（仮）を表示"],["affordableOnly","購入可能なものだけ表示","一覧を絞り込むだけで自動購入はしません"],["holdToBuy","長押しで連続購入","押している間だけ通常購入を繰り返します"],["reducedMotion","動きを減らす","発光・波紋・開閉演出を抑える"],["highContrast","読みやすい境界線","文字と境界のコントラストを調整"],["lowPower","省電力","背景アニメーションを停止"],["confirmConvergence","収束前に確認","仮のリセット範囲を確認する"],["showOffline","復帰時に報告","オフラインの進行とBOOSTを表示"]];
   return `<p class="panel-intro">背景は既存のORGANIC FLOWを維持。安全な保存・表示設定は序章から利用できます。</p>
   ${labels.map(([id,name,desc])=>`<label class="kw-row"><span>${name}<small>${desc}</small></span><input type="checkbox" data-pref="${id}" ${state.settings[id]?"checked":""}></label>`).join("")}
   <label class="kw-row">数値表記<select class="input-select" data-pref="notation"><option value="auto" ${state.settings.notation==="auto"?"selected":""}>自動</option><option value="scientific" ${state.settings.notation==="scientific"?"selected":""}>指数</option></select></label>
-  <div class="kw-row"><span>バージョン<small>Ver.3.1仕様 / 星雲ネオン配色</small></span><strong>3.2.0</strong></div>
+  <div class="kw-row"><span>バージョン<small>Ver.3.1の確定仕様・暫定バランス調整 / 星雲ネオンUI</small></span><strong>3.3.0</strong></div>
   <div class="kw-row"><span>通信<small>クラウド・課金は未接続</small></span><strong>${navigator.onLine?"オンライン":"オフライン"}</strong></div>
   <button class="wide-button" data-organizer="backup">保存とバックアップ</button>
   <a class="link-button" href="./legacy/" data-legacy-link>保管した旧版Ver.3.0で続ける</a><br>
@@ -295,6 +304,7 @@ function specHTML(){
   <h3>要確認・未適用</h3>${CONTENT.pending.map(x=>`<details data-preserve="${x.id}"><summary>${x.name} <span class="badge pending" style="margin-left:auto">要確認</span></summary><p>${x.description}</p></details>`).join("")}
   <h3>惑星15ステータス</h3>${CONTENT.stats.map(x=>`<div class="kw-row"><span>${x.name}<small>${x.description}<br>未定：${x.pending}</small></span><span class="badge ${x.status==="確定"?"confirmed":"pending"}">${x.status}</span></div>`).join("")}
   <a class="link-button" href="./docs/implementation.html">今回の反映・保留一覧</a>
+  <h3>Ver.3.3での購入支援</h3><div class="kw-card"><strong>リアルタイム購入表示</strong><p>購入可能・不足額・所要時間を自動更新。購入可能のみ表示／長押し連続購入は操作補助であり、自動購入やマクロの解放ではありません。</p><small>源の仮の秒間生産係数を0.02から0.4へ調整。正式仕様ではありません。</small></div>
   <p class="tiny">源の名称・42資源名は暫定名を保持。概念の個別効果や未決定ステータスへ汎用倍率は付けていません。</p>`;
 }
 function labHTML(){
@@ -307,7 +317,10 @@ function labHTML(){
 function renderPanel(force=false){
   if(sheetState==="closed")return;
   const now=Date.now();
-  if(!force&&(now-lastPanelRender<1500||now-lastInteraction<700||$("sheetBody").contains(document.activeElement)&&document.activeElement.matches("input,textarea,select")))return;
+  // Currency/affordability is patched on the existing buttons every UI tick.
+  // Do not rebuild the purchase cards while earning resources or holding a finger.
+  if(!force&&(holdPurchase||currentStage==="existence"&&["moment","sources"].includes(currentSub)))return;
+  if(!force&&(now-lastPanelRender<1700||now-lastInteraction<700||$("sheetBody").contains(document.activeElement)&&document.activeElement.matches("input,textarea,select")))return;
   lastPanelRender=now;
   const stage=CONTENT.stages.find(x=>x.id===currentStage);
   const children=currentStage==="organizer"?organizerItems:stage.children;
@@ -323,12 +336,77 @@ function renderPanel(force=false){
     chronicle:()=>state.events.length?'<div class="kw-list">'+[...state.events].reverse().map(e=>`<div class="kw-row"><span>${esc(e.text)}<small>${new Date(e.at).toLocaleString("ja-JP")}</small></span></div>`).join("")+'</div>':'<div class="empty-state"><p>まだ出来事は記録されていません。</p></div>',
     collection:()=>conceptHTML()};
   body.innerHTML=(map[currentSub]||guideHTML)();
+  if(currentStage==="existence"&&["moment","sources"].includes(currentSub))body.insertAdjacentHTML("beforeend",'<p id="purchaseFilterEmpty" class="status-note" hidden>現在購入できる項目はありません。「購入可能のみ」を解除すると全項目を表示します。</p>');
   body.querySelectorAll("details[data-preserve]").forEach(x=>x.open=details.includes(x.dataset.preserve));
   body.scrollTop=force&&body.dataset.sub!==currentSub?0:top;body.dataset.sub=currentSub;
 }
+function refreshPurchaseButtons(){
+  if(!state||sheetState==="closed"||currentStage!=="existence"||!["moment","sources"].includes(currentSub))return;
+  const wallet=state.orbs,rate=G.production(state),tap=G.tapPower(state);
+  const buttons=[...$("sheetBody").querySelectorAll("button[data-purchase]")];
+  let ready=0,nearest=null;
+  for(const b of buttons){
+    const kind=b.dataset.purchase,id=b.dataset.id,q=G.purchaseQuote(state,kind,id);
+    const info=purchaseInsight(q,wallet,rate,tap),card=b.closest("[data-purchase-card]");
+    const enabled=q.enabled&&!readOnly&&!store.blocked;
+    b.disabled=!enabled;
+    b.classList.toggle("is-buyable",enabled);
+    if(card)card.classList.toggle("is-buyable",enabled);
+    const label=quoteText(q);
+    // No wholesale DOM rebuild, even as the wallet grows or MAX quantity changes.
+    if(b.dataset.quoteLabel!==label){
+      b.innerHTML=`${label}<small>オーブ</small>`;b.dataset.quoteLabel=label;
+    }
+    if(enabled)ready++;
+    const hint=card?.querySelector("[data-live-hint]");
+    if(hint){
+      let value="";
+      if(state.settings.showPurchaseHints&&info.hasTarget){
+        if(enabled)value="購入可能 · タップして強化";
+        else {
+          value=`不足 ${f(info.missing)}`;
+          if(info.seconds!==null&&Number.isFinite(info.seconds))value+=` · 自動で約${shortDuration(info.seconds)}`;
+          else if(info.taps!==null)value+=` · あと約${formatTaps(info.taps)}タップ`;
+        }
+        if(kind==="source"&&q.count>0){
+          const i=CONTENT.sources.findIndex(x=>x.id===id),plus=state.sources[id].plus;
+          const trialMult=mode==="lab"?Math.pow(2,plus):1;
+          const increment=q.count*CONFIG.provisional.source.productionPerLevel*(i+1)*trialMult;
+          if(Number.isFinite(increment)&&increment>0)value+=` · 生成 +${f(increment)}/秒（仮）`;
+        }
+      }
+      if(hint.textContent!==value)hint.textContent=value;
+      hint.hidden=!state.settings.showPurchaseHints||!value;
+      const bar=card.querySelector(".buy-progress>i");
+      if(bar)bar.style.width=`${info.progress.toFixed(1)}%`;
+    }
+    if(!enabled&&info.hasTarget){
+      // The shortest wait is a UI suggestion, not an automatic purchase queue.
+      const score=A(info.missing).div(rate.cmp(0)>0?rate:tap).toNumber();
+      if(Number.isFinite(score)&&(!nearest||score<nearest.score))nearest={id,kind,score,info};
+    }
+  }
+  const summary=`購入可能 ${ready} / ${buttons.length} · 所持 ${f(wallet)} オーブ${nearest?` · 次は ${(nearest.kind==="source"?CONTENT.sources:CONTENT.moment).find(x=>x.id===nearest.id)?.name||""}（${nearest.info.seconds!==null?shortDuration(nearest.info.seconds):"タップで獲得"}）`:""}`;
+  if($("purchaseLiveSummary").textContent!==summary)$("purchaseLiveSummary").textContent=summary;
+  if(currentSub==="moment"){
+    const q=G.convergenceQuote(state),b=$("sheetBody").querySelector('button[data-action="converge"]');
+    if(b){
+      b.disabled=!q.steps||readOnly||store.blocked;
+      const label=`収束する · 次まで ${f(q.nextRemaining)} オーブ`;
+      if(b.textContent!==label)b.textContent=label;
+    }
+    const reward=$("sheetBody").querySelector('[data-convergence-reward]');
+    if(reward){const label=`獲得予定 +${f(q.reward,3)} 存在`;if(reward.textContent!==label)reward.textContent=label;}
+  }
+  $("purchaseFilterToggle").textContent=state.settings.affordableOnly?"購入可能のみ ✓":"購入可能のみ";
+  $("purchaseFilterToggle").setAttribute("aria-pressed",String(state.settings.affordableOnly));
+  document.body.classList.toggle("filter-affordable",state.settings.affordableOnly);
+  const empty=$("purchaseFilterEmpty");
+  if(empty)empty.hidden=!state.settings.affordableOnly||ready>0;
+}
 function render(force=false){
   if(!state)return;
-  renderNav();renderWorld();renderPanel(force);
+  renderNav();renderWorld();renderPanel(force);refreshPurchaseButtons();
 }
 function wave(x,y,gain){
   if(state.settings.reducedMotion||state.settings.lowPower)return;
@@ -374,6 +452,53 @@ $("sheetHandle").addEventListener("pointerup",e=>{
 $("sheetHandle").addEventListener("pointercancel",()=>drag=null);
 document.addEventListener("pointerdown",()=>lastInteraction=Date.now(),{passive:true});
 $("sheetBody").addEventListener("scroll",()=>lastInteraction=Date.now(),{passive:true});
+// Manual press-and-hold: each purchase is individually quoted and deducted
+// through the normal G.buy transaction. No unattended or background macro.
+function stopHoldPurchase(evt=null){
+  const h=holdPurchase;
+  if(!h||evt&&evt.pointerId!==h.pointerId)return;
+  clearTimeout(h.timer);clearInterval(h.repeat);
+  h.button?.classList.remove("holding-purchase");
+  if(h.started){
+    skipClickFor={key:h.kind+":"+h.id,until:Date.now()+650};
+    if(h.bought)save();
+    render(true);
+  }
+  holdPurchase=null;
+}
+function buyWhileHeld(h){
+  if(h!==holdPurchase||readOnly||store.blocked||document.hidden||!state?.settings.holdToBuy)return;
+  checkpoint();
+  const result=G.buy(state,h.kind,h.id);
+  if(!result.ok)return;
+  h.bought++;
+  if(Date.now()-h.lastSave>950){save();h.lastSave=Date.now();}
+  const node=$("sheetBody").querySelector(h.kind==="source"?`[data-source-level="${h.id}"]`:`[data-moment-level="${h.id}"]`);
+  if(node){
+    const level=h.kind==="source"?state.sources[h.id].level:state.moment[h.id];
+    node.textContent=`Lv.${level.toLocaleString("ja-JP")}`+(h.kind==="source"?` / ＋${state.sources[h.id].plus}`:"");
+  }
+  renderNav();renderWorld();refreshPurchaseButtons();
+}
+document.addEventListener("pointerdown",e=>{
+  const b=e.target.closest?.('button[data-purchase]');
+  if(!b||b.disabled||!state?.settings.holdToBuy||readOnly||store.blocked||holdPurchase)return;
+  if(e.pointerType==="mouse"&&e.button!==0)return;
+  const h={button:b,kind:b.dataset.purchase,id:b.dataset.id,pointerId:e.pointerId,
+    x:e.clientX,y:e.clientY,started:false,bought:0,timer:null,repeat:null,lastSave:Date.now()};
+  holdPurchase=h;
+  h.timer=setTimeout(()=>{
+    if(holdPurchase!==h)return;
+    h.started=true;b.classList.add("holding-purchase");
+    buyWhileHeld(h);
+    h.repeat=setInterval(()=>buyWhileHeld(h),CONFIG.provisional.ui.holdRepeatMs);
+  },CONFIG.provisional.ui.holdStartMs);
+},{passive:true});
+window.addEventListener("pointermove",e=>{
+  const h=holdPurchase;
+  if(h&&h.pointerId===e.pointerId&&Math.hypot(e.clientX-h.x,e.clientY-h.y)>13)stopHoldPurchase(e);
+},{passive:true});
+for(const ev of ["pointerup","pointercancel"]){window.addEventListener(ev,e=>stopHoldPurchase(e));}
 function resultDone(res,successText=null){
   if(!res?.ok){toast(res?.reason||"この操作は実行できません");return false;}
   save();render(true);if(successText)toast(successText);return true;
@@ -384,6 +509,9 @@ function download(text,name,type="application/json"){
 }
 async function dispatchAction(action){
   if(action==="organizer"){openOrganizer();return;}
+  if(action==="filter-affordable"){
+    state.settings.affordableOnly=!state.settings.affordableOnly;save();refreshPurchaseButtons();return;
+  }
   if(action==="close-drawer"){$("organizerDrawer").close();return;}
   if(action==="expand"){setSheet(sheetState==="full"?"half":"full");return;}
   if(action==="collapse-sheet"){setSheet("closed");return;}
@@ -455,7 +583,10 @@ document.addEventListener("click",async e=>{
     if(store.blocked && b.dataset.restore===undefined){toast("元セーブを保護中です。「保存」から復元してください。");return;}
     checkpoint();
     if(b.dataset.buyMode){G.setPurchaseMode(state,b.dataset.buyMode);save();renderPanel(true);return;}
-    if(b.dataset.purchase){resultDone(G.buy(state,b.dataset.purchase,b.dataset.id));return;}
+    if(b.dataset.purchase){
+      if(skipClickFor&&skipClickFor.key===b.dataset.purchase+":"+b.dataset.id&&Date.now()<skipClickFor.until){skipClickFor=null;return;}
+      resultDone(G.buy(state,b.dataset.purchase,b.dataset.id));return;
+    }
     if(b.dataset.breakthrough){resultDone(G.breakthrough(state,b.dataset.breakthrough));return;}
     if(b.dataset.draft){resultDone(G.toggleDraft(state,b.dataset.draft));return;}
     if(b.dataset.form){resultDone(G.formConcept(state,b.dataset.form),"概念を認識しました");return;}
@@ -495,6 +626,7 @@ document.addEventListener("change",async e=>{
 });
 document.addEventListener("input",e=>{lastInteraction=Date.now();if(e.target.id==="importText")importDraft=e.target.value;});
 function hidePage(){
+  stopHoldPurchase();
   if(!state||readOnly)return;
   const now=Date.now();G.advance(state,now,{offline:false});hiddenAt=now;state.boost.active=false;
   save();
@@ -546,7 +678,7 @@ setInterval(()=>{
   if(!readOnly&&!store.blocked)checkpoint();
   render(false);
   if(Date.now()-lastSavedAt>CONFIG.provisional.saveIntervalMs&&!store.blocked)save();
-},250);
+},CONFIG.provisional.ui.refreshMs);
 setupPWA();
 if(dev){
   window.KOTOWARI_DEBUG={
