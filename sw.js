@@ -1,11 +1,12 @@
 /* Versioned, scope-specific cache. Does not delete saves or another app's cache. */
-const VERSION = "3.1.0-handoff";
+const VERSION = "3.2.0-neon";
 const PREFIX = "kotowari-handoff:" + new URL(self.registration.scope).pathname + ":";
 const CACHE = PREFIX + VERSION;
 const RELATIVE = [
   "index.html",
   "organic-original.css",
   "mobile.css",
+  "neon-theme.css",
   "content.mjs",
   "balance-config.mjs",
   "numbers.mjs",
@@ -14,8 +15,8 @@ const RELATIVE = [
   "app.mjs",
   "manifest.webmanifest",
   "privacy.html",
-  "icons/icon-192.png",
-  "icons/icon-512.png",
+  "neon-icon-192.png",
+  "neon-icon-512.png",
   "docs/implementation.html",
   "legacy/game-config.js",
   "legacy/game-engine.js",
@@ -32,8 +33,21 @@ const RELATIVE = [
   "legacy/style.css"
 ];
 const URLS = RELATIVE.map(path => new URL(path, self.registration.scope).href);
+// The core game must always be cached as one coherent version. Older archived
+// content and icons are helpful offline, but their absence must not prevent a
+// GitHub Pages update when an iPhone upload missed a subfolder.
+const CORE_FILES = [
+  "index.html", "organic-original.css", "mobile.css", "neon-theme.css",
+  "content.mjs", "balance-config.mjs", "numbers.mjs", "game.mjs",
+  "save.mjs", "app.mjs", "manifest.webmanifest"
+];
+const CORE_URLS = CORE_FILES.map(path => new URL(path, self.registration.scope).href);
+const OPTIONAL_URLS = URLS.filter(url => !CORE_URLS.includes(url));
 self.addEventListener("install", event => {
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(URLS)));
+  event.waitUntil(caches.open(CACHE).then(async cache => {
+    await cache.addAll(CORE_URLS);
+    await Promise.all(OPTIONAL_URLS.map(url => cache.addAll([url]).catch(() => {})));
+  }));
   // For updates, activation is explicitly approved after saving in the app.
 });
 self.addEventListener("message", event => {

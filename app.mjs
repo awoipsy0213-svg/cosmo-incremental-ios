@@ -267,7 +267,7 @@ function settingsHTML(){
   return `<p class="panel-intro">背景は既存のORGANIC FLOWを維持。安全な保存・表示設定は序章から利用できます。</p>
   ${labels.map(([id,name,desc])=>`<label class="kw-row"><span>${name}<small>${desc}</small></span><input type="checkbox" data-pref="${id}" ${state.settings[id]?"checked":""}></label>`).join("")}
   <label class="kw-row">数値表記<select class="input-select" data-pref="notation"><option value="auto" ${state.settings.notation==="auto"?"selected":""}>自動</option><option value="scientific" ${state.settings.notation==="scientific"?"selected":""}>指数</option></select></label>
-  <div class="kw-row"><span>バージョン<small>資料基準 / ブラウザ・PWA</small></span><strong>3.1.0</strong></div>
+  <div class="kw-row"><span>バージョン<small>Ver.3.1仕様 / 星雲ネオン配色</small></span><strong>3.2.0</strong></div>
   <div class="kw-row"><span>通信<small>クラウド・課金は未接続</small></span><strong>${navigator.onLine?"オンライン":"オフライン"}</strong></div>
   <button class="wide-button" data-organizer="backup">保存とバックアップ</button>
   <a class="link-button" href="./legacy/" data-legacy-link>保管した旧版Ver.3.0で続ける</a><br>
