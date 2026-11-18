@@ -2,7 +2,7 @@
 // null = 未決定。nullを汎用倍率で埋めない。
 // provisionalの値は遊べる基盤の動作確認用で、正式な採用値ではない。
 export const CONFIG = {
-  version: "3.6.0",
+  version: "3.7.0",
   schemaVersion: 31,
   confirmed: {
     sourceMaxLevel: 1000000,
@@ -24,9 +24,17 @@ export const CONFIG = {
     introFadeMs: 1100,
     tapBase: 1,
     moment: {
-      tap: {baseCost:10, growth:1.5, amount:1, maxLevel:1000000},
+      // Six independent upgrades in the Setsuna tab (five direct tap lines + legacy amplifier).
+      // +1, +3, +9, +27, +81 each time the respective tier is purchased.
+      tap: {baseCost:10, growth:1.42, amount:1, maxLevel:1000000},
+      tap2: {baseCost:75, growth:1.50, amount:3, maxLevel:1000000},
+      tap3: {baseCost:450, growth:1.58, amount:9, maxLevel:1000000},
+      tap4: {baseCost:2700, growth:1.66, amount:27, maxLevel:1000000},
+      tap5: {baseCost:16200, growth:1.74, amount:81, maxLevel:1000000},
       amplify: {baseCost:200, growth:2, multiplier:1.5, maxLevel:1000000}
     },
+    // NEXT targets trial landmarks; these are not final game design milestones.
+    momentMilestones: [10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000,250000,500000,1000000],
     // 3.6 PLAYTEST: per-level production increases across all 30 sources.
     // Production and base costs are independent arrays indexed SOURCE_01..SOURCE_30.
     // Each level adds a fixed /second amount; the nth next purchase costs
@@ -36,6 +44,9 @@ export const CONFIG = {
     // 1.35 is steep; higher milestones need future stage synergies (unresolved).
     source: {
       costGrowth: 1.35,
+      // Per-level output also grows exponentially; old v3.6 source base rates stay intact.
+      // Next Lv output = baseRate * 1.30^(current Level). Trial value, not a fixed design decision.
+      productionGrowth: 1.30,
       perSecondPerLevel: [
       "0.1", "0.5", "1", "5", "25", "100",
       "400", "1600", "6400", "25600", "102400", "409600",

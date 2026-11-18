@@ -72,13 +72,17 @@ export const str=v=>A(v).toString();
 export function formatAmount(value,precision=2,notation="auto") {
   const n=A(value);
   if(n.m===0)return "0";
-  if(n.e<0 && n.e>=-4)return n.toNumber().toLocaleString("ja-JP",{maximumFractionDigits:Math.max(3,precision)});
-  if(n.e>=0&&n.e<6)return n.toNumber().toLocaleString("ja-JP",{maximumFractionDigits:precision});
-  if(notation==="auto" && n.e>=6 && n.e<15){
-    const names={6:"M",9:"B",12:"T"}, e=Math.floor(n.e/3)*3;
-    return (n.m*10**(n.e-e)).toFixed(precision)+names[e];
+  // Standard decimal grouping through one million, including exactly 1,000,000.
+  if(n.e>=-4 && n.e<6 || (n.e===6 && n.toNumber()<=1000000)){
+    return n.toNumber().toLocaleString("ja-JP",{
+      maximumFractionDigits:n.e<0?Math.max(3,precision):precision
+    });
   }
-  return n.m.toFixed(precision)+"e"+n.e.toLocaleString("en-US",{useGrouping:false});
+  const mant=n.m.toFixed(precision);
+  const exponent=n.e.toLocaleString("en-US",{useGrouping:false});
+  if(notation==="zeros")return `${mant}×10^${exponent} (0が${exponent}個)`;
+  if(notation==="exponent")return `${mant}E${n.e>=0?"+":""}${exponent}`;
+  return `${mant}e${exponent}`; // auto and scientific avoid unfamiliar M/B/T suffixes
 }
 export function seriesCost(base,growth,start,count) {
   if(count<=0)return A(0);

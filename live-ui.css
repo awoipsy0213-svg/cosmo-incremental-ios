@@ -111,3 +111,53 @@ body.low-power .purchase-card,body.low-power .purchase-card .buy-progress>i{tran
 
 /* v3.6: Stable small per-source second-rate label, independent of the wallet. */
 .source-card .source-yield{display:block;box-sizing:border-box;min-width:0;height:15px;line-height:15px;margin:2px 0 0;color:#9dcdf5;font-size:9px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums;}
+
+/* v3.7 — Dense mobile Setsuna/Source cards. Keep all controls touch-accessible. */
+.kw-sheet-heading{height:46px;flex-basis:46px;min-height:46px;padding:2px 6px 0 10px;gap:5px}
+.kw-sheet-heading>div:first-child{min-width:0;flex:1 1 auto;overflow:hidden}
+.kw-sheet-heading h2{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px;letter-spacing:.2px}
+.kw-sheet-heading .sheet-overline{font-size:7px}
+.sheet-buttons{flex:0 0 auto;gap:3px;align-items:center}
+.sheet-buttons .icon-button{width:36px;min-width:36px;height:38px;min-height:38px;font-size:16px}
+.sheet-buttons .buy-mode-cycle{display:inline-flex;align-items:center;justify-content:center;height:37px;min-height:37px;width:53px;min-width:53px;padding:2px 3px;border:1px solid rgba(106,210,255,.56);border-radius:8px;color:#b1f0ff;background:rgba(28,51,119,.72);font:700 10.5px/1 -apple-system,BlinkMacSystemFont,sans-serif;white-space:nowrap;font-variant-numeric:tabular-nums}
+.sheet-buttons .buy-mode-cycle[hidden]{display:none}
+.purchase-toolbar.purchase-toolbar-compact{min-height:36px;height:36px;max-height:36px;display:flex;flex-wrap:nowrap;gap:5px;align-items:center;padding:2px 9px;overflow:hidden}
+.purchase-toolbar-compact[hidden]{display:none}
+.purchase-toolbar-compact button{flex:0 0 auto;min-width:0!important;min-height:29px!important;height:29px;padding:3px 8px!important;border:1px solid rgba(107,185,255,.53)!important;border-radius:7px;background:rgba(25,57,121,.62)!important;color:#d5f5ff!important;font-size:10px!important;white-space:nowrap}
+.purchase-toolbar-compact #bulkBuyButton{background:linear-gradient(110deg,rgba(18,99,155,.88),rgba(69,48,158,.83))!important;color:#fff!important;font-weight:700}
+.purchase-toolbar-compact .toolbar-spacer{flex:1 1 auto;min-width:0}
+.purchase-toolbar-compact .trial-mark{white-space:nowrap;font-size:8.5px;line-height:1.25}
+.purchase-toolbar-compact .purchase-live-summary{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;border:0!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important}
+.kw-sheet-body{padding:6px 6px 14px}
+.kw-sheet-body .compact-upgrades{gap:4px}
+.kw-sheet-body .purchase-card{padding:6px;min-height:142px;max-height:none;gap:2px;border-radius:9px}
+.kw-sheet-body .purchase-card .card-top{height:20px;min-height:20px;max-height:20px;flex:0 0 20px;margin:0;gap:3px}
+.kw-sheet-body .purchase-card .card-top strong{font-size:11px;font-weight:650;line-height:18px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap}
+.kw-sheet-body .purchase-card .card-top small{min-width:0;text-align:right;font-size:9px;line-height:18px;flex:0 0 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums}
+.kw-sheet-body .purchase-card .compact-upgrade-rate{display:block;flex:0 0 14px;height:14px;min-height:14px;max-height:14px;font-size:9.5px;line-height:14px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:#a1d3fb}
+.kw-sheet-body .purchase-card.source-card .card-top{padding-right:25px}
+.kw-sheet-body .purchase-card .source-detail-button{width:28px;height:27px;min-width:28px;min-height:27px;top:3px;right:2px;font-size:18px;line-height:1}
+.kw-sheet-body .purchase-card .source-meta{font-size:8.5px;line-height:13px;flex:0 0 13px;height:13px;min-height:13px;max-height:13px;margin:0}
+.kw-sheet-body .source-rates{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:center;gap:2px;flex:0 0 16px;height:16px;min-height:16px;color:#9dd8ff;font-size:8.5px;line-height:16px;font-variant-numeric:tabular-nums}
+.kw-sheet-body .source-rates span{min-width:0;max-width:100%;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kw-sheet-body .source-rates span:last-child{text-align:right;color:#e3c6ff}
+.kw-sheet-body .purchase-card .buy-button{margin-top:auto;height:41px;min-height:41px;max-height:41px;flex:0 0 41px;padding:2px 4px;font-size:11px;line-height:1.1}
+.kw-sheet-body .purchase-card .buy-button small{font-size:8px;line-height:10px;min-height:10px;height:10px;flex-basis:10px}
+.kw-sheet-body .purchase-card .live-buy-hint{display:block;flex:0 0 17px;height:17px;min-height:17px;max-height:17px;padding:0;line-height:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:8.5px;word-break:normal}
+.kw-sheet-body .purchase-card .live-buy-hint[hidden]{visibility:hidden;display:block!important}
+.kw-sheet-body .purchase-card .slim-progress,.kw-sheet-body .purchase-card .buy-progress{display:none!important}
+.kw-sheet-body .converge-compact{margin-top:7px;padding:8px}
+.kw-sheet-body .converge-compact .card-top{margin-bottom:2px}
+.kw-sheet-body .converge-compact .card-top small{margin:0;font-variant-numeric:tabular-nums}
+.kw-sheet-body .converge-compact>.wide-button{margin-top:4px;min-height:38px}
+.kw-sheet-body .converge-compact>small:last-child{font-size:9px;line-height:1.4;margin-top:3px}
+@media(max-width:350px){
+ .kw-sheet-heading{padding-left:7px;padding-right:4px}
+ .kw-sheet-heading h2{font-size:11px}
+ .sheet-buttons{gap:2px}
+ .sheet-buttons .buy-mode-cycle{width:48px;min-width:48px;font-size:10px}
+ .sheet-buttons .icon-button{width:33px;min-width:33px}
+ .kw-sheet-body .purchase-card{padding:5px;min-height:140px}
+ .kw-sheet-body .source-rates{font-size:8px}
+ .purchase-toolbar-compact .trial-mark{display:none}
+}

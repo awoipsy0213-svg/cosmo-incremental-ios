@@ -11,6 +11,8 @@ const SOURCE_IDS=CONTENT.sources.map(x=>x.id);
 const CONCEPT_IDS=CONTENT.concepts.map(x=>x.id);
 const RESOURCE_IDS=CONTENT.resources.map(x=>x.id);
 const modeSet=new Set(["1","10","NEXT","MAX"]);
+const MOMENT_IDS=CONTENT.moment.map(x=>x.id);
+const freshMoment=()=>Object.fromEntries(MOMENT_IDS.map(id=>[id,0]));
 const add=(a,b)=>A(a).add(b).toString();
 const sub=(a,b)=>A(a).sub(b).toString();
 const unknown="仕様が未決定のため、通常プレイではまだ適用しません。";
@@ -21,7 +23,7 @@ export function createState(now=Date.now(),mode="normal") {
     createdAt:now,lastWall:now,revision:0,
     intro:{touches:0,complete:false},
     orbs:"0",totalOrbs:"0",surplusExistence:"0",totalExistenceEarned:"0",
-    moment:{tap:0,amplify:0},
+    moment:freshMoment(),
     sources:Object.fromEntries(SOURCE_IDS.map(id=>[id,{level:0,plus:0,effects:[]}])),
     convergenceCount:0,purchaseMode:"1",
     time:{unlocked:false,revealedDirections:1,selected:[0],weights:[100,0,0,0,0,0],
@@ -36,7 +38,7 @@ export function createState(now=Date.now(),mode="normal") {
     engraving:{active:[],draft:null,observationUnlocked:false},
     boost:{seconds:0,active:false,upgrades:[0,0,0,0,0]},
     counters:{taps:0,orbsSpent:"0",sourcePurchases:0,conversions:0,onlineSeconds:0,offlineSeconds:0},
-    achievements:[],events:[],settings:{compact:true,showPurchaseHints:true,affordableOnly:false,holdToBuy:true,reducedMotion:false,highContrast:false,
+    achievements:[],events:[],settings:{compact:true,showPurchaseHints:true,affordableOnly:false,bulkOrder:"cheap",holdToBuy:true,reducedMotion:false,highContrast:false,
       lowPower:false,confirmConvergence:true,showOffline:true,notation:"auto"},
     migration:null
   };
@@ -65,24 +67,45 @@ function spendOrbs(s,amount) {
 }
 export function tapPower(s) {
   const cfg=CONFIG.provisional;
-  return A(cfg.tapBase+s.moment.tap*cfg.moment.tap.amount)
-    .mul(A(cfg.moment.amplify.multiplier).pow(s.moment.amplify));
+  let base=A(cfg.tapBase);
+  for(const id of MOMENT_IDS){
+    const c=cfg.moment[id];
+    if(c.amount)base=base.add(A(c.amount).mul(s.moment[id]||0));
+  }
+  return base.mul(A(cfg.moment.amplify.multiplier).pow(s.moment.amplify||0))
+    .mul(existenceMultiplier(s));
 }
-// One source's production per acquired level; no milestone/effect guesses.
+// Each convergence gives a persistent, additive +1% per 0.01 surplus existence.
+// First existence (the protected 1) is not counted: 0.02 surplus => x1.02; 1 => x2.
+export function existenceMultiplier(s) { return A(1).add(s.surplusExistence); }
+// Base output from the first level of this Source. Subsequent levels compound by productionGrowth.
 // Returns Amount to avoid precision/overflow problems for late source tiers.
 export function sourceProductionPerLevel(id) {
   const i=SOURCE_IDS.indexOf(id);
   if(i<0)throw Error("源IDが不正です");
   return A(CONFIG.provisional.source.perSecondPerLevel[i]);
 }
+/** Total of the exponentially growing per-level output across an individual Source. */
+export function sourceProduction(s,id) {
+  const v=s.sources[id];
+  if(!v)throw Error("源IDが不正です");
+  const plus=s.mode==="lab"?A(2).pow(v.plus):A(1);
+  const unit=sourceProductionPerLevel(id);
+  const growth=CONFIG.provisional.source.productionGrowth;
+  const total=seriesCost(unit,growth,0,v.level);
+  return total.mul(plus).mul(existenceMultiplier(s));
+}
+/** Extra output from buying this Source's next one level, including all current bonuses. */
+export function sourceNextGain(s,id) {
+  const v=s.sources[id];
+  if(!v)throw Error("源IDが不正です");
+  const plus=s.mode==="lab"?A(2).pow(v.plus):A(1);
+  return sourceProductionPerLevel(id)
+    .mul(A(CONFIG.provisional.source.productionGrowth).pow(v.level))
+    .mul(plus).mul(existenceMultiplier(s));
+}
 export function production(s) {
-  const cfg=CONFIG.provisional.source;
-  return CONTENT.sources.reduce((sum,x,i)=>{
-    const v=s.sources[x.id];
-    // +倍率は設計未決定。通常では値を保護するだけ、検証のみ仮倍率。
-    const plus=s.mode==="lab"?A(2).pow(v.plus):A(1);
-    return sum.add(A(v.level).mul(A(cfg.perSecondPerLevel[i])).mul(plus));
-  },A(0));
+  return SOURCE_IDS.reduce((sum,id)=>sum.add(sourceProduction(s,id)),A(0));
 }
 export function criticalMultiplier(percent,multiplier,rng=Math.random,allowSub100=false) {
   if(!Number.isFinite(percent)||percent<0||!Number.isFinite(multiplier)||multiplier<1)throw Error("Crit設定が不正");
@@ -95,7 +118,7 @@ export function tap(s) {
   if(!s.intro.complete) {
     s.intro.touches++;
     if(s.intro.touches>=CONFIG.provisional.introTouches) {
-      s.intro.complete=true;s.moment={tap:0,amplify:0};s.orbs="0";
+      s.intro.complete=true;s.moment=freshMoment();s.orbs="0";
       achievement(s,"foundation","最初の《存在》1が成立した。");
       return {ok:true,foundation:true,gain:"0"};
     }
@@ -116,7 +139,7 @@ function purchaseData(s,kind,id) {
   if(!c)throw Error("刹那IDが不正です");
   return {level:s.moment[id],max:c.maxLevel,base:A(c.baseCost),growth:c.growth,
     // 刹那の節目は未定。NEXTを10固定へ置換しない。
-    milestones:[]};
+    milestones:CONFIG.provisional.momentMilestones};
 }
 export function purchaseQuote(s,kind,id,mode=s.purchaseMode) {
   if(!modeSet.has(mode))throw Error("購入モードが不正です");
@@ -146,6 +169,34 @@ export function buy(s,kind,id) {
   } else s.moment[id]+=q.count;
   return {ok:true,...q};
 }
+/** Explicit, user-triggered bulk buy. Buys affordable individual levels in chosen price
+ * priority order, so the first cheapest line cannot absorb the entire wallet via MAX.
+ * Capped to protect slow phones; another tap resumes the rest. Does not automate play. */
+export function buyAll(s,kind,order="cheap") {
+  if(!["cheap","expensive"].includes(order))return {ok:false,reason:"購入順が不正"};
+  if(!["moment","source"].includes(kind)||!s.intro.complete)return {ok:false,reason:"購入対象がありません"};
+  const ids=kind==="source"?SOURCE_IDS:MOMENT_IDS;
+  const previousMode=s.purchaseMode;
+  const before=A(s.orbs);
+  let count=0,iterations=0;
+  try {
+    s.purchaseMode="1";
+    for(;iterations<3000;iterations++){
+      const offers=[];
+      for(const id of ids){
+        const quote=purchaseQuote(s,kind,id,"1");
+        if(quote.enabled)offers.push({id,cost:A(quote.cost)});
+      }
+      if(!offers.length)break;
+      offers.sort((a,b)=>order==="cheap"?a.cost.cmp(b.cost):b.cost.cmp(a.cost));
+      const result=buy(s,kind,offers[0].id);
+      if(!result.ok)break;
+      count++;
+    }
+  } finally {s.purchaseMode=previousMode;}
+  if(!count)return {ok:false,reason:"購入できる強化がありません"};
+  return {ok:true,count,spent:before.sub(s.orbs).toString(),limitReached:iterations>=3000};
+}
 export function breakthrough(s,id) {
   if(!s.sources[id])return {ok:false,reason:"源IDが不正です"};
   if(s.sources[id].level<CONFIG.confirmed.sourceMaxLevel)return {ok:false,reason:"Lv.1,000,000で限界突破"};
@@ -172,7 +223,7 @@ export function converge(s) {
   s.totalExistenceEarned=add(s.totalExistenceEarned,q.reward);
   const retain=s.mode==="lab"&&s.engraving.active.includes("retain");
   if(!retain){
-    s.moment={tap:0,amplify:0};
+    s.moment=freshMoment();
     Object.values(s.sources).forEach(x=>x.level=0);
   }
   // 仮設定の全消費。源の+と能力はデータ保護のため維持し、正式保持規則と断定しない。
@@ -567,7 +618,12 @@ export function validateState(input,expectedMode=null) {
   for(const k of ["orbs","totalOrbs","surplusExistence","totalExistenceEarned"])s[k]=str(s[k]);
   if(typeof s.intro?.complete!=="boolean"||!Number.isSafeInteger(s.intro.touches)||s.intro.touches<0)fail("導入");
   if(!Number.isSafeInteger(s.revision)||s.revision<0)fail("保存世代");
-  for(const k of ["tap","amplify"])if(!Number.isInteger(s.moment?.[k])||s.moment[k]<0||s.moment[k]>1000000)fail("刹那");
+  // Upgrade migration: old v3.1-3.6 saves only have tap/amplify.
+  if(!s.moment||typeof s.moment!=="object"||Array.isArray(s.moment))fail("刹那");
+  for(const id of MOMENT_IDS){
+    if(s.moment[id]===undefined)s.moment[id]=0;
+    if(!Number.isInteger(s.moment[id])||s.moment[id]<0||s.moment[id]>1000000)fail("刹那 "+id);
+  }
   for(const id of SOURCE_IDS){
     const x=s.sources?.[id];
     if(!x||!Number.isInteger(x.level)||x.level<0||x.level>1000000||!Number.isInteger(x.plus)||x.plus<0||x.plus>1000000)fail("源 "+id);
@@ -613,7 +669,8 @@ export function validateState(input,expectedMode=null) {
   if(!Array.isArray(s.achievements)||s.achievements.some(x=>typeof x!=="string"))fail("実績");
   const defaults=createState();
   s.settings={...defaults.settings,...Object.fromEntries(Object.entries(s.settings).filter(([k,v])=>k in defaults.settings&&typeof v===typeof defaults.settings[k]))};
-  if(!["auto","scientific"].includes(s.settings.notation))s.settings.notation="auto";
+  if(!["auto","scientific","exponent","zeros"].includes(s.settings.notation))s.settings.notation="auto";
+  if(!["cheap","expensive"].includes(s.settings.bulkOrder))s.settings.bulkOrder="cheap";
   s.boost.seconds=Math.min(s.boost.seconds,boostValues(s).capacity);
   normalizeWeights(s);
   return s;

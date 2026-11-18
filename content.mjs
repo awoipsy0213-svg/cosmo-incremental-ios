@@ -2166,18 +2166,12 @@ export const CONTENT = {
     }
   ],
   "moment": [
-    {
-      "id": "tap",
-      "name": "タップ効率",
-      "nameStatus": "仮表示名",
-      "description": "この周回の干渉を強める。価格・増分は試験用。"
-    },
-    {
-      "id": "amplify",
-      "name": "干渉増幅",
-      "nameStatus": "仮表示名",
-      "description": "タップ量を増幅。価格・倍率は試験用。"
-    }
+    {"id": "tap", "name": "強化Ⅰ", "nameStatus": "仮表示名", "description": "タップ+1 / Lv. 各項目は独立して購入・強化できる。"} ,
+    {"id": "tap2", "name": "強化Ⅱ", "nameStatus": "仮表示名", "description": "タップ+3 / Lv. 各項目は独立して購入・強化できる。"} ,
+    {"id": "tap3", "name": "強化Ⅲ", "nameStatus": "仮表示名", "description": "タップ+9 / Lv. 各項目は独立して購入・強化できる。"} ,
+    {"id": "tap4", "name": "強化Ⅳ", "nameStatus": "仮表示名", "description": "タップ+27 / Lv. 各項目は独立して購入・強化できる。"} ,
+    {"id": "tap5", "name": "強化Ⅴ", "nameStatus": "仮表示名", "description": "タップ+81 / Lv. 各項目は独立して購入・強化できる。"} ,
+    {"id": "amplify", "name": "干渉増幅", "nameStatus": "仮表示名", "description": "タップ倍率×1.5 / Lv. 各項目は独立して購入・強化できる。"}
   ],
   "engravings": [
     {

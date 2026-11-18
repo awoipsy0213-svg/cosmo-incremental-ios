@@ -93,7 +93,7 @@ function applySettings(){
   document.body.classList.toggle("high-contrast",state.settings.highContrast);
   document.body.classList.toggle("low-power",state.settings.lowPower);
   document.body.classList.toggle("readonly-mode",readOnly);
-  document.body.classList.toggle("filter-affordable",state.settings.affordableOnly);
+  // Legacy affordableOnly setting is ignored; all upgrades remain visible.
 }
 function setSheet(which){
   sheetState=which;$("sheet").dataset.state=which;$("sheet").hidden=which==="closed";
@@ -168,25 +168,27 @@ function quoteText(q){
 }
 function cardQuote(kind,id){
   const q=G.purchaseQuote(state,kind,id),name=kind==="source"?CONTENT.sources.find(x=>x.id===id).name:CONTENT.moment.find(x=>x.id===id).name;
-  return `<button class="buy-button" data-purchase="${kind}" data-id="${id}" ${!q.enabled||readOnly?"disabled":""} aria-label="${esc(name+"を購入")}"><span class="buy-amount" data-quote-label>${esc(quoteText(q))}</span><small>オーブ</small></button><div class="live-buy-hint" data-live-hint aria-live="off"></div><div class="buy-progress" aria-hidden="true"><i style="width:0%"></i></div>`;
+  return `<button class="buy-button" data-purchase="${kind}" data-id="${id}" ${!q.enabled||readOnly?"disabled":""} aria-label="${esc(name+"を購入")}" title="${esc(name+": "+quoteText(q)+" オーブ")}"><span class="buy-amount" data-quote-label>${esc(quoteText(q))}</span><small>オーブ</small></button><div class="live-buy-hint" data-live-hint aria-live="off"></div>`;
 }
 function momentHTML(){
   const q=G.convergenceQuote(state);
-  return `<p class="panel-intro">通常資源のオーブと、収束で得る《存在》は別です。強化の価格・効果量は調整用の仮値です。</p>
-    <div class="row-grid">${CONTENT.moment.map(x=>`<article class="kw-card purchase-card" data-purchase-card><div class="card-top"><strong>${x.name}</strong><span class="badge">仮</span></div><small data-moment-level="${x.id}">Lv.${state.moment[x.id].toLocaleString("ja-JP")}</small><small>${x.id==="tap"?"タップ +1 / Lv.":"タップ倍率 ×1.5 / Lv."}</small>${cardQuote("moment",x.id)}</article>`).join("")}</div>
-    <h3>収束</h3><div class="kw-card"><strong data-convergence-reward>獲得予定 +${f(q.reward,3)} 存在</strong><p>必要量を越えても、オーブは貯め続けられます。自動では収束しません。</p><button class="wide-button" data-action="converge" ${!q.steps||readOnly?"disabled":""}>収束する · 次まで ${f(q.nextRemaining)} オーブ</button><p class="tiny">報酬単位 +0.001 は基準案。必要量・全消費の規則は仮実装です。</p></div>`;
+  return `<div class="row-grid compact-upgrades">${CONTENT.moment.map(x=>{
+    const cfg=CONFIG.provisional.moment[x.id];
+    const stat=cfg.amount?`毎Lv +${f(cfg.amount)} / タップ`:`毎Lv ×${f(cfg.multiplier)} / タップ`;
+    return `<article class="kw-card purchase-card moment-card" data-purchase-card><div class="card-top"><strong>${esc(x.name)}</strong><small data-moment-level="${x.id}">Lv.${state.moment[x.id].toLocaleString("ja-JP")}</small></div><small class="compact-upgrade-rate">${stat}</small>${cardQuote("moment",x.id)}</article>`;
+  }).join("")}</div>
+    <div class="kw-card converge-compact"><div class="card-top"><strong>収束 · 永続補正</strong><small data-existence-rate>×${f(G.existenceMultiplier(state),3)}</small></div><small data-convergence-reward>獲得予定 +${f(q.reward,3)} 存在</small><button class="wide-button" data-action="converge" ${!q.steps||readOnly?"disabled":""}>収束する · 次まで ${f(q.nextRemaining)} オーブ</button><small>余剰存在0.02 → 獲得量×1.02 / 1 → ×2（試験値）</small></div>`;
 }
 function sourcesHTML(){
   const ms=CONFIG.confirmed.sourceMilestones;
-  return `<p class="panel-intro">30種 · 最大Lv.1,000,000 · 21節目。名前は仮名、7能力の配置・未決定効果は「？？？」です。</p>
-  <div class="row-grid">${CONTENT.sources.map((x,i)=>{
-    const v=state.sources[x.id],done=ms.filter(m=>m<=v.level).length,next=ms.find(m=>m>v.level),prev=[0,...ms].filter(m=>m<=v.level).at(-1),ratio=next?(v.level-prev)/(next-prev):1;
-    return `<article class="kw-card source-card purchase-card" data-purchase-card><div class="card-top"><strong>${String(i+1).padStart(2,"0")} ${x.name}</strong></div>
-    <small data-source-level="${x.id}">Lv.${v.level.toLocaleString("ja-JP")} / ＋${v.plus}</small><button class="more-button source-detail-button" data-source-detail="${x.id}" aria-label="${x.name}の詳細">⋯</button><div class="slim-progress"><i style="width:${Math.max(0,Math.min(100,ratio*100))}%"></i></div>
+  return `<div class="row-grid compact-upgrades">${CONTENT.sources.map((x,i)=>{
+    const v=state.sources[x.id],done=ms.filter(m=>m<=v.level).length,next=ms.find(m=>m>v.level);
+    return `<article class="kw-card source-card purchase-card" data-purchase-card><div class="card-top"><strong>${String(i+1).padStart(2,"0")} ${esc(x.name)}</strong><small data-source-level="${x.id}">Lv.${v.level.toLocaleString("ja-JP")}</small></div>
+    <button class="more-button source-detail-button" data-source-detail="${x.id}" aria-label="${esc(x.name)}の詳細">⋯</button>
     <div class="source-meta"><span>節目 ${done}/21</span><span>次 ${next?next.toLocaleString("ja-JP"):"MAX"}</span></div>
-    <small class="source-yield" title="1レベルあたりの秒間生産量。試験用の仮値です">毎Lv ＋${f(G.sourceProductionPerLevel(x.id))}/秒（仮）</small>
+    <div class="source-rates" title="1Lv増加量 / この源の合計秒間生産量"><span data-source-next="${x.id}">次+${f(G.sourceNextGain(state,x.id))}/秒</span><span data-source-total="${x.id}">計 ${f(G.sourceProduction(state,x.id))}/秒</span></div>
     ${cardQuote("source",x.id)}
-     ${v.level===1000000?`<button class="wide-button" data-breakthrough="${x.id}" ${mode!=="lab"?"disabled":""}>＋循環 ${mode==="lab"?"（仮の個別突破）":"要確認"}</button>`:""}</article>`;
+    ${v.level===1000000?`<button class="wide-button" data-breakthrough="${x.id}" ${mode!=="lab"?"disabled":""}>＋循環 ${mode==="lab"?"（仮の個別突破）":"要確認"}</button>`:""}</article>`;
   }).join("")}</div>`;
 }
 function engravingHTML(){
@@ -279,11 +281,11 @@ function guideHTML(){
   <div class="kw-card"><strong>この版の範囲</strong><p>設定データに「確定」「暫定」「要確認」「未決定」を保持しています。価格・速度など動作確認用の値と、正式仕様は別です。</p><button class="wide-button" data-organizer="spec">反映済みと未決定を確認</button></div></div>`;
 }
 function settingsHTML(){
-  const labels=[["compact","コンパクト表示","2列で多くの項目を表示"],["showPurchaseHints","購入見込みを表示","足りない額・自動生成での目安・獲得量（仮）を表示"],["affordableOnly","購入可能なものだけ表示","一覧を絞り込むだけで自動購入はしません"],["holdToBuy","長押しで連続購入","押している間だけ通常購入を繰り返します"],["reducedMotion","動きを減らす","発光・波紋・開閉演出を抑える"],["highContrast","読みやすい境界線","文字と境界のコントラストを調整"],["lowPower","省電力","背景アニメーションを停止"],["confirmConvergence","収束前に確認","仮のリセット範囲を確認する"],["showOffline","復帰時に報告","オフラインの進行とBOOSTを表示"]];
+  const labels=[["compact","コンパクト表示","2列で多くの項目を表示"],["showPurchaseHints","購入見込みを表示","足りない額・自動生成での目安・獲得量（仮）を表示"],["holdToBuy","長押しで連続購入","押している間だけ通常購入を繰り返します"],["reducedMotion","動きを減らす","発光・波紋・開閉演出を抑える"],["highContrast","読みやすい境界線","文字と境界のコントラストを調整"],["lowPower","省電力","背景アニメーションを停止"],["confirmConvergence","収束前に確認","仮のリセット範囲を確認する"],["showOffline","復帰時に報告","オフラインの進行とBOOSTを表示"]];
   return `<p class="panel-intro">背景は既存のORGANIC FLOWを維持。安全な保存・表示設定は序章から利用できます。</p>
   ${labels.map(([id,name,desc])=>`<label class="kw-row"><span>${name}<small>${desc}</small></span><input type="checkbox" data-pref="${id}" ${state.settings[id]?"checked":""}></label>`).join("")}
-  <label class="kw-row">数値表記<select class="input-select" data-pref="notation"><option value="auto" ${state.settings.notation==="auto"?"selected":""}>自動</option><option value="scientific" ${state.settings.notation==="scientific"?"selected":""}>指数</option></select></label>
-  <div class="kw-row"><span>バージョン<small>Ver.3.5の研究・実験用試案を追加 / 水色×紫UI維持</small></span><strong>3.5.0</strong></div>
+  <label class="kw-row">数値表記<select class="input-select" data-pref="notation"><option value="auto" ${state.settings.notation==="auto"?"selected":""}>標準（100万以降e）</option><option value="scientific" ${state.settings.notation==="scientific"?"selected":""}>指数 e（1.23e12）</option><option value="exponent" ${state.settings.notation==="exponent"?"selected":""}>指数 E（1.23E+12）</option><option value="zeros" ${state.settings.notation==="zeros"?"selected":""}>0の個数（10^12）</option></select></label>
+  <div class="kw-row"><span>バージョン<small>Ver.3.7 刹那強化項目・コンパクトUI / 水色×紫UI維持</small></span><strong>3.7.0</strong></div>
   <div class="kw-row"><span>通信<small>クラウド・課金は未接続</small></span><strong>${navigator.onLine?"オンライン":"オフライン"}</strong></div>
   <button class="wide-button" data-organizer="backup">保存とバックアップ</button>
   <a class="link-button" href="./legacy/" data-legacy-link>保管した旧版Ver.3.0で続ける</a><br>
@@ -355,7 +357,12 @@ function renderPanel(force=false){
   $("childTabs").innerHTML=children.map(id=>`<button data-child="${id}" class="${currentSub===id?"active":""}" aria-pressed="${currentSub===id}">${childNames[id]}</button>`).join("");
   $("sheetHeading").textContent=(currentStage==="organizer"?"ORGANIZER":stage.name)+" / "+childNames[currentSub];
   $("purchaseToolbar").hidden=currentStage!=="existence"||!["moment","sources"].includes(currentSub);
-  document.querySelectorAll("[data-buy-mode]").forEach(b=>b.classList.toggle("active",b.dataset.buyMode===state.purchaseMode));
+  const cycle=$("purchaseCycle");
+  const buyTabs=currentStage==="existence"&&["moment","sources"].includes(currentSub);
+  cycle.hidden=!buyTabs;
+  cycle.textContent=({"1":"×1","10":"×10","NEXT":"NEXT","MAX":"MAX"})[state.purchaseMode];
+  cycle.setAttribute("aria-label",`購入数 ${cycle.textContent}。タップで切替`);
+  const order=$("bulkOrderButton");order.textContent=state.settings.bulkOrder==="expensive"?"高い順 ▾":"安い順 ▾";
   const body=$("sheetBody"),top=body.scrollTop,details=[...body.querySelectorAll("details[open][data-preserve]")].map(x=>x.dataset.preserve);
   const map={moment:momentHTML,sources:sourcesHTML,engraving:engravingHTML,flow:flowHTML,concepts:conceptHTML,
     planets:planetHTML,resources:resourcesHTML,observations:observationsHTML,
@@ -364,7 +371,7 @@ function renderPanel(force=false){
     chronicle:()=>state.events.length?'<div class="kw-list">'+[...state.events].reverse().map(e=>`<div class="kw-row"><span>${esc(e.text)}<small>${new Date(e.at).toLocaleString("ja-JP")}</small></span></div>`).join("")+'</div>':'<div class="empty-state"><p>まだ出来事は記録されていません。</p></div>',
     collection:()=>conceptHTML()};
   body.innerHTML=(map[currentSub]||guideHTML)();
-  if(currentStage==="existence"&&["moment","sources"].includes(currentSub))body.insertAdjacentHTML("beforeend",'<p id="purchaseFilterEmpty" class="status-note" hidden>現在購入できる項目はありません。「購入可能のみ」を解除すると全項目を表示します。</p>');
+
   body.querySelectorAll("details[data-preserve]").forEach(x=>x.open=details.includes(x.dataset.preserve));
   body.scrollTop=force&&body.dataset.sub!==currentSub?0:top;body.dataset.sub=currentSub;
 }
@@ -399,14 +406,24 @@ function refreshPurchaseButtons(){
         if(kind==="source"&&q.count>0){
           const plus=state.sources[id].plus;
           const trialMult=mode==="lab"?A(2).pow(plus):A(1);
-          const increment=G.sourceProductionPerLevel(id).mul(q.count).mul(trialMult);
+          const increment=G.sourceProductionPerLevel(id)
+            .mul(A(CONFIG.provisional.source.productionGrowth).pow(state.sources[id].level))
+            .mul(A(CONFIG.provisional.source.productionGrowth).pow(q.count).sub(1))
+            .div(CONFIG.provisional.source.productionGrowth-1)
+            .mul(trialMult).mul(G.existenceMultiplier(state));
           if(increment.cmp(0)>0)value+=` · 生成 +${f(increment)}/秒（仮）`;
         }
       }
       if(hint.textContent!==value)hint.textContent=value;
       hint.hidden=!state.settings.showPurchaseHints||!value;
-      const bar=card.querySelector(".buy-progress>i");
-      if(bar)bar.style.width=`${info.progress.toFixed(1)}%`;
+    }
+    if(kind==="source"){
+      const total=card?.querySelector(`[data-source-total="${id}"]`);
+      const sum=`計 ${f(G.sourceProduction(state,id))}/秒`;
+      if(total&&total.textContent!==sum)total.textContent=sum;
+      const next=card?.querySelector(`[data-source-next="${id}"]`);
+      const nextText=`次+${f(G.sourceNextGain(state,id))}/秒`;
+      if(next&&next.textContent!==nextText)next.textContent=nextText;
     }
     if(!enabled&&info.hasTarget){
       // The shortest wait is a UI suggestion, not an automatic purchase queue.
@@ -428,12 +445,10 @@ function refreshPurchaseButtons(){
     }
     const reward=$("sheetBody").querySelector('[data-convergence-reward]');
     if(reward){const label=`獲得予定 +${f(q.reward,3)} 存在`;if(reward.textContent!==label)reward.textContent=label;}
+    const bonus=$("sheetBody").querySelector("[data-existence-rate]");
+    if(bonus)bonus.textContent=`×${f(G.existenceMultiplier(state),3)}`;
   }
-  $("purchaseFilterToggle").textContent=state.settings.affordableOnly?"購入可能のみ ✓":"購入可能のみ";
-  $("purchaseFilterToggle").setAttribute("aria-pressed",String(state.settings.affordableOnly));
-  document.body.classList.toggle("filter-affordable",state.settings.affordableOnly);
-  const empty=$("purchaseFilterEmpty");
-  if(empty)empty.hidden=!state.settings.affordableOnly||ready>0;
+
 }
 function refreshBoostShortcut(){
   if(!state||!state.intro.complete)return;
@@ -579,8 +594,27 @@ function download(text,name,type="application/json"){
 }
 async function dispatchAction(action){
   if(action==="organizer"){openOrganizer();return;}
-  if(action==="filter-affordable"){
-    state.settings.affordableOnly=!state.settings.affordableOnly;save();refreshPurchaseButtons();return;
+  if(action==="cycle-buy-mode"){
+    if(readOnly)return toast("読み取り専用のため切り替えできません");
+    const modes=["1","10","NEXT","MAX"];
+    G.setPurchaseMode(state,modes[(modes.indexOf(state.purchaseMode)+1)%modes.length]);
+    save();renderPanel(true);return;
+  }
+  if(action==="toggle-bulk-order"){
+    if(readOnly)return toast("読み取り専用のため変更できません");
+    state.settings.bulkOrder=state.settings.bulkOrder==="cheap"?"expensive":"cheap";
+    save();renderPanel(true);return;
+  }
+  if(action==="buy-all"){
+    if(readOnly||store.blocked)return toast("この画面では購入できません");
+    const kind=currentStage==="existence"?(currentSub==="moment"?"moment":currentSub==="sources"?"source":null):null;
+    if(!kind)return toast("《刹那》か《源》の画面で操作してください");
+    checkpoint();
+    const result=G.buyAll(state,kind,state.settings.bulkOrder);
+    if(!result.ok)return toast(result.reason);
+    save();render(true);
+    toast(`${result.count}Lv 一括購入しました${result.limitReached?"。追加分はもう一度押してください":""}`);
+    return;
   }
   if(action==="close-drawer"){$("organizerDrawer").close();return;}
   if(action==="expand"){setSheet(sheetState==="full"?"half":"full");return;}
@@ -605,7 +639,8 @@ async function dispatchAction(action){
   if(action==="converge"){
     const q=G.convergenceQuote(state);
     if(!q.steps){toast("必要なオーブを集めてください");return;}
-    const text=`存在 +${f(q.reward,3)} を獲得します。\nオーブと刹那・源の周回内Lvをリセットします。\n最初の存在1・時・概念は残ります。\n報酬式と源＋の収束時保持は調整・確認中です。`;
+    const newRate=A(G.existenceMultiplier(state)).add(q.reward);
+    const text=`存在 +${f(q.reward,3)} を獲得します。\n以後のタップ・源生産は ×${f(newRate,3)}（暫定）になります。\nオーブと刹那・源の周回内Lvをリセットします。\n最初の存在1・時・概念は残ります。`;
     if(state.settings.confirmConvergence&&!await ask("収束する",text,"収束する"))return;
     if(resultDone(G.converge(state))){
       busyBirth=true;document.body.classList.add("is-converging");
