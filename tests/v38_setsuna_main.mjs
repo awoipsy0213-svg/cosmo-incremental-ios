@@ -3,7 +3,7 @@ import {A} from "../numbers.mjs";
 import {CONTENT} from "../content.mjs";
 import {CONFIG} from "../balance-config.mjs";
 import * as G from "../game.mjs";
-import {encode,decode,KEYS,SaveStore} from "../save.mjs";
+import {encode,decode,KEYS,SaveStore,checksum} from "../save.mjs";
 const start=1795000000000;
 let checks=0;
 function ok(v,m){assert.ok(v,m);checks++;}
@@ -51,7 +51,8 @@ const huge=fresh();huge.purchaseMode="MAX";huge.orbs="1e10000";
 for(const id of ids)ok(G.purchaseQuote(huge,"moment",id).count>=0,"huge MAX "+id);
 const storage=new Map(),mem={getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)};
 const legacy=fresh();delete legacy.momentRuntime;
-const normal=new SaveStore(mem,"normal","test");mem.setItem(KEYS.normal,encode(legacy,"old-writer"));
+const body=JSON.stringify(legacy);const raw=JSON.stringify({kind:"kotowari-save",version:31,checksum:checksum(body),writer:"old-writer",data:legacy});
+const normal=new SaveStore(mem,"normal","test");mem.setItem(KEYS.normal,raw);
 const loaded=normal.load(start);
 ok(!!loaded.state.momentRuntime,"runtime migrated");
 ok(!!mem.getItem(KEYS.normal+".before-setsuna38"),"original backup before migration");
