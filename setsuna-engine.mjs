@@ -86,7 +86,7 @@ export function level(s,i){
  const boosted=targets.some(x=>x.j===i)?raw*(1+.01*Math.sqrt(amp)):raw;
  return boosted*milestone(i,s.earned[i]).toNumber();
 }
-export function baseSource(s){return A(s.sourceLevel).mul(2)};
+export function baseSource(s){return s.sourceBase!==undefined?A(s.sourceBase):A(s.sourceLevel).mul(2)};
 export function sourceMultiplier(s,now=Date.now()){
  const haste=level(s,7)>0&&now<s.comboUntil?Math.min(1,.02*Math.floor(s.combo/10)):0;
  const supply=level(s,21)>0&&now<s.sourceBuffUntil?Math.min(.5,.01*Math.sqrt(level(s,21))):0;
