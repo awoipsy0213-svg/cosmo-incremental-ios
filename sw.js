@@ -1,5 +1,5 @@
 /* Versioned, scope-specific cache. Does not delete saves or another app's cache. */
-const VERSION = "3.4.0-stable-boost";
+const VERSION = "3.5.0-research-proposals";
 const PREFIX = "kotowari-handoff:" + new URL(self.registration.scope).pathname + ":";
 const CACHE = PREFIX + VERSION;
 const RELATIVE = [
@@ -9,6 +9,8 @@ const RELATIVE = [
   "neon-theme.css",
   "live-ui.css",
   "purchase-insights.mjs",
+  "design-proposals.mjs",
+  "RESEARCH_V35.md",
   "content.mjs",
   "balance-config.mjs",
   "numbers.mjs",
@@ -40,7 +42,9 @@ const URLS = RELATIVE.map(path => new URL(path, self.registration.scope).href);
 // GitHub Pages update when an iPhone upload missed a subfolder.
 const CORE_FILES = [
   "index.html", "organic-original.css", "mobile.css", "neon-theme.css", "live-ui.css",
-  "purchase-insights.mjs", "content.mjs", "balance-config.mjs", "numbers.mjs", "game.mjs",
+  "purchase-insights.mjs",
+  "design-proposals.mjs",
+  "RESEARCH_V35.md", "content.mjs", "balance-config.mjs", "numbers.mjs", "game.mjs",
   "save.mjs", "app.mjs", "manifest.webmanifest"
 ];
 const CORE_URLS = CORE_FILES.map(path => new URL(path, self.registration.scope).href);

@@ -1,5 +1,6 @@
 import {CONFIG} from "./balance-config.mjs";
 import {CONTENT} from "./content.mjs";
+import {PROPOSED,PLANET_EFFECT_PROPOSALS,resourcePrototype,trialPreview,boostTrialCost,proposedSourceSlots,FIRST_CONCEPT_PROPOSALS} from "./design-proposals.mjs";
 import {A,formatAmount} from "./numbers.mjs";
 import * as G from "./game.mjs";
 import {SaveStore,KEYS,decode,encode} from "./save.mjs";
@@ -13,8 +14,8 @@ const dev=params.get("dev")==="1"||mode==="lab";
 const childNames={moment:"刹那",sources:"源",engraving:"刻印",flow:"流れ",concepts:"概念",
   planets:"惑星",resources:"資源",observations:"観測",life:"生命",
   boost:"BOOST",achievements:"実績",chronicle:"記録",statistics:"統計",collection:"コレクション",
-  guide:"遊び方",settings:"設定",backup:"保存",spec:"設計状況",lab:"開発テスト"};
-const organizerItems=["boost","achievements","chronicle","statistics","collection","guide","settings","backup","spec",...(dev?["lab"]:[])];
+  guide:"遊び方",settings:"設定",backup:"保存",spec:"設計状況",proposals:"研究・試案",lab:"開発テスト"};
+const organizerItems=["boost","achievements","chronicle","statistics","collection","guide","settings","backup","spec","proposals",...(dev?["lab"]:[])];
 let memory={};let storage;
 try{storage=window.localStorage;}catch(e){storage={getItem:k=>memory[k]||null,setItem:(k,v)=>memory[k]=String(v),removeItem:k=>delete memory[k]};}
 const store=new SaveStore(storage,mode,globalThis.crypto?.randomUUID?.()||"tab-"+Date.now());
@@ -240,8 +241,8 @@ function resourcesHTML(){
   return `<p class="panel-intro">全資源が質量の成長に寄与します。個別効果は？？？。他の資源への合成・変換はありません。</p>
     <div class="status-note">受取方式：${mode==="lab"?(u.receiptMode?`${u.receiptMode}（検証設定）`:"未選択"):"要確認"}。A＝崩壊時受領、B＝時間受領＋崩壊報酬。通常版の自動受領は未適用です。</div>
     ${mode==="lab"?`<label class="kw-row">検証方式<select class="input-select" id="receiptSelect"><option value="" ${!u.receiptMode?"selected":""}>選択しない</option value="A" ${u.receiptMode==="A"?"selected":""}>A：崩壊で受領</option><option value="B" ${u.receiptMode==="B"?"selected":""}>B：時間＋崩壊</option></select></label>`:""}
-    <p class="tiny muted">投入は1個あたり質量+1の仮値。全42種の名前は資料の暫定名です。未発見優遇はありません。</p>
-    ${visible.length?`<div class="row-grid">${visible.map(r=>`<div class="kw-card"><div class="card-top"><strong>${r.name}</strong><span class="badge">R${r.rank} / 仮名</span></div><small>所持 ${f(u.resources[r.id]||0)}</small><small>質量+1（仮） / 個性 ？？？</small><button class="wide-button" data-invest="${r.id}" ${!G.planet(state)||A(u.resources[r.id]||0).cmp(1)<0?"disabled":""}>1個を投入</button></div>`).join("")}</div>`:'<div class="empty-state"><p>まだ資源を所持していません。</p></div>'}`;
+    <p class="tiny muted">投入は1個あたり質量+1の仮値。全42種の名前は資料の暫定名です。未発見優遇はありません。${G.trialEnabled(state)?"検証セーブでのみ追加個性が有効です。":""}</p>
+    ${visible.length?`<div class="row-grid">${visible.map(r=>`<div class="kw-card"><div class="card-top"><strong>${r.name}</strong><span class="badge">R${r.rank} / 仮名</span></div><small>所持 ${f(u.resources[r.id]||0)}</small><small>質量+1（仮） / ${G.trialEnabled(state)?esc(resourcePrototype(r)?.description):"個性 ？？？"}</small><button class="wide-button" data-invest="${r.id}" ${!G.planet(state)||A(u.resources[r.id]||0).cmp(1)<0?"disabled":""}>1個を投入</button></div>`).join("")}</div>`:'<div class="empty-state"><p>まだ資源を所持していません。</p></div>'}`;
 }
 function observationsHTML(){
   return `<p class="panel-intro">名前や意味は現象の観測後に判明します。具体的な認識条件はまだ未決定です。</p><div class="kw-list"><div class="kw-card"><strong>観測 → 理解 → 干渉</strong><p>惑星同士の衝突、成長方向への干渉、崩壊誘発、安定性への干渉は方向性として保管しています。</p><small>解放条件・費用・効果式：？？？</small></div><div class="kw-card"><strong>コア → 脈動 → 生命</strong><p>R6のアステリム（仮名）と惑星コアは別のものです。</p><small>コアの形態・形成条件・生命への移行条件：？？？</small></div></div>`;
@@ -259,7 +260,7 @@ function boostHTML(){
       const current=[`${Math.round(v.efficiency*100)}%`,duration(v.offlineCap),`${duration(v.onlineRate*3600)}/時`,`${(v.offlineRate/v.onlineRate).toFixed(2)}倍`,duration(v.capacity)][i];
       const trial=JSON.parse(JSON.stringify(state));trial.mode="lab";trial.boost.upgrades[i]++;
       const next=G.boostValues(trial),nexts=[`${Math.round(next.efficiency*100)}%`,duration(next.offlineCap),`${duration(next.onlineRate*3600)}/時`,`${(next.offlineRate/next.onlineRate).toFixed(2)}倍`,duration(next.capacity)];
-      return `<div class="kw-card"><strong>${x}</strong><small>現在 ${current} → 強化後 ${mode==="lab"?nexts[i]:"？？？"}</small><button class="wide-button" data-boost-upgrade="${i}" ${mode!=="lab"?"disabled":""}>${mode==="lab"?duration(CONFIG.lab.boostUpgradeBaseCost*(s.upgrades[i]+1))+"で1段階（検証）":"費用 ？？？ / 未適用"}</button></div>`;
+      return `<div class="kw-card"><strong>${x}</strong><small>現在 ${current} → 強化後 ${mode==="lab"?nexts[i]:"？？？"}</small><button class="wide-button" data-boost-upgrade="${i}" ${mode!=="lab"?"disabled":""}>${mode==="lab"?duration(boostTrialCost(s.upgrades[i]))+"で1段階（新しい暫定案）":"費用 ？？？ / 未適用"}</button></div>`;
     }).join("")}</div><p class="status-note">本編のオフライン上限30分と、BOOST獲得時間は別。8時間離れても、BOOSTは容量60分まで貯まり、超過分だけ破棄されます。</p>`;
 }
 function achievementHTML(){
@@ -273,6 +274,7 @@ function guideHTML(){
   return `<div class="kw-list"><div class="kw-card"><strong>世界を生み、変化を観測する</strong><p>《無》は序章です。光に干渉すると最初の存在が成立します。存在1は失われません。</p></div>
   ${state.intro.complete?'<div class="kw-card"><strong>刹那・源・刻印</strong><p>タップと源は通常資源のオーブを生みます。任意のタイミングで収束して、余剰の存在を得ます。刻印は余剰分だけを使う設計です。</p></div>':""}
   ${state.time.unlocked?'<div class="kw-card"><strong>流れと概念</strong><p>時は自律成長を見守る場所です。同じ残滓10個で最初の概念を認識。未決定効果はまだ働きません。</p></div>':""}
+  <div class="kw-card"><strong>調査した未確定の効果</strong><p>惑星7ステータス・42資源・源7枠・BOOST5強化を暫定値として整理。検証用の別セーブで比較できます。</p><button class="wide-button" data-organizer="proposals">数値と効果の試案を見る</button></div>
   <div class="kw-card"><strong>この版の範囲</strong><p>設定データに「確定」「暫定」「要確認」「未決定」を保持しています。価格・速度など動作確認用の値と、正式仕様は別です。</p><button class="wide-button" data-organizer="spec">反映済みと未決定を確認</button></div></div>`;
 }
 function settingsHTML(){
@@ -280,7 +282,7 @@ function settingsHTML(){
   return `<p class="panel-intro">背景は既存のORGANIC FLOWを維持。安全な保存・表示設定は序章から利用できます。</p>
   ${labels.map(([id,name,desc])=>`<label class="kw-row"><span>${name}<small>${desc}</small></span><input type="checkbox" data-pref="${id}" ${state.settings[id]?"checked":""}></label>`).join("")}
   <label class="kw-row">数値表記<select class="input-select" data-pref="notation"><option value="auto" ${state.settings.notation==="auto"?"selected":""}>自動</option><option value="scientific" ${state.settings.notation==="scientific"?"selected":""}>指数</option></select></label>
-  <div class="kw-row"><span>バージョン<small>Ver.3.1の確定仕様・暫定バランス調整 / 星雲ネオンUI</small></span><strong>3.4.0</strong></div>
+  <div class="kw-row"><span>バージョン<small>Ver.3.5の研究・実験用試案を追加 / 水色×紫UI維持</small></span><strong>3.5.0</strong></div>
   <div class="kw-row"><span>通信<small>クラウド・課金は未接続</small></span><strong>${navigator.onLine?"オンライン":"オフライン"}</strong></div>
   <button class="wide-button" data-organizer="backup">保存とバックアップ</button>
   <a class="link-button" href="./legacy/" data-legacy-link>保管した旧版Ver.3.0で続ける</a><br>
@@ -307,14 +309,35 @@ function specHTML(){
   <div class="kw-card"><strong>今回、実装した核</strong><p>序章・最初の存在1 / オーブ分離 / 任意収束 / 親子タブ / 30源と21節目 / NEXTとMAX / 残滓の個別保管・10個形成 / 共通？？？の全77抽選 / BOOST独立蓄積 / 保存保護。</p></div>
   <h3>要確認・未適用</h3>${CONTENT.pending.map(x=>`<details data-preserve="${x.id}"><summary>${x.name} <span class="badge pending" style="margin-left:auto">要確認</span></summary><p>${x.description}</p></details>`).join("")}
   <h3>惑星15ステータス</h3>${CONTENT.stats.map(x=>`<div class="kw-row"><span>${x.name}<small>${x.description}<br>未定：${x.pending}</small></span><span class="badge ${x.status==="確定"?"confirmed":"pending"}">${x.status}</span></div>`).join("")}
-  <a class="link-button" href="./docs/implementation.html">今回の反映・保留一覧</a>
+  <a class="link-button" href="./docs/implementation.html">今回の反映・保留一覧</a><button class="wide-button" data-organizer="proposals">Ver.3.5の数値・効果試案を見る</button>
   <h3>Ver.3.3での購入支援</h3><div class="kw-card"><strong>リアルタイム購入表示</strong><p>購入可能・不足額・所要時間を自動更新。購入可能のみ表示／長押し連続購入は操作補助であり、自動購入やマクロの解放ではありません。</p><small>源の仮の秒間生産係数を0.02から0.4へ調整。正式仕様ではありません。</small></div>
   <p class="tiny">源の名称・42資源名は暫定名を保持。概念の個別効果や未決定ステータスへ汎用倍率は付けていません。</p>`;
+}
+function proposalsHTML(){
+  // Do not spoil undiscovered materials, principles, or stats in normal play.
+  if(mode!=="lab")return `<p class="panel-intro">未決定効果の研究候補を追加しました。正式な効果や値は？？？のままで、通常プレイは変更していません。</p><div class="kw-card"><strong>研究した方向</strong><p>1. 価格と生産の回収時間を調整する。2. 資源は共通の成長と個性を両立させる。3. 自動化は《刻印》で段階的に解放する。</p><p class="tiny">未発見の名前・属性をここで公開しないため、具体的な候補表は検証モードにだけ表示します。</p><a class="link-button" href="./?lab=1">別セーブで研究候補を確認・試用する</a></div>`;
+  const enabled=G.trialEnabled(state),p=G.planet(state);
+  const exampleValue=id=>p?Math.min(10000,Number(p.stats[id]||0)):100;
+  return `<p class="panel-intro">他ゲームの研究を基にした<strong>未採用の候補</strong>です。「設計確定」「現在の通常プレイへの適用」とは異なります。現在の未知効果は引き続き？？？です。</p>
+  <div class="status-note">確定：質量は獲得個数、圧力は崩壊報酬、安定は残留率、星齢は経過時間。資源受取A/B・破壊/崩壊関係は要確認のままです。</div>
+  <div class="kw-card"><strong>別セーブで効果を試す</strong><p class="tiny">42資源の「質量＋個性」投入、活動と重力の自然成長、解放済みR2・熱系資源の出現重みを実験できます。未実装イベントの候補は数値プレビューのみです。</p>
+  ${mode==="lab"?`<button class="wide-button" data-action="toggle-trial">${enabled?"候補効果を停止":"候補効果を検証開始"}（通常セーブには影響なし）</button><small>現在：${enabled?"候補の追加効果を適用中":"候補の追加効果は停止中"}。停止後も、試験で投入した資源・成長したステータスは別セーブに残ります。</small>`:'<a class="link-button" href="./?lab=1">検証用の別セーブを開く</a>'}</div>
+  <h3>惑星ステータス：7項目の効果候補</h3>
+  ${PLANET_EFFECT_PROPOSALS.map(x=>`<details class="proposal-item" data-preserve="trial-${x.id}"><summary>${esc(x.name)} <span class="badge pending">${esc(x.status)}</span></summary><p>${esc(x.summary)}</p><strong>${esc(x.formula)}</strong><p class="tiny">${esc(x.risk)}</p>${mode==="lab"?`<small>現在値 ${f(p?.stats[x.id]||0)} → 候補係数 ${trialPreview(x.id,exampleValue(x.id)).toFixed(3)}×（比較値）</small>`:''}</details>`).join("")}
+  <h3>資源42種類：質量と個性の検証候補</h3><p class="tiny">すべて質量+1（既存試験値）。各資源に個別特性を追加する候補で、名前は引き継ぎ資料の仮名です。</p>
+  ${[1,2,3,4,5,6].map(rank=>{const arr=CONTENT.resources.filter(r=>r.rank===rank);return `<details class="proposal-item" data-preserve="rank-${rank}"><summary>Rank ${rank} · ${arr.length}種類 <span class="badge">暫定</span></summary>${arr.map(r=>{const sp=resourcePrototype(r);return `<div class="proposal-line"><strong>${esc(r.name)}</strong><small>${esc(sp?.description||"候補未作成")}</small></div>`;}).join("")}</details>`;}).join("")}
+  <h3>《源》30種：21節目の中で7枠を配置する候補</h3><p class="tiny">共通節目21個は確定。下記の7枠配置・値は暫定で、本編へは未適用です。源の自動購入等は《刻印》の領分に残します。</p>
+  <details class="proposal-item" data-preserve="sources-all"><summary>30種の候補配置を見る <span class="badge">21節目は維持</span></summary>${CONTENT.sources.map(x=>`<details class="proposal-item" data-preserve="src-${x.id}"><summary>${esc(x.name)} <small>仮名</small></summary><p class="tiny">${esc(x.role)}</p>${proposedSourceSlots(x).map(sl=>`<div class="proposal-line"><small>Lv.${sl.level.toLocaleString("ja-JP")} · ${esc(sl.kind)}</small><span>${esc(sl.description)}</span></div>`).join("")}</details>`).join("")}</details>
+  <h3>《時》12概念の小規模な効果候補</h3><p class="tiny">全77種の正式な個別効果はまだ？？？。初期単独12概念だけ発見・観測の方向性を研究したもので、通常プレイ・検証プレイの能力計算にも未適用です。</p>
+  <details class="proposal-item" data-preserve="concept-drafts"><summary>最初の12概念の候補一覧 <span class="badge">未採用</span></summary>${FIRST_CONCEPT_PROPOSALS.map(x=>`<div class="proposal-line"><strong>${esc(x.name)}</strong><span>${esc(x.idea)}<br><small>${esc(x.trial)}／注意：${esc(x.risk)}</small></span></div>`).join("")}</details>
+  <h3>BOOST：5強化の暫定比較</h3><div class="kw-card"><p>初回コスト ${duration(PROPOSED.boost.initialCostSeconds)}、次回以降×${PROPOSED.boost.nextCostGrowth}。上限・増加量は全て試案で、通常プレイの既定値は変更しません。</p><small>報酬効率 +4ポイント/段階（最大86%）・対象時間 +10分/段階（最大6時間）・基本獲得 +12%/段階・オフライン獲得 +10%/段階・容量 +20分/段階（最大6時間）。</small></div>
+  <h3>未決定・保留のまま残すもの</h3><div class="kw-card"><p>77概念の個別効果、生命・コアの成立、破壊と崩壊の関係、資源受取A/B、源＋循環の保持、刻印の正式ノード・費用、天体イベントの解放条件。</p><small>これらは効果・倍率を一律で埋めず、試案があってもゲーム正式仕様にはしません。</small></div>
+  <a class="link-button" href="./RESEARCH_V35.md">参照作品・検証根拠（Markdown原文）</a>`;
 }
 function labHTML(){
   if(mode!=="lab")return '<div class="status-note">通常のセーブを変更せず、検証用データで確認します。</div><a class="link-button" href="./?lab=1">設計検証モードへ</a>';
   const actions=[["orbs","オーブ +1兆"],["existence","余剰存在 +10"],["sourceMax","源01をLv.100万"],["directions","6方向を検証解放"],["concept","衝突の残滓 +10"],["common","共通？？？ +100"],["world","世界時間を1秒へ"],["observe","観測名・刻印比較を解放"],["resources","全42資源 +100"],["mass","選択惑星を質量100に"],["collapse","崩壊イベントを検証"],["life","生命タブを表示"],["boost","BOOSTを満タン"],["offline","8時間オフラインを検証"]];
-  return `<div class="status-note">独立した検証セーブです。仮の確率・受取方式・コスト・解放を試せます。ここでの達成は通常セーブに反映しません。</div>
+  return `<div class="status-note">独立した検証セーブです。仮の確率・受取方式・コスト・解放を試せます。ここでの達成は通常セーブに反映しません。</div><button class="wide-button" data-organizer="proposals">研究した候補効果の確認・有効化</button>
   <div class="row-grid">${actions.map(([id,t])=>`<button class="wide-button" data-lab="${id}">${t}</button>`).join("")}</div><p class="tiny">崩壊前に「宇宙 → 資源」でA/Bを選択。圧力10単位で×1.1は検証用の仮式。安定の残留対象は未決定なので、破壊処理には適用していません。</p>
   <a class="link-button" href="./">通常プレイに戻る</a>`;
 }
@@ -323,7 +346,7 @@ function renderPanel(force=false){
   const now=Date.now();
   // Currency/affordability is patched on the existing buttons every UI tick.
   // Do not rebuild the purchase cards while earning resources or holding a finger.
-  if(!force&&(holdPurchase||currentStage==="existence"&&["moment","sources"].includes(currentSub)))return;
+  if(!force&&(holdPurchase||currentSub==="proposals"||currentStage==="existence"&&["moment","sources"].includes(currentSub)))return;
   if(!force&&(now-lastPanelRender<1700||now-lastInteraction<700||$("sheetBody").contains(document.activeElement)&&document.activeElement.matches("input,textarea,select")))return;
   lastPanelRender=now;
   const stage=CONTENT.stages.find(x=>x.id===currentStage);
@@ -336,7 +359,7 @@ function renderPanel(force=false){
   const map={moment:momentHTML,sources:sourcesHTML,engraving:engravingHTML,flow:flowHTML,concepts:conceptHTML,
     planets:planetHTML,resources:resourcesHTML,observations:observationsHTML,
     life:()=>'<div class="empty-state"><div class="glyph">◌</div><p>未知の変化から、生命を認識する。</p><p>微生物・有機生物への接続は設計中です。生命を購入する操作は追加していません。</p></div>',
-    boost:boostHTML,achievements:achievementHTML,statistics:statisticsHTML,settings:settingsHTML,backup:backupHTML,spec:specHTML,lab:labHTML,guide:guideHTML,
+    boost:boostHTML,achievements:achievementHTML,statistics:statisticsHTML,settings:settingsHTML,backup:backupHTML,spec:specHTML,proposals:proposalsHTML,lab:labHTML,guide:guideHTML,
     chronicle:()=>state.events.length?'<div class="kw-list">'+[...state.events].reverse().map(e=>`<div class="kw-row"><span>${esc(e.text)}<small>${new Date(e.at).toLocaleString("ja-JP")}</small></span></div>`).join("")+'</div>':'<div class="empty-state"><p>まだ出来事は記録されていません。</p></div>',
     collection:()=>conceptHTML()};
   body.innerHTML=(map[currentSub]||guideHTML)();
@@ -602,6 +625,11 @@ async function dispatchAction(action){
     toast(state.boost.active?"BOOST加速を開始しました（×2・仮設定）":"BOOST加速を停止しました");
     return;
   }
+  if(action==="toggle-trial"){
+    if(mode!=="lab")return toast("独立した検証セーブだけで試せます");
+    const result=G.setTrialEnabled(state,!G.trialEnabled(state));
+    return resultDone(result,result.enabled?"候補効果の検証を開始しました":"候補効果の検証を停止しました");
+  }
   if(action==="snapshot"){if(save(true)){renderPanel(true);toast("履歴を保存しました");}return;}
   if(action==="import-save"){
     const text=$("importText")?.value||importDraft;
@@ -644,7 +672,7 @@ document.addEventListener("click",async e=>{
     if(b.dataset.breakthrough){resultDone(G.breakthrough(state,b.dataset.breakthrough));return;}
     if(b.dataset.draft){resultDone(G.toggleDraft(state,b.dataset.draft));return;}
     if(b.dataset.form){resultDone(G.formConcept(state,b.dataset.form),"概念を認識しました");return;}
-    if(b.dataset.invest){resultDone(G.invest(state,b.dataset.invest),"資源を投入しました。固有効果は？？？のままです");return;}
+    if(b.dataset.invest){const r=G.invest(state,b.dataset.invest);resultDone(r,r.trialSpecial?"試案：共通質量と個別ステータスを強化しました":"資源を投入しました。正式な個性効果は？？？です");return;}
     if(b.dataset.boostUpgrade!==undefined){resultDone(G.labBoostUpgrade(state,Number(b.dataset.boostUpgrade)));return;}
     if(b.dataset.restore!==undefined){
       if(!await ask("保存履歴から復元","現在のデータを退避して、この履歴へ戻します。","復元する"))return;

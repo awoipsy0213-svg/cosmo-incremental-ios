@@ -1,5 +1,6 @@
 import {CONFIG} from "./balance-config.mjs";
 import {CONTENT} from "./content.mjs";
+import {PROPOSED,resourcePrototype,trialResourceWeights,naturalGrowthFactors,boostTrialCost} from "./design-proposals.mjs";
 import {A,str,seriesCost,maxAffordable} from "./numbers.mjs";
 
 const clone=x=>JSON.parse(JSON.stringify(x));
@@ -30,6 +31,8 @@ export function createState(now=Date.now(),mode="normal") {
       maxPlanets:1,collapseCount:0,resources:{},discoveredResources:[],
       receiptMode:null,resourceAccumulator:0,unlockedRanks:[1]},
     life:{unlocked:false},
+    // Separate experiment flag; never active in normal saves.
+    trial:{enabled:false},
     engraving:{active:[],draft:null,observationUnlocked:false},
     boost:{seconds:0,active:false,upgrades:[0,0,0,0,0]},
     counters:{taps:0,orbsSpent:"0",sourcePurchases:0,conversions:0,onlineSeconds:0,offlineSeconds:0},
@@ -263,15 +266,28 @@ export function planet(s,id=s.universe.selectedPlanetId) {
   return s.universe.planets.find(p=>p.id===id)||null;
 }
 export function ageSeconds(p,now=Date.now()) {return Math.max(0,(now-p.bornAt)/1000);}
+export function trialEnabled(s) {return s.mode==="lab"&&s.trial?.enabled===true;}
+export function setTrialEnabled(s,enabled) {
+  if(s.mode!=="lab")return {ok:false,reason:"別セーブの検証モードでのみ変更できます"};
+  s.trial={enabled:!!enabled};event(s,`【検証】未決定効果の候補を${s.trial.enabled?"有効":"停止"}にした。`);
+  return {ok:true,enabled:s.trial.enabled};
+}
 export function invest(s,id,count=1) {
   if(!RESOURCE_IDS.includes(id))return {ok:false,reason:"資源IDが不正です"};
   const p=planet(s);if(!p)return {ok:false,reason:"先に惑星を生成してください"};
   if(!Number.isSafeInteger(count)||count<1)return {ok:false,reason:"投入個数が不正です"};
   if(A(s.universe.resources[id]||0).cmp(count)<0)return {ok:false,reason:"所持数が不足しています"};
   s.universe.resources[id]=sub(s.universe.resources[id],count);
-  p.stats.mass=add(p.stats.mass,A(count).mul(CONFIG.provisional.universe.massPerResource));
-  // Every resource has mass. Individual characteristics remain null / ???.
-  return {ok:true,massAdded:A(count).mul(CONFIG.provisional.universe.massPerResource).toString()};
+  const basic=A(count).mul(CONFIG.provisional.universe.massPerResource);
+  p.stats.mass=add(p.stats.mass,basic);
+  // All resources still grant mass. The extra specialization is opt-in, lab only.
+  const resource=CONTENT.resources.find(x=>x.id===id);
+  const special=trialEnabled(s)?resourcePrototype(resource):null;
+  if(special){
+    p.stats[special.stat]=add(p.stats[special.stat],A(count).mul(special.perUnit));
+    if(special.stat2)p.stats[special.stat2]=add(p.stats[special.stat2],A(count).mul(special.perUnit/2));
+  }
+  return {ok:true,massAdded:basic.toString(),trialSpecial:special?{stat:special.stat,added:A(count).mul(special.perUnit).toString()}:null};
 }
 export function distributeResources(total,ids,rng=Math.random) {
   const result={};
@@ -290,6 +306,26 @@ export function distributeResources(total,ids,rng=Math.random) {
   }
   return result;
 }
+// Weighted lab draws can only pick already eligible resources. The proposal
+// never grants a locked rank, creates synthesis, or adds a hidden pity system.
+export function distributeTrialResources(total,resources,stats,rng=Math.random) {
+  if(!resources.length)return {};
+  const weights=trialResourceWeights(resources,stats);
+  const sum=weights.reduce((a,b)=>a+b,0);
+  if(!(sum>0))return {};
+  const shares=weights.map(w=>w/sum);
+  const amount=A(total),n=amount.toNumber(),result={};
+  if(Number.isFinite(n)&&n>=0&&n<=10000){
+    for(let i=0;i<Math.floor(n);i++){
+      let a=Math.max(0,Math.min(.999999999999,Number(rng()))),pick=resources.at(-1).id;
+      for(let j=0;j<shares.length;j++){a-=shares[j];if(a<0){pick=resources[j].id;break;}}
+      result[pick]=add(result[pick]||"0",1);
+    }
+  }else{
+    for(let i=0;i<resources.length;i++)result[resources[i].id]=amount.mul(shares[i]).toString();
+  }
+  return result;
+}
 function receive(s,bag) {
   for(const [id,v] of Object.entries(bag)){
     s.universe.resources[id]=add(s.universe.resources[id]||0,v);
@@ -304,7 +340,7 @@ export function labCollapse(s,id=s.universe.selectedPlanetId,rng=Math.random) {
   const units=Math.min(100000,Math.floor(A(p.stats.pressure).toNumber()/CONFIG.lab.pressureUnit));
   const reward=A(p.stats.mass).mul(A(1.1).pow(units));
   // Experimental full collapse only. Stability retention is NOT guessed/applied.
-  const bag=distributeResources(reward,ids,rng);
+  const bag=trialEnabled(s)?distributeTrialResources(reward,CONTENT.resources.filter(r=>s.universe.unlockedRanks.includes(r.rank)),p.stats,rng):distributeResources(reward,ids,rng);
   if(s.universe.receiptMode==="A")receive(s,p.pendingResources);
   receive(s,bag);
   s.universe.planets=s.universe.planets.filter(x=>x.id!==id);
@@ -351,16 +387,19 @@ export function cancelEngraving(s) {s.engraving.draft=null;return {ok:true};}
 export function boostValues(s) {
   // Five paths have no approved costs. Extra effects are sandbox-only.
   const u=s.mode==="lab"?s.boost.upgrades:[0,0,0,0,0],c=CONFIG.confirmed;
-  return {capacity:c.boostCapacitySeconds+u[4]*1800,
-    onlineRate:c.boostOnlineSecondsPerHour*(1+u[2]*.1)/3600,
-    offlineRate:c.boostOfflineSecondsPerHour*(1+u[2]*.1)*(1+u[3]*.1)/3600,
-    efficiency:Math.min(1,c.offlineEfficiency+u[0]*.05),
-    offlineCap:c.offlineCapSeconds+u[1]*900};
+  // v3.5 candidate progression applies only to the isolated lab balance.
+  const b=PROPOSED.boost;
+  return {capacity:Math.min(b.maxCapacitySeconds,c.boostCapacitySeconds+u[4]*b.capacityStepSeconds),
+    onlineRate:c.boostOnlineSecondsPerHour*(1+u[2]*b.basicGainRateStep)/3600,
+    offlineRate:c.boostOfflineSecondsPerHour*(1+u[2]*b.basicGainRateStep)*(1+u[3]*b.offlineGainMultiplierStep)/3600,
+    efficiency:Math.min(b.maxOfflineEfficiency,c.offlineEfficiency+u[0]*b.offlineEfficiencyStep),
+    offlineCap:Math.min(b.maxOfflineCapSeconds,c.offlineCapSeconds+u[1]*b.offlineCapStepSeconds)};
 }
 export function labBoostUpgrade(s,index){
   if(s.mode!=="lab")return {ok:false,reason:"費用・増加幅・上限は？？？です"};
   if(!Number.isInteger(index)||index<0||index>4)return {ok:false,reason:"強化IDが不正です"};
-  const cost=CONFIG.lab.boostUpgradeBaseCost*(s.boost.upgrades[index]+1);
+  if(s.boost.upgrades[index]>=PROPOSED.boost.limits[index])return {ok:false,reason:"検証上限に到達しました"};
+  const cost=boostTrialCost(s.boost.upgrades[index]);
   if(s.boost.seconds<cost)return {ok:false,reason:"BOOST時間が不足しています"};
   s.boost.seconds-=cost;s.boost.upgrades[index]++;return {ok:true,cost};
 }
@@ -396,16 +435,19 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
   }
   if(s.universe.unlocked){
     for(const p of s.universe.planets){
-      p.stats.mass=add(p.stats.mass,A(gameSeconds).mul(CONFIG.provisional.universe.massGrowthPerSecond));
+      const m=trialEnabled(s)?naturalGrowthFactors(p.stats):{activity:1,gravity:1};
+      const growth=A(gameSeconds).mul(CONFIG.provisional.universe.massGrowthPerSecond).mul(m.gravity*m.activity);
+      p.stats.mass=add(p.stats.mass,growth);
     }
     // Receipt timing and collapse are only simulated in isolated lab data.
     if(s.mode==="lab"&&["A","B"].includes(s.universe.receiptMode)){
       s.universe.resourceAccumulator+=gameSeconds;
       const draws=Math.min(360,Math.floor(s.universe.resourceAccumulator/CONFIG.lab.resourceInterval));
       s.universe.resourceAccumulator-=draws*CONFIG.lab.resourceInterval;
-      const ids=CONTENT.resources.filter(x=>s.universe.unlockedRanks.includes(x.rank)).map(x=>x.id);
+      const eligible=CONTENT.resources.filter(x=>s.universe.unlockedRanks.includes(x.rank));
+      const ids=eligible.map(x=>x.id);
       for(let i=0;i<draws;i++)for(const p of s.universe.planets){
-        const bag=distributeResources(p.stats.mass,ids,rng);
+        const bag=trialEnabled(s)?distributeTrialResources(p.stats.mass,eligible,p.stats,rng):distributeResources(p.stats.mass,ids,rng);
         if(s.universe.receiptMode==="B")receive(s,bag);
         else for(const [id,v]of Object.entries(bag))p.pendingResources[id]=add(p.pendingResources[id]||0,v);
       }
@@ -553,6 +595,9 @@ export function validateState(input,expectedMode=null) {
   if(e.draft!==null&&(!Array.isArray(e.draft)||e.draft.some(x=>!CONTENT.engravings.some(y=>y.id===x))))fail("仮振り");
   const b=s.boost;if(!b||!Number.isFinite(b.seconds)||b.seconds<0||!Array.isArray(b.upgrades)||b.upgrades.length!==5||b.upgrades.some(x=>!Number.isInteger(x)||x<0||x>10000))fail("BOOST");
   if(typeof b.active!=="boolean")fail("BOOST状態");
+  if(s.trial===undefined)s.trial={enabled:false};
+  if(!s.trial||typeof s.trial!=="object"||Array.isArray(s.trial)||typeof s.trial.enabled!=="boolean")fail("検証設定");
+  if(s.mode==="normal"&&s.trial.enabled)fail("試案設定が通常データへ混入しています");
   if(s.mode==="normal" && (u.receiptMode!==null||e.active.length||b.upgrades.some(x=>x!==0)))fail("検証専用値が通常データへ混入しています");
   if(!s.counters||!s.settings||!s.life)fail("基本情報");
   for(const key of ["taps","sourcePurchases","conversions","onlineSeconds","offlineSeconds"])if(!Number.isFinite(s.counters[key])||s.counters[key]<0)fail("カウンター");
