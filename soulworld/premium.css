@@ -1,7 +1,7 @@
 /* Premium UI pass for a real interactive landscape game, not a screenshot overlay. */
 :root{--bg:#102540;--deep:#111e34;--line:rgba(252,221,150,.78);--gold:#f3d494;--cyan:#8cdaff;--muted:#c2ccdd;--glass:rgba(10,27,47,.9);--text:#fff6e7;}
 body{font-family:system-ui,-apple-system,'Hiragino Kaku Gothic ProN','Yu Gothic',Meiryo,sans-serif;background:#719fc2;letter-spacing:.012em}
-#app{background:#97b7d0 url('./vista.svg') center center /cover no-repeat}
+#app{background:#97b7d0 url('./vista.svg') center center /cover no-repeat;width:100%;width:100dvw;height:100%;height:100dvh;overflow:hidden;position:relative}
 #world{background:transparent}
 .vignette{background:linear-gradient(180deg,rgba(14,30,55,.13),transparent 19%,transparent 58%,rgba(10,26,43,.30)),linear-gradient(90deg,rgba(13,28,48,.24),transparent 23%,transparent 78%,rgba(12,29,52,.19))}
 .glass{background:linear-gradient(154deg,rgba(29,51,80,.96),rgba(9,25,48,.94) 68%,rgba(21,40,67,.95));border:1.5px solid rgba(246,213,138,.76);box-shadow:inset 0 0 0 2px rgba(5,14,34,.75),inset 0 1px rgba(255,246,204,.26),0 2px 0 rgba(244,188,83,.38),0 8px 24px rgba(3,10,32,.46);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
@@ -40,3 +40,6 @@ body{font-family:system-ui,-apple-system,'Hiragino Kaku Gothic ProN','Yu Gothic'
 
 #btn-battle-pause{font-weight:900;font-size:22px;line-height:1;border-color:#f6d484;box-shadow:inset 0 0 0 1px #f9e3b944,0 2px 13px #172b4ba6}
 #world-labels{position:absolute;inset:0;z-index:3;pointer-events:none;overflow:hidden}.build-tag{position:absolute;transform:translate(-50%,-100%);display:flex;flex-direction:column;gap:3px;align-items:center;min-width:115px;padding:6px 9px;border:1px solid #e9c783;border-radius:9px;color:#fff2d4;background:linear-gradient(145deg,#1c375eea,#10233ded);box-shadow:0 3px 13px #0919329c;text-shadow:0 1px #091327;font-size:10px;white-space:nowrap}.build-meter{width:90%;height:5px;background:#101d36;border:1px solid #b8cce466;border-radius:6px;overflow:hidden}.build-meter i{display:block;height:100%;background:linear-gradient(90deg,#48bde4,#9af3f4);box-shadow:0 0 7px #6ee8ff}.stage-hud{position:absolute;z-index:4;left:50%;top:62px;transform:translateX(-50%);padding:5px 15px;border-radius:8px;color:#fff3d3;font-size:11px;text-align:center;white-space:nowrap;max-width:55vw;overflow:hidden;text-overflow:ellipsis}@media(max-width:850px){.stage-hud{top:54px;font-size:9px;padding:4px 9px}.build-tag{padding:3px 6px;font-size:8px;min-width:90px}}
+/* Recovery overlay: keep original canvas receiving pointer controls. */
+#world-recovery{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;z-index:0;background:transparent}
+@media (orientation:landscape) and (max-height:460px){.resources #resource-list,.side-log .logs{overscroll-behavior:contain}.command-area{max-width:min(41dvh,178px)}}
