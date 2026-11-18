@@ -1,0 +1,22 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createInitialState,updateGame,activeSubs,subCap,addSoul,die,collectTemple,cap,reserveBuild,editTerrain,claimOffline,serialize,deserialize,xpForLevel,levelFromXP,gotoStage,completeBattle,assign,petActor,removeTrash} from '../core.mjs';
+const step=(s,seconds)=>{for(let i=0;i<seconds;i++)updateGame(s,1)};
+test('初期25マス・メイン1体・サブ5枠',()=>{const s=createInitialState();assert.equal(s.tiles.length,25);assert.equal(activeSubs(s),0);assert.equal(subCap(s),5);assert.equal(s.actors.filter(a=>a.kind==='main').length,1);assert.equal(s.resources.food,10)});
+test('5秒ごとに1体、上限5で生成停止',()=>{const s=createInitialState();step(s,28);assert.equal(activeSubs(s),5);step(s,4);assert.equal(activeSubs(s),5)});
+test('寿命上限300秒、死亡時は神殿に蓄積',()=>{const s=createInitialState();const main=s.actors.find(a=>a.kind==='main');addSoul(main,'wood',4);die(s,main,'寿命');assert.equal(s.temple.pending.wood,4);assert.equal(s.worldXP.wood??0,0);assert.equal(s.stats.deaths,1)});
+test('神殿の回収は二重加算されない',()=>{const s=createInitialState();const a=s.actors[0];addSoul(a,'wood',3);die(s,a,'寿命');assert.equal(collectTemple(s),3);assert.equal(collectTemple(s),0);assert.equal(s.worldXP.wood,3)});
+test('0→1の経験値10Pt',()=>{assert.equal(xpForLevel(1),10);assert.equal(levelFromXP(9),0);assert.equal(levelFromXP(10),1)});
+test('資材庫は木6がないと建築不可',()=>{const s=createInitialState();assert.equal(reserveBuild(s,'storage',2,2).ok,false);s.resources.wood=6;const r=reserveBuild(s,'storage',2,2);assert.equal(r.ok,true);assert.equal(s.resources.wood,0);assert.equal(cap(s,'wood'),10);s.buildings.find(x=>x.type==='storage').progress=1;assert.equal(cap(s,'wood'),50);assert.equal(cap(s,'stone'),50)});
+test('配置済み施設・資源地形への建築を防ぐ',()=>{const s=createInitialState();s.resources.wood=30;assert.equal(reserveBuild(s,'storage',1,1).ok,false);assert.equal(reserveBuild(s,'storage',0,0).ok,false);assert.equal(reserveBuild(s,'storage',-1,1).ok,false)});
+test('地形変更で施設の上書きを防止',()=>{const s=createInitialState();assert.equal(editTerrain(s,1,1,'river').ok,false);assert.equal(editTerrain(s,2,2,'river').ok,true)});
+test('死亡時の溺死経験は1回だけ',()=>{const s=createInitialState();const a=s.actors[0];assert.equal(die(s,a,'drown'),true);assert.equal(die(s,a,'drown'),false);assert.equal(s.temple.pending.swim,1)});
+test('最大10時間のオフライン報酬・端末時刻巻戻し',()=>{const s=createInitialState();const now=100000000;assert.equal(claimOffline(s,now,now-24*3600000),10);assert.equal(s.resources.gem,10);assert.equal(claimOffline(s,now,now+5000),0)});
+test('保存→復元で魂と熟練・建物を保持',()=>{const s=createInitialState();s.temple.pending.wood=11;const raw=serialize(s);const restored=deserialize(raw,Date.now());assert.equal(restored.temple.pending.wood,11);assert.equal(restored.tiles.length,25);assert.equal(restored.buildings.length,3)});
+test('担当人数は常に5枠を保つ',()=>{const s=createInitialState();assign(s,'combat',1);assert.equal(Object.values(s.command).reduce((a,b)=>a+b,0),5);assert.ok(s.command.combat>=1)});
+test('可愛がる操作で経験値を増やさない',()=>{const s=createInitialState();const id=s.actors[0].id;petActor(s,id);assert.equal(s.familiarity.main,1);assert.equal(Object.keys(s.worldXP).length,0);petActor(s,id);assert.equal(s.familiarity.main,1)});
+test('PvE中は活動時間を進めても経験値を増やさない',()=>{const s=createInitialState();const prev=JSON.stringify(s.worldXP);gotoStage(s,'battle');step(s,10);assert.equal(JSON.stringify(s.worldXP),prev);completeBattle(s,true);assert.equal(s.blueprints.bowgun,true)});
+test('オフライン前景進行は復元時に追加しない',()=>{const s=createInitialState();const age=s.actors[0].age;const raw=serialize(s);const restored=deserialize(raw,Date.now()+3*3600000);assert.equal(restored.actors[0].age,age);assert.equal(restored.resources.gem,3)});
+
+test('探索中の死亡後は再生成10秒を設定',()=>{const s=createInitialState();gotoStage(s,'explore');const a=s.actors.find(x=>x.kind==='main');die(s,a,'drown');assert.equal(s.respawnMain,10)});
+test('探索の荷台容量は資源合計で20を超えない',()=>{const s=createInitialState();gotoStage(s,'explore');s.cargo.wood=19;s.cargo.stone=0;const a=s.actors[0];a.job='stone';a.lastSkill='stone';a.phase='work';a.target={x:0,z:0};const t=s.exploreTiles.find(x=>x.feature==='stone');if(!t)throw Error('test requires stone');a.target={x:t.x,z:t.z};a.timer=0;step(s,1);assert.ok(Object.values(s.cargo).reduce((x,y)=>x+y,0)<=20)});
