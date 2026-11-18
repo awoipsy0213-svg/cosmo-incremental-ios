@@ -6,7 +6,7 @@ const canvas=$('world');let scene;
 let state;let loaded=false;
 try{const raw=localStorage.getItem(SAVE_KEY);state=raw?deserialize(raw):createInitialState();loaded=!!raw}catch(err){state=createInitialState();state.log.unshift({id:++state.eventSeq,t:0,text:'保存データを読み込めませんでした。新規画面です（バックアップは削除していません）'});console.warn(err)}
 let pausedBattle=false;let selection=null,mode='observe',selectedBuild=null,selectedTerrain='river',pendingNoticeTimer=null,prevTime=performance.now(),accum=0,lastUI=0,lastSave=0,follow=false,currentModal=null,quality=1,pointer=new Map(),touchOrigin=null,wasDrag=false;
-try{scene=new Scene3D(canvas)}catch(err){console.warn('WebGL unavailable, using isometric fallback:',err);try{scene=new SceneFallback(canvas);$('tip').textContent='WebGL非対応のため軽量表示で再生中';}catch(err2){console.error(err2);$('tip').textContent='このブラウザでは描画できません';}}
+try{scene=new URLSearchParams(location.search).get('render')==='2d'?new SceneFallback(canvas):new Scene3D(canvas)}catch(err){console.warn('WebGL unavailable, using isometric fallback:',err);try{scene=new SceneFallback(canvas);$('tip').textContent='WebGL非対応のため軽量表示で再生中';}catch(err2){console.error(err2);$('tip').textContent='このブラウザでは描画できません';}}
 const number=n=>Math.floor(n||0).toLocaleString('ja-JP');
 const seconds=n=>`${String(Math.floor(n/60)).padStart(2,'0')}:${String(Math.floor(n%60)).padStart(2,'0')}`;
 const pending=()=>Object.values(state.temple.pending).reduce((a,b)=>a+b,0);
@@ -15,6 +15,46 @@ function save(force=false){try{const raw=serialize(state);if(force){const prev=l
 function resourceHTML(){const items=[['🌲','木材','wood'],['🪨','石材','stone'],['🌾','食料','food'],['🍖','肉','meat'],['🧶','皮','hide']];return items.map(([emoji,name,key])=>`<div class="resource-item"><span>${emoji} ${name}</span><b>${number(state.resources[key])}${['wood','stone','food'].includes(key)?` <small>/ ${cap(state,key)}</small>`:''}</b></div>`).join('')+(state.stage==='explore'?`<div class="resource-item"><span>🛒 荷台</span><b>${number(Object.values(state.cargo).reduce((a,b)=>a+b,0))} / 20</b></div>`:'')}
 function logHTML(){return state.log.slice(0,6).map(e=>`<div class="log-item"><time>${seconds(e.t)}</time>${e.text}</div>`).join('')}
 const wheelRoles={base:[['environment','🌱','環境'],['combat','⚔️','戦闘'],['home','🏠','拠点'],['free','✧','自由']],explore:[['environment','🌿','採集'],['combat','⚔️','警護'],['home','🛒','運搬'],['free','✧','自由']],battle:[['attack','⚔️','突撃'],['occupy','🚩','占領'],['fortify','🏰','籠城'],['guard','🛡️','守護']]};
+// Mobile Safari may invalidate the GPU context during rotation. Switch to Canvas2D
+// without stopping the simulation or changing the current save.
+function recoverRenderer(reason){
+ if(scene?.isFallback)return;
+ console.warn('Switching to mobile-safe Canvas2D view:',reason);
+ let overlay=document.getElementById('world-recovery');
+ if(!overlay){overlay=document.createElement('canvas');overlay.id='world-recovery';overlay.setAttribute('aria-label','軽量ゲームフィールド');overlay.setAttribute('aria-hidden','true');canvas.after(overlay)}
+ try{
+  const old=scene;
+  const restored=new SceneFallback(overlay);
+  restored.zoom=old?.zoom??1;
+  restored.target=Array.isArray(old?.target)?old.target.slice():[0,0,0];
+  restored.selectedId=selection;
+  scene=restored;
+  $('app').dataset.renderer='fallback';
+  $('tip').textContent='表示の負荷を下げてゲームを続行しています';
+  toast('画面描画を軽量モードに切り替えました。育成・セーブは継続中です');
+  scene.render(state,0);
+ }catch(err){console.error('Canvas fallback failed',err);scene=null;toast('表示を復旧できません。保存して再読み込みしてください')}
+}
+canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();recoverRenderer('webglcontextlost')});
+if(scene)$('app').dataset.renderer=scene.isFallback?'fallback':'webgl';
+let viewportUpdatePending=false;
+function onViewportChange(){
+ if(viewportUpdatePending)return;
+ viewportUpdatePending=true;
+ requestAnimationFrame(()=>{viewportUpdatePending=false;prevTime=performance.now();if(scene?.camera)scene.camera=null;});
+}
+window.addEventListener('resize',onViewportChange,{passive:true});
+window.addEventListener('orientationchange',()=>{onViewportChange();setTimeout(onViewportChange,280)},{passive:true});
+window.visualViewport?.addEventListener('resize',onViewportChange,{passive:true});
+let slowFrames=0,autoReduced=false;
+function maintainFrameRate(frame){
+ if(!scene||scene.isFallback)return;
+ slowFrames=frame>.09?Math.min(40,slowFrames+1):Math.max(0,slowFrames-2);
+ if(slowFrames<12)return;
+ slowFrames=0;
+ if(!scene.reduced){scene.setQuality(0);autoReduced=true;toast('描画を自動調整しました。育成は継続しています');}
+ else if(autoReduced)recoverRenderer('sustained low frame rate');
+}
 let avatarStatus='';
 function updateUI(){
  $('app').dataset.stage=state.stage;
@@ -62,7 +102,7 @@ canvas.addEventListener('wheel',e=>{e.preventDefault();if(scene)scene.zoom=Math.
 canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);pointer.set(e.pointerId,{x:e.clientX,y:e.clientY,ox:e.clientX,oy:e.clientY});wasDrag=false});
 canvas.addEventListener('pointermove',e=>{const p=pointer.get(e.pointerId);if(!p||!scene)return;const dx=e.clientX-p.x,dy=e.clientY-p.y;p.x=e.clientX;p.y=e.clientY;if(Math.hypot(p.x-p.ox,p.y-p.oy)>8)wasDrag=true;if(pointer.size===2){const vals=[...pointer.values()],d0=Math.hypot(vals[0].ox-vals[1].ox,vals[0].oy-vals[1].oy),d1=Math.hypot(vals[0].x-vals[1].x,vals[0].y-vals[1].y);if(d0>0)scene.zoom=Math.max(.7,Math.min(2.2,scene.zoom*(1+(d1-d0)/Math.max(100,d1)*.6)));for(const v of vals){v.ox=v.x;v.oy=v.y}}else if(wasDrag)scene.moveCamera(dx,dy)});
 canvas.addEventListener('pointerup',e=>{const p=pointer.get(e.pointerId);pointer.delete(e.pointerId);if(!p||!scene)return;if(wasDrag||pointer.size)return;const x=e.clientX-canvas.getBoundingClientRect().left,y=e.clientY-canvas.getBoundingClientRect().top;const t=scene.locateTile(x,y,state.stage);if(mode==='build'){if(!t){toast('フィールドのマスを選んでください');return}const result=reserveBuild(state,selectedBuild,t.x,t.z);toast(result.ok?'建設予約が完了しました':result.reason);if(result.ok){mode='observe';selectedBuild=null;save()}return}if(mode==='terrain'){if(!t){toast('地形のマスを選んでください');return}const result=editTerrain(state,t.x,t.z,selectedTerrain);toast(result.ok?'地形を変更しました':result.reason);if(result.ok){mode='observe';save()}return}const a=scene.locateActor(state,x,y);if(a){selection=a.id;follow=false;toast(a.kind==='main'?'英雄を選択しました':'サブを選択しました');return}if(state.trash&&t&&t.x===state.trash.x&&t.z===state.trash.z){const r=removeTrash(state);toast(r.completed?'ゴミを撤去しました！':`ゴミ撤去 ${state.trash?.hits||0}/8`);save();return}scene.previewTile=t});canvas.addEventListener('pointercancel',e=>pointer.delete(e.pointerId));
-function loop(now){const frame=Math.min(.075,Math.max(0,(now-prevTime)/1000));prevTime=now;if(!document.hidden){const speed=Math.max(1,Math.min(20,state.settings.speed||1));accum+=frame*speed;let steps=0;while(accum>=.08&&steps<30){if(!(pausedBattle&&state.stage==='battle'))updateGame(state,.08);accum-=.08;steps++}if(scene)try{scene.render(state,pausedBattle&&state.stage==='battle'?0:frame)}catch(err){console.error('Render error',err);scene=null;toast('3D描画エラー：再読み込みしてください')}if(now-lastUI>240){updateUI();lastUI=now}if(now-lastSave>8000)save()}requestAnimationFrame(loop)}
+function loop(now){const frame=Math.min(.5,Math.max(0,(now-prevTime)/1000));prevTime=now;if(!document.hidden){const speed=Math.max(1,Math.min(20,state.settings.speed||1));accum+=frame*speed;let steps=0;while(accum>=.08&&steps<30){if(!(pausedBattle&&state.stage==='battle'))updateGame(state,.08);accum-=.08;steps++}if(scene)try{scene.render(state,pausedBattle&&state.stage==='battle'?0:frame)}catch(err){console.error('Render error',err);recoverRenderer(err)}maintainFrameRate(frame);if(now-lastUI>240){updateUI();lastUI=now}if(now-lastSave>8000)save()}requestAnimationFrame(loop)}
 if(scene)scene.setQuality(state.settings.quality??1);updateUI();requestAnimationFrame(loop);window.addEventListener('pagehide',()=>save(true));document.addEventListener('visibilitychange',()=>{if(document.hidden)save();prevTime=performance.now()});window.addEventListener('keydown',e=>{if(e.key==='Escape'){if(currentModal)closeModal();else if(mode!=='observe'){mode='observe';selectedBuild=null;toast('操作を解除しました')}}});
 if('serviceWorker'in navigator&&location.protocol==='https:'){navigator.serviceWorker.register('./sw.js').catch(err=>console.warn('SW register',err))}
 if(loaded)setTimeout(()=>toast('保存された世界を再開しました'),900);
