@@ -1,5 +1,5 @@
 /* Versioned, scope-specific cache. Does not delete saves or another app's cache. */
-const VERSION = "3.7.0-compact-setsuna";
+const VERSION = "3.7.1-mobile-ios-sync";
 const PREFIX = "kotowari-handoff:" + new URL(self.registration.scope).pathname + ":";
 const CACHE = PREFIX + VERSION;
 const RELATIVE = [
