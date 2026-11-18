@@ -2,7 +2,7 @@
 // null = 未決定。nullを汎用倍率で埋めない。
 // provisionalの値は遊べる基盤の動作確認用で、正式な採用値ではない。
 export const CONFIG = {
-  version: "3.7.0",
+  version: "3.8.0",
   schemaVersion: 31,
   confirmed: {
     sourceMaxLevel: 1000000,
@@ -66,6 +66,16 @@ export const CONFIG = {
     convergence: {baseCost:1000, costGrowth:1.1, existencePerStep:0.001, spend:"all"},
     // firstSourceは時導入と自動生産の接続を確認するための仮ルール。
     timeUnlock: "firstSource",
+    // Ver.3.8 trial pacing, not user-approved balance values.
+    progression: {
+      miracleAtSeconds: [120,300,600,1080,1800],
+      residueEventsPerSecond: 0.01,
+      worldSecondsPerSecond: 1/1800,
+      naturalCollapseHazardPerSecond: 1/2400,
+      universeReceiptTrial: "A",
+      pressureRewardStep: 10,
+      maxResidueEventsPerTick: 500
+    },
     universe: {startingMass:1, massGrowthPerSecond:0.0006, massPerResource:1, ageClock:"real"},
     boost: {multiplier:2, consumptionRule:"additional-time"},
     commonResidueDraw: {trigger:"manual",distribution:"uniform"},
