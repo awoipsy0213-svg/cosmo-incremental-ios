@@ -110,7 +110,7 @@ function globalMilestoneBonus(s){
 export function tapBase(s,now=Date.now()){
  // Only Ⅰ is a flat generator: all remaining items have independent behaviors.
  const l0=level(s,0),l1=level(s,1),l22=level(s,22),l29=level(s,29);
- let base=A(1).add(A(l0).mul(milestone(0,s.earned[0])));
+ let base=A(1).add(A(l0)); // level() already applies the owned milestone once.
  if(l1>0)base=base.mul(1+.02*l1);
  if(l22>0)base=base.mul(1+.001*Math.sqrt(s.sourceLevel)*Math.sqrt(l22));
  if(l29>0)base=base.mul(1+.01*s.cycles*Math.sqrt(l29));
