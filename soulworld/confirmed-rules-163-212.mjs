@@ -20,8 +20,10 @@ export function classifyUniqueRoll(value) {
     throw new RangeError('Random draw must be a number in [0, 1).');
   }
   if (value < UNIQUE_CHANCES.mythic) return 'mythic';
-  if (value < UNIQUE_CHANCES.mythic + UNIQUE_CHANCES.legendary) return 'legendary';
-  if (value < UNIQUE_CHANCES.mythic + UNIQUE_CHANCES.legendary + UNIQUE_CHANCES.epic) return 'epic';
+  // Use decimal-quantized cutoffs to avoid IEEE 754 boundary drift.
+  const cutoff = (total) => Math.round(total * 1e10) / 1e10;
+  if (value < cutoff(UNIQUE_CHANCES.mythic + UNIQUE_CHANCES.legendary)) return 'legendary';
+  if (value < cutoff(UNIQUE_CHANCES.mythic + UNIQUE_CHANCES.legendary + UNIQUE_CHANCES.epic)) return 'epic';
   return null;
 }
 
