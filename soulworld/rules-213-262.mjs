@@ -50,7 +50,7 @@ export function breakthroughBonusPercent(rarity, count) {
 }
 export function applyBattleRarityBonus(finalStat, rarity, count) {
   if (!Number.isFinite(finalStat) || finalStat < 0) throw new RangeError('Invalid final combat stat');
-  return finalStat * (1 + breakthroughBonusPercent(rarity,count) / 100);
+  return finalStat + (finalStat * breakthroughBonusPercent(rarity,count) / 100);
 }
 export function applyStarRevelation(value, percent) {
   if (!Number.isFinite(value) || value < 0) throw new RangeError('Invalid ability value');
