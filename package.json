@@ -6,7 +6,9 @@
   "scripts": {
     "ios:add": "npx cap add ios",
     "ios:sync": "npx cap sync ios",
-    "ios:open": "npx cap open ios"
+    "ios:open": "npx cap open ios",
+    "test:setsuna": "node tests/v38_setsuna_main.mjs",
+    "test": "node tests/v38_setsuna_main.mjs && node tests/v35_logic.mjs && node tests/v34_logic.mjs"
   },
   "dependencies": {
     "@capacitor/core": "^7.0.0",
