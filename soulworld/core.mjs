@@ -1,5 +1,5 @@
 // Soul World browser prototype: deterministic gameplay state. No real purchases or network.
-export const VERSION = '0.1.0';
+export const VERSION = '0.2.0';
 export const SAVE_KEY = 'soul_world_browser_proto_v001';
 export const N = 5;
 export const LIFETIME = 300;
