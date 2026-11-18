@@ -161,3 +161,23 @@ body.low-power .purchase-card,body.low-power .purchase-card .buy-progress>i{tran
  .kw-sheet-body .source-rates{font-size:8px}
  .purchase-toolbar-compact .trial-mark{display:none}
 }
+
+/* v3.7.1: mobile legibility and zero-jitter upgrade counters. */
+.kw-sheet-body .purchase-card .card-top small,
+.kw-sheet-body .purchase-card .source-meta,
+.kw-sheet-body .purchase-card .compact-upgrade-rate,
+.kw-sheet-body .purchase-card .source-rates,
+.kw-sheet-body .purchase-card .live-buy-hint {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+.kw-sheet-body .purchase-card .card-top small {font-size:10px;min-width:4.5ch}
+.kw-sheet-body .purchase-card .compact-upgrade-rate {font-size:10px}
+.kw-sheet-body .purchase-card .source-rates {font-size:9.5px}
+.kw-sheet-body .purchase-card .live-buy-hint {font-size:9.5px}
+.kw-sheet-body .purchase-card .buy-button small {font-size:9px}
+.kw-sheet-body .purchase-card .buy-button {font-size:12px}
+.kw-sheet-body .purchase-card {contain:layout style}
+@media (prefers-reduced-motion:reduce) {
+ .kw-sheet-body .purchase-card,.kw-sheet-body .purchase-card * {transition:none!important;animation:none!important}
+}
