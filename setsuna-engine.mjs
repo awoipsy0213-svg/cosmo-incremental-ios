@@ -56,7 +56,7 @@ export function fresh(now=Date.now()){
  return {schema:2,levels:Array(COUNT).fill(0),earned:Array(COUNT).fill(0),wallet:'0',cycles:0,permanent:0,
   sourceLevel:0,mode:'1',notation:'normal',taps:0,combo:0,lastTap:0,lastTick:now,
   comboUntil:0,sourceBuffUntil:0,synergyUntil:0,awakenUntil:0,
-  autoCredit:0,recoverCredit:0,compressCredit:0,flowQueue:[],stored:'0',
+  autoCredit:0,comboAutoCredit:0,recoverCredit:0,compressCredit:0,flowQueue:[],stored:'0',
   autoTaps:0,sourceEarned:'0',tapEarned:'0',lastEvent:'待機中',lastGrant:0};
 }
 export function normalize(input,now=Date.now()){
@@ -66,7 +66,7 @@ export function normalize(input,now=Date.now()){
  s.earned=(Array.isArray(input.earned)&&input.earned.length===COUNT?input.earned:s.levels).map((v,i)=>Math.max(s.levels[i],finiteInt(v,100000000)));
  for(const k of ['cycles','permanent','sourceLevel','taps','combo','autoTaps'])s[k]=finiteInt(input[k],100000000);
  for(const k of ['lastTap','lastTick','comboUntil','sourceBuffUntil','synergyUntil','awakenUntil'])s[k]=safe(input[k],0,Number.MAX_SAFE_INTEGER);
- for(const k of ['autoCredit','recoverCredit','compressCredit'])s[k]=safe(input[k],0,3600);
+ for(const k of ['autoCredit','comboAutoCredit','recoverCredit','compressCredit'])s[k]=safe(input[k],0,3600);
  for(const k of ['wallet','stored','sourceEarned','tapEarned'])s[k]=amount(input[k]);
  s.mode=['1','10','NEXT','MAX'].includes(input.mode)?input.mode:'1';
  s.notation=['normal','scientific','japanese'].includes(input.notation)?input.notation:'normal';
@@ -196,7 +196,7 @@ export function advance(s,now=Date.now()){
   s.autoCredit=accumulated-auto*interval;
   if(auto){
    extra=extra.add(autoExpected(s,now).mul(auto));s.autoTaps=Math.min(100000000,s.autoTaps+auto);
-   if(level(s,17)>0){const count=Math.floor(auto*Math.min(1,.01*level(s,17)));s.combo=Math.min(1000000,s.combo+count);s.comboUntil=Math.max(s.comboUntil,now+Math.min(5000,1200+20*level(s,6)));}
+   if(level(s,17)>0){s.comboAutoCredit+=auto*Math.min(1,.01*level(s,17));const count=Math.floor(s.comboAutoCredit);s.comboAutoCredit-=count;if(count){s.combo=Math.min(1000000,s.combo+count);s.comboUntil=Math.max(s.comboUntil,now+Math.min(5000,1200+20*level(s,6)));}}
   }
  }else s.autoCredit=0;
  const total=source.add(extra);gain(s,total);s.sourceEarned=A(s.sourceEarned).add(total).toString();
@@ -232,7 +232,7 @@ export function buySource(s,now=Date.now()){
 export function converge(s,now=Date.now()){
  advance(s,now);if(A(s.wallet).cmp('1e6')<0)return false;
  s.wallet='0';s.levels=Array(COUNT).fill(0);s.earned=Array(COUNT).fill(0);s.sourceLevel=0;
- s.cycles++;s.permanent++;s.combo=0;s.autoCredit=0;s.recoverCredit=0;s.compressCredit=0;
+ s.cycles++;s.permanent++;s.combo=0;s.autoCredit=0;s.comboAutoCredit=0;s.recoverCredit=0;s.compressCredit=0;
  s.sourceBuffUntil=s.synergyUntil=s.awakenUntil=0;s.flowQueue=[];s.stored='0';s.lastEvent='収束完了（試験用永続倍率 +5%）';return true;
 }
 export function fmt(s,x){const a=A(x);if(s.notation==='scientific')return formatAmount(a,2,'exponent');
