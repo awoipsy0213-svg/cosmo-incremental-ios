@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#080d1a"><title>《理》刹那30 プレイテスト</title>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#080d1a"><title>《理》刹那30 プレイテスト · MAX修正版</title>
 <style>
 :root{color-scheme:dark;font-family:system-ui,-apple-system,sans-serif;background:#080d1a;color:#eaf2ff}*{box-sizing:border-box}body{margin:0;max-width:850px;margin-inline:auto;padding:12px 12px 90px}header{position:sticky;top:0;background:#080d1aef;z-index:3;padding:8px 0;border-bottom:1px solid #34445c}h1{font-size:21px;margin:0 0 8px}.stats{display:grid;grid-template-columns:1fr 1fr;gap:7px}.stat,.card,.toolbar,.notice{border:1px solid #2d4059;border-radius:10px;background:#101a2a;padding:11px}.stat b{display:block;color:#7df0c6;font-size:17px;overflow-wrap:anywhere}.stat small,.hint{color:#a8b9d2;font-size:12px}button,select{background:#1b3650;color:#eaf2ff;border:1px solid #487c9a;border-radius:8px;padding:10px;font:inherit;touch-action:manipulation}button:disabled{opacity:.35}.tap{width:100%;font-size:23px;background:radial-gradient(circle,#254d75,#14263d);height:118px;margin:12px 0;border:1px solid #70b4e6}.toolbar{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin:10px 0}.toolbar button.active{background:#1c7664}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(235px,1fr));gap:9px}.card h3{margin:0;font-size:16px}.card p{font-size:12px;color:#bdcbe0;margin:7px 0}.card .line{display:flex;justify-content:space-between;gap:8px;align-items:center}.card button{width:100%;margin-top:7px}.badge{color:#7df0c6;font-size:11px}.notice{margin:10px 0;color:#c4d5e9}details{font-size:12px;color:#cbd8eb;margin-top:8px}summary{cursor:pointer}footer{margin:25px 0;font-size:12px;color:#a8b9d2}a{color:#8bcfff}
 </style></head><body>
@@ -27,11 +27,32 @@ function effectLevel(i){return s.levels[i]>0&&EFFECTS[i]?1:0}
 function sourcePerSecond(){let r=A(s.sourceLevel).mul(2);if(effectLevel(15)&&Date.now()<s.boostUntil)r=r.mul(2);if(effectLevel(29))r=r.mul(1.2);return r}
 function tapValue(){let base=A(1),global=1;const all=s.levels.map((_,i)=>bonuses(i));for(let i=0;i<N;i++){let amount=G[i].mul(s.levels[i]).mul(all[i].own);if(effectLevel(2)&&Math.abs(i-2)===1)amount=amount.mul(1.25);if(effectLevel(12)&&i===s.levels.indexOf(Math.max(...s.levels)))amount=amount.mul(1.5);base=base.add(amount);global+=all[i].global}
 if(effectLevel(5))base=base.add(sourcePerSecond().mul(.1));if(effectLevel(8)&&s.combo>1)global*=1+Math.min(s.combo,30)*.01;if(effectLevel(27)&&Date.now()-s.lastTap<3000)global*=1.25;return base.mul(global).mul(1+s.permanent*.05)}
-function quote(i){const lv=s.levels[i],remaining=Number.MAX_SAFE_INTEGER-lv;let count=s.mode==="1"?1:s.mode==="10"?10:s.mode==="NEXT"?(MS.find(m=>m>lv)||lv+100000)-lv:remaining;count=Math.min(count,remaining);if(s.mode==="MAX")count=maxAffordable(s.wallet,C[i],1.75,lv,remaining);else if(s.mode==="10"||s.mode==="NEXT")count=maxAffordable(s.wallet,C[i],1.75,lv,count);if(count<=0)return {count:0,cost:A(0)};return {count,cost:seriesCost(C[i],1.75,lv,count)}}
+// Wallet-based bound prevents MAX from evaluating 1.75^(Number.MAX_SAFE_INTEGER).
+// The previous binary search exceeded Amount's supported exponent and stopped rendering.
+function affordableCount(wallet,base,level,limit=Number.MAX_SAFE_INTEGER-level){
+  const w=A(wallet),first=A(base).mul(A(1.75).pow(level));
+  if(w.cmp(first)<0)return 0;
+  const delta=(Math.log10(w.m)+w.e)-(Math.log10(first.m)+first.e);
+  const growth=Math.log(1.75);
+  // Geometric sum upper bound, with logarithmic handling of very large balances.
+  const bound=delta<12
+    ?Math.ceil(Math.log1p(.75*10**delta)/growth)+2
+    :Math.ceil((delta*Math.LN10+Math.log(.75))/growth)+2;
+  const hi=Math.max(1,Math.min(limit,Number.MAX_SAFE_INTEGER-level,bound));
+  return maxAffordable(w,base,1.75,level,hi);
+}
+function quote(i){
+  const lv=s.levels[i],remaining=Number.MAX_SAFE_INTEGER-lv;
+  const first=seriesCost(C[i],1.75,lv,1);
+  if(!Number.isSafeInteger(lv)||remaining<=0)return {count:0,cost:A(0),next:first};
+  const limit=s.mode==="1"?1:s.mode==="10"?10:s.mode==="NEXT"?(MS.find(m=>m>lv)||lv+100000)-lv:remaining;
+  const count=affordableCount(s.wallet,C[i],lv,Math.min(limit,remaining));
+  return {count,cost:count?seriesCost(C[i],1.75,lv,count):A(0),next:first};
+}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(s))}catch(e){note("保存できません。書出しでバックアップしてください。")}}
 function buy(i){const q=quote(i);if(!q.count)return;const w=A(s.wallet);if(w.cmp(q.cost)<0)return;s.wallet=w.sub(q.cost).toString();s.levels[i]+=q.count;s.earned[i]=Math.max(s.earned[i],s.levels[i]);save();render()}
 function render(){const rate=tapValue();$("wallet").textContent=fmt(s.wallet);$("tapRate").textContent=fmt(rate);$("sourceRate").textContent=fmt(sourcePerSecond());$("cycles").textContent=s.cycles;document.querySelectorAll("[data-mode]").forEach(b=>b.classList.toggle("active",b.dataset.mode===s.mode));$("notation").value=s.notation;
-$("cards").innerHTML=Array.from({length:N},(_,i)=>{const q=quote(i),effect=EFFECTS[i],ms=MS.find(m=>m>s.levels[i]),unlocked=i===0||s.levels[i-1]>0;const b=bonuses(i);return '<article class="card"><div class="line"><h3>強化'+ROM[i]+'</h3><span class="badge">Lv.'+s.levels[i].toLocaleString("ja-JP")+'</span></div><p>毎Lv +'+fmt(G[i])+' / タップ · 自身×'+fmt(b.own)+'</p><p>次の節目 '+(ms||"追加予定")+' · '+(effect?"✦ "+effect[1]:"通常強化")+'</p>'+(effect?'<details><summary>✦ '+effect[0]+' 詳細</summary>'+effect[2]+'（試験倍率）</details>':"")+'<button data-buy="'+i+'" '+(!unlocked||!q.count?"disabled":"")+'>購入 '+(q.count?"+"+q.count+" / "+fmt(q.cost):"資源不足")+'</button></article>'}).join("")}
+$("cards").innerHTML=Array.from({length:N},(_,i)=>{const q=quote(i),effect=EFFECTS[i],ms=MS.find(m=>m>s.levels[i]),unlocked=i===0||s.levels[i-1]>0;const b=bonuses(i);return '<article class="card"><div class="line"><h3>強化'+ROM[i]+'</h3><span class="badge">Lv.'+s.levels[i].toLocaleString("ja-JP")+'</span></div><p>毎Lv +'+fmt(G[i])+' / タップ · 自身×'+fmt(b.own)+'</p><p>次の節目 '+(ms||"追加予定")+' · '+(effect?"✦ "+effect[1]:"通常強化")+'</p>'+(effect?'<details><summary>✦ '+effect[0]+' 詳細</summary>'+effect[2]+'（試験倍率）</details>':"")+'<button data-buy="'+i+'" '+(!unlocked||!q.count?"disabled":"")+'> '+(!unlocked?"解放待ち":q.count?"購入 +"+q.count.toLocaleString("ja-JP")+" / "+fmt(q.cost):"次の1Lv "+fmt(q.next))+'</button></article>'}).join("")}
 $("tap").onclick=()=>{const now=Date.now();s.combo=now-s.lastTap<(effectLevel(21)?2500:1200)?s.combo+1:1;s.lastTap=now;s.taps++;let gain=tapValue();if(effectLevel(18)&&Math.random()<.1)gain=gain.mul(2);if(effectLevel(24)&&Math.random()<.01)gain=gain.mul(10);if(effectLevel(15)&&s.taps%20===0)s.boostUntil=now+5000;if(effectLevel(27))gain=gain.mul(1.25);s.wallet=A(s.wallet).add(gain).toString();save();render()};
 $("cards").onclick=e=>{const b=e.target.closest("[data-buy]");if(b)buy(Number(b.dataset.buy))};
 document.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>{s.mode=b.dataset.mode;save();render()});$("notation").onchange=e=>{s.notation=e.target.value;save();render()};
