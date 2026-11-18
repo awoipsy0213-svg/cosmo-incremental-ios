@@ -25,3 +25,73 @@ body.filter-affordable #sheetBody [data-purchase-card]:not(.is-buyable){display:
 }
 body.reduced-motion .purchase-card,body.reduced-motion .purchase-card .buy-progress>i,
 body.low-power .purchase-card,body.low-power .purchase-card .buy-progress>i{transition:none}
+
+
+/* v3.4: fixed footprints. Live values change, panel layout does not jump. */
+.stage-nav { align-items:stretch; }
+.stage-nav button[data-stage] { flex:1 1 0; min-width:0; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.stage-nav .boost-quick {
+  flex:0 0 48px; width:48px; min-width:48px; min-height:48px; height:48px;
+  display:flex; flex-direction:column; justify-content:center; align-items:center;
+  padding:3px 2px 5px; position:relative; overflow:hidden;
+  background:linear-gradient(150deg,rgba(25,39,102,.95),rgba(30,22,76,.94));
+  border:1px solid rgba(91,176,247,.65); border-radius:11px;
+  color:#91e8ff; white-space:nowrap; line-height:1;
+}
+.stage-nav .boost-quick-symbol {display:block;width:19px;height:19px;min-width:19px;min-height:19px;flex:0 0 19px;}
+.stage-nav .boost-quick-time {
+  display:block;width:42px;height:13px;min-height:13px;line-height:13px;
+  text-align:center;overflow:hidden;white-space:nowrap;
+  font:600 9px/13px -apple-system,BlinkMacSystemFont,sans-serif;
+  font-variant-numeric:tabular-nums;letter-spacing:.2px;
+}
+.stage-nav .boost-quick-fill {position:absolute;bottom:2px;left:4px;width:calc(100% - 8px);height:2px;background:linear-gradient(90deg,#3bceff,#b16aff);border-radius:4px;transform-origin:left;transform:scaleX(var(--boost-ratio,0));pointer-events:none;}
+.stage-nav .boost-quick.is-boosting {color:#fff;border-color:#78eaff;background:linear-gradient(155deg,rgba(18,105,156,.98),rgba(83,35,160,.97));box-shadow:inset 0 0 12px rgba(95,207,255,.16),0 0 11px rgba(55,187,255,.3);}
+.stage-nav .boost-quick.is-empty {color:#aebce0;}
+.stage-nav .boost-quick:disabled {opacity:.55;}
+/* Fix the varying text width that used to add/remove a toolbar row. */
+.purchase-toolbar{align-content:flex-start;}
+#purchaseFilterToggle{width:100px;min-width:100px;max-width:100px;overflow:hidden;text-overflow:ellipsis;}
+.purchase-live-summary{
+  flex:0 0 100%;width:100%;min-width:0;height:16px;min-height:16px;max-height:16px;
+  padding:0;line-height:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  font-variant-numeric:tabular-nums;
+}
+.purchase-card{display:flex;flex-direction:column;min-width:0;min-height:211px;box-sizing:border-box;}
+.purchase-card .card-top{flex:0 0 23px;min-height:23px;max-height:23px;overflow:hidden;}
+.purchase-card .card-top strong{min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.purchase-card [data-source-level],.purchase-card [data-moment-level]{
+  display:block;flex:0 0 15px;min-height:15px;max-height:15px;
+  white-space:nowrap;text-overflow:ellipsis;overflow:hidden;font-variant-numeric:tabular-nums;
+}
+.purchase-card .source-meta{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);min-height:14px;max-height:14px;height:14px;line-height:14px;gap:3px;}
+.purchase-card .source-meta span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+.purchase-card .source-meta span:last-child{text-align:right;}
+.purchase-card .buy-button{
+  box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;align-items:center;
+  flex:0 0 49px;height:49px;min-height:49px;max-height:49px;
+  width:100%;min-width:0;margin-top:auto;padding:3px 5px;line-height:1.15;
+  white-space:nowrap;overflow:hidden;font-variant-numeric:tabular-nums;
+}
+.purchase-card .buy-amount{
+  box-sizing:border-box;display:block;max-width:100%;min-width:0;min-height:14px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums;
+}
+.purchase-card .buy-button small{display:block;flex:0 0 11px;height:11px;min-height:11px;line-height:11px;}
+.purchase-card .live-buy-hint{
+  display:-webkit-box;box-sizing:border-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;
+  flex:0 0 52px;height:52px;min-height:52px;max-height:52px;
+  padding-top:4px;line-height:16px;overflow:hidden;overflow-wrap:anywhere;
+}
+.purchase-card .live-buy-hint[hidden]{visibility:hidden;display:-webkit-box!important;}
+.purchase-card .buy-progress{flex:0 0 3px;height:3px;min-height:3px;margin-top:3px;}
+.purchase-card .slim-progress{flex:0 0 3px;height:3px;min-height:3px;}
+.boost-status-card [data-boost-remaining]{display:block;white-space:nowrap;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;}
+.boost-status-card [data-boost-state]{min-width:53px;text-align:center;}
+.boost-status-card [data-boost-fill]{display:block;min-height:16px;font-variant-numeric:tabular-nums;}
+@media(max-width:350px){
+ .stage-nav {gap:3px;padding-left:4px;padding-right:4px;}
+ .stage-nav .boost-quick {flex-basis:45px;width:45px;min-width:45px;}
+ .stage-nav button[data-action=organizer]{flex:0 0 43px;min-width:43px;}
+ .purchase-card {min-height:213px;}
+}

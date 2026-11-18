@@ -23,6 +23,7 @@ let currentStage="existence",currentSub="moment",sheetState="closed";
 let lastFrame=Date.now(),hiddenAt=null,lastSavedAt=0,lastPanelRender=0,lastInteraction=0;
 let toastTimer,importDraft="",offlineReport=null,updateWorker=null,confirmedAction=null;
 let navDigest="",notice="",busyBirth=false;
+const BOOST_QUICK_ICON=`<svg class="boost-quick-symbol" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M13 2 5 13h6l-1 9 9-12h-6V2z" fill="currentColor"/></svg>`;
 let holdPurchase=null,skipClickFor=null;
 const f=(n,p=2)=>formatAmount(n,p,state?.settings.notation);
 const duration=seconds=>{
@@ -123,7 +124,10 @@ function renderNav(){
   const digest=JSON.stringify([a.map(x=>x.id),currentStage,state.intro.complete]);
   if(navDigest===digest)return;navDigest=digest;
   $("stageNav").hidden=!state.intro.complete;
-  $("stageNav").innerHTML=a.map(x=>`<button data-stage="${x.id}" class="${currentStage===x.id?"active":""}" aria-pressed="${currentStage===x.id}">${x.name}</button>`).join("")+`<button data-action="organizer" aria-label="共通管理メニュー">≡</button>`;
+  // Keep BOOST in its own fixed-size slot at the left of the stage bar.
+  // It is accessible even when the stage sheet is fully expanded.
+  const shortcut=`<button id="boostQuick" type="button" class="boost-quick" data-action="toggle-boost" aria-pressed="false" aria-label="BOOSTを操作する" title="BOOST：タップで加速を切り替える">${BOOST_QUICK_ICON}<span id="boostQuickTime" class="boost-quick-time" aria-hidden="true">--</span><span id="boostQuickFill" class="boost-quick-fill" aria-hidden="true"></span></button>`;
+  $("stageNav").innerHTML=shortcut+a.map(x=>`<button data-stage="${x.id}" class="${currentStage===x.id?"active":""}" aria-pressed="${currentStage===x.id}">${x.name}</button>`).join("")+`<button data-action="organizer" aria-label="共通管理メニュー">≡</button>`;
 }
 function renderWorld(){
   document.body.classList.toggle("is-intro",!state.intro.complete);
@@ -159,11 +163,11 @@ function quoteText(q){
   if(q.count) return `+${q.count.toLocaleString("ja-JP")} · ${f(q.cost)}`;
   // MAX used to say only "資源不足", hiding the next actual price.
   if(q.reason==="資源不足"&&A(q.cost).cmp(0)>0) return `次の1Lv · ${f(q.cost)}`;
-  return esc(q.reason||"購入不可");
+  return q.reason||"購入不可";
 }
 function cardQuote(kind,id){
   const q=G.purchaseQuote(state,kind,id),name=kind==="source"?CONTENT.sources.find(x=>x.id===id).name:CONTENT.moment.find(x=>x.id===id).name;
-  return `<button class="buy-button" data-purchase="${kind}" data-id="${id}" ${!q.enabled||readOnly?"disabled":""} aria-label="${esc(name+"を購入")}">${quoteText(q)}<small>オーブ</small></button><div class="live-buy-hint" data-live-hint aria-live="off"></div><div class="buy-progress" aria-hidden="true"><i style="width:0%"></i></div>`;
+  return `<button class="buy-button" data-purchase="${kind}" data-id="${id}" ${!q.enabled||readOnly?"disabled":""} aria-label="${esc(name+"を購入")}"><span class="buy-amount" data-quote-label>${esc(quoteText(q))}</span><small>オーブ</small></button><div class="live-buy-hint" data-live-hint aria-live="off"></div><div class="buy-progress" aria-hidden="true"><i style="width:0%"></i></div>`;
 }
 function momentHTML(){
   const q=G.convergenceQuote(state);
@@ -245,9 +249,9 @@ function observationsHTML(){
 function boostHTML(){
   const v=G.boostValues(state),s=state.boost;
   const labels=["オフライン報酬効率","オフライン進行の対象時間","BOOST基礎獲得量","オフラインBOOST獲得倍率","BOOST保有上限"];
-  return `<div class="kw-card"><div class="card-top"><strong>${duration(s.seconds)} / ${duration(v.capacity)}</strong><span class="badge">${s.active?"加速中":"蓄積中"}</span></div><div class="slim-progress"><i style="width:${Math.min(100,100*s.seconds/v.capacity)}%"></i></div>
+  return `<div class="kw-card boost-status-card"><div class="card-top"><strong data-boost-remaining>${duration(s.seconds)} / ${duration(v.capacity)}</strong><span class="badge" data-boost-state>${s.active?"加速中":"蓄積中"}</span></div><div class="slim-progress"><i data-boost-progress style="width:${Math.min(100,100*s.seconds/v.capacity)}%"></i></div>
     <p>オンライン ${duration(v.onlineRate*3600)}/時 · オフライン ${duration(v.offlineRate*3600)}/時</p>
-    <small>オフラインで満タンまで ${duration((v.capacity-s.seconds)/v.offlineRate)}</small>
+    <small data-boost-fill>オフラインで満タンまで ${duration((v.capacity-s.seconds)/v.offlineRate)}</small>
     <button class="wide-button" data-action="toggle-boost" ${s.seconds<1&&!s.active?"disabled":""}>${s.active?"加速を停止":"加速を開始 ×2（仮設定）"}</button>
     <p class="tiny">暫定式：m倍で実時間1秒につきBOOST(m−1)秒消費。タップ威力は直接増えません。アプリを閉じている間は消費しません。</p></div>
     <h3>BOOSTだけで育てる5系統</h3><p class="panel-intro">各ステージ・源・刻印からBOOSTを強化しません。価格と増加幅は未決定です。</p>
@@ -276,7 +280,7 @@ function settingsHTML(){
   return `<p class="panel-intro">背景は既存のORGANIC FLOWを維持。安全な保存・表示設定は序章から利用できます。</p>
   ${labels.map(([id,name,desc])=>`<label class="kw-row"><span>${name}<small>${desc}</small></span><input type="checkbox" data-pref="${id}" ${state.settings[id]?"checked":""}></label>`).join("")}
   <label class="kw-row">数値表記<select class="input-select" data-pref="notation"><option value="auto" ${state.settings.notation==="auto"?"selected":""}>自動</option><option value="scientific" ${state.settings.notation==="scientific"?"selected":""}>指数</option></select></label>
-  <div class="kw-row"><span>バージョン<small>Ver.3.1の確定仕様・暫定バランス調整 / 星雲ネオンUI</small></span><strong>3.3.0</strong></div>
+  <div class="kw-row"><span>バージョン<small>Ver.3.1の確定仕様・暫定バランス調整 / 星雲ネオンUI</small></span><strong>3.4.0</strong></div>
   <div class="kw-row"><span>通信<small>クラウド・課金は未接続</small></span><strong>${navigator.onLine?"オンライン":"オフライン"}</strong></div>
   <button class="wide-button" data-organizer="backup">保存とバックアップ</button>
   <a class="link-button" href="./legacy/" data-legacy-link>保管した旧版Ver.3.0で続ける</a><br>
@@ -354,9 +358,9 @@ function refreshPurchaseButtons(){
     if(card)card.classList.toggle("is-buyable",enabled);
     const label=quoteText(q);
     // No wholesale DOM rebuild, even as the wallet grows or MAX quantity changes.
-    if(b.dataset.quoteLabel!==label){
-      b.innerHTML=`${label}<small>オーブ</small>`;b.dataset.quoteLabel=label;
-    }
+    const labelNode=b.querySelector("[data-quote-label]");
+    // Update just the number, never recreate the button or its icon/label.
+    if(labelNode&&labelNode.textContent!==label)labelNode.textContent=label;
     if(enabled)ready++;
     const hint=card?.querySelector("[data-live-hint]");
     if(hint){
@@ -387,7 +391,10 @@ function refreshPurchaseButtons(){
     }
   }
   const summary=`購入可能 ${ready} / ${buttons.length} · 所持 ${f(wallet)} オーブ${nearest?` · 次は ${(nearest.kind==="source"?CONTENT.sources:CONTENT.moment).find(x=>x.id===nearest.id)?.name||""}（${nearest.info.seconds!==null?shortDuration(nearest.info.seconds):"タップで獲得"}）`:""}`;
-  if($("purchaseLiveSummary").textContent!==summary)$("purchaseLiveSummary").textContent=summary;
+  if($("purchaseLiveSummary").textContent!==summary){
+    $("purchaseLiveSummary").textContent=summary;
+    $("purchaseLiveSummary").title=summary;
+  }
   if(currentSub==="moment"){
     const q=G.convergenceQuote(state),b=$("sheetBody").querySelector('button[data-action="converge"]');
     if(b){
@@ -404,9 +411,48 @@ function refreshPurchaseButtons(){
   const empty=$("purchaseFilterEmpty");
   if(empty)empty.hidden=!state.settings.affordableOnly||ready>0;
 }
+function refreshBoostShortcut(){
+  if(!state||!state.intro.complete)return;
+  const seconds=Math.max(0,state.boost.seconds);
+  const active=state.boost.active&&seconds>0;
+  const capacity=G.boostValues(state).capacity;
+  const shortcut=$("boostQuick");
+  if(shortcut){
+    shortcut.classList.toggle("is-boosting",active);
+    shortcut.classList.toggle("is-empty",!active&&seconds<1);
+    shortcut.disabled=readOnly||store.blocked;
+    shortcut.setAttribute("aria-pressed",String(active));
+    const label=`BOOST ${duration(seconds)}。${active?"加速中。タップで停止":"タップで加速を開始"}${seconds<1&&!active?"。残量がない場合はBOOST画面を開きます":""}`;
+    if(shortcut.getAttribute("aria-label")!==label)shortcut.setAttribute("aria-label",label);
+    shortcut.title=label;
+    const time=$("boostQuickTime");
+    if(time){
+      // Two stable text glyphs, with a fixed box: no reflow as seconds change.
+      const display=active?"×2":seconds>=3600?`${Math.floor(seconds/3600)}h`:seconds>=60?`${Math.floor(seconds/60)}m`:`${Math.floor(seconds)}s`;
+      if(time.textContent!==display)time.textContent=display;
+    }
+    shortcut.style.setProperty("--boost-ratio",String(Math.max(0,Math.min(1,seconds/capacity))));
+  }
+  if(currentSub!=="boost"||sheetState==="closed")return;
+  // The organizer's BOOST panel updates in place with the same geometry.
+  const panel=$("sheetBody");
+  const remaining=panel.querySelector("[data-boost-remaining]");
+  if(remaining)remaining.textContent=`${duration(seconds)} / ${duration(capacity)}`;
+  const badge=panel.querySelector("[data-boost-state]");
+  if(badge)badge.textContent=active?"加速中":"蓄積中";
+  const fill=panel.querySelector("[data-boost-progress]");
+  if(fill)fill.style.width=`${(100*Math.min(1,seconds/capacity)).toFixed(2)}%`;
+  const offline=panel.querySelector("[data-boost-fill]");
+  if(offline)offline.textContent=`オフラインで満タンまで ${duration((capacity-seconds)/G.boostValues(state).offlineRate)}`;
+  const button=panel.querySelector('button[data-action="toggle-boost"]');
+  if(button){
+    button.disabled=readOnly||store.blocked||(!active&&seconds<1);
+    button.textContent=active?"加速を停止":"加速を開始 ×2（仮設定）";
+  }
+}
 function render(force=false){
   if(!state)return;
-  renderNav();renderWorld();renderPanel(force);refreshPurchaseButtons();
+  renderNav();renderWorld();renderPanel(force);refreshPurchaseButtons();refreshBoostShortcut();
 }
 function wave(x,y,gain){
   if(state.settings.reducedMotion||state.settings.lowPower)return;
@@ -547,7 +593,15 @@ async function dispatchAction(action){
   if(action==="confirm-engraving")return resultDone(G.confirmEngraving(state),"ビルドを確定しました");
   if(action==="convert-common")return resultDone(G.convertCommon(state),"ひとつの残滓を得ました");
   if(action==="create-planet")return resultDone(G.createPlanet(state));
-  if(action==="toggle-boost"){state.boost.active=!state.boost.active;save();render(true);return;}
+  if(action==="toggle-boost"){
+    if(!state.boost.active&&state.boost.seconds<1){
+      openOrganizerPage("boost");toast("BOOST残量がありません。蓄積状況を表示しています");return;
+    }
+    state.boost.active=!state.boost.active;
+    save();render(true);
+    toast(state.boost.active?"BOOST加速を開始しました（×2・仮設定）":"BOOST加速を停止しました");
+    return;
+  }
   if(action==="snapshot"){if(save(true)){renderPanel(true);toast("履歴を保存しました");}return;}
   if(action==="import-save"){
     const text=$("importText")?.value||importDraft;

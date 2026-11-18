@@ -2,7 +2,7 @@
 // null = 未決定。nullを汎用倍率で埋めない。
 // provisionalの値は遊べる基盤の動作確認用で、正式な採用値ではない。
 export const CONFIG = {
-  version: "3.3.0",
+  version: "3.4.0",
   schemaVersion: 31,
   confirmed: {
     sourceMaxLevel: 1000000,

@@ -1,0 +1,11 @@
+《理》Ver.3.4 固定レイアウト・BOOSTショートカット
+
+このバージョンはブラウザ/PWA公開ルート専用です。iOSのwwwやCapacitor設定は変更しません。
+
+1. ゲーム内の「管理 > 保存」でJSONをバックアップしてください。
+2. GitHubのmainへindex.html、app.mjs、live-ui.css、balance-config.mjs、sw.js、README.md、TEST_REPORT_V34.mdを反映します。
+3. GitHub Pagesの公開処理成功後、Safariまたはホーム画面PWAをオンライン起動。
+4. タイトル近くに「3.4 · STABLE」が出るか確認し、「保存して更新」が出たら押します。
+5. 画面下部・左端に「⚡ + 残量」を表示するボタンが追加されます。タップでBOOSTを開始/停止します。残量ゼロ時はBOOSTの管理画面に移動します。
+
+セーブ削除・ブラウザデータ消去はしないでください。ゲームの速度・強化コスト・BOOST倍率・解放条件は今回変更していません。
