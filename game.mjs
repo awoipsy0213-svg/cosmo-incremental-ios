@@ -1,4 +1,5 @@
 import {CONFIG} from "./balance-config.mjs";
+import * as SETSUNA from "./setsuna-engine.mjs";
 import {CONTENT} from "./content.mjs";
 import {PROPOSED,resourcePrototype,trialResourceWeights,naturalGrowthFactors,boostTrialCost} from "./design-proposals.mjs";
 import {A,str,seriesCost,maxAffordable} from "./numbers.mjs";
@@ -23,7 +24,7 @@ export function createState(now=Date.now(),mode="normal") {
     createdAt:now,lastWall:now,revision:0,
     intro:{touches:0,complete:false},
     orbs:"0",totalOrbs:"0",surplusExistence:"0",totalExistenceEarned:"0",
-    moment:freshMoment(),
+    moment:freshMoment(),momentRuntime:freshMomentRuntime(),
     sources:Object.fromEntries(SOURCE_IDS.map(id=>[id,{level:0,plus:0,effects:[]}])),
     convergenceCount:0,purchaseMode:"1",
     time:{unlocked:false,revealedDirections:1,selected:[0],weights:[100,0,0,0,0,0],
@@ -65,19 +66,28 @@ function spendOrbs(s,amount) {
   s.counters.orbsSpent=add(s.counters.orbsSpent,amount);
   return true;
 }
-export function tapPower(s) {
-  const cfg=CONFIG.provisional;
-  let base=A(cfg.tapBase);
-  for(const id of MOMENT_IDS){
-    const c=cfg.moment[id];
-    if(c.amount)base=base.add(A(c.amount).mul(s.moment[id]||0));
-  }
-  return base.mul(A(cfg.moment.amplify.multiplier).pow(s.moment.amplify||0))
-    .mul(existenceMultiplier(s));
+export function tapPower(s,now=Date.now()) {
+  return SETSUNA.tapPreview(setsunaProjection(s,null,now),now).mul(existenceMultiplier(s));
 }
 // Each convergence gives a persistent, additive +1% per 0.01 surplus existence.
 // First existence (the protected 1) is not counted: 0.02 surplus => x1.02; 1 => x2.
 export function existenceMultiplier(s) { return A(1).add(s.surplusExistence); }
+// 30 distinct Setsuna effects. Projections never use the live wallet directly.
+const SETSUNA_RUNTIME_KEYS=["combo","lastTap","comboUntil","sourceBuffUntil","synergyUntil","awakenUntil",
+  "autoCredit","comboAutoCredit","recoverCredit","compressCredit","flowQueue","stored","autoTaps"];
+export const freshMomentRuntime=()=>Object.fromEntries(SETSUNA_RUNTIME_KEYS.map(k=>[k,k==="flowQueue"?[]:k==="stored"?"0":0]));
+function baseProduction(s){return SOURCE_IDS.reduce((sum,id)=>sum.add(sourceProduction(s,id)),A(0));}
+function setsunaProjection(s,rawSource=null,now=Date.now()){
+  const t=SETSUNA.fresh(now);
+  t.levels=MOMENT_IDS.map(id=>s.moment[id]||0);t.earned=[...t.levels];
+  t.cycles=s.convergenceCount;t.taps=s.counters.taps;
+  t.sourceLevel=Object.values(s.sources).reduce((n,v)=>n+v.level,0);
+  t.sourceBase=(rawSource===null?baseProduction(s).div(existenceMultiplier(s)):A(rawSource)).toString();
+  Object.assign(t,s.momentRuntime||{});t.wallet="0";t.lastTick=now;
+  return t;
+}
+function rememberSetsuna(s,t){s.momentRuntime=Object.fromEntries(SETSUNA_RUNTIME_KEYS.map(k=>[k,t[k]]));}
+
 // Base output from the first level of this Source. Subsequent levels compound by productionGrowth.
 // Returns Amount to avoid precision/overflow problems for late source tiers.
 export function sourceProductionPerLevel(id) {
@@ -104,8 +114,8 @@ export function sourceNextGain(s,id) {
     .mul(A(CONFIG.provisional.source.productionGrowth).pow(v.level))
     .mul(plus).mul(existenceMultiplier(s));
 }
-export function production(s) {
-  return SOURCE_IDS.reduce((sum,id)=>sum.add(sourceProduction(s,id)),A(0));
+export function production(s,now=Date.now()) {
+  return baseProduction(s).mul(SETSUNA.sourceMultiplier(setsunaProjection(s,null,now),now));
 }
 export function criticalMultiplier(percent,multiplier,rng=Math.random,allowSub100=false) {
   if(!Number.isFinite(percent)||percent<0||!Number.isFinite(multiplier)||multiplier<1)throw Error("Crit設定が不正");
@@ -113,7 +123,7 @@ export function criticalMultiplier(percent,multiplier,rng=Math.random,allowSub10
   if(!allowSub100)return percent===0?1:null;
   return rng()<percent/100?multiplier:1;
 }
-export function tap(s) {
+export function tap(s,now=Date.now(),rng=Math.random) {
   s.counters.taps++;
   if(!s.intro.complete) {
     s.intro.touches++;
@@ -124,8 +134,10 @@ export function tap(s) {
     }
     return {ok:true,intro:true,progress:s.intro.touches/CONFIG.provisional.introTouches};
   }
-  const gain=tapPower(s);addOrbs(s,gain);
-  return {ok:true,gain:gain.toString()};
+  const proj=setsunaProjection(s,null,now);proj.taps=Math.max(0,s.counters.taps-1);
+  const hit=SETSUNA.tap(proj,now,rng);rememberSetsuna(s,proj);
+  const gain=hit.amount.mul(existenceMultiplier(s));addOrbs(s,gain);
+  return {ok:true,gain:gain.toString(),crit:hit.crit,combo:hit.combo};
 }
 function purchaseData(s,kind,id) {
   if(kind==="source"){
@@ -228,6 +240,7 @@ export function converge(s) {
   }
   // 仮設定の全消費。源の+と能力はデータ保護のため維持し、正式保持規則と断定しない。
   spendOrbs(s,CONFIG.provisional.convergence.spend==="all"?s.orbs:q.spent);
+  s.momentRuntime=freshMomentRuntime();
   s.convergenceCount++;achievement(s,"convergence","最初の通常収束を観測した。");
   event(s,`収束：存在 +${A(q.reward).toNumber().toLocaleString("ja-JP",{maximumFractionDigits:6})}`);
   return {ok:true,...q};
@@ -477,8 +490,19 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
   // No automatic offline BOOST spend.
   if(offline)s.boost.active=false;
   s.counters[offline?"offlineSeconds":"onlineSeconds"]+=dt;
-  const gained=s.intro.complete?production(s).mul(gameSeconds):A(0);
-  addOrbs(s,gained);
+  let gained=A(0);
+  if(s.intro.complete){
+    // Source production, autonomous taps and periodic effects use the same engine.
+    // BOOST and offline efficiency are already included in gameSeconds.
+    const base=baseProduction(s),factor=existenceMultiplier(s);
+    const trialSeconds=Math.min(1800,gameSeconds);
+    const proj=setsunaProjection(s,base.div(factor),now);
+    proj.lastTick=now-trialSeconds*1000;
+    SETSUNA.advance(proj,now);
+    rememberSetsuna(s,proj);
+    gained=A(proj.wallet).mul(factor).add(base.mul(Math.max(0,gameSeconds-trialSeconds)));
+    addOrbs(s,gained);
+  }
   if(s.time.unlocked){
     s.time.elapsed+=gameSeconds;
     // Time -> world seconds and random event interval are undefined.
@@ -624,6 +648,22 @@ export function validateState(input,expectedMode=null) {
     if(s.moment[id]===undefined)s.moment[id]=0;
     if(!Number.isInteger(s.moment[id])||s.moment[id]<0||s.moment[id]>1000000)fail("刹那 "+id);
   }
+  const r=s.momentRuntime??{};
+  if(!r||typeof r!=="object"||Array.isArray(r))fail("刹那状態");
+  const normalized=freshMomentRuntime();
+  for(const key of SETSUNA_RUNTIME_KEYS){
+    const v=r[key];if(v===undefined)continue;
+    if(key==="flowQueue"){
+      if(!Array.isArray(v)||v.length>120)fail("刹那の予約生産");
+      normalized.flowQueue=v.map(x=>{
+        if(!x||typeof x!=="object"||!Number.isFinite(x.remaining)||x.remaining<0||x.remaining>5)fail("刹那の分散時間");
+        return {left:str(x.left),remaining:x.remaining};
+      });
+    }else if(key==="stored")normalized.stored=str(v);
+    else if(!Number.isFinite(v)||v<0||v>1e15)fail("刹那の内部値 "+key);
+    else normalized[key]=v;
+  }
+  s.momentRuntime=normalized;
   for(const id of SOURCE_IDS){
     const x=s.sources?.[id];
     if(!x||!Number.isInteger(x.level)||x.level<0||x.level>1000000||!Number.isInteger(x.plus)||x.plus<0||x.plus>1000000)fail("源 "+id);
