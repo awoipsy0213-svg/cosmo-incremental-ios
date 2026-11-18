@@ -43,6 +43,19 @@ export class SaveStore {
     if(raw){
       try{
         const s=decode(raw,this.mode);this.expectedRevision=s.revision||0;
+        // Preserve an untouched pre-v3.8 snapshot before first migration to 30 slots.
+        // If backup cannot be verified, block writes rather than risking the sole save.
+        const oldShape=JSON.parse(raw).data??JSON.parse(raw);
+        if(this.mode==="normal" && !oldShape.momentRuntime){
+          const key=this.key+".before-setsuna38";
+          try {
+            if(!this.read(key))this.storage.setItem(key,raw);
+            if(!this.read(key))throw Error("backup not persisted");
+          }catch(e){
+            this.blocked=true;
+            return {state:s,blocked:true,warning:"Ver.3.8への移行前バックアップを保存できません。元のデータを保護し、書き込みを停止しています。"};
+          }
+        }
         return {state:s};
       }catch(error){
         // Quarantine original bytes and do not silently overwrite invalid data.

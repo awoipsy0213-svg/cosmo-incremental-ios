@@ -2,7 +2,7 @@
 // null = 未決定。nullを汎用倍率で埋めない。
 // provisionalの値は遊べる基盤の動作確認用で、正式な採用値ではない。
 export const CONFIG = {
-  version: "3.7.0",
+  version: "3.8.0",
   schemaVersion: 31,
   confirmed: {
     sourceMaxLevel: 1000000,
@@ -31,7 +31,31 @@ export const CONFIG = {
       tap3: {baseCost:450, growth:1.58, amount:9, maxLevel:1000000},
       tap4: {baseCost:2700, growth:1.66, amount:27, maxLevel:1000000},
       tap5: {baseCost:16200, growth:1.74, amount:81, maxLevel:1000000},
-      amplify: {baseCost:200, growth:2, multiplier:1.5, maxLevel:1000000}
+      amplify: {baseCost:200, growth:2, multiplier:1.5, maxLevel:1000000},
+      setsuna07: {baseCost:"14753.57142857143", growth:1.75, maxLevel:1000000},
+      setsuna08: {baseCost:"72321.42857142858", growth:1.75, maxLevel:1000000},
+      setsuna09: {baseCost:"354375.00000000006", growth:1.75, maxLevel:1000000},
+      setsuna10: {baseCost:"1735714.2857142857", growth:1.75, maxLevel:1000000},
+      setsuna11: {baseCost:"11896875.000000002", growth:1.75, maxLevel:1000000},
+      setsuna12: {baseCost:"81506250.00000001", growth:1.75, maxLevel:1000000},
+      setsuna13: {baseCost:"558140625", growth:1.75, maxLevel:1000000},
+      setsuna14: {baseCost:"3820162500", growth:1.75, maxLevel:1000000},
+      setsuna15: {baseCost:"26133384375", growth:1.75, maxLevel:1000000},
+      setsuna16: {baseCost:"178679418750.00003", growth:1.75, maxLevel:1000000},
+      setsuna17: {baseCost:"1220976028125", growth:1.75, maxLevel:1000000},
+      setsuna18: {baseCost:"8338372875000", growth:1.75, maxLevel:1000000},
+      setsuna19: {baseCost:"56909394871875", growth:1.75, maxLevel:1000000},
+      setsuna20: {baseCost:"388151257331250.06", growth:1.75, maxLevel:1000000},
+      setsuna21: {baseCost:"3779367505593750", growth:1.75, maxLevel:1000000},
+      setsuna22: {baseCost:"36772224378750010", growth:1.75, maxLevel:1000000},
+      setsuna23: {baseCost:"357507737015625000", growth:1.75, maxLevel:1000000},
+      setsuna24: {baseCost:"3472932302437500000", growth:1.75, maxLevel:1000000},
+      setsuna25: {baseCost:"33707872347187500000", growth:1.75, maxLevel:1000000},
+      setsuna26: {baseCost:"326864216700000000000", growth:1.75, maxLevel:1000000},
+      setsuna27: {baseCost:"3.16649709928125e+21", growth:1.75, maxLevel:1000000},
+      setsuna28: {baseCost:"3.0643520315625e+22", growth:1.75, maxLevel:1000000},
+      setsuna29: {baseCost:"2.96220696384375e+23", growth:1.75, maxLevel:1000000},
+      setsuna30: {baseCost:"2.8600618961249997e+24", growth:1.75, maxLevel:1000000}
     },
     // NEXT targets trial landmarks; these are not final game design milestones.
     momentMilestones: [10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000,250000,500000,1000000],
