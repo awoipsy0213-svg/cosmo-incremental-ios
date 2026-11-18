@@ -1,5 +1,5 @@
 /* Versioned, scope-specific cache. Does not delete saves or another app's cache. */
-const VERSION = "3.5.0-research-proposals";
+const VERSION = "3.6.0-source-balancing";
 const PREFIX = "kotowari-handoff:" + new URL(self.registration.scope).pathname + ":";
 const CACHE = PREFIX + VERSION;
 const RELATIVE = [
@@ -11,6 +11,7 @@ const RELATIVE = [
   "purchase-insights.mjs",
   "design-proposals.mjs",
   "RESEARCH_V35.md",
+  "BALANCE_V36.md",
   "content.mjs",
   "balance-config.mjs",
   "numbers.mjs",

@@ -2,7 +2,7 @@
 // null = 未決定。nullを汎用倍率で埋めない。
 // provisionalの値は遊べる基盤の動作確認用で、正式な採用値ではない。
 export const CONFIG = {
-  version: "3.5.0",
+  version: "3.6.0",
   schemaVersion: 31,
   confirmed: {
     sourceMaxLevel: 1000000,
@@ -27,11 +27,30 @@ export const CONFIG = {
       tap: {baseCost:10, growth:1.5, amount:1, maxLevel:1000000},
       amplify: {baseCost:200, growth:2, multiplier:1.5, maxLevel:1000000}
     },
-    // 3.3 PLAYTEST: source production was 0.02, causing ~5000s payback
-    // for the first 100-orb source. 0.4 is a *provisional* pacing trial.
-    // The first source now pays for itself in ~250s of idle time.
-    // This is not a confirmed Source effect or final progression curve.
-    source: {baseCost:100, tierScale:1.4, costGrowth:1.075, productionPerLevel:0.4},
+    // 3.6 PLAYTEST: per-level production increases across all 30 sources.
+    // Production and base costs are independent arrays indexed SOURCE_01..SOURCE_30.
+    // Each level adds a fixed /second amount; the nth next purchase costs
+    // baseCosts[index] * (costGrowth ** currentLevel). All numbers are provisional.
+    // Source01..06: player-suggested 0.1,0.5,1,5,25,100/sec; after 06, x4 per tier.
+    // Base cost aims for 240-300s simple payback at level 0; NOT the unlock wait.
+    // 1.35 is steep; higher milestones need future stage synergies (unresolved).
+    source: {
+      costGrowth: 1.35,
+      perSecondPerLevel: [
+      "0.1", "0.5", "1", "5", "25", "100",
+      "400", "1600", "6400", "25600", "102400", "409600",
+      "1638400", "6553600", "26214400", "104857600", "419430400", "1677721600",
+      "6710886400", "26843545600", "107374182400", "429496729600", "1717986918400", "6871947673600",
+      "27487790694400", "109951162777600", "439804651110400", "1759218604441600", "7036874417766400", "28147497671065600"
+    ],
+      baseCosts: [
+      "30", "120", "300", "1500", "7500", "30000",
+      "120000", "480000", "1920000", "7680000", "30720000", "122880000",
+      "491520000", "1966080000", "7864320000", "31457280000", "125829120000", "503316480000",
+      "2013265920000", "8053063680000", "32212254720000", "128849018880000", "515396075520000", "2061584302080000",
+      "8246337208320000", "32985348833280000", "131941395333120000", "527765581332480000", "2111062325329920000", "8444249301319680000"
+    ]
+    },
     ui: {refreshMs:150, holdStartMs:480, holdRepeatMs:180},
     convergence: {baseCost:1000, costGrowth:1.1, existencePerStep:0.001, spend:"all"},
     // firstSourceは時導入と自動生産の接続を確認するための仮ルール。

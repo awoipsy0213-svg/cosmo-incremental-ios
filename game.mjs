@@ -68,13 +68,20 @@ export function tapPower(s) {
   return A(cfg.tapBase+s.moment.tap*cfg.moment.tap.amount)
     .mul(A(cfg.moment.amplify.multiplier).pow(s.moment.amplify));
 }
+// One source's production per acquired level; no milestone/effect guesses.
+// Returns Amount to avoid precision/overflow problems for late source tiers.
+export function sourceProductionPerLevel(id) {
+  const i=SOURCE_IDS.indexOf(id);
+  if(i<0)throw Error("源IDが不正です");
+  return A(CONFIG.provisional.source.perSecondPerLevel[i]);
+}
 export function production(s) {
   const cfg=CONFIG.provisional.source;
   return CONTENT.sources.reduce((sum,x,i)=>{
     const v=s.sources[x.id];
     // +倍率は設計未決定。通常では値を保護するだけ、検証のみ仮倍率。
     const plus=s.mode==="lab"?A(2).pow(v.plus):A(1);
-    return sum.add(A(v.level).mul(cfg.productionPerLevel*(i+1)).mul(plus));
+    return sum.add(A(v.level).mul(A(cfg.perSecondPerLevel[i])).mul(plus));
   },A(0));
 }
 export function criticalMultiplier(percent,multiplier,rng=Math.random,allowSub100=false) {
@@ -102,7 +109,7 @@ function purchaseData(s,kind,id) {
     const i=SOURCE_IDS.indexOf(id);if(i<0)throw Error("源IDが不正です");
     const cfg=CONFIG.provisional.source;
     return {level:s.sources[id].level,max:CONFIG.confirmed.sourceMaxLevel,
-      base:A(cfg.baseCost).mul(A(cfg.tierScale).pow(i)),growth:cfg.costGrowth,
+      base:A(cfg.baseCosts[i]),growth:cfg.costGrowth,
       milestones:CONFIG.confirmed.sourceMilestones};
   }
   const c=CONFIG.provisional.moment[id];

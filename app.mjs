@@ -184,6 +184,7 @@ function sourcesHTML(){
     return `<article class="kw-card source-card purchase-card" data-purchase-card><div class="card-top"><strong>${String(i+1).padStart(2,"0")} ${x.name}</strong></div>
     <small data-source-level="${x.id}">Lv.${v.level.toLocaleString("ja-JP")} / ＋${v.plus}</small><button class="more-button source-detail-button" data-source-detail="${x.id}" aria-label="${x.name}の詳細">⋯</button><div class="slim-progress"><i style="width:${Math.max(0,Math.min(100,ratio*100))}%"></i></div>
     <div class="source-meta"><span>節目 ${done}/21</span><span>次 ${next?next.toLocaleString("ja-JP"):"MAX"}</span></div>
+    <small class="source-yield" title="1レベルあたりの秒間生産量。試験用の仮値です">毎Lv ＋${f(G.sourceProductionPerLevel(x.id))}/秒（仮）</small>
     ${cardQuote("source",x.id)}
      ${v.level===1000000?`<button class="wide-button" data-breakthrough="${x.id}" ${mode!=="lab"?"disabled":""}>＋循環 ${mode==="lab"?"（仮の個別突破）":"要確認"}</button>`:""}</article>`;
   }).join("")}</div>`;
@@ -396,10 +397,10 @@ function refreshPurchaseButtons(){
           else if(info.taps!==null)value+=` · あと約${formatTaps(info.taps)}タップ`;
         }
         if(kind==="source"&&q.count>0){
-          const i=CONTENT.sources.findIndex(x=>x.id===id),plus=state.sources[id].plus;
-          const trialMult=mode==="lab"?Math.pow(2,plus):1;
-          const increment=q.count*CONFIG.provisional.source.productionPerLevel*(i+1)*trialMult;
-          if(Number.isFinite(increment)&&increment>0)value+=` · 生成 +${f(increment)}/秒（仮）`;
+          const plus=state.sources[id].plus;
+          const trialMult=mode==="lab"?A(2).pow(plus):A(1);
+          const increment=G.sourceProductionPerLevel(id).mul(q.count).mul(trialMult);
+          if(increment.cmp(0)>0)value+=` · 生成 +${f(increment)}/秒（仮）`;
         }
       }
       if(hint.textContent!==value)hint.textContent=value;

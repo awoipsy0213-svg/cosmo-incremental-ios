@@ -7,7 +7,7 @@ import {createState,advance,invest,createPlanet,planet,trialEnabled,setTrialEnab
 import {encode,decode,KEYS} from '../save.mjs';
 let checks=0;function test(cond,message){assert.ok(cond,message);checks++;}
 const timestamp=Date.now();
-test(CONFIG.version==='3.5.0','version');
+test(/^3\./.test(CONFIG.version),'version');
 test(CONFIG.schemaVersion===31,'schema unchanged');
 test(KEYS.normal==='kotowari_v31_normal','save key unchanged');
 test(KEYS.lab==='kotowari_v31_lab','lab save key unchanged');

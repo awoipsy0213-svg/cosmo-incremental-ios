@@ -23,7 +23,9 @@ const prefix='kotowari-handoff:/cosmo-incremental-ios/:';
 all.set(prefix+'old',cacheFactory());all.set('other-app-cache',cacheFactory());
 const run=(type,attrs={})=>{let p;registrations.get(type)({...attrs,waitUntil:v=>{p=v},respondWith:v=>{p=v}});return p};
 await run('install');
-const cache=await caches.open(prefix+'3.5.0-research-proposals');
+const match=code.match(/const VERSION = "([^"]+)";/);
+assert.ok(match,'SW version exists');
+const cache=await caches.open(prefix+match[1]);
 for(const path of ['index.html','game.mjs','app.mjs','design-proposals.mjs','RESEARCH_V35.md','sw.js']){
  if(path==='sw.js')continue;
  assert.ok(await cache.match(new URL(path,base).href),'Missing '+path);checks++

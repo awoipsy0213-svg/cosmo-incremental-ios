@@ -4,7 +4,7 @@ import {CONFIG} from '../balance-config.mjs';
 import {SaveStore,encode,decode} from '../save.mjs';
 import {purchaseInsight} from '../purchase-insights.mjs';
 
-assert.equal(CONFIG.version, '3.4.0');
+assert.match(CONFIG.version,/^3\./);
 assert.equal(CONFIG.schemaVersion,31);
 assert.equal(CONFIG.provisional.boost.multiplier,2);
 let t=Date.now();
