@@ -181,3 +181,11 @@ body.low-power .purchase-card,body.low-power .purchase-card .buy-progress>i{tran
 @media (prefers-reduced-motion:reduce) {
  .kw-sheet-body .purchase-card,.kw-sheet-body .purchase-card * {transition:none!important;animation:none!important}
 }
+
+/* Ver.3.8 Setsuna30: section headings and expandable unique-effect details. */
+.kw-sheet-body .moment-group-title{grid-column:1/-1;color:#8bd9ff;font-size:11px;font-weight:700;letter-spacing:.09em;padding:8px 2px 3px;border-bottom:1px solid #739bd333}
+.kw-sheet-body .moment-card .moment-effect-detail{color:#b7c6dc;font-size:10px;line-height:1.4;margin-top:3px}
+.kw-sheet-body .moment-card .moment-effect-detail summary{cursor:pointer;color:#9fcbee;font-size:10px}
+.kw-sheet-body .moment-card .moment-effect-detail p{font-size:10px;margin:3px 0;line-height:1.4}
+.kw-sheet-body .moment-card .moment-effect-detail small{display:block;color:#9aa9ba;font-size:9px}
+.kw-sheet-body .moment-card .card-top strong{max-width:72%;overflow:hidden;text-overflow:ellipsis}
