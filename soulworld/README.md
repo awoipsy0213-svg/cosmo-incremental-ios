@@ -1,6 +1,12 @@
 # 魂の世界｜スマホ横画面・3D自律育成試作 Ver.0.1.0
 
-《理》とは別プロジェクト。3D WebGL・JavaScript・CSSで構成する、依存ライブラリ不要のブラウザ試作です。WebGL非対応環境ではCanvas2Dの簡易見た目で動作します。
+《理》とは別プロジェクト。3D WebGL・JavaScript・CSSで構成する、依存ライブラリ不要のブラウザ試作です。WebGL非対応環境ではCanvas2Dで軽量表示します。WebGL非対応環境ではCanvas2Dの簡易見た目で動作します。
+
+## 公開ページ
+
+https://awoipsy0213-svg.github.io/cosmo-incremental-ios/soulworld/
+
+既存《理》のルートは編集していません。新作は別サブフォルダで公開します。GitHub Pagesの配信設定と更新反映には確認が必要です。
 
 ## 起動
 
