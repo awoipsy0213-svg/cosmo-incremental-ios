@@ -1,5 +1,5 @@
-const CACHE='soulworld-static-0.2.4';
-const FILES=['./','./index.html','./style.css','./premium.css','./premium-scene.mjs','./vista.svg','./sub-portrait.svg','./hero-portrait.svg','./game.mjs','./core.mjs','./battle-rules.mjs','./hero-progression.mjs','./save-migration.mjs','./scene.mjs','./fallback.mjs','./manifest.webmanifest','./icon.svg'];
+const CACHE='soulworld-static-0.2.5';
+const FILES=['./','./index.html','./style.css','./premium.css','./premium-scene.mjs','./vista.svg','./sub-portrait.svg','./hero-portrait.svg','./game.mjs','./core.mjs','./battle-rules.mjs','./hero-progression.mjs','./save-migration.mjs','./hero-roster.mjs','./scene.mjs','./fallback.mjs','./manifest.webmanifest','./icon.svg'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(FILES)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil(Promise.all([caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('soulworld-static-')&&key!==CACHE).map(key=>caches.delete(key)))),self.clients.claim()]))});
 self.addEventListener('fetch',event=>{const req=event.request;if(req.method!=='GET'||new URL(req.url).origin!==self.location.origin)return;event.respondWith(fetch(req).then(response=>{if(response.ok){const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(req,copy)).catch(()=>{})}return response}).catch(()=>caches.match(req).then(found=>found||caches.match('./index.html'))))});
