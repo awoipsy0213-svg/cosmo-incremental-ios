@@ -1,5 +1,6 @@
 import {CONFIG} from "./balance-config.mjs";
 import {UNIVERSE_RESOURCE_RULES,resourceEligible} from "./universe-confirmed-v4.mjs";
+import {KNOWLEDGE_IDS,KNOWLEDGE_NAMES,knowledgeLevel,coreRequirements,autoPlanetAvailable} from "./universe-progression-v316.mjs";
 import {compareMomentPrice,compareMomentPriceProfiles,exportPriceReport,PRICE_MODEL_VERSION} from "./price-lab.mjs";
 import {MOMENT_GROUP_NAMES,cleanMomentPrefs,toggleMomentFavorite,momentVisible} from "./moment-filter.mjs";
 import {CONTENT} from "./content.mjs";
@@ -295,7 +296,24 @@ function planetHTML(){
       const v=x.id==="age"?G.ageSeconds(p):p.stats[x.id];
       return `<div class="kw-card stat-card"><strong ${known?"":'class="unknown-label"'}>${known?x.name:""}</strong><div class="stat-number" aria-label="${known?x.name:"未知の数値"+(i+1)}">${f(v,x.id==="age"?0:3)}${known&&x.id==="age"?" 秒":""}${known&&x.id==="stability"?"%":""}</div>${known?`<small>${x.description}</small>`:""}</div>`;
     }).join("")}</div>`:'<div class="empty-state"><div class="glyph">◌</div><p>物質が、ひとつの惑星になる。</p><small>初回は費用なしで生成できます。</small></div>'}
-    <div class="status-note">自然崩壊は確率で発生し、質量×2と圧力に応じた追加資源を一度だけ獲得します。部分破壊とコア形成の操作は実装確認中です。</div>
+    <div class="status-note">自然崩壊は確率で発生し、質量×2と圧力に応じた追加資源を一度だけ獲得します。部分破壊と惑星間の高度な干渉は引き続き実装検証中です。</div>
+    ${p&&((p.core?.started||p.core?.formed)||Object.values(p.stats).some(v=>Number(v)>100))?`<div class="kw-card cosmic-core-card">
+      <div class="card-top"><strong>惑星内部のコア</strong><span class="badge">${p.core?.formed?"形成済み":p.core?.started?"形成中":"未形成"}</span></div>
+      <small>形成度 ${Math.floor(p.core?.progress||0)}% · 脈動 ${p.core?.pulses||0}回</small>
+      <div class="slim-progress"><i style="width:${Math.min(100,p.core?.progress||0)}%"></i></div>
+      <small>地表現象 ${p.core?.surfaceCount||0}回 · 未知の構造 ${p.core?.lifeStage||0}/3</small>
+      ${!p.core?.started&&!p.core?.formed?`<button class="wide-button" data-action="start-core" ${!coreRequirements(p,u).ok||A(u.resources.UR6_01||0).cmp(1)<0?"disabled":""}>R6資源でコア形成開始</button>`:""}
+    </div>`:""}
+    ${autoPlanetAvailable(u)?`<div class="kw-card">
+      <div class="card-top"><strong>惑星の自動生成</strong><span class="badge">${u.autoGenerate?"ON":"OFF"}</span></div>
+      <small>5分ごとに空き枠を確認 · 生成費 R1資源100個</small>
+      <label class="kw-row">各R1の最低保有量
+        <select class="input-select" id="autoReserveSelect">
+        ${[0,10,100,1000].map(v=>`<option value="${v}" ${u.autoReserve===v?"selected":""}>${v}個</option>`).join("")}
+        </select>
+      </label>
+      <button class="wide-button" data-action="toggle-auto-planet">${u.autoGenerate?"自動生成を停止":"自動生成を開始"}</button>
+    </div>`:""}
     ${mode==="lab"?'<p class="tiny">検証では「開発テスト」から観測名の解放・崩壊イベントを試せます。星齢の仮表示は実時間基準です。</p>':""}`;
 }
 const statName=id=>CONTENT.stats.find(st=>st.id===id)?.name||id;
@@ -314,7 +332,23 @@ function resourcesHTML(){
     }).join("")}</div>`:'<div class="empty-state"><p>まだ資源を所持していません。惑星の時間生産を観測してください。</p></div>'}`;
 }
 function observationsHTML(){
-  return `<p class="panel-intro">名前や意味は現象の観測後に判明します。具体的な認識条件はまだ未決定です。</p><div class="kw-list"><div class="kw-card"><strong>観測 → 理解 → 干渉</strong><p>惑星同士の衝突、成長方向への干渉、崩壊誘発、安定性への干渉は方向性として保管しています。</p><small>解放条件・費用・効果式：？？？</small></div><div class="kw-card"><strong>コア → 脈動 → 生命</strong><p>R6のアステリム（仮名）と惑星コアは別のものです。</p><small>コアの形態・形成条件・生命への移行条件：？？？</small></div></div>`;
+  const u=state.universe,p=G.planet(state);
+  return `<p class="panel-intro">現象の観測から名称を認識し、理解度100で干渉を解放。発見済みの知識は惑星が崩壊しても保持します。</p>
+    <h3>観測した現象の理解度</h3>
+    <div class="row-grid">${KNOWLEDGE_IDS.map(id=>{
+      const value=knowledgeLevel(u,id);
+      return `<div class="kw-card knowledge-card">
+        <div class="card-top"><strong>${value>0?KNOWLEDGE_NAMES[id]:"未知の現象"}</strong><span class="badge">${Math.round(value)} / 100</span></div>
+        <div class="slim-progress"><i style="width:${value}%"></i></div>
+      </div>`;
+    }).join("")}</div>
+    ${p?`<div class="kw-card">
+      <strong>観測対象：${esc(p.id)}</strong>
+      <small>認識ステータス ${p.observed.length} / 15</small>
+      <small>惑星内部 ${p.core?.formed?"脈動中":p.core?.started?"コア形成中":"未形成"} · 地表事象 ${p.core?.surfaceCount||0}回</small>
+      <small>生命へ続く変化 ${p.core?.lifeStage||0}/3</small>
+    </div>`:""}
+    <div class="status-note">惑星の衝突・成長移転・誘発崩壊・安定化は解放条件まで設計済みですが、操作本体は未実装です。実行可能と誤表示しないよう保護しています。</div>`;
 }
 function boostHTML(){
   const v=G.boostValues(state),s=state.boost;
@@ -786,6 +820,16 @@ async function dispatchAction(action){
   if(action==="confirm-engraving")return resultDone(G.confirmEngraving(state),"ビルドを確定しました");
   if(action==="convert-common")return resultDone(G.convertCommon(state),"ひとつの残滓を得ました");
   if(action==="create-planet")return resultDone(G.createPlanet(state));
+  if(action==="start-core"){
+    const p=G.planet(state);
+    if(!p)return toast("先に惑星を生成してください");
+    if(!await ask("コア形成を開始",`${p.id}の内部にコアを形成します。R6資源を1個消費します。形成には必要な惑星状態と現象理解が必要です。`,"開始する"))return;
+    return resultDone(G.startCore(state),"コア形成を開始しました");
+  }
+  if(action==="toggle-auto-planet"){
+    const r=G.toggleAutoPlanet(state);
+    return resultDone(r,r.enabled?"惑星の自動生成を有効にしました":"惑星の自動生成を停止しました");
+  }
   if(action==="toggle-boost"){
     if(!state.boost.active&&state.boost.seconds<1){
       openOrganizerPage("boost");toast("BOOST残量がありません。蓄積状況を表示しています");return;
@@ -922,6 +966,7 @@ document.addEventListener("change",async e=>{
   if(t.dataset.direction!==undefined){const r=G.setDirection(state,Number(t.dataset.direction),t.checked);resultDone(r);return;}
   if(t.dataset.weight!==undefined){G.setWeight(state,Number(t.dataset.weight),Number(t.value));save();render(true);return;}
   if(t.id==="planetSelect"){state.universe.selectedPlanetId=t.value;save();render(true);return;}
+  if(t.id==="autoReserveSelect"){resultDone(G.setAutoPlanetReserve(state,Number(t.value)),"最低保有量を変更しました");return;}
   if(t.id==="receiptSelect"&&mode==="lab"){
     if(state.universe.planets.some(p=>Object.values(p.pendingResources).some(x=>A(x).cmp(0)>0))){
       toast("保留報酬があるため、先に現在方式で崩壊を確認してください。");renderPanel(true);return;
