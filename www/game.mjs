@@ -98,6 +98,13 @@ export function momentEffects(s){
     return info;
   });
 }
+export function momentAfterQuote(s,i,count){
+  if(!Number.isInteger(i)||i<0||i>=MOMENT_IDS.length)return "？？？";
+  const t=setsunaProjection(s);
+  t.levels[i]=Math.min(CONFIG.provisional.moment[MOMENT_IDS[i]].maxLevel,
+    t.levels[i]+Math.max(0,Math.floor(count)||0));
+  return SETSUNA.effectInfo(t,i).current;
+}
 export function momentComboView(s,now=Date.now()){
   const p=setsunaProjection(s,null,now),expires=p.comboExpire||p.comboUntil||0;
   const remaining=Math.max(0,expires-now);
