@@ -80,10 +80,7 @@ export function existenceMultiplier(s) { return A(1).add(s.surplusExistence); }
 // 210 confirmed Setsuna decisions. Time-dependent state persists in schema 31.
 const SETSUNA_RUNTIME_KEYS=SETSUNA.RUNTIME_KEYS;
 export const freshMomentRuntime=()=>SETSUNA.runtimeDefaults();
-function baseProduction(s){
- const total=SOURCE_IDS.reduce((sum,id)=>sum.add(sourceProduction(s,id)),A(0));
- return ownsSourceFinal(s,"SOURCE_04")?total.mul(2):total;
-}
+function baseProduction(s){return SOURCE_IDS.reduce((sum,id)=>sum.add(sourceProduction(s,id)),A(0));}
 function finalTap(s){return ownsSourceFinal(s,"SOURCE_03")?2:1;}
 function finalCritRate(s){return ownsSourceFinal(s,"SOURCE_05")?.05:0;}
 function finalCritMultiplier(s){return ownsSourceFinal(s,"SOURCE_06")?2:1;}
@@ -150,7 +147,7 @@ export function sourceProduction(s,id) {
   const unit=sourceProductionPerLevel(id);
   const growth=CONFIG.provisional.source.productionGrowth;
   const total=seriesCost(unit,growth,0,v.level);
-  return total.mul(plus).mul(ownsSourceFinal(s,"SOURCE_09")&&id==="SOURCE_09"?2:1).mul(existenceMultiplier(s));
+  return total.mul(plus).mul(ownsSourceFinal(s,"SOURCE_09")&&id==="SOURCE_09"?2:1).mul(ownsSourceFinal(s,"SOURCE_04")?2:1).mul(existenceMultiplier(s));
 }
 /** Extra output from buying this Source's next one level, including all current bonuses. */
 export function sourceNextGain(s,id) {
@@ -159,7 +156,7 @@ export function sourceNextGain(s,id) {
   const plus=sourcePlusMultiplier(v.plus);
   return sourceProductionPerLevel(id)
     .mul(A(CONFIG.provisional.source.productionGrowth).pow(v.level))
-    .mul(plus).mul(ownsSourceFinal(s,"SOURCE_09")&&id==="SOURCE_09"?2:1).mul(existenceMultiplier(s));
+    .mul(plus).mul(ownsSourceFinal(s,"SOURCE_09")&&id==="SOURCE_09"?2:1).mul(ownsSourceFinal(s,"SOURCE_04")?2:1).mul(existenceMultiplier(s));
 }
 export function production(s,now=Date.now()) {
   return baseProduction(s).mul(SETSUNA.sourceMultiplier(setsunaProjection(s,null,now),now));
