@@ -86,6 +86,22 @@ export class SaveStore {
             return {state:s,blocked:true,warning:"Ver.3.16への移行前バックアップを検証できません。元セーブを保護し、書き込みを停止しました。"};
           }
         }
+        // A v3.16 save gains permanent ENG-01..ENG-30 ownership and equipment.
+        // Never rewrite the sole existing save until a byte-perfect copy exists.
+        if(this.mode==="normal"&&(
+          oldShape.engraving?.owned===undefined||
+          oldShape.engraving?.equipped===undefined||
+          oldShape.engraving?.autoConverge===undefined
+        )){
+          const key=this.key+".before-v317";
+          try{
+            if(!this.read(key))this.storage.setItem(key,raw);
+            if(this.read(key)!==raw)throw Error("backup not verified");
+          }catch(error){
+            this.blocked=true;
+            return {state:s,blocked:true,warning:"Ver.3.17への移行前バックアップを検証できません。元セーブを保護し、書き込みを停止しました。"};
+          }
+        }
         return {state:s};
       }catch(error){
         // Quarantine original bytes and do not silently overwrite invalid data.
