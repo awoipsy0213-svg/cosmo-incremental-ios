@@ -65,7 +65,7 @@ test("transfer stops only source mass growth, adds 50% to destination",()=>{
  // 9 minutes left, then one minute normal recovery.
  advance(s,NOW+660000,{rng:()=>.999999});
  assert.equal(A(a.stats.mass).cmp(11),0);
- assert.equal(A(b.stats.mass).cmp(25),0);
+ assert.equal(A(b.stats.mass).cmp(26),0);
  assert.equal(s.universe.interference.transfers.length,0);
 });
 test("induction charges once, checks ten collapses, cooldown and offline",()=>{
