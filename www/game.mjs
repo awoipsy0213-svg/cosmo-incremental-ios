@@ -1,4 +1,6 @@
 import {CONFIG} from "./balance-config.mjs";
+import {TIME_EFFECTS,conceptLevelCost,conceptBonuses,residueWeights} from "./time-confirmed-v4.mjs";
+import {UNIVERSE_RESOURCE_RULES,eligibleResourceWeights,pickWeightedResource,investmentDelta,collapsePressureFactor,collapseHazardPerMinute} from "./universe-confirmed-v4.mjs";
 import {FINAL_EFFECTS,ownsSourceFinal,sourceFinalMarker,sourcePlusMultiplier} from "./source-effects-v315.mjs";
 import {cleanMomentPrefs} from "./moment-filter.mjs";
 import * as SETSUNA from "./setsuna-rules-v39.mjs";
@@ -33,10 +35,10 @@ export function createState(now=Date.now(),mode="normal") {
     convergenceCount:0,purchaseMode:"1",
     time:{unlocked:false,revealedDirections:1,selected:[0],weights:[100,0,0,0,0,0],
       elapsed:0,worldSeconds:0,eventHappened:false,residues:{},concepts:{},common:0,
-      residueAccumulator:0},
+      residueAccumulator:0,miracles:[]},
     universe:{unlocked:false,planets:[],nextPlanetId:1,selectedPlanetId:null,
       maxPlanets:1,collapseCount:0,resources:{},discoveredResources:[],
-      receiptMode:null,resourceAccumulator:0,unlockedRanks:[1]},
+      receiptMode:null,resourceAccumulator:0,unlockedRanks:[1],autoGenerate:false,autoAccumulator:0},
     life:{unlocked:false},
     // Separate experiment flag; never active in normal saves.
     trial:{enabled:false},
@@ -367,16 +369,7 @@ export function setWeight(s,index,value){
   s.time.weights[index]=value;normalizeWeights(s);return true;
 }
 export function residueDistribution(s) {
-  // Flow-only 25/25/50 is in the source. Other ratios are explicitly lab-only.
-  if(s.time.selected.length===1&&s.time.selected[0]===0)
-    return [{id:"TC001",prob:.25},{id:"TC002",prob:.25},{id:"common",prob:.5}];
-  if(s.mode!=="lab")return null;
-  const eligible=CONTENT.concepts.filter(c=>c.principles.every(p=>s.time.selected.includes(CONTENT.principles.indexOf(p))));
-  const weights=eligible.map(c=>c.principles.reduce((w,p)=>w*s.time.weights[CONTENT.principles.indexOf(p)]/100,1));
-  const sum=weights.reduce((a,b)=>a+b,0);
-  if(!sum)return [{id:"common",prob:1}];
-  // Leave >=50% as common: no individual concept can exceed 50%.
-  return [...eligible.map((x,i)=>({id:x.id,prob:.5*weights[i]/sum})),{id:"common",prob:.5}];
+  return residueWeights(s,CONTENT.concepts);
 }
 export function rollResidue(s,rng=Math.random) {
   const dist=residueDistribution(s);
@@ -394,13 +387,40 @@ export function rollResidue(s,rng=Math.random) {
 export function formConcept(s,id) {
   const c=CONTENT.concepts.find(x=>x.id===id);
   if(!c)return {ok:false,reason:"概念IDが不正です"};
-  if(s.time.concepts[id])return {ok:false,reason:"Lv.2以降の必要数は？？？"};
-  if((s.time.residues[id]||0)<10)return {ok:false,reason:"同じ残滓が10個必要です"};
-  const notRevealed=c.principles.some(p=>CONTENT.principles.indexOf(p)>=s.time.revealedDirections);
-  if(notRevealed&&s.mode!=="lab")return {ok:false,reason:"未解放方向の概念形成条件は要確認です"};
-  s.time.residues[id]-=10;s.time.concepts[id]=1;
-  event(s,`《${c.name}》を認識した。効果は未決定。`);
-  return {ok:true};
+  const old=s.time.concepts[id]||0,next=old+1;
+  const cost=conceptLevelCost(next);
+  if(cost===null)return {ok:false,reason:"概念Lvは100が上限です"};
+  if(!old&&c.principles.some(p=>CONTENT.principles.indexOf(p)>=s.time.revealedDirections))
+    return {ok:false,reason:"概念の形成には該当方向の解放が必要です"};
+  if((s.time.residues[id]||0)<cost)return {ok:false,reason:`残滓が不足しています（必要 ${cost}個）`};
+  s.time.residues[id]-=cost;s.time.concepts[id]=next;
+  if(!old)event(s,`《${c.name}》を認識した。Lv.1の効果が発現した。`);
+  else event(s,`《${c.name}》がLv.${next}になった。`);
+  return {ok:true,level:next,cost};
+}
+export function conceptEffect(s,id) {
+  const c=CONTENT.concepts.find(x=>x.id===id),rule=TIME_EFFECTS[id];
+  if(!c||!rule)return null;
+  const level=s.time.concepts[id]||0,bonus=Math.min(rule.max,level*rule.perLevel);
+  return {level,bonus,rule,active:level>0 && c.principles.every(p=>s.time.selected.includes(CONTENT.principles.indexOf(p)))};
+}
+function miracleTarget(s) {
+  const lv=Object.entries(s.time.concepts).filter(([,v])=>v>0).map(([id])=>CONTENT.concepts.find(c=>c.id===id)).filter(Boolean);
+  const singles=lv.filter(c=>c.principles.length===1).length;
+  const doubles=lv.filter(c=>c.principles.length===2).length;
+  const triples=lv.filter(c=>c.principles.length===3).length;
+  const thresholds=[singles>=1,doubles>=1,triples>=1,triples>=2,triples>=5];
+  return s.time.revealedDirections<6 && thresholds[s.time.revealedDirections-1];
+}
+export function tryDirectionMiracle(s,elapsed,rng=Math.random) {
+  if(!s.time.unlocked||!miracleTarget(s)||!(elapsed>0))return false;
+  const probability=1-Math.exp(-elapsed/300);
+  if(rng()>=probability)return false;
+  const next=s.time.revealedDirections++;
+  if(!Array.isArray(s.time.miracles))s.time.miracles=[];
+  s.time.miracles.push(next);
+  event(s,`《奇跡》：${CONTENT.principles[next]}を認識した。配分できる方向が増えた。`);
+  return true;
 }
 export function convertCommon(s,rng=Math.random) {
   if(s.time.common<100)return {ok:false,reason:"共通の？？？が100個必要です"};
@@ -424,8 +444,8 @@ export function createPlanet(s,now=Date.now()) {
   if(s.universe.planets.length>=s.universe.maxPlanets)return {ok:false,reason:"同時生成数の上限です"};
   const id="PLANET_"+s.universe.nextPlanetId++;
   const stats=Object.fromEntries(STAT_IDS.filter(x=>x!=="age").map(x=>[x,"0"]));
-  stats.mass=str(CONFIG.provisional.universe.startingMass);
-  const planet={id,bornAt:now,stats,observed:[],pendingResources:{},receiptMode:null};
+  stats.mass="10";
+  const planet={id,bornAt:now,stats,observed:[],pendingResources:{},receiptMode:null,core:{formed:false,progress:0,pulses:0},evidence:{}};
   s.universe.planets.push(planet);s.universe.selectedPlanetId=id;
   event(s,"ひとつの惑星が形を持ち始めた。数値の意味は、まだ分からない。",now);
   return {ok:true,id};
@@ -443,19 +463,32 @@ export function setTrialEnabled(s,enabled) {
 export function invest(s,id,count=1) {
   if(!RESOURCE_IDS.includes(id))return {ok:false,reason:"資源IDが不正です"};
   const p=planet(s);if(!p)return {ok:false,reason:"先に惑星を生成してください"};
-  if(!Number.isSafeInteger(count)||count<1)return {ok:false,reason:"投入個数が不正です"};
+  if(!Number.isSafeInteger(count)||count<1||count>10000)return {ok:false,reason:"投入数は1〜10,000個です"};
   if(A(s.universe.resources[id]||0).cmp(count)<0)return {ok:false,reason:"所持数が不足しています"};
+  const rule=UNIVERSE_RESOURCE_RULES[id],delta=investmentDelta(id,count);
+  if(!rule||!delta)return {ok:false,reason:"資源効果が定義されていません"};
   s.universe.resources[id]=sub(s.universe.resources[id],count);
-  const basic=A(count).mul(CONFIG.provisional.universe.massPerResource);
+  const basic=A(delta.mass);
   p.stats.mass=add(p.stats.mass,basic);
-  // All resources still grant mass. The extra specialization is opt-in, lab only.
-  const resource=CONTENT.resources.find(x=>x.id===id);
-  const special=trialEnabled(s)?resourcePrototype(resource):null;
-  if(special){
-    p.stats[special.stat]=add(p.stats[special.stat],A(count).mul(special.perUnit));
-    if(special.stat2)p.stats[special.stat2]=add(p.stats[special.stat2],A(count).mul(special.perUnit/2));
+  let special=delta.effects;
+  if(trialEnabled(s)){
+    // Preserve the separate legacy sandbox comparison without changing normal.
+    const resource=CONTENT.resources.find(x=>x.id===id);
+    const proposal=resourcePrototype(resource);
+    if(proposal)special={...special,[proposal.stat]:proposal.perUnit*count};
   }
-  return {ok:true,massAdded:basic.toString(),trialSpecial:special?{stat:special.stat,added:A(count).mul(special.perUnit).toString()}:null};
+  for(const [key,value] of Object.entries(special)){
+    const current=A(p.stats[key]||0).toNumber();
+    const cap=key==="stability"?90:Number.POSITIVE_INFINITY;
+    p.stats[key]=str(Math.min(cap,current+value));
+  }
+  if(!p.evidence||typeof p.evidence!=="object")p.evidence={};
+  p.evidence.investments=(p.evidence.investments||0)+1;
+  if((p.evidence.naturalTicks||0)>0&&!p.observed.includes("mass")){
+    p.observed.push("mass");event(s,"質量：自然成長と資源投入による増加を認識した。");
+  }
+  return {ok:true,massAdded:basic.toString(),effects:special,
+    trialSpecial:trialEnabled(s)?{stat:Object.keys(special)[0]||"mass",added:String(Object.values(special)[0]||0)}:null};
 }
 export function distributeResources(total,ids,rng=Math.random) {
   const result={};
@@ -522,6 +555,42 @@ export function labCollapse(s,id=s.universe.selectedPlanetId,rng=Math.random) {
 export function stabilityPreview(value,percent) {
   if(!Number.isFinite(percent)||percent<0||percent>100)return null;
   return A(value).mul(percent/100).toString();
+}
+export function confirmedResourceBag(total,stats,rng=Math.random) {
+  const entries=eligibleResourceWeights(CONTENT.resources,stats);
+  if(!entries.length)return {};
+  const n=A(total).toNumber();
+  const bag={};
+  if(Number.isFinite(n)&&n<=10000){
+    const whole=Math.floor(n);
+    for(let k=0;k<whole;k++){
+      const id=pickWeightedResource(entries,rng);
+      if(id)bag[id]=add(bag[id]||0,1);
+    }
+    if(n-whole>rng()){
+      const id=pickWeightedResource(entries,rng);if(id)bag[id]=add(bag[id]||0,1);
+    }
+  }else{
+    const weights=entries.reduce((a,x)=>a+x.weight,0);
+    // Large-number arithmetic uses expected distribution rather than O(N)
+    // independent draws; this is approximate and must be balance-tested.
+    for(const item of entries)bag[item.id]=A(total).mul(item.weight/weights).toString();
+  }
+  return bag;
+}
+export function collapsePlanet(s,id=s.universe.selectedPlanetId,rng=Math.random,now=Date.now()) {
+  const p=planet(s,id);if(!p)return {ok:false,reason:"対象惑星は既に存在しません"};
+  const reward=A(p.stats.mass).mul(2*collapsePressureFactor(p.stats.pressure));
+  const bag=confirmedResourceBag(reward,p.stats,rng);
+  // A planet is deleted after award. Replays cannot award the same planet twice.
+  s.universe.planets=s.universe.planets.filter(x=>x.id!==id);
+  receive(s,bag);
+  s.universe.selectedPlanetId=s.universe.planets[0]?.id||null;
+  s.universe.collapseCount++;
+  s.universe.maxPlanets=Math.max(s.universe.maxPlanets,s.universe.collapseCount>=100?10:s.universe.collapseCount>=20?5:s.universe.collapseCount>=5?3:2);
+  achievement(s,"planetRuin","《惑星の破滅》：最初の崩壊を観測した。2惑星の生成が解放された。");
+  event(s,`惑星${id}が崩壊し、${Object.keys(bag).length}種の資源を受け取った。`,now);
+  return {ok:true,bag,reward:reward.toString()};
 }
 export function beginEngraving(s) {
   s.engraving.draft=[...s.engraving.active];return {ok:true};
@@ -604,43 +673,48 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
   }
   if(s.time.unlocked){
     s.time.elapsed+=gameSeconds;
-    // Time -> world seconds and random event interval are undefined.
-    if(s.mode==="lab"){
-      s.time.residueAccumulator+=gameSeconds*CONFIG.lab.residueEventsPerSecond;
-      const events=Math.min(500,Math.floor(s.time.residueAccumulator));
-      s.time.residueAccumulator-=events;
-      for(let i=0;i<events;i++)rollResidue(s,rng);
-      if(s.time.revealedDirections===6)s.time.worldSeconds+=gameSeconds*CONFIG.lab.worldSecondsPerSecond;
-    }
+    const mods=conceptBonuses(s,CONTENT.concepts);
+    // Calibrated initial trial coefficient to be balance-tested (TE-31/32).
+    const existenceScore=Math.max(0,Math.log10(1+Math.min(1e300,Number(s.surplusExistence)||0)));
+    const chancePerSecond=.00055*(1+Math.min(100,existenceScore))*(1+mods.event);
+    const expected=gameSeconds*(s.mode==="lab"?CONFIG.lab.residueEventsPerSecond:chancePerSecond);
+    const events=Math.min(5000,Math.floor(expected)+(rng()<expected%1?1:0));
+    for(let i=0;i<events;i++)rollResidue(s,rng);
+    // Per-tick Bernoulli fraction prevents biased over-awards at 150ms refresh.
+    s.time.residueAccumulator=0;
+    tryDirectionMiracle(s,gameSeconds,rng);
+    // TIME is never spent by world-clock progression.
+    s.time.worldSeconds=Math.min(1,s.time.worldSeconds+
+      gameSeconds*(1+mods.world)/(24*3600));
     checkUniverse(s);
   }
   if(s.universe.unlocked){
-    for(const p of s.universe.planets){
-      const m=trialEnabled(s)?naturalGrowthFactors(p.stats):{activity:1,gravity:1};
-      const growth=A(gameSeconds).mul(CONFIG.provisional.universe.massGrowthPerSecond).mul(m.gravity*m.activity);
+    for(const p of [...s.universe.planets]){
+      const activity=Math.min(2,1.01**Math.min(100,p.stats.activity?Math.floor(Number(p.stats.activity)/100):0));
+      const growth=A(gameSeconds/60).mul(activity);
       p.stats.mass=add(p.stats.mass,growth);
+      if(!p.evidence||typeof p.evidence!=="object")p.evidence={};
+      p.evidence.naturalTicks=(p.evidence.naturalTicks||0)+gameSeconds/60;
+      if(p.evidence.investments>0&&!p.observed.includes("mass")){
+        p.observed.push("mass");event(s,"質量：自然成長と資源投入による増加を認識した。");
+      }
+      if((now-p.bornAt)>=600000&&!p.observed.includes("age")){
+        p.observed.push("age");event(s,"星齢：惑星が生まれてからの時間だと認識した。");
+      }
     }
-    // Receipt timing and collapse are only simulated in isolated lab data.
-    if(s.mode==="lab"&&["A","B"].includes(s.universe.receiptMode)){
-      s.universe.resourceAccumulator+=gameSeconds;
-      const draws=Math.min(360,Math.floor(s.universe.resourceAccumulator/CONFIG.lab.resourceInterval));
-      s.universe.resourceAccumulator-=draws*CONFIG.lab.resourceInterval;
-      const eligible=CONTENT.resources.filter(x=>s.universe.unlockedRanks.includes(x.rank));
-      const ids=eligible.map(x=>x.id);
-      for(let i=0;i<draws;i++)for(const p of s.universe.planets){
-        const bag=trialEnabled(s)?distributeTrialResources(p.stats.mass,eligible,p.stats,rng):distributeResources(p.stats.mass,ids,rng);
-        if(s.universe.receiptMode==="B")receive(s,bag);
-        else for(const [id,v]of Object.entries(bag))p.pendingResources[id]=add(p.pendingResources[id]||0,v);
-      }
-      // Aggregate hazard, no predicted death timer. Offline collapse remains unimplemented.
-      if(!offline){
-        for(const p of [...s.universe.planets]){
-          if(rng()<1-Math.exp(-CONFIG.lab.collapseHazardPerSecond*gameSeconds))labCollapse(s,p.id,rng);
-        }
-      }
+    s.universe.resourceAccumulator+=gameSeconds;
+    const draws=Math.min(360,Math.floor(s.universe.resourceAccumulator/60));
+    s.universe.resourceAccumulator-=draws*60;
+    for(let i=0;i<draws;i++){
+      for(const p of s.universe.planets)receive(s,confirmedResourceBag(p.stats.mass,p.stats,rng));
+    }
+    // Natural final collapse uses a hazard, not a scheduled death timer.
+    for(const p of [...s.universe.planets]){
+      const hazard=collapseHazardPerMinute(p.stats)*(p.core?.formed ? .7 : 1);
+      if(rng()<1-Math.pow(1-hazard,gameSeconds/60))collapsePlanet(s,p.id,rng,now);
     }
   }
-  if(s.mode==="lab"&&!offline&&s.intro.complete){
+  if(s.mode==="lab"){
     if(s.engraving.active.includes("autoTap"))addOrbs(s,tapPower(s).mul(gameSeconds));
     if(s.engraving.active.includes("autoSource")){
       const mode=s.purchaseMode;s.purchaseMode="1";
@@ -792,22 +866,28 @@ export function validateState(input,expectedMode=null) {
   s.sourceCycle={reached:cycle.reachedIds,unlocked:cycle.unlocked};
   if(!modeSet.has(s.purchaseMode))fail("購入モード");
   if(!Number.isInteger(s.convergenceCount)||s.convergenceCount<0)fail("収束回数");
-  const t=s.time;if(!t||typeof t.unlocked!=="boolean"||!Number.isInteger(t.revealedDirections)||t.revealedDirections<1||t.revealedDirections>6)fail("時");
+  const t=s.time;if(t&&t.miracles===undefined)t.miracles=[];if(!t||typeof t.unlocked!=="boolean"||!Number.isInteger(t.revealedDirections)||t.revealedDirections<1||t.revealedDirections>6)fail("時");
   if(!Array.isArray(t.selected)||!t.selected.length||t.selected.length>3||new Set(t.selected).size!==t.selected.length||t.selected.some(i=>!Number.isInteger(i)||i<0||i>=t.revealedDirections))fail("配分");
   if(!Array.isArray(t.weights)||t.weights.length!==6||t.weights.some(v=>!Number.isFinite(v)||v<0||v>100))fail("比率");
   for(const k of ["elapsed","worldSeconds","common","residueAccumulator"])if(!Number.isFinite(t[k])||t[k]<0)fail("時の数値");
   if(!Number.isSafeInteger(t.common))fail("共通残滓");
+  if(!Array.isArray(t.miracles)||t.miracles.length>5||t.miracles.some(v=>!Number.isInteger(v)||v<1||v>5))fail("方向解放履歴");
   for(const key of ["residues","concepts"]){
     if(!t[key]||typeof t[key]!=="object"||Array.isArray(t[key]))fail("概念データ");
     for(const [id,v] of Object.entries(t[key]))if(!CONCEPT_IDS.includes(id)||!Number.isSafeInteger(v)||v<0)fail("概念ID・数量");
   }
-  const u=s.universe;if(!u||!Array.isArray(u.planets)||u.planets.length>20)fail("宇宙");
+  const u=s.universe;if(u){if(u.autoGenerate===undefined)u.autoGenerate=false;if(u.autoAccumulator===undefined)u.autoAccumulator=0;}
+  if(!u||!Array.isArray(u.planets)||u.planets.length>20)fail("宇宙");
   if(!Number.isInteger(u.maxPlanets)||u.maxPlanets<1||u.maxPlanets>20||!Number.isInteger(u.nextPlanetId)||u.nextPlanetId<1)fail("惑星数");
   if(new Set(u.planets.map(p=>p.id)).size!==u.planets.length)fail("惑星ID重複");
   for(const p of u.planets){
     if(typeof p.id!=="string"||!/^PLANET_\d+$/.test(p.id)||!Number.isFinite(p.bornAt)||p.bornAt<0)fail("惑星ID・星齢");
     for(const id of STAT_IDS.filter(x=>x!=="age"))p.stats[id]=str(p.stats?.[id]);
     if(!Array.isArray(p.observed)||p.observed.some(x=>!STAT_IDS.includes(x)))fail("観測");
+    if(p.core===undefined)p.core={formed:false,progress:0,pulses:0};
+    if(p.evidence===undefined)p.evidence={};
+    if(!p.core||typeof p.core.formed!=="boolean"||!Number.isFinite(p.core.progress)||p.core.progress<0||!Number.isFinite(p.core.pulses)||p.core.pulses<0)fail("コア状態");
+    if(!p.evidence||typeof p.evidence!=="object"||Array.isArray(p.evidence))fail("観測証拠");
     for(const [id,v]of Object.entries(p.pendingResources||{})){if(!RESOURCE_IDS.includes(id))fail("報酬ID");p.pendingResources[id]=str(v);}
   }
   if(!u.resources||typeof u.resources!=="object"||Array.isArray(u.resources))fail("資源");
@@ -815,6 +895,7 @@ export function validateState(input,expectedMode=null) {
   if(!Array.isArray(u.discoveredResources)||u.discoveredResources.some(id=>!RESOURCE_IDS.includes(id)))fail("資源発見");
   if(!Array.isArray(u.unlockedRanks)||u.unlockedRanks.some(x=>!Number.isInteger(x)||x<1||x>6))fail("Rank");
   if(![null,"A","B"].includes(u.receiptMode))fail("受取方式");
+  if(typeof u.autoGenerate!=="boolean"||!Number.isFinite(u.autoAccumulator)||u.autoAccumulator<0)fail("自動生成状態");
   const e=s.engraving;if(!e||!Array.isArray(e.active)||e.active.some(x=>!CONTENT.engravings.some(y=>y.id===x)))fail("刻印");
   if(e.draft!==null&&(!Array.isArray(e.draft)||e.draft.some(x=>!CONTENT.engravings.some(y=>y.id===x))))fail("仮振り");
   const b=s.boost;if(!b||!Number.isFinite(b.seconds)||b.seconds<0||!Array.isArray(b.upgrades)||b.upgrades.length!==5||b.upgrades.some(x=>!Number.isInteger(x)||x<0||x>10000))fail("BOOST");
