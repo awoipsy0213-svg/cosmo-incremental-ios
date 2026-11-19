@@ -5,6 +5,7 @@ import {backupBeforeSaveMigration,needsHeroLearningMigration} from './save-migra
 import {heroRosterRows,assignHeroHouse,toggleHeroDeployment,nextHeroHouseUnlock} from './hero-roster.mjs';
 import {SceneFallback} from './fallback.mjs';
 import {previewNextWarehouseCapacity} from './base-progression.mjs';
+import {combatDisplayStats} from './combat-foundation.mjs';
 const $=id=>document.getElementById(id);
 const canvas=$('world');let scene;
 let state;let loaded=false;let legacyBackupBlocked=false;
@@ -146,7 +147,10 @@ function heroDetails(tab='basic',heroId=STARTER_HERO_ID){
   <div class="rowline"><strong>状態</strong><span>${hero.status==='pending_soul'?'魂の回収待ち':hero.status==='ready'?'英雄の家で待機':'育成中'}</span></div>
   <p>個別レベル経験値は育成中のみ獲得します。</p>`;
  } else if(tab==='combat'){
-  contents='<p>最終ステータスは基本能力値・キャラタイプ・限界突破・装備から算出予定です。正式な計算式は未実装のため、ここでは未確定値を表示しません。</p>';
+  const preview=combatDisplayStats(hero);
+  contents='<p>確定済みの基礎式・タイプ倍率・低レア突破補正に基づく試験計算です。</p>'+
+    Object.values(preview).map(row=>'<div class="rowline"><strong>'+row.label+'</strong><span>'+row.display+'</span></div>').join('')+
+    '<div class="footer-note">装備・個別スキル・命中回避の換算係数・戦闘中の強化弱体化は未反映。正式な戦闘シミュレーションへの接続は今後実装します。</div>';
  } else {
   const learned=Object.entries(hero.learnedActions||{}).filter(([,x])=>x);
   contents=`<p>未使用スキルポイント：${hero.freeSkillPoints}</p><p>習得済みの行動</p>`+
