@@ -5,6 +5,13 @@ export const BASE_ABILITY_CAP = 1000;
 export const SOUL_SKILL_CAP = 100;
 export const LEVEL_STAT_POINTS = 3;
 export const LEVEL_SKILL_POINTS = 1;
+export const HERO_LEVEL_CAP = 200;
+export const ACTION_SUCCESS_REQUIREMENT = 3;
+export const LIFE_ATTEMPT_HISTORY_CAP = 20;
+export const BASE_ACTION_XP = 10;
+export const FAILED_ACTION_XP_FACTOR = 0.25;
+export const ACTION_DIFFICULTY_MIN = 0.5;
+export const ACTION_DIFFICULTY_MAX = 2;
 export const BASE_ABILITY_KEYS = Object.freeze([
   'strength', 'vitality', 'durability', 'agility', 'dexterity',
   'intelligence', 'spirit', 'magic', 'gathering', 'building',
@@ -46,7 +53,7 @@ export function createStarterHero() {
     status:'alive', lifeCount:1, level:1, levelXp:0,
     freeStatPoints:0, freeSkillPoints:0,
     attributes:starterAttributes(), attributeXp:xp, personalMasteryXp:{},
-    learnedActions:{}, skillTree:{}
+    learnedActions:{}, actionSuccessCounts:{}, skillTree:{}
   };
 }
 export function createHeroProgression() {
@@ -76,9 +83,16 @@ export function ensureHeroProgression(state) {
     }
     if (!hero.personalMasteryXp) hero.personalMasteryXp={};
     if (!hero.learnedActions) hero.learnedActions={};
+    if (!hero.actionSuccessCounts) hero.actionSuccessCounts={};
+    // Preserve achievements earned before the three-success rule was implemented.
+    for (const action of Object.keys(hero.learnedActions)) {
+      if (hero.learnedActions[action]) hero.actionSuccessCounts[action]=Math.max(ACTION_SUCCESS_REQUIREMENT,hero.actionSuccessCounts[action]||0);
+    }
     if (!hero.skillTree) hero.skillTree={};
     if (!Number.isInteger(hero.level)||hero.level<1) hero.level=1;
+    hero.level=Math.min(HERO_LEVEL_CAP,hero.level);
     if (!Number.isFinite(hero.levelXp)||hero.levelXp<0) hero.levelXp=0;
+    if(hero.level===HERO_LEVEL_CAP)hero.levelXp=0;
     if (!Number.isInteger(hero.freeStatPoints)||hero.freeStatPoints<0) hero.freeStatPoints=0;
     if (!Number.isInteger(hero.freeSkillPoints)||hero.freeSkillPoints<0) hero.freeSkillPoints=0;
   }
@@ -102,6 +116,7 @@ export function xpNeededForNextAbility(current) {
 }
 export function xpNeededForNextHeroLevel(current) {
   if (!Number.isInteger(current)||current<1) throw new RangeError('Hero level must be >= 1');
+  if(current>=HERO_LEVEL_CAP)return Infinity;
   return Math.ceil(50+12*Math.pow(current,1.25));
 }
 export function grantAbilityExperience(hero,key,experience) {
@@ -121,16 +136,18 @@ export function grantAbilityExperience(hero,key,experience) {
 }
 export function grantHeroLevelExperience(hero,amount) {
   if (!Number.isFinite(amount)||amount<=0) return 0;
+  if(hero.level>=HERO_LEVEL_CAP){hero.levelXp=0;return 0;}
   hero.levelXp=(hero.levelXp||0)+amount;
   let ups=0;
-  while(hero.levelXp>=xpNeededForNextHeroLevel(hero.level)) {
+  while(hero.level<HERO_LEVEL_CAP&&hero.levelXp>=xpNeededForNextHeroLevel(hero.level)) {
     hero.levelXp-=xpNeededForNextHeroLevel(hero.level);
     hero.level++;
     hero.freeStatPoints+=LEVEL_STAT_POINTS;
     hero.freeSkillPoints+=LEVEL_SKILL_POINTS;
     ups++;
-    if(ups>200)break; // guard against corrupt user-supplied data
+    if(ups>HERO_LEVEL_CAP)break; // guard against corrupt user-supplied data
   }
+  if(hero.level>=HERO_LEVEL_CAP)hero.levelXp=0;
   return ups;
 }
 export function allocateStatPoint(hero,key) {
@@ -145,12 +162,16 @@ export function grantHeroActionExperience(hero,action,baseExperience,{success=tr
   const names=PROVISIONAL_ACTION_ATTRIBUTES[action];
   if (!names || !Number.isFinite(baseExperience) || baseExperience<=0 ||
     !Number.isFinite(difficulty) || difficulty<=0) return {ok:false,levelUps:0};
-  const amount=baseExperience*difficulty*(success?1:0.25);
+  const amount=baseExperience*Math.max(ACTION_DIFFICULTY_MIN,Math.min(ACTION_DIFFICULTY_MAX,difficulty))*(success?1:FAILED_ACTION_XP_FACTOR);
   const changes={};
   changes[names[0]]=grantAbilityExperience(hero,names[0],amount*0.8);
   changes[names[1]]=grantAbilityExperience(hero,names[1],amount*0.2);
   hero.personalMasteryXp[action]=(hero.personalMasteryXp[action]||0)+amount;
-  if(success)hero.learnedActions[action]=true;
+  if(success){
+    if(!hero.actionSuccessCounts)hero.actionSuccessCounts={};
+    hero.actionSuccessCounts[action]=(hero.actionSuccessCounts[action]||0)+1;
+    if(hero.actionSuccessCounts[action]>=ACTION_SUCCESS_REQUIREMENT)hero.learnedActions[action]=true;
+  }
   const levelUps=grantHeroLevelExperience(hero,amount);
   return {ok:true,levelUps,abilityGrowth:changes};
 }
@@ -184,4 +205,52 @@ export function awardRerollPointsForCollectedXP(state,points) {
   wallet.rerollXpCarry=total-award*10;
   wallet.rerollPoints+=award;
   return award;
+}
+
+
+// Detailed attempts belong to the current life only, not the reincarnating hero.
+export function createLifeMemory(){
+  return {attempts:[], dangerWarnings:{}, walking:{attempts:0,stage:0}};
+}
+export function ensureLifeMemory(actor){
+  if(!actor||typeof actor!=='object')throw new TypeError('Invalid actor');
+  const prev=actor.lifeMemory;
+  if(!prev||typeof prev!=='object'||Array.isArray(prev))actor.lifeMemory=createLifeMemory();
+  const memory=actor.lifeMemory;
+  if(!Array.isArray(memory.attempts))memory.attempts=[];
+  if(!memory.dangerWarnings||typeof memory.dangerWarnings!=='object')memory.dangerWarnings={};
+  if(!memory.walking||typeof memory.walking!=='object')memory.walking={attempts:0,stage:0};
+  if(memory.attempts.length>LIFE_ATTEMPT_HISTORY_CAP)memory.attempts=memory.attempts.slice(-LIFE_ATTEMPT_HISTORY_CAP);
+  return memory;
+}
+export function recordLifeAttempt(actor, action, success, time=0){
+  if(typeof action!=='string'||!action)throw new TypeError('Action must be a nonempty string');
+  const memory=ensureLifeMemory(actor);
+  memory.attempts.push({action,success:Boolean(success),time:Number.isFinite(time)?Math.max(0,time):0});
+  if(memory.attempts.length>LIFE_ATTEMPT_HISTORY_CAP)memory.attempts.shift();
+  return memory.attempts.length;
+}
+export function recordWalkAttempt(actor, success, time=0){
+  const memory=ensureLifeMemory(actor);
+  memory.walking.attempts++;
+  memory.walking.stage=Math.min(5,Math.floor(memory.walking.attempts/6));
+  recordLifeAttempt(actor,'walk',success,time);
+  return memory.walking.stage;
+}
+export function recordDangerWarning(actor, danger, weight=1){
+  if(typeof danger!=='string'||!danger)throw new TypeError('Danger must be a nonempty string');
+  const memory=ensureLifeMemory(actor);
+  memory.dangerWarnings[danger]=Math.max(0,Math.min(1,(memory.dangerWarnings[danger]||0)+weight));
+  return memory.dangerWarnings[danger];
+}
+// Q328 specifies gradual fading but not the exact duration. This rate is a
+// provisional internal value and must be tuned after the AI behavior tests.
+export function fadeLifeDangerWarnings(actor, seconds, ratePerSecond=1/120){
+  const memory=ensureLifeMemory(actor);
+  if(!Number.isFinite(seconds)||seconds<=0)return memory.dangerWarnings;
+  for(const [key,alert] of Object.entries(memory.dangerWarnings)){
+    memory.dangerWarnings[key]=Math.max(0,alert-seconds*ratePerSecond);
+    if(memory.dangerWarnings[key]===0)delete memory.dangerWarnings[key];
+  }
+  return memory.dangerWarnings;
 }
