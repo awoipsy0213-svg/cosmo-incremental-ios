@@ -10,7 +10,7 @@ import {
   HERO_LEVEL_CAP, ACTION_SUCCESS_REQUIREMENT, LIFE_ATTEMPT_HISTORY_CAP,
   BASE_ACTION_XP, FAILED_ACTION_XP_FACTOR,
   createLifeMemory, ensureLifeMemory, recordLifeAttempt,recordWalkAttempt,
-  recordDangerWarning,fadeLifeDangerWarnings
+  recordDangerWarning,fadeLifeDangerWarnings,recordHeroWalkProgress
 } from '../hero-progression.mjs';
 import {
   SAVE_KEY, createInitialState, updateGame, addSoul, die,
@@ -252,4 +252,34 @@ test('after death and collection a newly spawned actor has no detailed life hist
   assert.equal(next.heroId,a.heroId);
   assert.deepEqual(ensureLifeMemory(next).attempts,[]);
   assert.equal(h.actionSuccessCounts.wood,1);
+});
+
+
+test('hero walking proficiency has five milestones in 30 attempts and persists across lives',()=>{
+  const s=createInitialState();
+  const hero=s.heroProgression.profiles[STARTER_HERO_ID];
+  const first=s.actors.find(a=>a.kind==='main');
+  for(let i=0;i<30;i++){
+    assert.equal(recordHeroWalkProgress(hero,true),Math.min(5,Math.floor((i+1)/6)));
+  }
+  assert.equal(hero.walkPracticeCount,30);
+  assert.equal(hero.walkStage,5);
+  assert.equal(hero.learnedActions.walk,true);
+  die(s,first,'寿命');
+  collectTemple(s);
+  const next=s.actors.find(a=>a.kind==='main');
+  assert.equal(hero.walkStage,5);
+  assert.equal(hero.walkPracticeCount,30);
+  assert.deepEqual(next.lifeMemory.attempts,[]);
+});
+test('main field travel records walking attempts and action success separately',()=>{
+  const s=createInitialState();
+  const a=s.actors.find(x=>x.kind==='main');
+  const hero=s.heroProgression.profiles[STARTER_HERO_ID];
+  a.target={x:a.x,z:a.z};
+  a.phase='move';
+  updateGame(s,1);
+  assert.equal(hero.walkPracticeCount,1);
+  assert.equal(a.lifeMemory.walking.attempts,1);
+  assert.equal(a.lifeMemory.attempts.at(-1).action,'walk');
 });
