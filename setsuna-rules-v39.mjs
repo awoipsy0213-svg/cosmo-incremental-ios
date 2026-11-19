@@ -12,7 +12,7 @@ export const RUNTIME_KEYS=["combo","lastTap","comboUntil","comboExpire","hasteUn
   "activeSeconds","lastManualActive","cycleTaps","supplyCount","offlineCombo",
   "autoTaps","stored","flowQueue","miracleHistory"];
 export function runtimeDefaults(){
- const r=Object.fromEntries(RUNTIME_KEYS.map(k=>[k==="stored"?k:k,k==="stored"?"0":k==="flowQueue"||k==="miracleHistory"?[]:0]));
+ const r=Object.fromEntries(RUNTIME_KEYS.map(k=>[k,k==="stored"?"0":k==="flowQueue"||k==="miracleHistory"?[]:0]));
  return r;
 }
 export function fresh(now=Date.now()){
@@ -50,9 +50,7 @@ export function sourceMilestoneCount(s){return Math.max(0,Math.min(630,Math.floo
 export function tapBase(s){
  const l0=lv(s,0),l1=lv(s,1),l22=lv(s,22),l29=lv(s,29);
  let flat=1+boosted(s,0,fixedTotal(l0));
- let base=A(flat).mul(A(1.02).pow(l1));
- if(l1)base=base.mul(resonance(s,1)===1?1:
-   1+(A(1.02).pow(l1).toNumber()===Infinity?0:0)); // handled by the exponent above
+ let base=A(flat).mul(A(1.02).pow(l1*resonance(s,1)));
  if(active(s,20))base=base.add(baseSource(s).mul(clamp(boosted(s,20,.0002*lv(s,20)),.25)));
  if(l22)base=base.mul(1+clamp(boosted(s,22,.002*sourceMilestoneCount(s)*root(l22)),2));
  if(l29)base=base.mul(1+.002*(s.cycles||0)*root(s.levels.reduce((a,b)=>a+b,0))*root(l29)*resonance(s,29));
@@ -153,7 +151,7 @@ function queuePay(s,value){
 function closeCombo(s){
  let award=A(0);
  if(A(s.stored||"0").cmp(0)>0)award=A(s.stored).mul(1.2);
- s.stored="0";s.combo=0;s.comboExpire=0;s.hasteUntil=0;
+ s.stored="0";s.combo=0;s.comboExpire=0;
  return award;
 }
 function comboMarks(s,oldValue,newValue,now){
@@ -186,7 +184,6 @@ export function tap(s,now=Date.now(),rng=Math.random){
  const wave=active(s,2)?base.mul(clamp(boosted(s,2,.005*lv(s,2)),1)):A(0);
  const echo=active(s,3)&&s.cycleTaps%5===0?
   base.mul(clamp(boosted(s,3,.1*lv(s,3)),25)):A(0);
- const chainBonus=comboMarks(s,previous,s.combo,now);
  const hit=crit(s,primary,rng);primary=hit.amount;
  const miracle=active(s,14)&&rnd(rng)<probability(s,14);
  if(miracle)primary=primary.mul(200);
@@ -195,6 +192,8 @@ export function tap(s,now=Date.now(),rng=Math.random){
   const extra=crit(s,base.mul(comboFactor(s)*focusFactor(s)*(1+synergyLevel(s,now))*(1+awakeningLevel(s,now))),rng);
   double=extra.amount;doubleCrit=extra.crit;
  }
+ // A 100-combo surge takes effect from the following tap, not the triggering tap.
+ const chainBonus=comboMarks(s,previous,s.combo,now);
  const reward=primary.add(wave).add(echo).add(chainBonus).add(double);
  // Deposits are extra: they never reduce the current-tap payout.
  if(active(s,8)){
@@ -258,7 +257,12 @@ export function advance(s,now=Date.now(),{seconds=null,offline=false,rng=Math.ra
  const effective=seconds===null?Math.min(1800,wall):Math.max(0,Math.min(1800,Number(seconds)||0));
  s.lastTick=now;
  if(!offline)s.activeSeconds=(s.activeSeconds||0)+wall;
- if(!wall||!effective)return {seconds:effective,auto:0,source:A(0)};
+ if(!wall)return {seconds:0,auto:0,source:A(0)};
+ if(!effective){
+   const released=s.combo>0&&now>s.comboExpire?closeCombo(s):A(0);
+   addWallet(s,released);
+   return {seconds:0,auto:0,source:released};
+ }
  let total=integratedSource(s,prev,now,effective);
  // Existing 5-second distributions: preserve unpaid balances across save/restart.
  const pending=[];
