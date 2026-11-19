@@ -27,6 +27,6 @@ assert.equal(tapPower(s).toString(),tap);
 const saved=encode(s,'ui-qa');
 assert.equal(decode(saved,'normal').state?.mode??decode(saved,'normal').mode,'normal');
 validateState(s,'normal');
-assert.equal(CONFIG.unresolved.resourceReceipt,null);
+assert.equal(CONFIG.confirmed.resourceReceipt,'B');
 assert.equal(CONFIG.unresolved.pressureUnit,null);
 console.log('PASS: 13 BOOST/save/schema/balance regression checks');
