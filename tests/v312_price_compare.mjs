@@ -57,7 +57,7 @@ eq(JSON.stringify(s),original,"no live save mutated");
 eq(JSON.stringify(CONFIG.provisional.moment),originalBalance,"no official prices modified");
 const s2=decode(encode(s),"normal");
 eq(s2.moment.tap,9,"normal save migration preserved");
-const item={id:CONTENT.moment[0].id,name:CONTENT.moment[0].name,description:CONTENT.moment[0].description,group:0,affordable:true};
+const item={id:CONTENT.moment[0].id,name:CONTENT.moment[0].name,description:CONTENT.moment[0].description+" 手動タップを増加",group:0,affordable:true};
 yes(F.momentVisible(item,{group:"all",filter:"all",search:"原初 接触"}),"all keyword match");
 yes(!F.momentVisible(item,{group:"all",filter:"all",search:"原初 放射"}),"all words required");
 yes(F.momentVisible(item,{group:"all",filter:"all",search:"原初  タップ"}),"multiple spaces supported only where text includes matching term");
