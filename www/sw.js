@@ -11,6 +11,7 @@ const RELATIVE = [
   "astral-observatory.css",
   "time-confirmed-v4.mjs",
   "universe-confirmed-v4.mjs",
+  "universe-progression-v316.mjs",
   "purchase-insights.mjs",
   "moment-filter.mjs",
   "price-lab.mjs",
@@ -52,6 +53,7 @@ const URLS = RELATIVE.map(path => new URL(path, self.registration.scope).href);
 const CORE_FILES = [
   "index.html", "organic-original.css", "mobile.css", "neon-theme.css", "live-ui.css", "astral-observatory.css",
   "time-confirmed-v4.mjs", "universe-confirmed-v4.mjs",
+  "universe-progression-v316.mjs",
   "purchase-insights.mjs",
   "moment-filter.mjs",
   "price-lab.mjs",
