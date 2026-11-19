@@ -53,7 +53,7 @@ export function createStarterHero() {
     status:'alive', lifeCount:1, level:1, levelXp:0,
     freeStatPoints:0, freeSkillPoints:0,
     attributes:starterAttributes(), attributeXp:xp, personalMasteryXp:{},
-    learnedActions:{}, actionSuccessCounts:{}, skillTree:{}
+    learnedActions:{}, actionSuccessCounts:{}, walkPracticeCount:0, walkStage:0, skillTree:{}
   };
 }
 export function createHeroProgression() {
@@ -84,6 +84,8 @@ export function ensureHeroProgression(state) {
     if (!hero.personalMasteryXp) hero.personalMasteryXp={};
     if (!hero.learnedActions) hero.learnedActions={};
     if (!hero.actionSuccessCounts) hero.actionSuccessCounts={};
+    if(!Number.isInteger(hero.walkPracticeCount)||hero.walkPracticeCount<0)hero.walkPracticeCount=0;
+    hero.walkStage=Math.min(5,Math.floor(hero.walkPracticeCount/6));
     // Preserve achievements earned before the three-success rule was implemented.
     for (const action of Object.keys(hero.learnedActions)) {
       if (hero.learnedActions[action]) hero.actionSuccessCounts[action]=Math.max(ACTION_SUCCESS_REQUIREMENT,hero.actionSuccessCounts[action]||0);
@@ -253,4 +255,21 @@ export function fadeLifeDangerWarnings(actor, seconds, ratePerSecond=1/120){
     if(memory.dangerWarnings[key]===0)delete memory.dangerWarnings[key];
   }
   return memory.dangerWarnings;
+}
+
+
+// Stable learned walking progress belongs to the hero, unlike detailed
+// per-life movement attempts stored on the temporary field actor.
+export function recordHeroWalkProgress(hero, success=true) {
+  if (!hero || typeof hero!=='object') throw new TypeError('Hero required');
+  if(!Number.isInteger(hero.walkPracticeCount)||hero.walkPracticeCount<0)hero.walkPracticeCount=0;
+  if(!hero.learnedActions || typeof hero.learnedActions!=='object')hero.learnedActions={};
+  if(!hero.actionSuccessCounts || typeof hero.actionSuccessCounts!=='object')hero.actionSuccessCounts={};
+  if(success) {
+    hero.walkPracticeCount=Math.min(30,hero.walkPracticeCount+1);
+    hero.actionSuccessCounts.walk=(hero.actionSuccessCounts.walk||0)+1;
+    if(hero.actionSuccessCounts.walk>=ACTION_SUCCESS_REQUIREMENT)hero.learnedActions.walk=true;
+  }
+  hero.walkStage=Math.min(5,Math.floor(hero.walkPracticeCount/6));
+  return hero.walkStage;
 }
