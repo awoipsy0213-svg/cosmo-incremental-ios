@@ -202,6 +202,11 @@ export function purchaseQuote(s,kind,id,mode=s.purchaseMode) {
   return {count:n,cost:cost.toString(),enabled:s.intro.complete&&A(s.orbs).cmp(cost)>=0,
     limitReached:limited,reason:A(s.orbs).cmp(cost)>=0?"":"資源不足"};
 }
+// Returns whether the confirmed 90%-spend safeguard applies.
+export function maxPurchaseRequiresConfirmation(wallet,quote,mode="MAX"){
+  return mode==="MAX"&&!!quote?.enabled&&A(wallet).cmp(0)>0&&
+    A(quote.cost).mul(10).cmp(A(wallet).mul(9))>=0;
+}
 export function buy(s,kind,id) {
   const q=purchaseQuote(s,kind,id);
   if(!q.enabled)return {ok:false,reason:q.reason||"導入が未完了です"};
