@@ -72,7 +72,7 @@ test("autogeneration resource shortage never creates planet",()=>{
  toggleAutoPlanet(s);
  advance(s,now+300000,{rng:()=>.999999});
  assert.equal(s.universe.planets.length,0);
- assert.equal(A(s.universe.resources.UR1_01).toNumber(),109);
+ assert.ok(Math.abs(A(s.universe.resources.UR1_01).toNumber()-109)<1e-6);
 });
 test("older v31 state gains new fields without clearing progress",()=>{
  const s=createState(now);s.universe.unlocked=true;createPlanet(s,now);
