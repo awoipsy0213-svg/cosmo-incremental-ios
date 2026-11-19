@@ -42,7 +42,6 @@ function returnFactor(s){
  const c=Math.max(0,s.convergenceCount||0),r=lvl(s,29);
  return r?1+.002*c*sqrt(IDS.reduce((a,_,i)=>a+lvl(s,i),0))*sqrt(r)*factor(s,29):1;
 }
-export function sourceRawBasis(s){return A(1)}
 export function criticalRate(s){return lvl(s,10)?scaled(s,10,.0005*lvl(s,10)):0}
 export function criticalFactor(s){return lvl(s,11)?A(2).mul(A(1.02).pow(lvl(s,11))).mul(factor(s,11)):A(2)}
 export function doubleRate(s){return lvl(s,12)?scaled(s,12,.0005*lvl(s,12),.25):0}
@@ -53,16 +52,20 @@ export function critExpected(s){
  const r=criticalRate(s),mult=criticalFactor(s);
  const chain=chainRate(s);
  // Three consecutive independent successful chain checks; stop on first failure.
- let chains=A(1),step=A(1);
- for(let i=0;i<3;i++){step=step.mul(chain).mul(mult);chains=chains.add(step.mul(1-chain));}
- // Add the successful third link, which has no next failure check.
- chains=chains.add(step.mul(chain));
- // Equivalent 1 + p*cm + p²*cm² + p³*cm³ weighted by stop chances.
- const crit=r>=1?mult.mul(r):A(1).mul(1-r).add(mult.mul(r));
- return crit.mul(chain>0?chains:A(1));
+ const link=r>=1?mult.mul(r):mult;
+ let chains=A(0),step=A(1);
+ for(let i=0;i<3;i++){
+  chains=chains.add(step.mul(1-chain));
+  step=step.mul(chain).mul(link);
+ }
+ chains=chains.add(step);
+ return r>=1?mult.mul(r).mul(chains):A(1).mul(1-r).add(mult.mul(chains).mul(r));
 }
 export function comboWindow(s){return Math.min(10,1.2+.02*lvl(s,6));}
-export function comboBonus(s){return lvl(s,5)?1+minmax(.002*sqrt(lvl(s,5))*Math.max(1,R(s).combo)*factor(s,5),0,4):1}
+export function comboBonus(s){
+ const cap=5*(lvl(s,27)?1+.03*sqrt(lvl(s,27)):1);
+ return lvl(s,5)?1+minmax(.002*sqrt(lvl(s,5))*Math.max(1,R(s).combo)*factor(s,5),0,cap-1):1;
+}
 function concentrate(s,now){
  if(!lvl(s,4)||!R(s).lastTap)return 1;
  const gap=(now-R(s).lastTap)/1000;
@@ -114,12 +117,12 @@ export function tapPreview(s,now=Date.now(),rawSource=A(0)){
 const dice=rng=>minmax(finite(Number(rng())),0,1);
 function critOnce(s,amount,rng){
  let result=A(amount),did=false,chainCount=0;
- const rate=criticalRate(s),mult=criticalFactor(s);
+ const rate=criticalRate(s),mult=criticalFactor(s),link=rate>=1?mult.mul(rate):mult;
  if(rate>=1){result=result.mul(mult).mul(rate);did=true}
  else if(rate>0&&dice(rng)<rate){result=result.mul(mult);did=true}
  if(did){
   const prob=chainRate(s);
-  for(let k=0;k<3;k++){if(dice(rng)>=prob)break;result=result.mul(mult);chainCount++;}
+  for(let k=0;k<3;k++){if(dice(rng)>=prob)break;result=result.mul(link);chainCount++;}
  }
  return {amount:result,crit:did,chainCount};
 }
@@ -137,7 +140,7 @@ function endCombo(s,now){
  let payout=A(0);
  if(r.combo>0){
   payout=A(r.stored).mul(1.2);
-  r.stored='0';r.combo=0;r.comboMilestone=0;r.comboUntil=0;r.hasteSteps=0;
+  r.stored='0';r.combo=0;r.comboMilestone=0;r.comboUntil=0;
   r.lastComboEnded=now;
  }
  return payout;
