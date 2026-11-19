@@ -82,7 +82,7 @@ function updateUI(){
  const activeString=Array.from({length:count},(_,i)=>`<span class="mini-sub ${i<alive?'alive':''}"><img src="./sub-portrait.svg" alt=""><span class="mini-life"></span></span>`).join('');
  if(activeString!==avatarStatus){$('sub-avatar-strip').innerHTML=activeString;avatarStatus=activeString;}
 
- $('stage-label').textContent=state.stage==='base'?'拠点 Rank 1':state.stage==='explore'?'探索：霧の谷':'PvE 模擬戦';$('gem-top').textContent=number(state.resources.gem);$('temple-top').textContent=pendingHeroes()?`${number(pending())}Pt / 魂${pendingHeroes()}`:number(pending());$('temple-quick').textContent=pendingHeroes()?`魂${pendingHeroes()}｜${number(pending())}Pt`:`${number(pending())} Pt`;
+ $('stage-label').textContent=state.stage==='base'?`拠点 Rank ${state.baseRank||1}`:state.stage==='explore'?'探索：霧の谷':'PvE 模擬戦';$('gem-top').textContent=number(state.resources.gem);$('temple-top').textContent=pendingHeroes()?`${number(pending())}Pt / 魂${pendingHeroes()}`:number(pending());$('temple-quick').textContent=pendingHeroes()?`魂${pendingHeroes()}｜${number(pending())}Pt`:`${number(pending())} Pt`;
  $('btn-battle-pause').classList.toggle('hidden',state.stage!=='battle');
  $('stage-hud').classList.toggle('hidden',state.stage!=='explore');if(state.stage==='explore')$('stage-hud').textContent=`探索：霧の谷　｜　荷台 ${Object.values(state.cargo).reduce((a,b)=>a+b,0)} / 20　｜　復活10秒`;
  if(scene&&state.stage==='base'&&scene.project){
@@ -190,7 +190,7 @@ function heroHouseModal(filter='all'){
  '<p>完成済みの英雄の家：'+rows.houses.length+' / 3軒｜出撃登録：'+rows.deployments.length+' / 3体</p>'+
  houseCards+'<p>拠点Rank '+(state.baseRank||1)+'｜累計 '+(state.baseXp||0)+'Pt</p><p>未解放：'+rows.lockedHouses+'軒'+(unlock?'｜次の家はRank '+unlock.rank+'・木材'+unlock.costs.wood+'・石材'+unlock.costs.stone:'')+'（追加建築は建築メニューから）</p><p>英雄名簿</p>'+
  filterButtons+roster+
- '<div class="footer-note">この画面は配置・登録データの試験版です。現在の模擬戦のキャラ表示は1体のままです。複数英雄が同時に活動する処理は未完成です。</div>',
+ '<div class="footer-note">この画面は配置・登録データの試験版です。完成済みの家に配置した英雄は育成・探索で個別に活動します。正式PvEでの複数英雄出撃・ガチャ入手・個別AIの高度学習は未完成です。</div>',
  'heroHouse');
 }
 function heroHouseChoose(houseId){
