@@ -288,3 +288,14 @@ body.reduced-motion #touchField.cosmic-scene::before{animation:none;filter:none;
 .engraving-auto label.kw-row{display:flex;align-items:center;justify-content:space-between;gap:8px;}
 .engraving-auto .input-select{width:min(160px,55%);min-height:36px;}
 @media(max-width:360px){.engraving-card{min-height:142px;padding:7px;}.engraving-card>.wide-button{font-size:.66rem!important;}}
+
+/* V3.18 – intervention controls share the existing Observations panel. */
+.interference-selector{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px;}
+.interference-selector select{min-height:36px;max-width:58%;}
+.interference-actions{gap:7px;}
+.interference-action{display:flex;flex-direction:column;gap:6px;min-height:151px;}
+.interference-action .card-top{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.interference-action .card-top strong{color:#f8efff;font-size:.84rem;}
+.interference-action small{overflow-wrap:anywhere;}
+.interference-action button{margin-top:auto;}
+@media(max-width:360px){.interference-actions .kw-card{min-width:0;}.interference-action .card-top{flex-wrap:wrap;}}
