@@ -88,7 +88,7 @@ export function residueWeights(s,conceptContent){
   const selected=s.time.selected,weights=s.time.weights;
   if(selected.length===1&&selected[0]===0)
     return [{id:"TC001",prob:.25},{id:"TC002",prob:.25},{id:"common",prob:.5}];
-  const common=selected.length>=3?.30:.40;
+  const common = selected.length >= 3 ? .30 : .40;
   const mods=conceptBonuses(s,conceptContent);
   const eligible=conceptContent.filter(c=>c.principles.every(p=>{
     const i=["流動","空間","変化","因果","秩序","可能性"].indexOf(p);
