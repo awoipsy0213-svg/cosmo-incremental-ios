@@ -27,3 +27,19 @@ jobs:
           done
           cmp index.html www/index.html
           cmp sw.js www/sw.js
+
+  browser-smoke:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser test tooling
+        run: npm install --no-save @playwright/test
+      - name: Install Chromium and runtime libraries
+        run: npx playwright install --with-deps chromium
+      - name: Smoke-test Web UI in desktop and mobile Chromium
+        run: node tests/v318_browser_smoke.mjs
