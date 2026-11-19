@@ -110,3 +110,10 @@ test('reject malformed hero payloads rather than silently replacing or deleting 
   raw.state.heroProgression.profiles[STARTER_HERO_ID]=null;
   assert.throws(()=>validateHeroSavePayload(raw.state),/識別情報/);
 });
+
+test('malformed persisted roster identities are rejected without deleting hero data',()=>{
+  const s=createInitialState();
+  const raw=JSON.parse(serialize(s));
+  raw.state.heroRoster.assignments['2']='missing-hero';
+  assert.throws(()=>deserialize(JSON.stringify(raw)),/英雄編成の識別情報が不正/);
+});
