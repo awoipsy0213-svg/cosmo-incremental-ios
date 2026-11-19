@@ -29,7 +29,7 @@ let state,readOnly=false,storageUnavailable=false,lockRelease=null;
 let currentStage="existence",currentSub="moment",sheetState="closed";
 let lastFrame=Date.now(),hiddenAt=null,lastSavedAt=0,lastPanelRender=0,lastInteraction=0;
 let toastTimer,importDraft="",offlineReport=null,updateWorker=null,confirmedAction=null;
-let interferencePartnerId=null;
+let interferencePartnerId=null,bulkScope="all";
 let navDigest="",notice="",busyBirth=false;
 const BOOST_QUICK_ICON=`<svg class="boost-quick-symbol" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M13 2 5 13h6l-1 9 9-12h-6V2z" fill="currentColor"/></svg>`;
 let holdPurchase=null,skipClickFor=null;
@@ -238,7 +238,7 @@ function sourcesHTML(){
   const ms=CONFIG.confirmed.sourceMilestones,cycle=G.sourceCycleStatus(state);
   return `<div class="status-note">源の一巡：${cycle.reached} / ${cycle.total}種到達 ${cycle.unlocked?"・＋循環解放済み":"・解放まで残り"+cycle.remaining+"種"}。＋値倍率は「1＋0.5×＋値」で、Lv1から再成長します。</div><div class="row-grid compact-upgrades">${CONTENT.sources.map((x,i)=>{
     const v=state.sources[x.id],done=ms.filter(m=>m<=v.level).length,next=ms.find(m=>m>v.level);
-    return `<article class="kw-card source-card purchase-card" data-purchase-card><div class="card-top"><strong>${String(i+1).padStart(2,"0")} ${esc(x.name)} ＋${v.plus.toLocaleString("ja-JP")}</strong><small data-source-level="${x.id}">Lv.${v.level.toLocaleString("ja-JP")}</small></div>
+    return `<article class="kw-card source-card purchase-card" data-source-entry="${x.id}" data-purchase-card><div class="card-top"><strong>${String(i+1).padStart(2,"0")} ${esc(x.name)} ＋${v.plus.toLocaleString("ja-JP")}</strong><small data-source-level="${x.id}">Lv.${v.level.toLocaleString("ja-JP")}</small></div>
     <button class="more-button source-detail-button" data-source-detail="${x.id}" aria-label="${esc(x.name)}の詳細">⋯</button>
     <div class="source-meta"><span>節目 ${done}/21</span><span>次 ${next?next.toLocaleString("ja-JP"):"MAX"}</span><span>＋倍率 ×${f(G.sourcePlusGain(v.plus),2)}</span></div>
     <div class="source-rates" title="1Lv増加量 / この源の合計秒間生産量"><span data-source-next="${x.id}">次+${f(G.sourceNextGain(state,x.id))}/秒</span><span data-source-total="${x.id}">計 ${f(G.sourceProduction(state,x.id))}/秒</span></div>
@@ -591,6 +591,7 @@ function renderPanel(force=false){
   cycle.textContent=({"1":"×1","10":"×10","NEXT":"NEXT","MAX":"MAX"})[state.purchaseMode];
   cycle.setAttribute("aria-label",`購入数 ${cycle.textContent}。タップで切替`);
   const order=$("bulkOrderButton");order.textContent=state.settings.bulkOrder==="expensive"?"高い順 ▾":"安い順 ▾";
+  const scope=$("bulkScopeButton");if(scope)scope.textContent=bulkScope==="all"?"全件 ▾":"表示中 ▾";
   const body=$("sheetBody"),top=body.scrollTop,details=[...body.querySelectorAll("details[open][data-preserve]")].map(x=>x.dataset.preserve);
   const map={moment:momentHTML,sources:sourcesHTML,engraving:engravingHTML,flow:flowHTML,concepts:conceptHTML,
     planets:planetHTML,resources:resourcesHTML,observations:observationsHTML,
@@ -865,15 +866,47 @@ async function dispatchAction(action){
     state.settings.bulkOrder=state.settings.bulkOrder==="cheap"?"expensive":"cheap";
     save();renderPanel(true);return;
   }
+  if(action==="toggle-bulk-scope"){
+    bulkScope=bulkScope==="all"?"visible":"all";
+    renderPanel(true);return;
+  }
   if(action==="buy-all"){
     if(readOnly||store.blocked)return toast("この画面では購入できません");
     const kind=currentStage==="existence"?(currentSub==="moment"?"moment":currentSub==="sources"?"source":null):null;
     if(!kind)return toast("《刹那》か《源》の画面で操作してください");
     checkpoint();
-    const result=G.buyAll(state,kind,state.settings.bulkOrder);
+    const stageBefore=currentStage,subBefore=currentSub,orderBefore=state.settings.bulkOrder;
+    const scopeBefore=bulkScope;
+    const targets=()=>{
+      if(scopeBefore==="all")return null;
+      const selector=kind==="moment"?"[data-moment-entry]:not([hidden])":"[data-source-entry]:not([hidden])";
+      return [...$("sheetBody").querySelectorAll(selector)].map(el=>kind==="moment"?el.dataset.momentEntry:el.dataset.sourceEntry);
+    };
+    const ids=targets();
+    const quote=G.quoteBuyAll(state,kind,orderBefore,ids);
+    if(!quote.ok)return toast(quote.reason||"購入できません");
+    const label=kind==="moment"?"刹那":"源",description=scopeBefore==="all"?"全件":"表示中";
+    const text=label+"：対象 "+description+"（"+(ids?.length??30)+"項目）"+
+      "\n購入 "+quote.count.toLocaleString("ja-JP")+"Lv / 消費 "+f(quote.spent)+" オーブ"+
+      "\n購入後残高 "+f(quote.remaining)+" オーブ"+
+      (quote.limitReached?"\n1回の上限3,000Lvです。残りは再度手動で購入してください。":"")+
+      "\n購入対象と消費金額を確認してください。";
+    if(!await ask("一括購入の金額確認",text,"この内容で購入"))return;
+    checkpoint();
+    if(currentStage!==stageBefore||currentSub!==subBefore||
+       state.settings.bulkOrder!==orderBefore||bulkScope!==scopeBefore)
+      return toast("購入条件が変わりました。再確認してください");
+    const idsNow=targets();
+    if(JSON.stringify(idsNow)!==JSON.stringify(ids))
+      return toast("購入対象が変わりました。再確認してください");
+    const updated=G.quoteBuyAll(state,kind,orderBefore,ids);
+    if(!updated.ok||updated.count!==quote.count||
+       A(updated.spent).cmp(quote.spent)!==0||A(updated.remaining).cmp(quote.remaining)!==0)
+      return toast("購入できる数量・価格が変化しました。再確認してください");
+    const result=G.buyAll(state,kind,orderBefore,ids);
     if(!result.ok)return toast(result.reason);
     save();render(true);
-    toast(`${result.count}Lv 一括購入しました${result.limitReached?"。追加分はもう一度押してください":""}`);
+    toast(result.count+"Lv 一括購入しました"+(result.limitReached?"。続きはもう一度押してください":""));
     return;
   }
   if(action==="close-drawer"){$("organizerDrawer").close();return;}
