@@ -93,7 +93,7 @@ test('old schema 1 saves migrate additively and do not lose worlds or souls',()=
   delete s.heroRoster;
   delete s.saveFormatRevision;
   const r=deserialize(serialize(s));
-  assert.equal(r.saveFormatRevision,3);
+  assert.equal(r.saveFormatRevision,4);
   assert.equal(r.resources.wood,9);
   assert.equal(r.temple.pending.stone,7);
   assert.deepEqual(registeredHeroIds(r),[STARTER_HERO_ID]);
