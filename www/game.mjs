@@ -88,7 +88,22 @@ function setsunaProjection(s,rawSource=null,now=Date.now()){
   return t;
 }
 function rememberSetsuna(s,t){s.momentRuntime=Object.fromEntries(SETSUNA_RUNTIME_KEYS.map(k=>[k,t[k]]));}
-export function momentEffects(s){const p=setsunaProjection(s);return MOMENT_IDS.map((id,i)=>({...SETSUNA.effectInfo(p,i),id,level:s.moment[id]}));}
+export function momentEffects(s){
+  const p=setsunaProjection(s);
+  return MOMENT_IDS.map((id,i)=>{
+    const info={...SETSUNA.effectInfo(p,i),id,level:s.moment[id]};
+    if(i===16 && s.moment[id]>0)info.current+=" / 1回 "+(s.moment[MOMENT_IDS[15]]>0?
+      str(SETSUNA.autoExpected(p).mul(existenceMultiplier(s)))+" オーブ":"自動接触が必要");
+    if(i===14)info.detail+="。奇跡の記録："+(s.momentRuntime?.miracleHistory||[]).length+"件（直近10件まで保持）";
+    return info;
+  });
+}
+export function momentComboView(s,now=Date.now()){
+  const p=setsunaProjection(s,null,now),expires=p.comboExpire||p.comboUntil||0;
+  const remaining=Math.max(0,expires-now);
+  return {combo:remaining>0?p.combo:0,remaining,window:SETSUNA.comboWindow(p),
+    multiplier:SETSUNA.comboFactor(p),stored:p.stored||"0"};
+}
 
 // Base output from the first level of this Source. Subsequent levels compound by productionGrowth.
 // Returns Amount to avoid precision/overflow problems for late source tiers.
@@ -126,7 +141,7 @@ export function criticalMultiplier(percent,multiplier,rng=Math.random,allowSub10
   return rng()<percent/100?multiplier:1;
 }
 export function tap(s,now=Date.now(),rng=Math.random) {
-  if(s.intro.complete && now>s.lastWall)advance(s,now);
+  if(s.intro.complete && now>s.lastWall)advance(s,now,{offline:now-s.lastWall>15000});
   s.counters.taps++;
   if(!s.intro.complete) {
     s.intro.touches++;
