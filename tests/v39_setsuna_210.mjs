@@ -10,7 +10,7 @@ const time=1800000000000;let checks=0;
 function yes(x,message){assert.ok(x,message);checks++;}
 function same(actual,expected,message){assert.deepEqual(actual,expected,message);checks++;}
 function state(){const s=G.createState(time);s.intro.complete=true;return s;}
-same(CONFIG.version,'3.9.0','v3.9 release');
+yes(['3.9.0','3.10.0'].includes(CONFIG.version),'v3.9 core rules retained in current release');
 same(CONFIG.schemaVersion,31,'save schema');
 same(KEYS.normal,'kotowari_v31_normal','original normal save key');
 same(CONTENT.moment.length,30,'30 effects');
