@@ -56,6 +56,18 @@ export class SaveStore {
             return {state:s,blocked:true,warning:"Ver.3.8への移行前バックアップを保存できません。元のデータを保護し、書き込みを停止しています。"};
           }
         }
+        // v3.9 snapshots protect v3.8 saves even when momentRuntime exists.
+        // Keep the original byte sequence, checksum, and writer for manual recovery.
+        if(this.mode==="normal" && !Object.prototype.hasOwnProperty.call(oldShape.momentRuntime||{},"cycleTaps")){
+          const key=this.key+".before-setsuna39";
+          try{
+            if(!this.read(key))this.storage.setItem(key,raw);
+            if(this.read(key)!==raw)throw Error("backup write was not verified");
+          }catch(e){
+            this.blocked=true;
+            return {state:s,blocked:true,warning:"Ver.3.9への移行前バックアップを検証できません。元のセーブを保護し、書き込みを停止しています。"};
+          }
+        }
         return {state:s};
       }catch(error){
         // Quarantine original bytes and do not silently overwrite invalid data.
