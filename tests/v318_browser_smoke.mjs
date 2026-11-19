@@ -46,6 +46,7 @@ try {
       state.universe.knowledge.collapse=100;
       state.universe.resources.UR1_01="1000";
       state.universe.resources.UR1_04="1000";
+      G.invest(state,"UR1_01",2);
       return S.encode(state,"browser-fixture");
     });
     await page.addInitScript(raw=>localStorage.setItem("kotowari_v31_normal",raw),fixture);
@@ -61,6 +62,9 @@ try {
     });
     assert.ok(await page.locator('[data-stage="universe"]').count(),label+" fixture stage absent: "+JSON.stringify(diagnostics));
     await page.locator('[data-stage="universe"]').click();
+    await page.locator('[data-child="planets"]').click();
+    await page.locator(".investment-ledger").waitFor();
+    assert.match(await page.locator(".investment-ledger").textContent(),/UR1_01/);
     await page.locator('[data-child="observations"]').click();
     await page.locator('button[data-interference="collision"]').waitFor();
     assert.equal(await page.locator('button[data-interference="collision"]').isEnabled(),true);
@@ -73,6 +77,11 @@ try {
       catch{return false;}
     });
     assert.equal(await page.locator('button[data-interference="collision"]').isEnabled(),false);
+    await page.locator('button[data-action="organizer"]').first().click();
+    await page.locator('button[data-organizer="statistics"]').click();
+    await page.getByText("直近10分の獲得量", {exact:false}).waitFor();
+    await page.getByText("オフライン精算履歴", {exact:false}).waitFor();
+    assert.ok(await page.locator(".telemetry-card").count()>0);
     assert.equal(pageErrors.length,0,label+" JS errors: "+pageErrors.join("; "));
     console.log("PASS browser",label,viewport.width+"x"+viewport.height,"load, organizer, intervention, persisted save");
     await context.close();
