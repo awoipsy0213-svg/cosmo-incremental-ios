@@ -23,6 +23,7 @@ try {
     const res=await page.goto(root,{waitUntil:"domcontentloaded"});
     assert.equal(res?.status(),200);
     await page.locator("#buildLabel").waitFor();
+    await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
     assert.match(await page.locator("#buildLabel").innerText(),/3\.18/);
     assert.ok((await page.locator("#appRoot").boundingBox())?.width>0);
     const width=await page.evaluate(()=>document.documentElement.scrollWidth);
