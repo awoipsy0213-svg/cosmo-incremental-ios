@@ -116,4 +116,33 @@ test("old v31 save gets empty interference state, rejected corrupt duplicates",(
  t.universe.interference.transfers=[{id:"TRANSFER_1",from:t.universe.planets[0].id,to:t.universe.planets[0].id,remainingSeconds:600}];
  assert.throws(()=>validateState(t,"normal"),/成長移転/);
 });
+test("pre-v318 save preserves exact original bytes before migration",()=>{
+ const {s}=build();
+ delete s.universe.interference;
+ const data=structuredClone(s),checksumValue=checksum(JSON.stringify(data));
+ const raw=JSON.stringify({kind:"kotowari-save",version:31,writer:"v317",checksum:checksumValue,data});
+ const stored=new Map([[KEYS.normal,raw]]);
+ const storage={getItem:key=>stored.get(key)||null,setItem:(key,value)=>stored.set(key,value)};
+ const holder=new SaveStore(storage,"normal","v318-qa");
+ const loaded=holder.load(NOW);
+ assert.equal(loaded.blocked,undefined);
+ assert.equal(stored.get(KEYS.normal+".before-v318"),raw);
+ assert.deepEqual(loaded.state.universe.interference.transfers,[]);
+ holder.write(loaded.state,{snapshot:true});
+ assert.equal(stored.get(KEYS.normal+".before-v318"),raw);
+});
+test("failed v318 backup prevents existing save overwrite",()=>{
+ const {s}=build();delete s.universe.interference;
+ const data=structuredClone(s),raw=JSON.stringify({kind:"kotowari-save",version:31,writer:"v317",data,checksum:checksum(JSON.stringify(data))});
+ const memory=new Map([[KEYS.normal,raw]]);
+ const storage={getItem:key=>memory.get(key)||null,setItem:(key,value)=>{
+   if(key.endsWith(".before-v318"))throw Error("quota");
+   memory.set(key,value);
+ }};
+ const store=new SaveStore(storage,"normal","v318-qa");
+ const loaded=store.load(NOW);
+ assert.equal(loaded.blocked,true);
+ assert.equal(memory.get(KEYS.normal),raw);
+ assert.throws(()=>store.write(loaded.state),/保護中/);
+});
 console.log("PASS "+count+" universe interference regression");
