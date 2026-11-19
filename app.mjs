@@ -1,4 +1,5 @@
 import {CONFIG} from "./balance-config.mjs";
+import {compareMomentPrice} from "./price-lab.mjs";
 import {MOMENT_GROUP_NAMES,cleanMomentPrefs,toggleMomentFavorite,momentVisible} from "./moment-filter.mjs";
 import {CONTENT} from "./content.mjs";
 import {PROPOSED,PLANET_EFFECT_PROPOSALS,resourcePrototype,trialPreview,boostTrialCost,proposedSourceSlots,FIRST_CONCEPT_PROPOSALS} from "./design-proposals.mjs";
@@ -15,8 +16,8 @@ const dev=params.get("dev")==="1"||mode==="lab";
 const childNames={moment:"刹那",sources:"源",engraving:"刻印",flow:"流れ",concepts:"概念",
   planets:"惑星",resources:"資源",observations:"観測",life:"生命",
   boost:"BOOST",achievements:"実績",chronicle:"記録",statistics:"統計",collection:"コレクション",
-  guide:"遊び方",settings:"設定",backup:"保存",spec:"設計状況",proposals:"研究・試案",lab:"開発テスト"};
-const organizerItems=["boost","achievements","chronicle","statistics","collection","guide","settings","backup","spec","proposals",...(dev?["lab"]:[])];
+  guide:"遊び方",settings:"設定",backup:"保存",spec:"設計状況",proposals:"研究・試案",lab:"開発テスト",priceLab:"価格試算"};
+const organizerItems=["boost","achievements","chronicle","statistics","collection","guide","settings","backup","spec","proposals",...(dev?["priceLab","lab"]:[])];
 let memory={};let storage;
 try{storage=window.localStorage;}catch(e){storage={getItem:k=>memory[k]||null,setItem:(k,v)=>memory[k]=String(v),removeItem:k=>delete memory[k]};}
 const store=new SaveStore(storage,mode,globalThis.crypto?.randomUUID?.()||"tab-"+Date.now());
@@ -386,11 +387,43 @@ function proposalsHTML(){
   <h3>未決定・保留のまま残すもの</h3><div class="kw-card"><p>77概念の個別効果、生命・コアの成立、破壊と崩壊の関係、資源受取A/B、源＋循環の保持、刻印の正式ノード・費用、天体イベントの解放条件。</p><small>これらは効果・倍率を一律で埋めず、試案があってもゲーム正式仕様にはしません。</small></div>
   <a class="link-button" href="./RESEARCH_V35.md">参照作品・検証根拠（Markdown原文）</a>`;
 }
+const priceLabParams={momentId:CONTENT.moment[0].id,profile:"current",durationSeconds:300,tapsPerSecond:5,levelOverride:null};
+let priceLabReport=null;
+function priceLabHTML(){
+ if(mode!=="lab")return '<p class="tiny">価格比較は通常セーブに影響しない検証モードでのみ利用できます。</p><a href="./?lab=1" class="link-button">検証モードで開く</a>';
+ const p=priceLabParams;
+ const levels=[["current","現在の検証セーブ"],["early","序盤の仮条件"],["middle","中盤の仮条件"],["late","後半の仮条件"]];
+ const priceOptions=[["300","5分"],["1800","30分"],["7200","2時間"]];
+ const rates=[2,5,10];
+ const report=priceLabReport;
+ return `<div class="price-lab">
+  <p class="status-note">購入価格の試験値を比較します。計算は元セーブの複製だけに対して実行し、既存の価格や残高、セーブは変更しません。候補は正式採用ではありません。</p>
+  <label>対象の刹那 <select data-price-lab="momentId">${CONTENT.moment.map(x=>`<option value="${x.id}" ${p.momentId===x.id?"selected":""}>${esc(x.name)}</option>`).join("")}</select></label>
+  <div class="price-lab-fields">
+  <label>育成条件 <select data-price-lab="profile">${levels.map(([v,label])=>`<option value="${v}" ${p.profile===v?"selected":""}>${label}</option>`).join("")}</select></label>
+  <label>評価する時間 <select data-price-lab="durationSeconds">${priceOptions.map(([v,label])=>`<option value="${v}" ${p.durationSeconds===Number(v)?"selected":""}>${label}</option>`).join("")}</select></label>
+  <label>想定手動タップ <select data-price-lab="tapsPerSecond">${rates.map(v=>`<option value="${v}" ${p.tapsPerSecond===v?"selected":""}>${v}回/秒</option>`).join("")}</select></label>
+  <label>検証Lv（空欄=条件のLv） <input type="number" data-price-lab="levelOverride" min="0" max="1000000" step="1" value="${p.levelOverride??""}" placeholder="自動"></label>
+  </div>
+  <button type="button" class="wide-button" data-action="run-price-lab">価格と回収時間を試算</button>
+  ${report?`<div class="price-lab-results">
+  <p><b>検証対象:</b> ${esc(CONTENT.moment.find(x=>x.id===report.momentId)?.name)} Lv.${report.level} → Lv.${report.level+1}</p>
+  ${report.maxed?"<p>Lv上限に到達しているため比較できません。</p>":`<p>現行試験価格：${f(report.trialCost)} オーブ</p>
+  <p>評価期間内の想定獲得量：購入前 ${f(report.before)} → 購入後 ${f(report.after)}</p>
+  <p>推定増加量：+${f(report.delta)} / ${duration(report.durationSeconds)}（約+${f(report.deltaPerSecond)}/秒）</p>
+  <table class="price-lab-table"><thead><tr><th>試験価格に対する比率</th><th>購入費用</th><th>回収時間</th></tr></thead>
+  <tbody>${report.priceCandidates.map(c=>`<tr><td>×${c.factor}</td><td>${f(c.price)}</td><td>${c.recoverSeconds===null?"算出不可":shortDuration(c.recoverSeconds)}</td></tr>`).join("")}</tbody></table>`}
+  <p class="tiny">${esc(report.disclaimer)}</p>
+  </div>`:"<p class='tiny'>条件を選び、試算を実行してください。</p>"}
+  <p class="tiny">手動は「一定頻度×基本タップ量」の近似です。連続コンボ・確率抽選・奇跡などはこの試算では完全再現しません。試算不能な項目は「算出不可」と表示します。</p>
+  </div>`;
+}
+
 function labHTML(){
   if(mode!=="lab")return '<div class="status-note">通常のセーブを変更せず、検証用データで確認します。</div><a class="link-button" href="./?lab=1">設計検証モードへ</a>';
   const actions=[["orbs","オーブ +1兆"],["existence","余剰存在 +10"],["sourceMax","源01をLv.100万"],["directions","6方向を検証解放"],["concept","衝突の残滓 +10"],["common","共通？？？ +100"],["world","世界時間を1秒へ"],["observe","観測名・刻印比較を解放"],["resources","全42資源 +100"],["mass","選択惑星を質量100に"],["collapse","崩壊イベントを検証"],["life","生命タブを表示"],["boost","BOOSTを満タン"],["offline","8時間オフラインを検証"]];
   return `<div class="status-note">独立した検証セーブです。仮の確率・受取方式・コスト・解放を試せます。ここでの達成は通常セーブに反映しません。</div><button class="wide-button" data-organizer="proposals">研究した候補効果の確認・有効化</button>
-  <div class="row-grid">${actions.map(([id,t])=>`<button class="wide-button" data-lab="${id}">${t}</button>`).join("")}</div><p class="tiny">崩壊前に「宇宙 → 資源」でA/Bを選択。圧力10単位で×1.1は検証用の仮式。安定の残留対象は未決定なので、破壊処理には適用していません。</p>
+  <button type="button" class="wide-button" data-organizer="priceLab">刹那の価格シミュレーター</button><div class="row-grid">${actions.map(([id,t])=>`<button class="wide-button" data-lab="${id}">${t}</button>`).join("")}</div><p class="tiny">崩壊前に「宇宙 → 資源」でA/Bを選択。圧力10単位で×1.1は検証用の仮式。安定の残留対象は未決定なので、破壊処理には適用していません。</p>
   <a class="link-button" href="./">通常プレイに戻る</a>`;
 }
 function renderPanel(force=false){
@@ -416,7 +449,7 @@ function renderPanel(force=false){
   const map={moment:momentHTML,sources:sourcesHTML,engraving:engravingHTML,flow:flowHTML,concepts:conceptHTML,
     planets:planetHTML,resources:resourcesHTML,observations:observationsHTML,
     life:()=>'<div class="empty-state"><div class="glyph">◌</div><p>未知の変化から、生命を認識する。</p><p>微生物・有機生物への接続は設計中です。生命を購入する操作は追加していません。</p></div>',
-    boost:boostHTML,achievements:achievementHTML,statistics:statisticsHTML,settings:settingsHTML,backup:backupHTML,spec:specHTML,proposals:proposalsHTML,lab:labHTML,guide:guideHTML,
+    boost:boostHTML,achievements:achievementHTML,statistics:statisticsHTML,settings:settingsHTML,backup:backupHTML,spec:specHTML,proposals:proposalsHTML,lab:labHTML,priceLab:priceLabHTML,guide:guideHTML,
     chronicle:()=>state.events.length?'<div class="kw-list">'+[...state.events].reverse().map(e=>`<div class="kw-row"><span>${esc(e.text)}<small>${new Date(e.at).toLocaleString("ja-JP")}</small></span></div>`).join("")+'</div>':'<div class="empty-state"><p>まだ出来事は記録されていません。</p></div>',
     collection:()=>conceptHTML()};
   body.innerHTML=(map[currentSub]||guideHTML)();
@@ -655,6 +688,11 @@ function download(text,name,type="application/json"){
 }
 async function dispatchAction(action){
   if(action==="organizer"){openOrganizer();return;}
+  if(action==="run-price-lab"){
+    if(mode!=="lab")return toast("検証モードでのみ使用できます");
+    try{priceLabReport=compareMomentPrice(state,{...priceLabParams,now:Date.now()});renderPanel(true);}catch(error){toast("価格試算を中止しました："+error.message);}
+    return;
+  }
   if(action==="cycle-buy-mode"){
     if(readOnly)return toast("読み取り専用のため切り替えできません");
     const modes=["1","10","NEXT","MAX"];
@@ -805,6 +843,13 @@ document.addEventListener("change",async e=>{
     const file=t.files?.[0];if(!file)return;
     if(file.size>4*1024*1024){toast("4MBを超えるファイルは読み込めません");return;}
     importDraft=await file.text();const area=$("importText");if(area)area.value=importDraft;return;
+  }
+  if(t.dataset.priceLab){
+    if(mode!=="lab")return;
+    const key=t.dataset.priceLab;
+    if(!Object.prototype.hasOwnProperty.call(priceLabParams,key))return;
+    priceLabParams[key]=["durationSeconds","tapsPerSecond","levelOverride"].includes(key)?(t.value===""?null:Number(t.value)):t.value;
+    priceLabReport=null;renderPanel(true);return;
   }
   if(readOnly){render(true);return;}
   checkpoint();
