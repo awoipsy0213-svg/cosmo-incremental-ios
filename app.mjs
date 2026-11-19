@@ -2,6 +2,7 @@ import {CONFIG} from "./balance-config.mjs";
 import {UNIVERSE_RESOURCE_RULES,resourceEligible} from "./universe-confirmed-v4.mjs";
 import {KNOWLEDGE_IDS,KNOWLEDGE_NAMES,knowledgeLevel,coreRequirements,autoPlanetAvailable} from "./universe-progression-v316.mjs";
 import {engravingCatalogue,engravingSlots,engravingPurchaseQuote,ENGRAVING_AUTO_CONVERGE_ID} from "./engraving-rules-v317.mjs";
+import {TELEMETRY_LIMITS,consecutiveOrbGains} from "./telemetry-v319.mjs";
 import {compareMomentPrice,compareMomentPriceProfiles,exportPriceReport,PRICE_MODEL_VERSION} from "./price-lab.mjs";
 import {MOMENT_GROUP_NAMES,cleanMomentPrefs,toggleMomentFavorite,momentVisible} from "./moment-filter.mjs";
 import {CONTENT} from "./content.mjs";
@@ -332,7 +333,15 @@ function planetHTML(){
       const v=x.id==="age"?G.ageSeconds(p):p.stats[x.id];
       return `<div class="kw-card stat-card"><strong ${known?"":'class="unknown-label"'}>${known?x.name:""}</strong><div class="stat-number" aria-label="${known?x.name:"未知の数値"+(i+1)}">${f(v,x.id==="age"?0:3)}${known&&x.id==="age"?" 秒":""}${known&&x.id==="stability"?"%":""}</div>${known?`<small>${x.description}</small>`:""}</div>`;
     }).join("")}</div>`:'<div class="empty-state"><div class="glyph">◌</div><p>物質が、ひとつの惑星になる。</p><small>初回は費用なしで生成できます。</small></div>'}
-    <div class="status-note">自然崩壊は確率で発生し、質量×2と圧力に応じた追加資源を一度だけ獲得します。部分破壊と惑星間の高度な干渉は引き続き実装検証中です。</div>
+    ${p?.evidence?.investmentsByResource&&Object.keys(p.evidence.investmentsByResource).length?`<div class="kw-card investment-ledger">
+      <strong>この惑星への資源投入履歴</strong>
+      <small>投入した資源の種類と個数を惑星IDで保存します。残高や他の惑星の投入数と混同しません。</small>
+      ${Object.entries(p.evidence.investmentsByResource).sort(([a],[b])=>a.localeCompare(b)).map(([id,quantity])=>{
+        const name=CONTENT.resources.find(r=>r.id===id)?.name||id;
+        return `<div class="kw-row"><span>${esc(name)} <small>${id}</small></span><strong>${f(quantity)}個</strong></div>`;
+      }).join("")}
+    </div>`:""}
+    <div class="status-note">自然崩壊は確率で発生し、質量×2と圧力に応じた追加資源を一度だけ獲得します。部分破壊は未実装です。惑星間干渉の操作は観測画面で管理します。</div>
     ${p&&((p.core?.started||p.core?.formed)||Object.values(p.stats).some(v=>Number(v)>100))?`<div class="kw-card cosmic-core-card">
       <div class="card-top"><strong>惑星内部のコア</strong><span class="badge">${p.core?.formed?"形成済み":p.core?.started?"形成中":"未形成"}</span></div>
       <small>形成度 ${Math.floor(p.core?.progress||0)}% · 脈動 ${p.core?.pulses||0}回</small>
@@ -433,7 +442,28 @@ function achievementHTML(){
 }
 function statisticsHTML(){
   const values=[["タップ入力",state.counters.taps.toLocaleString("ja-JP")],["収束",state.convergenceCount.toLocaleString("ja-JP")+"回"],["累計オーブ",f(state.totalOrbs)],["余剰存在",f(state.surplusExistence,3)],["源総Lv.",Object.values(state.sources).reduce((v,x)=>v+x.level,0).toLocaleString("ja-JP")],["概念形成",Object.values(state.time.concepts).filter(x=>x>0).length+" / 77"],["オンライン",duration(state.counters.onlineSeconds)],["オフライン",duration(state.counters.offlineSeconds)]];
-  return `<div class="sub-grid">${values.map(([k,v])=>`<div class="kw-card"><small>${k}</small><strong>${v}</strong></div>`).join("")}</div><p class="tiny">刻印の詳細合算と変更前後比較は、観測機能の解放前には表示しません。</p>`;
+  const t=state.telemetry,rows=consecutiveOrbGains(t);
+  const logarithmic=v=>{const a=A(v);return a.m>0?Math.max(0,a.e+Math.log10(a.m)+1):0;};
+  const max=Math.max(1,...rows.filter(r=>r.gain!==null).map(r=>logarithmic(r.gain)));
+  return `<p class="panel-intro">統計は実際に付与されたオーブから計測します。長時間停止中やブラウザのスリープ区間の数値は補間しません。</p>
+    <div class="sub-grid">${values.map(([k,v])=>`<div class="kw-card"><small>${k}</small><strong>${v}</strong></div>`).join("")}</div>
+    <h3>直近10分の獲得量 · 5秒ごと</h3>
+    <div class="kw-card telemetry-card">
+      ${rows.length?`<div class="telemetry-chart" role="img" aria-label="直近10分のオンラインオーブ獲得推移">
+      ${rows.map((r,i)=>`<i class="telemetry-bar ${r.gain===null?"telemetry-gap":""}" style="height:${r.gain===null?2:Math.max(3,100*logarithmic(r.gain)/max).toFixed(2)}%" title="${r.gain===null?"測定間隔が空いています":"獲得 "+f(r.gain)+" オーブ"}"></i>`).join("")}
+      </div>`:'<div class="empty-state"><p>5秒ごとの測定を開始しました。グラフは有効な2点から表示します。</p></div>'}
+      <small>記録 ${t.onlineSamples.length}/${TELEMETRY_LIMITS.onlineSamples}点。縦軸は対数表現で、測定できなかった区間は低い空白として表示します。</small>
+      ${rows.filter(r=>r.gain!==null).slice(-3).reverse().map(r=>`<small>${new Date(r.at).toLocaleTimeString("ja-JP")} · ${f(r.gain)} オーブ / 5秒</small>`).join("")}
+    </div>
+    <h3>オフライン精算履歴 · ${t.offlineReports.length}/10件</h3>
+    ${t.offlineReports.length?`<div class="kw-list">${[...t.offlineReports].reverse().map(r=>`<div class="kw-card telemetry-row">
+      <small>${new Date(r.at).toLocaleString("ja-JP")} · 離席 ${duration(r.seconds)} / 有効 ${duration(r.effectiveSeconds)}</small>
+      <strong>+${f(r.orbs)} オーブ</strong><small>BOOST獲得 ${duration(r.boostEarned)}</small></div>`).join("")}</div>`:"<p class='tiny muted'>まだ記録がありません。10秒未満の復帰は通知・履歴を省略し、実際の獲得処理は保持します。</p>"}
+    <h3>収束履歴 · ${t.convergences.length}/20件</h3>
+    ${t.convergences.length?`<div class="kw-list">${[...t.convergences].reverse().map(r=>`<div class="kw-card telemetry-row">
+      <small>${new Date(r.at).toLocaleString("ja-JP")} · 収束 ${r.steps.toLocaleString("ja-JP")}段階</small>
+      <strong>+${f(r.reward,3)} 存在</strong></div>`).join("")}</div>`:"<p class='tiny muted'>まだ記録がありません。</p>"}
+    <p class="tiny muted">過去版に計測データがない期間はゼロとは扱わず、記録なしとして表示します。以前のセーブ値から架空の履歴を作成しません。</p>`;
 }
 function guideHTML(){
   return `<div class="kw-list"><div class="kw-card"><strong>世界を生み、変化を観測する</strong><p>《無》は序章です。光に干渉すると最初の存在が成立します。存在1は失われません。</p></div>
@@ -447,7 +477,7 @@ function settingsHTML(){
   return `<p class="panel-intro">背景は既存のORGANIC FLOWを維持。安全な保存・表示設定は序章から利用できます。</p>
   ${labels.map(([id,name,desc])=>`<label class="kw-row"><span>${name}<small>${desc}</small></span><input type="checkbox" data-pref="${id}" ${state.settings[id]?"checked":""}></label>`).join("")}
   <label class="kw-row">数値表記<select class="input-select" data-pref="notation"><option value="auto" ${state.settings.notation==="auto"?"selected":""}>標準（100万以降e）</option><option value="scientific" ${state.settings.notation==="scientific"?"selected":""}>指数 e（1.23e12）</option><option value="exponent" ${state.settings.notation==="exponent"?"selected":""}>指数 E（1.23E+12）</option><option value="zeros" ${state.settings.notation==="zeros"?"selected":""}>0の個数（10^12）</option></select></label>
-  <div class="kw-row"><span>バージョン<small>Ver.3.15 源＋循環と固有最終効果 / 水色×紫UI維持</small></span><strong>3.15.0</strong></div>
+  <div class="kw-row"><span>バージョン<small>Ver.3.19 Astral UI・統計・資源投入履歴</small></span><strong>${CONFIG.version}</strong></div>
   <div class="kw-row"><span>通信<small>クラウド・課金は未接続</small></span><strong>${navigator.onLine?"オンライン":"オフライン"}</strong></div>
   <button class="wide-button" data-organizer="backup">保存とバックアップ</button>
   <a class="link-button" href="./legacy/" data-legacy-link>保管した旧版Ver.3.0で続ける</a><br>
