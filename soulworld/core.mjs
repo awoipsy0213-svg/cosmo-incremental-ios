@@ -134,6 +134,17 @@ export function serialize(s){const clean=JSON.parse(JSON.stringify(s));clean.eff
 // Reject malformed identity/growth data before migration so imports cannot silently
 // erase corrupted heroes. Missing fields from older saves are migrated additively.
 export function validateHeroSavePayload(s){
+ if(!s.resources||typeof s.resources!=='object'||Array.isArray(s.resources)||
+   Object.values(s.resources).some(v=>!Number.isSafeInteger(v)||v<0))
+   throw Error('資源データが不正');
+ if(s.baseXp!==undefined && (!Number.isFinite(s.baseXp)||s.baseXp<0))
+   throw Error('拠点経験値が不正');
+ if(s.baseRank!==undefined && (!Number.isInteger(s.baseRank)||s.baseRank<1||s.baseRank>4))
+   throw Error('拠点ランクが不正');
+ if(s.mapSize!==undefined && (![5,10,20,30].includes(s.mapSize)))
+   throw Error('マップサイズが不正');
+ if(s.warehouseLevel!==undefined&&(!Number.isInteger(s.warehouseLevel)||s.warehouseLevel<0||s.warehouseLevel>4))
+   throw Error('倉庫のレベルが不正');
  const stored=s.heroProgression;
  if(stored===undefined || stored===null)return true;
  if(typeof stored!=='object'||Array.isArray(stored)||!stored.profiles||typeof stored.profiles!=='object'||Array.isArray(stored.profiles))throw Error('英雄の保存形式が不正');
