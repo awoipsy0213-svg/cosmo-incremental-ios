@@ -51,3 +51,21 @@ test('detect hero learning migration without disturbing existing schema 1 fields
   assert.equal(SAVE_KEY,'soul_world_browser_proto_v001');
   assert.equal(after.schema,1);
 });
+
+test('Q405 roster change requires backup of previous hero-learning save',()=>{
+  const old=createInitialState();
+  delete old.heroRoster;
+  delete old.saveFormatRevision;
+  const raw=serialize(old);
+  assert.equal(needsHeroLearningMigration(raw),true);
+  const db=fakeStorage();
+  db.setItem(SAVE_KEY,raw);
+  const result=backupBeforeSaveMigration(db,SAVE_KEY,raw);
+  assert.equal(result.created,true);
+  assert.equal(db.getItem(SAVE_KEY),raw);
+  assert.equal(db.getItem(SAVE_KEY+'_legacy_backup_1'),raw);
+  const upgraded=deserialize(raw);
+  assert.equal(upgraded.saveFormatRevision,2);
+  assert.ok(upgraded.heroRoster.assignments);
+  assert.equal(needsHeroLearningMigration(serialize(upgraded)),false);
+});

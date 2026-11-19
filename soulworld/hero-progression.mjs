@@ -26,14 +26,18 @@ export const BASE_ABILITY_LABELS = Object.freeze({
   adaptation:'適応', creativity:'発想', perseverance:'忍耐',
   stamina:'持久力', learning:'学習力'
 });
-// Provisional action mappings: Q233 confirms one primary (80%) and
-// one secondary (20%), but the exact action mappings are not settled.
+// Q373-381 confirm named action-to-attribute pairings (80% primary, 20% secondary).
+// 'fight' and 'pray' remain provisional until specialized combat training is defined.
 export const PROVISIONAL_ACTION_ATTRIBUTES = Object.freeze({
   wood:['gathering','strength'],
   stone:['gathering','durability'],
   food:['gathering','stamina'],
   build:['building','dexterity'],
+  craft:['crafting','dexterity'],
+  survey:['exploration','adaptation'],
   swim:['stamina','adaptation'],
+  magic:['magic','intelligence'],
+  support:['spirit','magic'],
   fight:['strength','agility'],
   pray:['spirit','learning']
 });
@@ -245,14 +249,16 @@ export function recordDangerWarning(actor, danger, weight=1){
   memory.dangerWarnings[danger]=Math.max(0,Math.min(1,(memory.dangerWarnings[danger]||0)+weight));
   return memory.dangerWarnings[danger];
 }
-// Q328 specifies gradual fading but not the exact duration. This rate is a
-// provisional internal value and must be tuned after the AI behavior tests.
-export function fadeLifeDangerWarnings(actor, seconds, ratePerSecond=1/120){
+// Q387 confirms a 60s half-life. This is the stored caution memory only;
+// real AI hazard-aware action selection is not yet implemented.
+export function fadeLifeDangerWarnings(actor, seconds, halfLifeSeconds=60){
   const memory=ensureLifeMemory(actor);
   if(!Number.isFinite(seconds)||seconds<=0)return memory.dangerWarnings;
+  if(!Number.isFinite(halfLifeSeconds)||halfLifeSeconds<=0)throw new RangeError('Positive danger half-life required');
+  const decay=Math.pow(0.5,seconds/halfLifeSeconds);
   for(const [key,alert] of Object.entries(memory.dangerWarnings)){
-    memory.dangerWarnings[key]=Math.max(0,alert-seconds*ratePerSecond);
-    if(memory.dangerWarnings[key]===0)delete memory.dangerWarnings[key];
+    memory.dangerWarnings[key]=Math.max(0,alert*decay);
+    if(memory.dangerWarnings[key]<1e-6)delete memory.dangerWarnings[key];
   }
   return memory.dangerWarnings;
 }

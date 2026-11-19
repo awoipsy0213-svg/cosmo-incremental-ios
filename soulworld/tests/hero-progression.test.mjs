@@ -222,10 +222,10 @@ test('life attempts keep at most 20 and danger warnings fade, life memory is sep
   assert.equal(actor.lifeMemory.attempts[0].time,20);
   const a=recordDangerWarning(actor,'river',1);
   assert.equal(a,1);
-  fadeLifeDangerWarnings(actor,60,1/120);
+  fadeLifeDangerWarnings(actor,60);
   assert.equal(actor.lifeMemory.dangerWarnings.river,.5);
-  fadeLifeDangerWarnings(actor,120,1/120);
-  assert.equal(actor.lifeMemory.dangerWarnings.river,undefined);
+  fadeLifeDangerWarnings(actor,120);
+  assert.equal(actor.lifeMemory.dangerWarnings.river,.125);
   const fresh=ensureLifeMemory({lifeMemory:{}});
   assert.deepEqual(fresh.attempts,[]);
   assert.deepEqual(fresh.dangerWarnings,{});
@@ -283,4 +283,33 @@ test('main field travel records walking attempts and action success separately',
   assert.equal(hero.walkPracticeCount,1);
   assert.equal(a.lifeMemory.walking.attempts,1);
   assert.equal(a.lifeMemory.attempts.at(-1).action,'walk');
+});
+
+
+test('newly confirmed training actions map to 80/20 attribute pairs',()=>{
+  const actions=[
+    ['wood','gathering','strength'],
+    ['stone','gathering','durability'],
+    ['food','gathering','stamina'],
+    ['build','building','dexterity'],
+    ['craft','crafting','dexterity'],
+    ['survey','exploration','adaptation'],
+    ['swim','stamina','adaptation'],
+    ['magic','magic','intelligence'],
+    ['support','spirit','magic']
+  ];
+  for (const [action,major,minor] of actions){
+    const hero=createStarterHero();
+    const majorBefore=hero.attributeXp[major]||0;
+    const minorBefore=hero.attributeXp[minor]||0;
+    const majorLevelBefore=hero.attributes[major];
+    const minorLevelBefore=hero.attributes[minor];
+    const amount=3;
+    const result=grantHeroActionExperience(hero,action,amount);
+    assert.equal(result.ok,true);
+    assert.equal(hero.attributes[major],majorLevelBefore);
+    assert.equal(hero.attributes[minor],minorLevelBefore);
+    assert.ok(Math.abs(hero.attributeXp[major]-majorBefore-amount*.8)<1e-9);
+    assert.ok(Math.abs(hero.attributeXp[minor]-minorBefore-amount*.2)<1e-9);
+  }
 });
