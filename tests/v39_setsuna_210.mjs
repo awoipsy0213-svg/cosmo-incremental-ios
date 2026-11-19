@@ -1,0 +1,83 @@
+import assert from 'node:assert/strict';
+import {A} from '../numbers.mjs';
+import {CONFIG} from '../balance-config.mjs';
+import {CONTENT} from '../content.mjs';
+import * as E from '../setsuna-rules-v39.mjs';
+import * as G from '../game.mjs';
+import {KEYS,SaveStore,encode,decode,checksum} from '../save.mjs';
+
+const time=1800000000000;let checks=0;
+function yes(x,message){assert.ok(x,message);checks++;}
+function same(actual,expected,message){assert.deepEqual(actual,expected,message);checks++;}
+function state(){const s=G.createState(time);s.intro.complete=true;return s;}
+same(CONFIG.version,'3.9.0','v3.9 release');
+same(CONFIG.schemaVersion,31,'save schema');
+same(KEYS.normal,'kotowari_v31_normal','original normal save key');
+same(CONTENT.moment.length,30,'30 effects');
+same(new Set(CONTENT.moment.map(x=>x.name)).size,30,'unique names');
+same(new Set(CONTENT.moment.map(x=>x.group)).size,6,'6 groups');
+for(const [lv,amt] of [[0,0],[99,99],[100,109],[999,9099],[1000,9199],[1001,9299]])same(E.fixedTotal(lv),amt,'tier growth '+lv);
+const e=E.fresh(time);e.sourceBase='100';
+e.levels[1]=2;yes(E.tapBase(e).cmp('1.0404')===0,'exponential tap multiplier');
+e.levels[10]=5000;yes(E.critRate(e)>1,'over-100 crit chance not capped');
+e.levels[11]=100;yes(E.critMulti(e).cmp(2)>0,'exponential critical multiplier');
+e.levels[12]=1000;same(E.probability(e,12),.25,'double-hit cap');
+e.levels[13]=1000;same(E.probability(e,13),.25,'chain cap');
+e.levels[14]=1000;same(E.probability(e,14),.002,'miracle cap');
+e.levels[15]=100000;e.levels[27]=1;
+yes(E.autoInterval(e)>=.25,'auto minimum 0.25');
+for(let i=0;i<30;i++){yes(E.effectInfo(e,i).name===E.NAMES[i],'effect label '+i);yes(E.effectInfo(e,i).next.length>0,'next-level detail '+i);}
+const hit=E.fresh(time);hit.levels[3]=5;hit.levels[2]=20;
+for(let i=1;i<=5;i++)var last=E.tap(hit,time+i*100,()=>.99);
+yes(A(last.components.echo).cmp(0)>0,'echo exactly every fifth tap');
+yes(A(last.components.wave).cmp(0)>0,'wave separate from main hit');
+same(hit.cycleTaps,5,'manual cycle count');
+const focused=E.fresh(time);focused.levels[4]=100;focused.activeSeconds=6;
+yes(E.tap(focused,time+1,()=>.99).amount.cmp(E.tapBase(focused))>0,'manual focus bonus');
+const stored=E.fresh(time);stored.levels[8]=20;E.tap(stored,time+100,()=>.99);
+yes(A(stored.stored).cmp(0)>0,'stored bonus is additional');
+E.advance(stored,time+10000,{seconds:0,offline:true});
+same(stored.stored,'0','combo expiry releases even when offline effective seconds zero');
+const combo=E.fresh(time);combo.levels[24]=500;combo.combo=99;combo.comboExpire=time+5000;
+const trigger=E.tap(combo,time+100,()=>.99);
+same(combo.synergyUntil,time+10100,'surge starts at combo 100');
+const next=E.tap(combo,time+200,()=>.99);
+yes(A(next.amount).cmp(trigger.amount)>0,'surge applies from following tap');
+const compress=E.fresh(time);compress.sourceBase='100';compress.levels[26]=10;
+const compressGain=E.advance(compress,time+120000,{seconds:120,offline:true}).source;
+yes(compressGain.cmp(12000)>0,'120 effective seconds grant compression');
+const one=state();same(Object.keys(one.moment).length,30,'30 save levels');same(Object.keys(one.momentRuntime).length,E.RUNTIME_KEYS.length,'runtime keys');
+one.moment.tap=100;yes(G.tapPower(one).cmp(100)>0,'main game stage level');
+const other=state();other.sources.SOURCE_01.level=25;other.sources.SOURCE_02.level=50;other.moment.setsuna23=40;
+yes(G.tapPower(other).cmp(G.tapPower(state()))>0,'source milestone synergy');
+const visible=G.momentEffects(other);
+same(visible.length,30,'all effect previews');
+yes(visible[22].current.includes('節目'),'current milestone effect');
+one.moment.setsuna16=20;G.advance(one,time+15000);
+yes(A(one.orbs).cmp(0)>0,'main idle generation');
+const noDouble=one.orbs;G.advance(one,time+15000);same(one.orbs,noDouble,'offline no duplicate credit');
+const roundTrip=decode(encode(one),'normal');
+same(roundTrip.moment.tap,100,'save roundtrip level');
+yes(roundTrip.momentRuntime.autoTaps>=0,'save roundtrip runtime');
+const legacy=state();legacy.moment={tap:5,tap2:10,tap3:2,tap4:4,tap5:3,amplify:6};
+legacy.momentRuntime={combo:3,comboUntil:time+5000,stored:'42'};
+const upgraded=G.validateState(legacy,'normal');
+same(upgraded.moment.tap2,10,'legacy levels retained');
+same(upgraded.moment.amplify,6,'legacy amplifier level retained');
+same(upgraded.momentRuntime.comboExpire,time+5000,'old combo expiry migrated');
+same(upgraded.momentRuntime.stored,'4.2e1','unpaid bonus retained');
+const db=new Map(),storage={getItem:k=>db.get(k)??null,setItem:(k,v)=>db.set(k,String(v)),removeItem:k=>db.delete(k)};
+const oldRaw=JSON.stringify({kind:'kotowari-save',version:31,checksum:checksum(JSON.stringify(legacy)),writer:'old',data:legacy});
+storage.setItem(KEYS.normal,oldRaw);const store=new SaveStore(storage,'normal','new');const loaded=store.load(time);
+yes(!loaded.blocked,'old save readable');
+same(storage.getItem(KEYS.normal+'.before-setsuna39'),oldRaw,'v3.9 migration backup exact bytes');
+const toConverge=state();toConverge.orbs='1e9';toConverge.moment.setsuna30=10;toConverge.momentRuntime.stored='50';
+yes(G.converge(toConverge).ok,'convergence succeeds');
+same(toConverge.moment.setsuna30,0,'convergence resets moment level');
+same(toConverge.momentRuntime.stored,'0','convergence resets unpaid bonus');
+const huge=state();huge.orbs='1e10000';huge.purchaseMode='MAX';
+for(const upgrade of CONTENT.moment){
+  const quote=G.purchaseQuote(huge,'moment',upgrade.id);
+  yes(quote.count>=0&&quote.count<=1000000,'huge quote '+upgrade.id);
+}
+console.log('PASS '+checks+' Setsuna 210-choice integration and save tests');

@@ -1,0 +1,25 @@
+name: Kotowari v3.9 regression
+on:
+  push:
+    branches: [main]
+    paths: ['game.mjs', 'setsuna-rules-v39.mjs', 'content.mjs', 'save.mjs', 'balance-config.mjs', 'tests/**', 'www/**', 'package.json', '.github/workflows/kotowari-v39.yml']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm test
+      - run: |
+          for f in game.mjs app.mjs content.mjs balance-config.mjs setsuna-rules-v39.mjs save.mjs; do
+            cmp "$f" "www/$f" || exit 1
+          done
+          cmp index.html www/index.html
+          cmp sw.js www/sw.js

@@ -138,10 +138,14 @@ function renderWorld(){
   $("stageKicker").textContent=`STAGE 0${stage.number}`;
   $("stageTitle").textContent=stage.name;
   const rate=G.production(state),tap=G.tapPower(state);
+  const combo=G.momentComboView(state);
+  const ratio=combo.window>0?Math.round(Math.max(0,Math.min(100,100*combo.remaining/combo.window))):0;
+  const comboHtml=combo.combo>0?`<span class="kw-combo">コンボ ${combo.combo.toLocaleString("ja-JP")} · ×${combo.multiplier.toFixed(2)}<i class="kw-combo-track"><i style="width:${ratio}%"></i></i></span>`:"";
+  const storedHtml=A(combo.stored).cmp(0)>0?`<span class="kw-stored">蓄積 ${f(combo.stored)}</span>`:"";
   $("convergeMain").hidden=!state.intro.complete||!["existence","organizer"].includes(currentStage);
   if(["existence","organizer"].includes(currentStage)){
     $("primaryValue").textContent=f(G.existence(state),3);
-    $("worldDetails").innerHTML=`<span class="wallet">オーブ <b>${f(state.orbs)}</b></span><span>干渉 +${f(tap)} / 自動 +${f(rate)} 毎秒</span>`;
+    $("worldDetails").innerHTML=`<span class="wallet">オーブ <b>${f(state.orbs)}</b></span><span>干渉 +${f(tap)} / 源 +${f(rate)} 毎秒</span>${comboHtml}${storedHtml}`;
     $("worldHint").textContent="光に触れて、生み出す。";
     const q=G.convergenceQuote(state);
     $("convergeMain").disabled=!q.steps||readOnly;
@@ -171,13 +175,21 @@ function cardQuote(kind,id){
   return `<button class="buy-button" data-purchase="${kind}" data-id="${id}" ${!q.enabled||readOnly?"disabled":""} aria-label="${esc(name+"を購入")}" title="${esc(name+": "+quoteText(q)+" オーブ")}"><span class="buy-amount" data-quote-label>${esc(quoteText(q))}</span><small>オーブ</small></button><div class="live-buy-hint" data-live-hint aria-live="off"></div>`;
 }
 function momentHTML(){
-  const q=G.convergenceQuote(state);
-  return `<p class="tiny muted">刹那30種・6系統。旧6項目のLvと購入価格は維持し、効果のみ固有化。倍率は暫定です。</p>
-    <div class="row-grid compact-upgrades">${CONTENT.moment.map((x,i)=>{
-    const group=i%5===0?`<div class="moment-group-title">${esc(["基礎干渉","連続干渉","確率干渉","自律干渉","源泉共鳴","超越干渉"][Math.floor(i/5)])}</div>`:"";
-    return `${group}<article class="kw-card purchase-card moment-card" data-purchase-card><div class="card-top"><strong>${esc(x.name)}</strong><small data-moment-level="${x.id}">Lv.${state.moment[x.id].toLocaleString("ja-JP")}</small></div><small class="compact-upgrade-rate" title="${esc(x.description)}">${esc(x.description)}</small>${cardQuote("moment",x.id)}<details class="moment-effect-detail" data-preserve="${x.id}"><summary>固有効果の説明</summary><p>${esc(x.description)}</p><small>Lv.・節目に応じて効果が成長します（検証値）</small></details></article>`;
+  const q=G.convergenceQuote(state),effects=G.momentEffects(state);
+  return `<p class="tiny muted">刹那30項目・6系統。第1〜7回の確定効果を反映。新24項目の価格・節目倍率は検証値です。</p>
+  <div class="row-grid compact-upgrades">${CONTENT.moment.map((x,i)=>{
+    const heading=i%5===0?`<div class="moment-group-title">${esc(["基礎干渉","連続干渉","確率干渉","自律干渉","源泉共鳴","超越干渉"][Math.floor(i/5)])}</div>`:"";
+    const e=effects[i],offer=G.purchaseQuote(state,"moment",x.id);
+    const after=offer.enabled&&offer.count>0?`<p><b>${state.purchaseMode}購入後 · Lv.${(state.moment[x.id]+offer.count).toLocaleString("ja-JP")}</b> ${esc(G.momentAfterQuote(state,i,offer.count))}</p>`:"";
+    const events=i===14?(state.momentRuntime?.miracleHistory||[]):[];
+    const miracle=events.length?`<p>直近の奇跡：${events.slice().reverse().map(y=>esc(new Date(y.at).toLocaleString("ja-JP")+" +"+f(y.amount))).join(" / ")}</p>`:"";
+    return `${heading}<article class="kw-card purchase-card moment-card" data-purchase-card data-moment-card="${x.id}"><div class="card-top"><strong>${esc(x.name)}</strong><small data-moment-level="${x.id}">Lv.${state.moment[x.id].toLocaleString("ja-JP")}</small></div>
+      <small class="compact-upgrade-rate" title="${esc(x.description)}">${esc(x.description)}</small>
+      <small class="moment-live-effect"><b>現在</b> ${esc(e.current)}</small>
+      ${cardQuote("moment",x.id)}
+      <details class="moment-effect-detail" data-preserve="${x.id}"><summary>効果・次Lvを表示</summary><p>${esc(x.description)}</p><p><b>現在</b> ${esc(e.current)}</p><p><b>次Lv</b> ${esc(e.next)}</p>${after}${miracle}<small>固有効果は確定／購入価格と未指定節目は検証値</small></details></article>`;
   }).join("")}</div>
-    <div class="kw-card converge-compact"><div class="card-top"><strong>収束 · 永続補正</strong><small data-existence-rate>×${f(G.existenceMultiplier(state),3)}</small></div><small data-convergence-reward>獲得予定 +${f(q.reward,3)} 存在</small><button class="wide-button" data-action="converge" ${!q.steps||readOnly?"disabled":""}>収束する · 次まで ${f(q.nextRemaining)} オーブ</button><small>余剰存在0.02 → 獲得量×1.02 / 1 → ×2（試験値）</small></div>`;
+  <div class="kw-card converge-compact"><div class="card-top"><strong>収束 · 永続補正</strong><small data-existence-rate>×${f(G.existenceMultiplier(state),3)}</small></div><small data-convergence-reward>獲得予定 +${f(q.reward,3)} 存在</small><button class="wide-button" data-action="converge" ${!q.steps||readOnly?"disabled":""}>収束する · 次まで ${f(q.nextRemaining)} オーブ</button><small>余剰存在0.02 → 獲得量×1.02 / 1 → ×2（試験値）</small></div>`;
 }
 function sourcesHTML(){
   const ms=CONFIG.confirmed.sourceMilestones;
@@ -493,14 +505,23 @@ function render(force=false){
   if(!state)return;
   renderNav();renderWorld();renderPanel(force);refreshPurchaseButtons();refreshBoostShortcut();
 }
-function wave(x,y,gain){
+function wave(x,y,gain,meta=null){
   if(state.settings.reducedMotion||state.settings.lowPower)return;
   const rect=$("touchField").getBoundingClientRect();
   const span=document.createElement("span");span.className="wave";
   span.style.left=(x-rect.left)+"px";span.style.top=(y-rect.top)+"px";$("waves").appendChild(span);
   const text=document.createElement("span");text.className="wave-gain";text.style.left=span.style.left;text.style.top=span.style.top;
   if(gain&&A(gain).cmp(0)>0){text.textContent="+"+f(gain);$("waves").appendChild(text);}
-  setTimeout(()=>{span.remove();text.remove();},850);
+  const labels=[];
+  for(const [id,name] of [["wave","余波"],["echo","反響"],["chain","連鎖"],["double","二重"],["released","蓄積放出"]]){
+    if(meta?.components?.[id]&&A(meta.components[id]).cmp(0)>0)labels.push(name+" +"+f(meta.components[id]));
+  }
+  if(meta?.crit)labels.push("CRIT"+(meta.chain?" ×"+(meta.chain+1):""));
+  if(meta?.miracle)labels.push("奇跡 ×200");
+  const more=document.createElement("span");
+  more.className="wave-special";more.style.left=span.style.left;more.style.top=span.style.top;
+  if(labels.length){more.textContent=labels.slice(0,3).join(" · ");$("waves").appendChild(more);}
+  setTimeout(()=>{span.remove();text.remove();more.remove();},850);
 }
 function birth(){
   busyBirth=true;$("birthOverlay").classList.add("visible");
@@ -510,7 +531,7 @@ function birth(){
 function handleTap(x,y){
   if(readOnly||store.blocked||busyBirth||!state)return;
   if(!["existence","organizer"].includes(currentStage)&&state.intro.complete)return;
-  checkpoint();const result=G.tap(state);wave(x,y,result.gain);
+  checkpoint();const result=G.tap(state);wave(x,y,result.gain,result);
   if(result.foundation){save(true);birth();}
   render(false);
 }
