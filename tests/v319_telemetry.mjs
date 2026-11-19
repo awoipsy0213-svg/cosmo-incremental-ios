@@ -70,14 +70,14 @@ test("actual online gain is measured; offline never backfills online sample",()=
   assert.equal(result.elapsed,5);
   assert.equal(s.telemetry.onlineSamples.length,1);
   const before=A(s.totalOrbs);
-  const offline=advance(s,NOW+605000,{offline:true,rng:()=>.99999});
-  assert.equal(offline.elapsed,600);
+  const offline=advance(s,NOW+305000,{offline:true,rng:()=>.99999});
+  assert.equal(offline.elapsed,300);
   assert.equal(s.telemetry.onlineSamples.length,1);
   assert.equal(s.telemetry.offlineReports.length,1);
   assert.equal(A(s.telemetry.offlineReports[0].orbs).cmp(A(s.totalOrbs).sub(before)),0);
-  advance(s,NOW+605000,{offline:true});
+  advance(s,NOW+305000,{offline:true});
   assert.equal(s.telemetry.offlineReports.length,1);
-  advance(s,NOW+610000,{rng:()=>.99999});
+  advance(s,NOW+310000,{rng:()=>.99999});
   assert.equal(s.telemetry.onlineSamples.length,2);
   assert.equal(consecutiveOrbGains(s.telemetry)[0].gain,null);
 });
