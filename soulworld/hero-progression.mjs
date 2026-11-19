@@ -55,6 +55,7 @@ export function createStarterHero() {
   return {
     id:STARTER_HERO_ID, name:'英雄（試作）', type:'combat', rarity:'common',
     status:'alive', lifeCount:1, level:1, levelXp:0,
+    personality:'balanced', learningPriorities:[], preferredTactic:'free', fieldLife:null,
     freeStatPoints:0, freeSkillPoints:0,
     attributes:starterAttributes(), attributeXp:xp, personalMasteryXp:{},
     learnedActions:{}, actionSuccessCounts:{}, walkPracticeCount:0, walkStage:0, skillTree:{}
@@ -95,6 +96,10 @@ export function ensureHeroProgression(state) {
       if (hero.learnedActions[action]) hero.actionSuccessCounts[action]=Math.max(ACTION_SUCCESS_REQUIREMENT,hero.actionSuccessCounts[action]||0);
     }
     if (!hero.skillTree) hero.skillTree={};
+    if(!['safe','balanced','challenge'].includes(hero.personality))hero.personality='balanced';
+    if(!Array.isArray(hero.learningPriorities))hero.learningPriorities=[];
+    if(!['attack','occupy','fortify','guard','free'].includes(hero.preferredTactic))hero.preferredTactic='free';
+    if(hero.fieldLife===undefined)hero.fieldLife=null;
     if (!Number.isInteger(hero.level)||hero.level<1) hero.level=1;
     hero.level=Math.min(HERO_LEVEL_CAP,hero.level);
     if (!Number.isFinite(hero.levelXp)||hero.levelXp<0) hero.levelXp=0;
