@@ -179,12 +179,15 @@ function momentHTML(){
   return `<p class="tiny muted">刹那30項目・6系統。第1〜7回の確定効果を反映。新24項目の価格・節目倍率は検証値です。</p>
   <div class="row-grid compact-upgrades">${CONTENT.moment.map((x,i)=>{
     const heading=i%5===0?`<div class="moment-group-title">${esc(["基礎干渉","連続干渉","確率干渉","自律干渉","源泉共鳴","超越干渉"][Math.floor(i/5)])}</div>`:"";
-    const e=effects[i];
+    const e=effects[i],offer=G.purchaseQuote(state,"moment",x.id);
+    const after=offer.enabled&&offer.count>0?`<p><b>${state.purchaseMode}購入後 · Lv.${(state.moment[x.id]+offer.count).toLocaleString("ja-JP")}</b> ${esc(G.momentAfterQuote(state,i,offer.count))}</p>`:"";
+    const events=i===14?(state.momentRuntime?.miracleHistory||[]):[];
+    const miracle=events.length?`<p>直近の奇跡：${events.slice().reverse().map(y=>esc(new Date(y.at).toLocaleString("ja-JP")+" +"+f(y.amount))).join(" / ")}</p>`:"";
     return `${heading}<article class="kw-card purchase-card moment-card" data-purchase-card data-moment-card="${x.id}"><div class="card-top"><strong>${esc(x.name)}</strong><small data-moment-level="${x.id}">Lv.${state.moment[x.id].toLocaleString("ja-JP")}</small></div>
       <small class="compact-upgrade-rate" title="${esc(x.description)}">${esc(x.description)}</small>
       <small class="moment-live-effect"><b>現在</b> ${esc(e.current)}</small>
       ${cardQuote("moment",x.id)}
-      <details class="moment-effect-detail" data-preserve="${x.id}"><summary>効果・次Lvを表示</summary><p>${esc(x.description)}</p><p><b>現在</b> ${esc(e.current)}</p><p><b>次Lv</b> ${esc(e.next)}</p><small>固有効果は確定／購入価格と未指定節目は検証値</small></details></article>`;
+      <details class="moment-effect-detail" data-preserve="${x.id}"><summary>効果・次Lvを表示</summary><p>${esc(x.description)}</p><p><b>現在</b> ${esc(e.current)}</p><p><b>次Lv</b> ${esc(e.next)}</p>${after}${miracle}<small>固有効果は確定／購入価格と未指定節目は検証値</small></details></article>`;
   }).join("")}</div>
   <div class="kw-card converge-compact"><div class="card-top"><strong>収束 · 永続補正</strong><small data-existence-rate>×${f(G.existenceMultiplier(state),3)}</small></div><small data-convergence-reward>獲得予定 +${f(q.reward,3)} 存在</small><button class="wide-button" data-action="converge" ${!q.steps||readOnly?"disabled":""}>収束する · 次まで ${f(q.nextRemaining)} オーブ</button><small>余剰存在0.02 → 獲得量×1.02 / 1 → ×2（試験値）</small></div>`;
 }
