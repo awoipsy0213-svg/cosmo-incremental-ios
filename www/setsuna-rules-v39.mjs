@@ -57,7 +57,7 @@ export function tapBase(s){
  // Old pre-3.9 moment milestone gains remain a separate trial layer.
  return base.mul(legacyMilestone(s));
 }
-export function comboWindow(s){return (1.2+clamp(.02*lv(s,6),8.8))*1000}
+export function comboWindow(s){return Math.min(10,1.2+.02*lv(s,6)*resonance(s,6))*1000}
 export function comboCap(s){
  return 5*(active(s,27)?1+.03*root(lv(s,27))*resonance(s,27):1);
 }
@@ -217,7 +217,7 @@ export function tap(s,now=Date.now(),rng=Math.random){
 }
 export function autoExpected(s,now=Date.now()){
  if(!active(s,15))return A(0);
- const autoFactor=active(s,16)?A(1.02).pow(lv(s,16)):A(1);
+ const autoFactor=active(s,16)?A(1.02).pow(lv(s,16)*resonance(s,16)):A(1);
  let base=tapBase(s).mul(autoFactor).mul((1+synergyLevel(s,now))*(1+awakeningLevel(s,now)));
  const sync=autoSync(s);
  if(sync){
@@ -228,7 +228,7 @@ export function autoExpected(s,now=Date.now()){
  return base;
 }
 function autoOnce(s,now,rng){
- let v=tapBase(s).mul(active(s,16)?A(1.02).pow(lv(s,16)):1);
+ let v=tapBase(s).mul(active(s,16)?A(1.02).pow(lv(s,16)*resonance(s,16)):1);
  v=v.mul((1+synergyLevel(s,now))*(1+awakeningLevel(s,now)));
  if(autoSync(s)>0&&rnd(rng)<autoSync(s)){
   v=crit(s,v,rng).amount;
