@@ -45,3 +45,17 @@ Date: 2026-11-19. Q1–312 decisions have been confirmed in the design conversat
 - The temple panel now shows pending heroes even if soul XP is zero, and bulk recovery can revive them. Hero detail tabs show basic abilities, growth, skills, and a clearly labelled unimplemented final-stat panel.
 - Three rolling legacy save backups before a format transition plus write protection and JSON export remain separate from Kotowari. Browser JavaScript parse checks were added to CI. Soul World Service Worker precaches the imported modules for offline operation.
 - Final-stat formulas, exact AI learning policy, full multi-hero roster, full battle, exact walking difficulty, broad iPhone QA are not completed. This does not constitute a fully playable release for these planned features.
+
+
+## Q363–412 checkpoint (confirmed by user)
+- Start with one fixed Common main hero; a built Hero House assigns one hero; maximum three completed houses, one hero per house. Other acquired heroes can wait and retain growth. Swapping in base is represented in **roster data**; field-model actor replacement is pending.
+- In the current build only the original house is available. Rules for upgrading the base and resources to unlock house 2/3 remain undefined, so the UI does not pretend they are unlocked.
+- Battle registration is 1-3 heroes assigned from existing houses. The current mock battle takes a snapshot of registration IDs but **does not actually spawn multiple heroes**.
+- Confirmed base-ability action XP mappings: wood gathering+strength, stone gathering+durability, food gathering+stamina, building building+dexterity, crafting crafting+dexterity, survey exploration+adaptation, swimming stamina+adaptation, magic magic+intelligence, support spirit+magic, with 80% / 20% allocation. The particular melee/ranged/magic/defense training mappings still need dedicated design. Old generic fight/pray mapping is provisional.
+- **Needs resolution:** Q373–381 imply basic ability growth on exploration actions, whereas Q61/Q73 prescribe XP gain only in training. Current prototype keeps personal main XP limited to base/training; later questions should explicitly separate character-level XP and basic ability XP by stage.
+- Hazard warning memory uses 60-second **exponential half-life**. The actual AI hazard policy and physical balance/falling animations remain unfinished.
+- The game now has a persisted roster with assignments, standby filters, deployment registration, and a basic Hero House management UI. New heroes are not yet obtainable through live gacha; UI correctly shows empty/locked availability.
+- Legacy saves are migrated additively using unchanged Soul World save key and schema=1, with saveFormatRevision=2 and three-generation backup. Malformed hero IDs, growth numbers and roster references are rejected rather than silently repaired. JSON exports include ISO date/time, save schema and build version.
+- Q393–402 confirmed final-stat sqrt growth, effective armor percentage reduction, hit/avoid interaction and role buffs, but exact numeric coefficients are still undecided, so the live combat stat panel remains labelled incomplete.
+- Separate cosmetic RNG is a design decision only, not yet connected to the full 3D animation system.
+- This review and Node CI verify rule logic and legacy round-trips; an actual iPhone Safari / PWA manual regression of the new Hero House UI has not yet been performed.
