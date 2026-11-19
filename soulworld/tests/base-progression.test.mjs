@@ -138,3 +138,19 @@ test('invalid/duplicate imported map coordinates are not overwritten silently',(
   t.tiles.push({x:40,z:0,terrain:'grass',feature:null,quantity:0});
   assert.throws(()=>growBaseGridPreservingTiles(t,10),/Invalid/);
 });
+
+test('corrupt resources or rank in imported JSON are rejected without deleting saves',()=>{
+  const s=createInitialState();
+  const raw=JSON.parse(serialize(s));
+  raw.state.resources.wood=-10;
+  assert.throws(()=>deserialize(JSON.stringify(raw)),/資源データが不正/);
+  raw.state.resources.wood=1;
+  raw.state.baseXp=-5;
+  assert.throws(()=>deserialize(JSON.stringify(raw)),/拠点経験値が不正/);
+  raw.state.baseXp=0;
+  raw.state.mapSize=13;
+  assert.throws(()=>deserialize(JSON.stringify(raw)),/マップサイズが不正/);
+  raw.state.mapSize=10;
+  raw.state.tiles.push({...raw.state.tiles[0]});
+  assert.throws(()=>deserialize(JSON.stringify(raw)),/duplicate/);
+});
