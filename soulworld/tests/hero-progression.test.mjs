@@ -146,3 +146,21 @@ test('old schema 1 save receives only missing fields and a temple without losing
   assert.equal(restored.actors[0].heroId,STARTER_HERO_ID);
   assert.equal(deserialize(serialize(restored)).buildings.filter(b=>b.type==='temple').length,1);
 });
+
+test('no individual hero XP in exploration stage, but life progression remains',()=>{
+  const s=createInitialState();
+  const hero=s.heroProgression.profiles[STARTER_HERO_ID];
+  s.stage='explore';
+  const main=s.actors[0];
+  const t=s.exploreTiles.find(q=>q.feature==='tree'&&q.quantity>0);
+  main.job='wood';
+  main.lastSkill='wood';
+  main.phase='work';
+  main.target={x:t.x,z:t.z};
+  main.timer=0;
+  const before=JSON.stringify(hero.attributeXp);
+  const levelBefore=hero.levelXp;
+  updateGame(s,1);
+  assert.equal(JSON.stringify(hero.attributeXp),before);
+  assert.equal(hero.levelXp,levelBefore);
+});
