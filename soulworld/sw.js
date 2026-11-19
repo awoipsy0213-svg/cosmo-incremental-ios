@@ -1,4 +1,4 @@
-const CACHE='soulworld-static-0.2.5';
+const CACHE='soulworld-static-0.2.6';
 const FILES=['./','./index.html','./style.css','./premium.css','./premium-scene.mjs','./vista.svg','./sub-portrait.svg','./hero-portrait.svg','./game.mjs','./core.mjs','./battle-rules.mjs','./hero-progression.mjs','./save-migration.mjs','./hero-roster.mjs','./scene.mjs','./fallback.mjs','./manifest.webmanifest','./icon.svg'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(FILES)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil(Promise.all([caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('soulworld-static-')&&key!==CACHE).map(key=>caches.delete(key)))),self.clients.claim()]))});
