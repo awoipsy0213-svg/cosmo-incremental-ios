@@ -1,4 +1,5 @@
 import {CONFIG} from "./balance-config.mjs";
+import {UNIVERSE_RESOURCE_RULES,resourceEligible} from "./universe-confirmed-v4.mjs";
 import {compareMomentPrice,compareMomentPriceProfiles,exportPriceReport,PRICE_MODEL_VERSION} from "./price-lab.mjs";
 import {MOMENT_GROUP_NAMES,cleanMomentPrefs,toggleMomentFavorite,momentVisible} from "./moment-filter.mjs";
 import {CONTENT} from "./content.mjs";
@@ -154,12 +155,12 @@ function renderWorld(){
     $("convergeMain").innerHTML=`<strong>収束 <span>+${f(q.reward,3)}</span></strong><span><small>次の報酬まで</small>${f(q.nextRemaining)} オーブ</span>`;
   }else if(currentStage==="time"){
     $("primaryValue").textContent=Math.floor(state.time.elapsed).toLocaleString("ja-JP");
-    $("worldDetails").innerHTML=`<span class="wallet">TIME · 経過の表示（仮換算）</span><span>自動生成 +${f(rate)} オーブ / 秒</span>`;
+    $("worldDetails").innerHTML=`<span class="wallet">TIME · 継続する流れ</span><span>世界時間 ${Math.min(1,state.time.worldSeconds).toFixed(6)} / 1 秒 · 自動生成 +${f(rate)} オーブ / 秒</span>`;
     $("worldHint").textContent=state.time.eventHappened?"《無の終焉》を観測した。":Object.keys(state.time.residues).length?"変化の中に、未知の残滓がある。":"世界は、触れなくても変わり始めた。";
     if(state.time.eventHappened)$("worldDetails").innerHTML+=`<span class="wallet">世界時間 1秒に到達</span>`;
   }else if(currentStage==="universe"){
     $("primaryValue").textContent=String(state.universe.planets.length);
-    $("worldDetails").innerHTML=`<span class="wallet">観測している惑星</span><span>生成可能 ${state.universe.maxPlanets} / 発見資源 ${state.universe.discoveredResources.length}</span>`;
+    $("worldDetails").innerHTML=`<span class="wallet">宇宙資源 · 時間で蓄積</span><span>惑星 ${state.universe.planets.length} / ${state.universe.maxPlanets} · 資源 ${state.universe.discoveredResources.length} / 42</span>`;
     $("worldHint").textContent="観測し、理解し、干渉する。";
   }else{
     $("primaryValue").textContent="";$("worldDetails").textContent="未知の変化が、自己を維持し始める。";
@@ -255,7 +256,7 @@ function flowHTML(){
   return `<p class="panel-intro">存在を方向へ配分し、変化を見守ります。《時》に転生・リセットはありません。</p>
     <div class="kw-card"><strong>認識した方向 ${t.revealedDirections} / 6</strong><p>${t.revealedDirections===1?"まだ、流れだけがある。":"配分できるのは最大3方向。配分は本検証版では非消費の比率設定です（正式な消費・配置規則は要確認）。"}</p></div>
     <div class="kw-list">${CONTENT.principles.slice(0,t.revealedDirections).map((name,i)=>`<div class="principle-row"><label><input type="checkbox" data-direction="${i}" ${t.selected.includes(i)?"checked":""}>${name}</label>${t.revealedDirections>1?`<div class="princ-weight"><input type="range" min="0" max="100" step="1" data-weight="${i}" value="${Math.round(t.weights[i])}" ${!t.selected.includes(i)?"disabled":""} aria-label="${name}の配分"><output>${t.weights[i].toFixed(0)}%</output></div>`:"<small>100%</small>"}</div>`).join("")}</div>
-    <div class="status-note">新方向の奇跡・残滓生成頻度・世界時間の換算は未決定。${mode==="lab"?"検証用の速度・確率で進行します。":"自動抽選・新方向解放を確定値として実行しません。"}</div>
+    <div class="status-note">方向解放の《奇跡》、残滓イベント、世界時間の自動進行が有効です。初期発生率・1秒への換算はバランス調整対象です。</div>
     ${t.revealedDirections===1?'<p class="tiny">生成が起きた後の結果は、衝突25%・移動25%・共通？？？50%。生成そのものの発生率とは別です。</p>':""}`;
 }
 function icon(c){
@@ -264,38 +265,53 @@ function icon(c){
   const points=Array.from({length:count},(_,i)=>{const a=(i/count*360+rot)*Math.PI/180;return `${16+10*Math.cos(a)},${16+10*Math.sin(a)}`;}).join(" ");
   return `<svg class="concept-icon" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="${4+Math.floor(n/8)%4}"/><polygon points="${points}"/><circle cx="${6+n%5*5}" cy="${6+Math.floor(n/5)%5*5}" r="1.4" fill="currentColor"/></svg>`;
 }
+const CONCEPT_EFFECT_NAMES={event:"残滓生成率",direction:"方向成長",weakest:"低成長方向",all:"方向成長",weight:"関連残滓重み",time:"TIME生成",world:"世界時間",balanced:"均衡配分",offlineEfficiency:"オフライン効率",offlineGrowth:"オフライン成長"};
 function conceptHTML(){
   const t=state.time,visible=CONTENT.concepts.filter(c=>(t.residues[c.id]||0)>0||t.concepts[c.id]);
-  return `<p class="panel-intro">同じ残滓10個で最初の概念を形成。未発見の名前・効果は先に表示しません。</p>
+  return `<p class="panel-intro">単独12・2方向45・3方向20。残滓を集めて永続的に概念を認識します。未発見の名称・効果は伏せられています。</p>
     <div class="kw-row"><span>形成済み ${Object.values(t.concepts).filter(x=>x>0).length} / 77<small>共通の？？？ ${t.common}</small></span><button data-action="convert-common" ${t.common<100?"disabled":""}>100個 → 抽選1個</button></div>
-    <p class="tiny muted">全77種が抽選対象。交換先は選べません。手動操作・等確率は検証用の仮方式です。</p>
+    <p class="tiny muted">共通？？？は全77種からランダム1個。解放していない方向の残滓も対象です。</p>
     ${visible.length?`<div class="row-grid">${visible.map(c=>{
-      const formed=(t.concepts[c.id]||0)>0;
-      return `<div class="kw-card concept-card"><div class="card-top">${icon(c)}<strong class="${formed?"":"unrecognized"}">${formed?c.name:"？？？の残滓"}</strong></div>
-      <small>残滓 ${t.residues[c.id]||0} / 10${formed?` · Lv.${t.concepts[c.id]}`:""}</small><small>${formed?"効果：？？？":"まだ、形を持たない。"}</small>
-      ${formed?'<small>Lv.2以降の条件：？？？</small>':`<button class="wide-button" data-form="${c.id}" ${(t.residues[c.id]||0)<10?"disabled":""}>概念として形成</button>`}</div>`;
-    }).join("")}</div>`:'<div class="empty-state"><div class="glyph">·</div><p>まだ残滓は見つかっていません。<br>見つかったものだけが、ここに残ります。</p></div>'}`;
+      const level=t.concepts[c.id]||0,formed=level>0;
+      const effect=G.conceptEffect(state,c.id);
+      const next=level+1,need=next<=100?next*10:null;
+      const active=effect?.active;
+      const name=formed?c.name:"？？？の残滓";
+      const effectText=formed?CONCEPT_EFFECT_NAMES[effect?.rule?.type]||"固有補正":"未認識";
+      const current=formed?(effect?.bonus*100).toFixed(2)+"%":"";
+      return `<div class="kw-card concept-card"><div class="card-top">${icon(c)}<strong class="${formed?"":"unrecognized"}">${esc(name)}</strong></div>
+        <small>残滓 ${t.residues[c.id]||0} ${need===null?"· MAX":`/ ${need}`} ${formed?`· Lv.${level}`:""}</small>
+        <small>${formed?`${effectText} +${current} · ${active?"有効":"配分条件待ち"}`:"まだ、形を持たない。"}</small>
+        ${need!==null?`<button class="wide-button" data-form="${c.id}" ${(t.residues[c.id]||0)<need?"disabled":""}>${formed?"Lv.を上げる":"概念として形成"}</button>`:"<small>最大Lv100</small>"}</div>`;
+    }).join("")}</div>`:'<div class="empty-state"><div class="glyph">·</div><p>まだ残滓は見つかっていません。</p></div>'}`;
 }
 function planetHTML(){
   const u=state.universe,p=G.planet(state);
-  return `<p class="panel-intro">惑星は自然成長と資源投入で変化します。初期状態・成長速度は仮値。星齢は残り寿命ではありません。</p>
+  return `<p class="panel-intro">惑星は自然成長し、投入した資源の固有効果が積み上がります。星齢は経過時間であり、残り寿命ではありません。</p>
     <div class="kw-row"><span>惑星 ${u.planets.length} / ${u.maxPlanets}<small>初回崩壊 → 《惑星の破滅》 → 2惑星</small></span><button data-action="create-planet" ${u.planets.length>=u.maxPlanets?"disabled":""}>生成する</button></div>
     ${u.planets.length?`<select class="input-select" id="planetSelect" aria-label="育成する惑星">${u.planets.map((p,i)=>`<option value="${p.id}" ${u.selectedPlanetId===p.id?"selected":""}>惑星 ${i+1} · ${p.id}</option>`).join("")}</select>`:""}
     ${p?`<div class="row-grid" style="margin-top:10px">${CONTENT.stats.map((x,i)=>{
       const known=p.observed.includes(x.id);
       const v=x.id==="age"?G.ageSeconds(p):p.stats[x.id];
       return `<div class="kw-card stat-card"><strong ${known?"":'class="unknown-label"'}>${known?x.name:""}</strong><div class="stat-number" aria-label="${known?x.name:"未知の数値"+(i+1)}">${f(v,x.id==="age"?0:3)}${known&&x.id==="age"?" 秒":""}${known&&x.id==="stability"?"%":""}</div>${known?`<small>${x.description}</small>`:""}</div>`;
-    }).join("")}</div>`:'<div class="empty-state"><div class="glyph">◌</div><p>物質が、ひとつの惑星になる。</p><small>初回生成の費用は未決定。検証版では仮に0です。</small></div>'}
-    <div class="status-note">観測による名称認識条件・破壊と崩壊・残留対象は要確認。通常版で強制崩壊や寿命カウントダウンは表示しません。</div>
+    }).join("")}</div>`:'<div class="empty-state"><div class="glyph">◌</div><p>物質が、ひとつの惑星になる。</p><small>初回は費用なしで生成できます。</small></div>'}
+    <div class="status-note">自然崩壊は確率で発生し、質量×2と圧力に応じた追加資源を一度だけ獲得します。部分破壊とコア形成の操作は実装確認中です。</div>
     ${mode==="lab"?'<p class="tiny">検証では「開発テスト」から観測名の解放・崩壊イベントを試せます。星齢の仮表示は実時間基準です。</p>':""}`;
 }
+const statName=id=>CONTENT.stats.find(st=>st.id===id)?.name||id;
 function resourcesHTML(){
   const u=state.universe,visible=CONTENT.resources.filter(r=>u.discoveredResources.includes(r.id)||A(u.resources[r.id]||0).cmp(0)>0);
-  return `<p class="panel-intro">全資源が質量の成長に寄与します。個別効果は？？？。他の資源への合成・変換はありません。</p>
-    <div class="status-note">受取方式：${mode==="lab"?(u.receiptMode?`${u.receiptMode}（検証設定）`:"未選択"):"要確認"}。A＝崩壊時受領、B＝時間受領＋崩壊報酬。通常版の自動受領は未適用です。</div>
-    ${mode==="lab"?`<label class="kw-row">検証方式<select class="input-select" id="receiptSelect"><option value="" ${!u.receiptMode?"selected":""}>選択しない</option value="A" ${u.receiptMode==="A"?"selected":""}>A：崩壊で受領</option><option value="B" ${u.receiptMode==="B"?"selected":""}>B：時間＋崩壊</option></select></label>`:""}
-    <p class="tiny muted">投入は1個あたり質量+1の仮値。全42種の名前は資料の暫定名です。未発見優遇はありません。${G.trialEnabled(state)?"検証セーブでのみ追加個性が有効です。":""}</p>
-    ${visible.length?`<div class="row-grid">${visible.map(r=>`<div class="kw-card"><div class="card-top"><strong>${r.name}</strong><span class="badge">R${r.rank} / 仮名</span></div><small>所持 ${f(u.resources[r.id]||0)}</small><small>質量+1（仮） / ${G.trialEnabled(state)?esc(resourcePrototype(r)?.description):"個性 ？？？"}</small><button class="wide-button" data-invest="${r.id}" ${!G.planet(state)||A(u.resources[r.id]||0).cmp(1)<0?"disabled":""}>1個を投入</button></div>`).join("")}</div>`:'<div class="empty-state"><p>まだ資源を所持していません。</p></div>'}`;
+  return `<p class="panel-intro">全42資源は質量と固有ステータスを育てます。時間ごとに獲得し、最終崩壊では追加報酬を受け取ります。</p>
+    <div class="status-note">通常版の資源受取はB方式（時間＋崩壊追加報酬）。資源同士の直接合成はありません。</div>
+    ${mode==="lab"?`<label class="kw-row">従来の検証方式<select class="input-select" id="receiptSelect"><option value="" ${!u.receiptMode?"selected":""}>未選択</option><option value="A" ${u.receiptMode==="A"?"selected":""}>A：崩壊で受領</option><option value="B" ${u.receiptMode==="B"?"selected":""}>B：時間＋崩壊</option></select></label>`:""}
+    <p class="tiny muted">資源名は仮称、内部IDを保持。確定効果は各資源に紐づいており、未解放資源への隠し優遇はありません。</p>
+    ${visible.length?`<div class="row-grid">${visible.map(r=>{
+      const rule=UNIVERSE_RESOURCE_RULES[r.id],effects=Object.entries(rule?.effects||{}).map(([id,n])=>statName(id)+" +"+n).join(" / ");
+      return `<div class="kw-card"><div class="card-top"><strong>${esc(r.name)}</strong><span class="badge">R${r.rank} / 仮名</span></div>
+      <small>所持 ${f(u.resources[r.id]||0)}</small>
+      <small>1個投入：質量 +${rule?.mass||0} / ${effects}</small>
+      <button class="wide-button" data-invest="${r.id}" ${!G.planet(state)||A(u.resources[r.id]||0).cmp(1)<0?"disabled":""}>1個を投入</button></div>`;
+    }).join("")}</div>`:'<div class="empty-state"><p>まだ資源を所持していません。惑星の時間生産を観測してください。</p></div>'}`;
 }
 function observationsHTML(){
   return `<p class="panel-intro">名前や意味は現象の観測後に判明します。具体的な認識条件はまだ未決定です。</p><div class="kw-list"><div class="kw-card"><strong>観測 → 理解 → 干渉</strong><p>惑星同士の衝突、成長方向への干渉、崩壊誘発、安定性への干渉は方向性として保管しています。</p><small>解放条件・費用・効果式：？？？</small></div><div class="kw-card"><strong>コア → 脈動 → 生命</strong><p>R6のアステリム（仮名）と惑星コアは別のものです。</p><small>コアの形態・形成条件・生命への移行条件：？？？</small></div></div>`;
@@ -869,7 +885,7 @@ document.addEventListener("click",async e=>{
     }
     if(b.dataset.draft){resultDone(G.toggleDraft(state,b.dataset.draft));return;}
     if(b.dataset.form){resultDone(G.formConcept(state,b.dataset.form),"概念を認識しました");return;}
-    if(b.dataset.invest){const r=G.invest(state,b.dataset.invest);resultDone(r,r.trialSpecial?"試案：共通質量と個別ステータスを強化しました":"資源を投入しました。正式な個性効果は？？？です");return;}
+    if(b.dataset.invest){const r=G.invest(state,b.dataset.invest);resultDone(r,"資源を投入し、質量と固有ステータスを強化しました");return;}
     if(b.dataset.boostUpgrade!==undefined){resultDone(G.labBoostUpgrade(state,Number(b.dataset.boostUpgrade)));return;}
     if(b.dataset.restore!==undefined){
       if(!await ask("保存履歴から復元","現在のデータを退避して、この履歴へ戻します。","復元する"))return;
