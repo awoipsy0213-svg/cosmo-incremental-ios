@@ -84,7 +84,8 @@ export function reserveBuild(s,type,x,z){const cfg=TEST_BUILDINGS[type];if(!cfg)
  ensureBaseProgression(s);
  const nextHouse=type==='heroHouse'?nextHeroHouseUnlock(s):null;
  if(type==='heroHouse'&&!nextHouse)return {ok:false,reason:'英雄の家は最大3軒です'};
- if(type==='heroHouse'&&!nextHouse.rankMet)return {ok:false,reason:'拠点Rank '+nextHouse.rank+'が必要です'};if(type==='temple'&&s.buildings.some(b=>b.type==='temple'))return {ok:false,reason:'神殿はすでに設置されています'};if(type==='bowgun'&&!s.blueprints.bowgun)return {ok:false,reason:'最初のPvEで設計図を獲得してください'};if(!Number.isInteger(x)||!Number.isInteger(z)||x<0||z<0||x>=s.mapSize||z>=s.mapSize)return {ok:false,reason:`${s.mapSize}×${s.mapSize}の範囲外です`};if(s.buildings.some(b=>b.x===x&&b.z===z))return {ok:false,reason:'建物が置かれています'};const t=tileAt(s,x,z);if(t.terrain!=='grass'||t.feature&&t.quantity>0)return {ok:false,reason:'木・岩・特殊地形を取り除いてください'};const costs=type==='heroHouse'?nextHouse.costs:cfg.costs;
+ if(type==='heroHouse'&&!nextHouse.rankMet)return {ok:false,reason:'拠点Rank '+nextHouse.rank+'が必要です'};
+ if(type==='heroHouse'&&s.buildings.some(b=>b.type==='heroHouse'&&b.progress<1))return {ok:false,reason:'現在の英雄の家が完成してから建築できます'};if(type==='temple'&&s.buildings.some(b=>b.type==='temple'))return {ok:false,reason:'神殿はすでに設置されています'};if(type==='bowgun'&&!s.blueprints.bowgun)return {ok:false,reason:'最初のPvEで設計図を獲得してください'};if(!Number.isInteger(x)||!Number.isInteger(z)||x<0||z<0||x>=s.mapSize||z>=s.mapSize)return {ok:false,reason:`${s.mapSize}×${s.mapSize}の範囲外です`};if(s.buildings.some(b=>b.x===x&&b.z===z))return {ok:false,reason:'建物が置かれています'};const t=tileAt(s,x,z);if(t.terrain!=='grass'||t.feature&&t.quantity>0)return {ok:false,reason:'木・岩・特殊地形を取り除いてください'};const costs=type==='heroHouse'?nextHouse.costs:cfg.costs;
  if(!canPay(s,costs))return {ok:false,reason:'資源が不足しています'};
  spend(s,costs);
  const constructionWork=type==='heroHouse'?(nextHouse.houseNumber===2?30:60):cfg.work;
