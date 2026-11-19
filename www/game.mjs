@@ -529,7 +529,7 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
     // Source production, autonomous taps and periodic effects use the same engine.
     // BOOST and offline efficiency are already included in gameSeconds.
     const base=baseProduction(s),factor=existenceMultiplier(s);
-    const elapsedSeconds=Math.min(1800,gameSeconds);
+    const elapsedSeconds=offline?Math.min(1800,gameSeconds):gameSeconds;
     const proj=setsunaProjection(s,base.div(factor),now);
     // Pass real elapsed wall timestamps and effective game seconds separately.
     // This respects BOOST and offline caps without extending 5-second buffs.
