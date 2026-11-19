@@ -1,5 +1,5 @@
 /* Versioned, scope-specific cache. Does not delete saves or another app's cache. */
-const VERSION = "3.8.0-setsuna30-main";
+const VERSION = "3.9.0-setsuna30-210-confirmed";
 const PREFIX = "kotowari-handoff:" + new URL(self.registration.scope).pathname + ":";
 const CACHE = PREFIX + VERSION;
 const RELATIVE = [
@@ -16,6 +16,7 @@ const RELATIVE = [
   "balance-config.mjs",
   "numbers.mjs",
   "setsuna-engine.mjs",
+  "setsuna-rules-v39.mjs",
   "game.mjs",
   "save.mjs",
   "app.mjs",
@@ -46,7 +47,7 @@ const CORE_FILES = [
   "index.html", "organic-original.css", "mobile.css", "neon-theme.css", "live-ui.css",
   "purchase-insights.mjs",
   "design-proposals.mjs",
-  "RESEARCH_V35.md", "content.mjs", "balance-config.mjs", "numbers.mjs", "setsuna-engine.mjs", "game.mjs",
+  "RESEARCH_V35.md", "content.mjs", "balance-config.mjs", "numbers.mjs", "setsuna-engine.mjs", "setsuna-rules-v39.mjs", "game.mjs",
   "save.mjs", "app.mjs", "manifest.webmanifest"
 ];
 const CORE_URLS = CORE_FILES.map(path => new URL(path, self.registration.scope).href);
