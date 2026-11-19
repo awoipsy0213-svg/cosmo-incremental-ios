@@ -3,15 +3,34 @@ import {PremiumScene as Scene3D} from './premium-scene.mjs';
 import {SceneFallback} from './fallback.mjs';
 const $=id=>document.getElementById(id);
 const canvas=$('world');let scene;
-let state;let loaded=false;
-try{const raw=localStorage.getItem(SAVE_KEY);state=raw?deserialize(raw):createInitialState();loaded=!!raw}catch(err){state=createInitialState();state.log.unshift({id:++state.eventSeq,t:0,text:'保存データを読み込めませんでした。新規画面です（バックアップは削除していません）'});console.warn(err)}
+let state;let loaded=false;let legacyBackupBlocked=false;
+try{
+ const raw=localStorage.getItem(SAVE_KEY);
+ if(raw){
+  // Keep the user's exact pre-migration data before a new schema 1 extension is saved.
+  const backupKey=SAVE_KEY+'_before_hero_progression';
+  let oldFormat=true;
+  try{oldFormat=!JSON.parse(raw)?.state?.heroProgression}catch{}
+  if(oldFormat){
+   try{if(!localStorage.getItem(backupKey))localStorage.setItem(backupKey,raw)}
+   catch(error){legacyBackupBlocked=true;console.warn('Legacy backup failed; original save is write-protected',error)}
+  }
+ }
+ state=raw?deserialize(raw):createInitialState();
+ loaded=!!raw;
+}catch(err){
+ legacyBackupBlocked=true; // Never overwrite an unreadable original save automatically.
+ state=createInitialState();
+ state.log.unshift({id:++state.eventSeq,t:0,text:'保存データを読み込めませんでした。旧データの上書きを停止しました。'});
+ console.warn(err)
+}
 let pausedBattle=false;let selection=null,mode='observe',selectedBuild=null,selectedTerrain='river',pendingNoticeTimer=null,prevTime=performance.now(),accum=0,lastUI=0,lastSave=0,follow=false,currentModal=null,quality=1,pointer=new Map(),touchOrigin=null,wasDrag=false;
 try{scene=new URLSearchParams(location.search).get('render')==='2d'?new SceneFallback(canvas):new Scene3D(canvas)}catch(err){console.warn('WebGL unavailable, using isometric fallback:',err);try{scene=new SceneFallback(canvas);$('tip').textContent='WebGL非対応のため軽量表示で再生中';}catch(err2){console.error(err2);$('tip').textContent='このブラウザでは描画できません';}}
 const number=n=>Math.floor(n||0).toLocaleString('ja-JP');
 const seconds=n=>`${String(Math.floor(n/60)).padStart(2,'0')}:${String(Math.floor(n%60)).padStart(2,'0')}`;
 const pending=()=>Object.values(state.temple.pending).reduce((a,b)=>a+b,0);
 function toast(msg){const e=$('notice');e.textContent=msg;e.classList.add('show');clearTimeout(pendingNoticeTimer);pendingNoticeTimer=setTimeout(()=>e.classList.remove('show'),2850)}
-function save(force=false){try{const raw=serialize(state);if(force){const prev=localStorage.getItem(SAVE_KEY);if(prev)try{localStorage.setItem(SAVE_KEY+'_backup',prev)}catch{}}localStorage.setItem(SAVE_KEY,raw);lastSave=performance.now();return true}catch(err){console.warn('SAVE ERROR',err);if(force)toast('セーブに失敗。設定から書き出しを試してください');return false}}
+function save(force=false){if(legacyBackupBlocked){if(force)toast('旧セーブの保護中です。手動でJSONバックアップを確認してください');return false;}try{const raw=serialize(state);if(force){const prev=localStorage.getItem(SAVE_KEY);if(prev)try{localStorage.setItem(SAVE_KEY+'_backup',prev)}catch{}}localStorage.setItem(SAVE_KEY,raw);lastSave=performance.now();return true}catch(err){console.warn('SAVE ERROR',err);if(force)toast('セーブに失敗。設定から書き出しを試してください');return false}}
 function resourceHTML(){const items=[['🌲','木材','wood'],['🪨','石材','stone'],['🌾','食料','food'],['🍖','肉','meat'],['🧶','皮','hide']];return items.map(([emoji,name,key])=>`<div class="resource-item"><span>${emoji} ${name}</span><b>${number(state.resources[key])}${['wood','stone','food'].includes(key)?` <small>/ ${cap(state,key)}</small>`:''}</b></div>`).join('')+(state.stage==='explore'?`<div class="resource-item"><span>🛒 荷台</span><b>${number(Object.values(state.cargo).reduce((a,b)=>a+b,0))} / 20</b></div>`:'')}
 function logHTML(){return state.log.slice(0,6).map(e=>`<div class="log-item"><time>${seconds(e.t)}</time>${e.text}</div>`).join('')}
 const wheelRoles={base:[['environment','🌱','環境'],['combat','⚔️','戦闘'],['home','🏠','拠点'],['free','✧','自由']],explore:[['environment','🌿','採集'],['combat','⚔️','警護'],['home','🛒','運搬'],['free','✧','自由']],battle:[['attack','⚔️','突撃'],['occupy','🚩','占領'],['fortify','🏰','籠城'],['guard','🛡️','守護']]};
