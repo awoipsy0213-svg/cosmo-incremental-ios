@@ -1,5 +1,5 @@
 /* Versioned, scope-specific cache. Does not delete saves or another app's cache. */
-const VERSION = "3.10.0-setsuna-purchase-navigation";
+const VERSION = "3.11.0-trial-price-lab";
 const PREFIX = "kotowari-handoff:" + new URL(self.registration.scope).pathname + ":";
 const CACHE = PREFIX + VERSION;
 const RELATIVE = [
@@ -10,6 +10,7 @@ const RELATIVE = [
   "live-ui.css",
   "purchase-insights.mjs",
   "moment-filter.mjs",
+  "price-lab.mjs",
   "design-proposals.mjs",
   "RESEARCH_V35.md",
   "BALANCE_V36.md",
@@ -48,6 +49,7 @@ const CORE_FILES = [
   "index.html", "organic-original.css", "mobile.css", "neon-theme.css", "live-ui.css",
   "purchase-insights.mjs",
   "moment-filter.mjs",
+  "price-lab.mjs",
   "design-proposals.mjs",
   "RESEARCH_V35.md", "content.mjs", "balance-config.mjs", "numbers.mjs", "setsuna-engine.mjs", "setsuna-rules-v39.mjs", "game.mjs",
   "save.mjs", "app.mjs", "manifest.webmanifest"
