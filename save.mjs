@@ -102,6 +102,18 @@ export class SaveStore {
             return {state:s,blocked:true,warning:"Ver.3.17への移行前バックアップを検証できません。元セーブを保護し、書き込みを停止しました。"};
           }
         }
+        // v3.18 stores interference timers and selected transfers separately.
+        // Keep old progress byte-for-byte before adding a new state field.
+        if(this.mode==="normal"&&oldShape.universe?.interference===undefined){
+          const key=this.key+".before-v318";
+          try{
+            if(!this.read(key))this.storage.setItem(key,raw);
+            if(this.read(key)!==raw)throw Error("backup verification failed");
+          }catch(e){
+            this.blocked=true;
+            return {state:s,blocked:true,warning:"Ver.3.18移行前の元データ退避に失敗しました。既存セーブは上書きせず保護しています。"};
+          }
+        }
         return {state:s};
       }catch(error){
         // Quarantine original bytes and do not silently overwrite invalid data.
