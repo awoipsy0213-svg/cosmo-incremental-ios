@@ -844,7 +844,7 @@ document.addEventListener("click",async e=>{
       const kind=b.dataset.purchase,id=b.dataset.id,modeBefore=state.purchaseMode;
       const quote=G.purchaseQuote(state,kind,id);
       if(!quote.enabled)return toast(quote.reason||"購入できません");
-      if(modeBefore==="MAX"&&A(quote.cost).cmp(A(state.orbs).mul(.9))>=0){
+      if(G.maxPurchaseRequiresConfirmation(state.orbs,quote,modeBefore)){
         const label=(kind==="source"?CONTENT.sources:CONTENT.moment).find(x=>x.id===id)?.name||id;
         const cost=f(quote.cost),remaining=f(A(state.orbs).sub(quote.cost));
         if(!await ask("MAX購入の確認",label+"："+quote.count.toLocaleString("ja-JP")+"Lv購入 / 消費 "+cost+" オーブ / 購入後 "+remaining+" オーブ","購入する"))return;
