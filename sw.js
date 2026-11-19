@@ -1,5 +1,5 @@
 /* Versioned, scope-specific cache. Does not delete saves or another app's cache. */
-const VERSION = "3.13.0-unified-max-purchase";
+const VERSION = "3.14.0-source-cycle-unlock";
 const PREFIX = "kotowari-handoff:" + new URL(self.registration.scope).pathname + ":";
 const CACHE = PREFIX + VERSION;
 const RELATIVE = [
