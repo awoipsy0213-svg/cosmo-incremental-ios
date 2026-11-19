@@ -62,8 +62,8 @@ export function advanceCore(p,universe,seconds,announce=()=>{}){
   core.pulses+=report.pulses;
   // Only once each five pulses; qualifying internal conditions apply.
   if(report.pulses>0&&core.pulses>=5){
-    const oldSurface=Math.floor(Math.max(0,oldPulses-5)/5);
-    const newSurface=Math.floor(Math.max(0,core.pulses-5)/5);
+    const oldSurface=oldPulses>=5?Math.floor((oldPulses-5)/5)+1:0;
+    const newSurface=core.pulses>=5?Math.floor((core.pulses-5)/5)+1:0;
     const amount=Math.max(0,newSurface-oldSurface);
     if(amount>0&&num(p.stats.temperature)>=1000&&num(p.stats.energy)>=2000){
       core.surfaceCount+=amount;report.surface=amount;
