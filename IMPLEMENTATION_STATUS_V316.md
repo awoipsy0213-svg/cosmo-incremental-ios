@@ -1,5 +1,8 @@
 # 《理》 Ver.3.16 実装状況・引き継ぎ (2026-11-19)
 
+> 後続の実装状況：[Ver.3.17 刻印システム](./IMPLEMENTATION_STATUS_V317.md) を参照。Ver.3.16時点で未実装とした刻印の購入・装備・ENG-24自動収束の一部を後続で実装。その他は未照合。
+
+
 ## 要約
 - 作業ブランチ: `feature/kotowari-astral-ui-spec-20261119`
 - ドラフトPR: https://github.com/awoipsy0213-svg/cosmo-incremental-ios/pull/21
