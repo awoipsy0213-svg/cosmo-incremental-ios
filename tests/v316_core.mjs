@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import {A} from "../numbers.mjs";
 import {createState,createPlanet,planet,startCore,toggleAutoPlanet,setAutoPlanetReserve,advance,validateState} from "../game.mjs";
 import {KNOWLEDGE_IDS,addKnowledge,knowledgeLevel,coreRequirements,makeCoreState,advanceCore,autoPlanetAvailable} from "../universe-progression-v316.mjs";
-import {encode,decode} from "../save.mjs";
+import {encode,decode,checksum,SaveStore,KEYS} from "../save.mjs";
 const now=1763600000000;
 let checks=0;const test=(name,fn)=>{fn();checks++;console.log("✓",name);};
 test("knowledge IDs and cap",()=>{
@@ -85,5 +85,39 @@ test("older v31 state gains new fields without clearing progress",()=>{
  assert.equal(normalized.universe.planets[0].core.formed,false);
  assert.equal(A(normalized.universe.planets[0].stats.mass).toNumber(),100000);
  assert.equal(decode(encode(normalized,"core-qa"),"normal").mode,"normal");
+});
+test("untouched pre-v3.16 save bytes are backed up before writing",()=>{
+ const original=createState(now,"normal");original.intro.complete=true;
+ original.universe.unlocked=true;createPlanet(original,now);
+ const old={kind:"kotowari-save",version:31,writer:"previous",data:original};
+ delete old.data.time.miracles;delete old.data.universe.knowledge;
+ delete old.data.universe.autoGenerate;delete old.data.universe.autoReserve;
+ delete old.data.universe.planets[0].core;
+ old.checksum=checksum(JSON.stringify(old.data));
+ const raw=JSON.stringify(old),memory=new Map([[KEYS.normal,raw]]);
+ const storage={getItem:k=>memory.get(k)||null,setItem:(k,v)=>memory.set(k,v)};
+ const store=new SaveStore(storage,"normal","v316-tests");
+ const loaded=store.load(now);
+ assert.equal(loaded.blocked,undefined);
+ assert.equal(memory.get(KEYS.normal+".before-v316"),raw);
+ assert.equal(loaded.state.universe.knowledge.collapse,undefined);
+ store.write(loaded.state,{snapshot:true});
+ assert.equal(memory.get(KEYS.normal+".before-v316"),raw);
+});
+test("failed migration backup blocks writes without destroying original save",()=>{
+ const original=createState(now,"normal");
+ const old={kind:"kotowari-save",version:31,writer:"previous",data:original};
+ delete old.data.time.miracles;delete old.data.universe.knowledge;
+ old.checksum=checksum(JSON.stringify(old.data));
+ const raw=JSON.stringify(old),memory=new Map([[KEYS.normal,raw]]);
+ const storage={getItem:k=>memory.get(k)||null,setItem:(k,v)=>{
+   if(k.endsWith(".before-v316"))throw Error("Storage full");memory.set(k,v);
+ }};
+ const store=new SaveStore(storage,"normal","v316-tests");
+ const loaded=store.load(now);
+ assert.equal(loaded.blocked,true);
+ assert.equal(store.blocked,true);
+ assert.equal(memory.get(KEYS.normal),raw);
+ assert.throws(()=>store.write(loaded.state),/保護中/);
 });
 console.log("PASS "+checks+" core, life, autogeneration and v31 migration checks");
