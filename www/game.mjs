@@ -1,5 +1,5 @@
 import {CONFIG} from "./balance-config.mjs";
-import {TIME_EFFECTS,conceptLevelCost,conceptBonuses,residueWeights} from "./time-confirmed-v4.mjs";
+import {TIME_EFFECTS,conceptLevelCost,conceptBonuses,conceptActive,residueWeights} from "./time-confirmed-v4.mjs";
 import {UNIVERSE_RESOURCE_RULES,eligibleResourceWeights,pickWeightedResource,investmentDelta,collapsePressureFactor,collapseHazardPerMinute} from "./universe-confirmed-v4.mjs";
 import {FINAL_EFFECTS,ownsSourceFinal,sourceFinalMarker,sourcePlusMultiplier} from "./source-effects-v315.mjs";
 import {cleanMomentPrefs} from "./moment-filter.mjs";
@@ -402,7 +402,7 @@ export function conceptEffect(s,id) {
   const c=CONTENT.concepts.find(x=>x.id===id),rule=TIME_EFFECTS[id];
   if(!c||!rule)return null;
   const level=s.time.concepts[id]||0,bonus=Math.min(rule.max,level*rule.perLevel);
-  return {level,bonus,rule,active:level>0 && c.principles.every(p=>s.time.selected.includes(CONTENT.principles.indexOf(p)))};
+  return {level,bonus,rule,active:level>0&&conceptActive(s,c)};
 }
 function miracleTarget(s) {
   const lv=Object.entries(s.time.concepts).filter(([,v])=>v>0).map(([id])=>CONTENT.concepts.find(c=>c.id===id)).filter(Boolean);
@@ -470,12 +470,15 @@ export function invest(s,id,count=1) {
   s.universe.resources[id]=sub(s.universe.resources[id],count);
   const basic=A(delta.mass);
   p.stats.mass=add(p.stats.mass,basic);
-  let special=delta.effects;
+  let special=delta.effects,trialSpecial=null;
   if(trialEnabled(s)){
-    // Preserve the separate legacy sandbox comparison without changing normal.
-    const resource=CONTENT.resources.find(x=>x.id===id);
-    const proposal=resourcePrototype(resource);
-    if(proposal)special={...special,[proposal.stat]:proposal.perUnit*count};
+    // Preserve the original sandbox comparison in addition to the adopted stats.
+    const resource=CONTENT.resources.find(x=>x.id===id),proposal=resourcePrototype(resource);
+    if(proposal){
+      special={...special,[proposal.stat]:proposal.perUnit*count};
+      if(proposal.stat2)special[proposal.stat2]=proposal.perUnit*count/2;
+      trialSpecial={stat:proposal.stat,added:String(proposal.perUnit*count)};
+    }
   }
   for(const [key,value] of Object.entries(special)){
     const current=A(p.stats[key]||0).toNumber();
@@ -487,8 +490,7 @@ export function invest(s,id,count=1) {
   if((p.evidence.naturalTicks||0)>0&&!p.observed.includes("mass")){
     p.observed.push("mass");event(s,"質量：自然成長と資源投入による増加を認識した。");
   }
-  return {ok:true,massAdded:basic.toString(),effects:special,
-    trialSpecial:trialEnabled(s)?{stat:Object.keys(special)[0]||"mass",added:String(Object.values(special)[0]||0)}:null};
+  return {ok:true,massAdded:basic.toString(),effects:special,trialSpecial};
 }
 export function distributeResources(total,ids,rng=Math.random) {
   const result={};
