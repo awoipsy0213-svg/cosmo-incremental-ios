@@ -28,7 +28,7 @@ export function needsHeroLearningMigration(raw) {
     const save=JSON.parse(raw);
     const state=save?.state;
     const hero=state?.heroProgression?.profiles?.['starter-hero'];
-    return !hero || !hero.actionSuccessCounts || !state.heroRoster || (state.saveFormatRevision||0)<3;
+    return !hero || !hero.actionSuccessCounts || !state.heroRoster || (state.saveFormatRevision||0)<4;
   }catch{
     return true; // invalid saves must not be overwritten.
   }
