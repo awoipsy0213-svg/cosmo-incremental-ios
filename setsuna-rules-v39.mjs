@@ -7,7 +7,7 @@ export const COUNT=30;
 export const GROUPS=["基礎干渉","連続干渉","確率干渉","自律干渉","源泉共鳴","超越干渉"];
 export const NAMES=["原初の接触","干渉増幅","余波","反響","集中","連撃","残響維持","加速","蓄積","連鎖","幸運","会心","二重干渉","連鎖会心","奇跡","自動接触","自律増幅","自律連撃","余剰回収","自律同期","源の反映","干渉供給","源の共振","循環","共鳴暴走","強化共鳴","時の圧縮","限界突破","刹那の覚醒","原初回帰"];
 const COMBO_MARKS=[10,50,100,250,500,1000];
-export const RUNTIME_KEYS=["combo","lastTap","comboUntil","comboExpire","hasteUntil","sourceBuffUntil",
+export const RUNTIME_KEYS=["combo","lastTap","comboUntil","comboExpire","hasteUntil","hasteSteps","sourceBuffUntil",
   "synergyUntil","awakenUntil","autoCredit","comboAutoCredit","recoverCredit","compressCredit",
   "activeSeconds","lastManualActive","cycleTaps","supplyCount","offlineCombo",
   "autoTaps","stored","flowQueue","miracleHistory"];
@@ -94,7 +94,7 @@ export function autoInterval(s,now=Date.now()){
 }
 function hasteLevel(s,now){
  if(!active(s,7)||now>=(s.hasteUntil||0))return 0;
- return clamp(boosted(s,7,.004*root(lv(s,7))*Math.floor((s.combo||0)/10)),1);
+ return clamp(boosted(s,7,.004*root(lv(s,7))*(s.hasteSteps||Math.floor((s.combo||0)/10))),1);
 }
 function supplyLevel(s,now){
  return active(s,21)&&now<(s.sourceBuffUntil||0)?clamp(boosted(s,21,.01*root(lv(s,21))),.5):0;
@@ -115,26 +115,26 @@ export function tapPreview(s,now=Date.now()){
 const rnd=(rng)=>{const x=Number(rng());return Number.isFinite(x)?Math.max(0,Math.min(1,x)):1};
 function crit(s,value,rng){
  const rate=critRate(s),multi=critMulti(s);
+ const chainMultiplier=rate>=1?multi.mul(rate):multi;
  const success=rate>=1||rnd(rng)<rate;
  if(!success)return {amount:value,crit:false,chain:0};
  let v=value.mul(rate>=1?multi.mul(rate):multi),chain=0;
  const p=probability(s,13);
- while(chain<3&&p>0&&rnd(rng)<p){v=v.mul(multi);chain++;}
+ while(chain<3&&p>0&&rnd(rng)<p){v=v.mul(chainMultiplier);chain++;}
  return {amount:v,crit:true,chain};
 }
-function critExpected(s){
- const rate=critRate(s),multi=critMulti(s);
- const base=rate>=1?multi.mul(rate):A(1).add(multi.sub(1).mul(rate));
- const p=probability(s,13);
- // At most three repeated critical multiplications; stop at the first failure.
- const one=A(1), q=A(p), chain=one;
- if(!p)return base;
- let power=A(1),success=1;
- for(let k=1;k<=3;k++){
-  power=power.mul(multi);success*=p;
-  chain=chain.add(power.sub(1).mul(success*(k===3?1:1-p)));
+export function critExpected(s){
+ const rate=critRate(s),multi=critMulti(s),p=probability(s,13);
+ const link=rate>=1?multi.mul(rate):multi;
+ // Only successful criticals may chain, with at most three attempts.
+ let expected=A(0),power=A(1),success=1;
+ for(let k=0;k<3;k++){
+  expected=expected.add(power.mul(success*(1-p)));
+  power=power.mul(link);success*=p;
  }
- return base.mul(chain);
+ expected=expected.add(power.mul(success));
+ const critical=multi.mul(rate>=1?rate:1);
+ return rate>=1?critical.mul(expected):A(1-rate).add(critical.mul(expected).mul(rate));
 }
 function addWallet(s,a){if(A(a).cmp(0)>0)s.wallet=A(s.wallet).add(a).toString();}
 function queuePay(s,value){
@@ -165,8 +165,10 @@ function comboMarks(s,oldValue,newValue,now){
  }
  if(active(s,24)&&Math.floor(newValue/100)>Math.floor(oldValue/100))
   s.synergyUntil=now+10000;
- if(active(s,7)&&Math.floor(newValue/10)>Math.floor(oldValue/10))
+ if(active(s,7)&&Math.floor(newValue/10)>Math.floor(oldValue/10)){
+  s.hasteSteps=Math.floor(newValue/10);
   s.hasteUntil=now+5000;
+ }
  return bonus;
 }
 export function tap(s,now=Date.now(),rng=Math.random){
@@ -254,7 +256,8 @@ function integratedSource(s,from,to,effective){
 export function advance(s,now=Date.now(),{seconds=null,offline=false,rng=Math.random}={}){
  const prev=s.lastTick||now;
  const wall=Math.max(0,(now-prev)/1000);
- const effective=seconds===null?Math.min(1800,wall):Math.max(0,Math.min(1800,Number(seconds)||0));
+ const requested=seconds===null?wall:Math.max(0,Number(seconds)||0);
+ const effective=offline?Math.min(1800,requested):requested;
  s.lastTick=now;
  if(!offline)s.activeSeconds=(s.activeSeconds||0)+wall;
  if(!wall)return {seconds:0,auto:0,source:A(0)};
@@ -301,6 +304,13 @@ export function advance(s,now=Date.now(),{seconds=null,offline=false,rng=Math.ra
    let earned=A(0);
    if(offline||auto>200)earned=autoExpected(s,now).mul(auto);
    else for(let i=0;i<auto;i++)earned=earned.add(autoOnce(s,now,rng));
+   if(offline&&active(s,17)&&active(s,5)){
+    const chance=clamp(boosted(s,17,.0005*lv(s,17)),.25);
+    const first=Math.min(300,s.offlineCombo||0);
+    const last=Math.min(300,first+Math.floor(s.comboAutoCredit+auto*chance));
+    const mean=(first+last)/2;
+    earned=earned.mul(1+clamp(boosted(s,5,.002*root(lv(s,5))*mean),comboCap(s)-1));
+   }
    total=total.add(earned);s.autoTaps=Math.min(1000000000,(s.autoTaps||0)+auto);
    if(active(s,17)){
     s.comboAutoCredit=(s.comboAutoCredit||0)+auto*clamp(boosted(s,17,.0005*lv(s,17)),.25);
