@@ -2,6 +2,7 @@ import {CONFIG} from "./balance-config.mjs";
 import {TIME_EFFECTS,conceptLevelCost,conceptBonuses,conceptActive,residueWeights} from "./time-confirmed-v4.mjs";
 import {UNIVERSE_RESOURCE_RULES,eligibleResourceWeights,pickWeightedResource,investmentDelta,collapsePressureFactor,collapseHazardPerMinute} from "./universe-confirmed-v4.mjs";
 import {KNOWLEDGE_IDS,addKnowledge,knowledgeLevel,coreRequirements,makeCoreState,advanceCore,autoPlanetAvailable} from "./universe-progression-v316.mjs";
+import {ENGRAVING_IDS,ENGRAVING_AUTO_CONVERGE_ID,AUTO_CONVERGE_MIN_INTERVAL_MS,AUTO_CONVERGE_DEFAULT_MIN_REWARD,engravingSlots,engravingPurchaseQuote,validRewardThreshold} from "./engraving-rules-v317.mjs";
 import {FINAL_EFFECTS,ownsSourceFinal,sourceFinalMarker,sourcePlusMultiplier} from "./source-effects-v315.mjs";
 import {cleanMomentPrefs} from "./moment-filter.mjs";
 import * as SETSUNA from "./setsuna-rules-v39.mjs";
@@ -43,7 +44,8 @@ export function createState(now=Date.now(),mode="normal") {
     life:{unlocked:false},
     // Separate experiment flag; never active in normal saves.
     trial:{enabled:false},
-    engraving:{active:[],draft:null,observationUnlocked:false},
+    engraving:{active:[],draft:null,observationUnlocked:false,owned:[],equipped:[],
+      autoConverge:{enabled:false,minReward:AUTO_CONVERGE_DEFAULT_MIN_REWARD,lastAt:0}},
     boost:{seconds:0,active:false,upgrades:[0,0,0,0,0]},
     counters:{taps:0,orbsSpent:"0",sourcePurchases:0,conversions:0,onlineSeconds:0,offlineSeconds:0},
     achievements:[],events:[],settings:{compact:true,showPurchaseHints:true,affordableOnly:false,bulkOrder:"cheap",holdToBuy:true,reducedMotion:false,highContrast:false,
@@ -652,35 +654,94 @@ function autoPlanetOnce(s,now) {
   event(s,"資源を用いて惑星が自律生成された。",now);
   return true;
 }
+// One-time purchases and reusable equipment are distinct. Existing four-node
+// lab experiments stay in engraving.active but do not count as owned engravings.
+export function buyEngraving(s,id) {
+  const q=engravingPurchaseQuote(s,id);
+  if(!q.ok)return q;
+  if(A(s.surplusExistence).cmp(q.price)<0)return {ok:false,reason:"余剰存在が不足しています"};
+  s.surplusExistence=sub(s.surplusExistence,q.price);
+  s.engraving.owned.push(id);
+  event(s,`${id} を取得した。装備しない限り効果は発動しません。`);
+  return {ok:true,id,price:q.price};
+}
 export function beginEngraving(s) {
-  s.engraving.draft=[...s.engraving.active];return {ok:true};
+  if(s.engraving.draft!==null)return {ok:false,reason:"編集中です"};
+  s.engraving.draft=[...s.engraving.equipped];
+  return {ok:true};
 }
 export function toggleDraft(s,id) {
-  if(!CONTENT.engravings.some(x=>x.id===id))return {ok:false,reason:"刻印IDが不正です"};
+  if(!ENGRAVING_IDS.includes(id))return {ok:false,reason:"刻印IDが不正です"};
   if(s.engraving.draft===null)return {ok:false,reason:"編集を開始してください"};
-  if(s.mode!=="lab")return {ok:false,reason:"このノードの条件・費用は？？？です"};
-  const d=s.engraving.draft;s.engraving.draft=d.includes(id)?d.filter(x=>x!==id):[...d,id];
+  if(!s.engraving.owned.includes(id))return {ok:false,reason:"先に刻印を取得してください"};
+  const draft=s.engraving.draft;
+  if(draft.includes(id))s.engraving.draft=draft.filter(x=>x!==id);
+  else{
+    if(draft.length>=engravingSlots(s.convergenceCount))return {ok:false,reason:"装備スロットの上限です"};
+    s.engraving.draft=[...draft,id];
+  }
   return {ok:true};
 }
 export function engravingQuote(s) {
-  const active=s.engraving.active, draft=s.engraving.draft||active;
-  const added=draft.filter(x=>!active.includes(x));
-  const removed=active.filter(x=>!draft.includes(x));
-  return {added,removed,cost:A(CONFIG.lab.engravingCost).mul(added.length).toString()};
+  const slots=engravingSlots(s.convergenceCount);
+  const draft=s.engraving.draft??s.engraving.equipped;
+  const equipped=s.engraving.equipped;
+  return {added:draft.filter(id=>!equipped.includes(id)),
+    removed:equipped.filter(id=>!draft.includes(id)),
+    slots,cost:"0"};
 }
 export function confirmEngraving(s) {
-  if(s.engraving.draft===null)return {ok:false,reason:"編集中ではありません"};
-  const q=engravingQuote(s);
-  if(!q.added.length&&!q.removed.length){s.engraving.draft=null;return {ok:true,unchanged:true};}
-  if(s.mode!=="lab")return {ok:false,reason:"再編の費用と条件は要確認です"};
-  if(q.removed.length)return {ok:false,reason:"再編の返却額・消費優先順は未決定です。検証版も追加取得のみ対応。"};
-  if(A(s.surplusExistence).cmp(q.cost)<0)return {ok:false,reason:"存在はなくせません。保護された1を除く余剰が必要です。"};
-  s.surplusExistence=sub(s.surplusExistence,q.cost);
-  s.engraving.active=[...s.engraving.draft];s.engraving.draft=null;
-  event(s,"【検証】刻印の仮振りを確定した。");
-  return {ok:true};
+  const draft=s.engraving.draft;
+  if(draft===null)return {ok:false,reason:"編集中ではありません"};
+  if(new Set(draft).size!==draft.length||draft.length>engravingSlots(s.convergenceCount)||
+     draft.some(id=>!s.engraving.owned.includes(id)||!ENGRAVING_IDS.includes(id)))
+    return {ok:false,reason:"装備対象・スロットが不正です"};
+  const diff=engravingQuote(s);
+  s.engraving.equipped=[...draft];
+  s.engraving.draft=null;
+  if(!s.engraving.equipped.includes(ENGRAVING_AUTO_CONVERGE_ID))
+    s.engraving.autoConverge.enabled=false;
+  if(diff.added.length||diff.removed.length)
+    event(s,`刻印装備を確定した（${s.engraving.equipped.length}/${diff.slots}枠）。所有刻印は消費されません。`);
+  return {ok:true,...diff};
 }
-export function cancelEngraving(s) {s.engraving.draft=null;return {ok:true};}
+export function cancelEngraving(s) {
+  if(s.engraving.draft===null)return {ok:false,reason:"編集中ではありません"};
+  s.engraving.draft=null;return {ok:true};
+}
+export function configureAutoConvergence(s,{enabled,minReward}={},now=Date.now()) {
+  const a=s.engraving.autoConverge;
+  if(minReward!==undefined){
+    if(!validRewardThreshold(minReward))return {ok:false,reason:"報酬閾値は0.025以上で指定してください"};
+    a.minReward=str(minReward);
+  }
+  if(enabled!==undefined){
+    if(typeof enabled!=="boolean")return {ok:false,reason:"設定が不正です"};
+    if(enabled&&(!s.engraving.owned.includes(ENGRAVING_AUTO_CONVERGE_ID)||
+      !s.engraving.equipped.includes(ENGRAVING_AUTO_CONVERGE_ID)))
+      return {ok:false,reason:"ENG-24の取得・装備が必要です"};
+    if(enabled&&!a.enabled)a.lastAt=now; // 60s safety interval after ON
+    a.enabled=enabled;
+  }
+  return {ok:true,enabled:a.enabled,minReward:a.minReward};
+}
+export function autoConvergenceTick(s,now=Date.now(),offline=false) {
+  if(offline||!s.intro.complete||!s.engraving.autoConverge.enabled ||
+    !s.engraving.owned.includes(ENGRAVING_AUTO_CONVERGE_ID)||
+    !s.engraving.equipped.includes(ENGRAVING_AUTO_CONVERGE_ID))
+    return {ok:false,reason:"自動収束の条件を満たしていません"};
+  if(!Number.isFinite(now)||now<0||now-s.engraving.autoConverge.lastAt<AUTO_CONVERGE_MIN_INTERVAL_MS)
+    return {ok:false,reason:"自動収束の待機中です"};
+  const q=convergenceQuote(s);
+  if(!q.steps||A(q.reward).cmp(s.engraving.autoConverge.minReward)<0)
+    return {ok:false,reason:"報酬閾値または必要オーブが不足しています"};
+  const result=converge(s);
+  if(result.ok){
+    s.engraving.autoConverge.lastAt=now;
+    event(s,"ENG-24により自動収束を実行した。",now);
+  }
+  return result;
+}
 export function boostValues(s) {
   // Five paths have no approved costs. Extra effects are sandbox-only.
   const u=s.mode==="lab"?s.boost.upgrades:[0,0,0,0,0],c=CONFIG.confirmed;
@@ -797,6 +858,7 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
       for(let i=0;i<ticks;i++)autoPlanetOnce(s,now);
     }
   }
+  if(!offline)autoConvergenceTick(s,now,false);
   if(s.mode==="lab"){
     if(s.engraving.active.includes("autoTap"))addOrbs(s,tapPower(s).mul(gameSeconds));
     if(s.engraving.active.includes("autoSource")){
@@ -994,8 +1056,38 @@ export function validateState(input,expectedMode=null) {
   for(const [id,v] of Object.entries(u.knowledge)){
     if(!KNOWLEDGE_IDS.includes(id)||!Number.isFinite(v)||v<0||v>100)fail("理解度の範囲");
   }
-  const e=s.engraving;if(!e||!Array.isArray(e.active)||e.active.some(x=>!CONTENT.engravings.some(y=>y.id===x)))fail("刻印");
-  if(e.draft!==null&&(!Array.isArray(e.draft)||e.draft.some(x=>!CONTENT.engravings.some(y=>y.id===x))))fail("仮振り");
+  const e=s.engraving;
+  if(!e||typeof e!=="object"||Array.isArray(e))fail("刻印");
+  // Additive v3.17 migration; preserve the historical lab-only four-node list.
+  if(e.owned===undefined)e.owned=[];
+  if(e.equipped===undefined)e.equipped=[];
+  if(e.autoConverge===undefined)e.autoConverge={enabled:false,minReward:AUTO_CONVERGE_DEFAULT_MIN_REWARD,lastAt:0};
+  if(!Array.isArray(e.active)||e.active.some(x=>!CONTENT.engravings.some(y=>y.id===x)))fail("旧刻印");
+  const checkIds=(list,label)=>{
+    if(!Array.isArray(list)||list.length>30||new Set(list).size!==list.length||
+       list.some(id=>!ENGRAVING_IDS.includes(id)))fail(label);
+  };
+  checkIds(e.owned,"刻印所有");
+  checkIds(e.equipped,"刻印装備");
+  if(e.equipped.length>engravingSlots(s.convergenceCount)||
+     e.equipped.some(id=>!e.owned.includes(id)))fail("刻印装備条件");
+  if(e.draft!==null){
+    // Older lab-only drafts use the four original prototype IDs.
+    if(s.mode==="lab"&&Array.isArray(e.draft)&&e.draft.every(id=>CONTENT.engravings.some(x=>x.id===id)))
+      e.draft=null;
+    else{
+      checkIds(e.draft,"刻印仮装備");
+      if(e.draft.length>engravingSlots(s.convergenceCount)||e.draft.some(id=>!e.owned.includes(id)))fail("刻印仮装備条件");
+    }
+  }
+  if(!e.autoConverge||typeof e.autoConverge!=="object"||
+      typeof e.autoConverge.enabled!=="boolean"||
+      !validRewardThreshold(e.autoConverge.minReward)||
+      !Number.isFinite(e.autoConverge.lastAt)||e.autoConverge.lastAt<0||e.autoConverge.lastAt>1e15)
+    fail("自動収束設定");
+  e.autoConverge.minReward=str(e.autoConverge.minReward);
+  if(e.autoConverge.enabled&&(!e.owned.includes(ENGRAVING_AUTO_CONVERGE_ID)||
+      !e.equipped.includes(ENGRAVING_AUTO_CONVERGE_ID)))fail("自動収束の未装備設定");
   const b=s.boost;if(!b||!Number.isFinite(b.seconds)||b.seconds<0||!Array.isArray(b.upgrades)||b.upgrades.length!==5||b.upgrades.some(x=>!Number.isInteger(x)||x<0||x>10000))fail("BOOST");
   if(typeof b.active!=="boolean")fail("BOOST状態");
   if(s.trial===undefined)s.trial={enabled:false};
