@@ -5,6 +5,7 @@ import {KNOWLEDGE_IDS,addKnowledge,knowledgeLevel,coreRequirements,makeCoreState
 import {INTERFERENCE_RULES,R1_RESOURCE_IDS,STABILIZING_RESOURCES,resourceSpendPlan,induceResourceCost,interferenceKnowledgeReady} from "./universe-interference-v318.mjs";
 import {ENGRAVING_IDS,ENGRAVING_AUTO_CONVERGE_ID,AUTO_CONVERGE_MIN_INTERVAL_MS,AUTO_CONVERGE_DEFAULT_MIN_REWARD,engravingSlots,engravingPurchaseQuote,validRewardThreshold} from "./engraving-rules-v317.mjs";
 import {FINAL_EFFECTS,ownsSourceFinal,sourceFinalMarker,sourcePlusMultiplier} from "./source-effects-v315.mjs";
+import {freshTelemetry,sampleActualOrbs,recordOfflineReport,recordConvergence,validateTelemetry} from "./telemetry-v319.mjs";
 import {cleanMomentPrefs} from "./moment-filter.mjs";
 import * as SETSUNA from "./setsuna-rules-v39.mjs";
 import {CONTENT} from "./content.mjs";
@@ -49,7 +50,7 @@ export function createState(now=Date.now(),mode="normal") {
       autoConverge:{enabled:false,minReward:AUTO_CONVERGE_DEFAULT_MIN_REWARD,lastAt:0}},
     boost:{seconds:0,active:false,upgrades:[0,0,0,0,0]},
     counters:{taps:0,orbsSpent:"0",sourcePurchases:0,conversions:0,onlineSeconds:0,offlineSeconds:0},
-    achievements:[],events:[],settings:{compact:true,showPurchaseHints:true,affordableOnly:false,bulkOrder:"cheap",holdToBuy:true,reducedMotion:false,highContrast:false,
+    achievements:[],events:[],telemetry:freshTelemetry(),settings:{compact:true,showPurchaseHints:true,affordableOnly:false,bulkOrder:"cheap",holdToBuy:true,reducedMotion:false,highContrast:false,
       lowPower:false,confirmConvergence:true,showOffline:true,notation:"auto",
       momentFavorites:[],momentGroup:"0",momentFilter:"all"},
     migration:null
@@ -190,6 +191,7 @@ export function tap(s,now=Date.now(),rng=Math.random) {
   const hit=SETSUNA.tap(proj,now,rng);rememberSetsuna(s,proj);
   const factor=existenceMultiplier(s);
   const gain=hit.amount.mul(factor).mul(finalTap(s));addOrbs(s,gain);
+  sampleActualOrbs(s.telemetry,now,s.totalOrbs);
   return {ok:true,gain:gain.toString(),crit:hit.crit,combo:hit.combo,
     miracle:hit.miracle,chain:hit.chain,components:Object.fromEntries(
       Object.entries(hit.components||{}).map(([k,v])=>[k,A(v).mul(factor).mul(finalTap(s)).toString()]))};
@@ -344,7 +346,9 @@ export function converge(s) {
   // 仮設定の全消費。源の+と能力はデータ保護のため維持し、正式保持規則と断定しない。
   spendOrbs(s,CONFIG.provisional.convergence.spend==="all"?s.orbs:q.spent);
   s.momentRuntime=freshMomentRuntime();
-  s.convergenceCount++;achievement(s,"convergence","最初の通常収束を観測した。");
+  s.convergenceCount++;
+  recordConvergence(s.telemetry,{at:Date.now(),reward:q.reward,steps:q.steps});
+  achievement(s,"convergence","最初の通常収束を観測した。");
   event(s,`収束：存在 +${A(q.reward).toNumber().toLocaleString("ja-JP",{maximumFractionDigits:6})}`);
   return {ok:true,...q};
 }
@@ -500,6 +504,8 @@ export function invest(s,id,count=1) {
   }
   if(!p.evidence||typeof p.evidence!=="object")p.evidence={};
   p.evidence.investments=(p.evidence.investments||0)+1;
+  if(!p.evidence.investmentsByResource)p.evidence.investmentsByResource={};
+  p.evidence.investmentsByResource[id]=add(p.evidence.investmentsByResource[id]||0,count);
   if(special.temperature>0||special.energy>0){
     if(addKnowledge(s.universe,"heat",10))event(s,"熱の循環という現象を理解した。");
   }
@@ -878,7 +884,7 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
   const dt=Math.max(0,(now-s.lastWall)/1000);
   if(!Number.isFinite(dt)||dt<=0)return {elapsed:0,gameSeconds:0,orbs:"0",boost:0};
   s.lastWall=now;
-  const b=boostValues(s),boostBefore=s.boost.seconds;
+  const b=boostValues(s),boostBefore=s.boost.seconds,totalBefore=A(s.totalOrbs);
   let gameSeconds=offline?Math.min(dt,b.offlineCap)*b.efficiency:dt;
   s.boost.seconds=Math.min(b.capacity,s.boost.seconds+dt*(offline?b.offlineRate:b.onlineRate));
   if(!offline&&s.boost.active){
@@ -999,6 +1005,14 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
     }
     if(s.engraving.active.includes("autoConverge")&&A(s.orbs).cmp(CONFIG.lab.autoConvergeOrbs)>=0)converge(s);
   }
+  const measuredOrbs=A(s.totalOrbs).sub(totalBefore).toString();
+  const boostEarned=Math.max(0,s.boost.seconds-boostBefore);
+  if(offline){
+    if(dt>=10)recordOfflineReport(s.telemetry,{
+      at:now,seconds:dt,effectiveSeconds:gameSeconds,
+      orbs:measuredOrbs,boostEarned
+    });
+  }else sampleActualOrbs(s.telemetry,now,s.totalOrbs);
   return {elapsed:dt,gameSeconds,orbs:gained.toString(),boost:s.boost.seconds-boostBefore};
 }
 export function labAction(s,action,now=Date.now()) {
@@ -1175,6 +1189,13 @@ export function validateState(input,expectedMode=null) {
        !Number.isFinite(p.core.surfaceCount)||p.core.surfaceCount<0||
        !Number.isInteger(p.core.lifeStage)||p.core.lifeStage<0||p.core.lifeStage>3)fail("コア状態");
     if(!p.evidence||typeof p.evidence!=="object"||Array.isArray(p.evidence))fail("観測証拠");
+    if(p.evidence.investmentsByResource===undefined)p.evidence.investmentsByResource={};
+    const invested=p.evidence.investmentsByResource;
+    if(!invested||typeof invested!=="object"||Array.isArray(invested))fail("投入資源台帳");
+    for(const [rid,quantity] of Object.entries(invested)){
+      if(!RESOURCE_IDS.includes(rid))fail("投入資源ID");
+      invested[rid]=str(quantity);
+    }
     for(const [id,v]of Object.entries(p.pendingResources||{})){if(!RESOURCE_IDS.includes(id))fail("報酬ID");p.pendingResources[id]=str(v);}
   }
   if(!u.resources||typeof u.resources!=="object"||Array.isArray(u.resources))fail("資源");
@@ -1248,6 +1269,8 @@ export function validateState(input,expectedMode=null) {
   if(!s.counters||!s.settings||!s.life)fail("基本情報");
   for(const key of ["taps","sourcePurchases","conversions","onlineSeconds","offlineSeconds"])if(!Number.isFinite(s.counters[key])||s.counters[key]<0)fail("カウンター");
   s.counters.orbsSpent=str(s.counters.orbsSpent);
+  if(s.telemetry===undefined)s.telemetry=freshTelemetry();
+  try{s.telemetry=validateTelemetry(s.telemetry);}catch(e){fail("統計履歴："+e.message);}
   if(!Array.isArray(s.events)||s.events.length>150||s.events.some(x=>!Number.isFinite(x.at)||typeof x.text!=="string"||x.text.length>500))fail("年表");
   if(!Array.isArray(s.achievements)||s.achievements.some(x=>typeof x!=="string"))fail("実績");
   const defaults=createState();
