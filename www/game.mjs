@@ -1,4 +1,5 @@
 import {CONFIG} from "./balance-config.mjs";
+import {cleanMomentPrefs} from "./moment-filter.mjs";
 import * as SETSUNA from "./setsuna-rules-v39.mjs";
 import {CONTENT} from "./content.mjs";
 import {PROPOSED,resourcePrototype,trialResourceWeights,naturalGrowthFactors,boostTrialCost} from "./design-proposals.mjs";
@@ -40,7 +41,8 @@ export function createState(now=Date.now(),mode="normal") {
     boost:{seconds:0,active:false,upgrades:[0,0,0,0,0]},
     counters:{taps:0,orbsSpent:"0",sourcePurchases:0,conversions:0,onlineSeconds:0,offlineSeconds:0},
     achievements:[],events:[],settings:{compact:true,showPurchaseHints:true,affordableOnly:false,bulkOrder:"cheap",holdToBuy:true,reducedMotion:false,highContrast:false,
-      lowPower:false,confirmConvergence:true,showOffline:true,notation:"auto"},
+      lowPower:false,confirmConvergence:true,showOffline:true,notation:"auto",
+      momentFavorites:[],momentGroup:"0",momentFilter:"all"},
     migration:null
   };
 }
@@ -755,6 +757,7 @@ export function validateState(input,expectedMode=null) {
   s.settings={...defaults.settings,...Object.fromEntries(Object.entries(s.settings).filter(([k,v])=>k in defaults.settings&&typeof v===typeof defaults.settings[k]))};
   if(!["auto","scientific","exponent","zeros"].includes(s.settings.notation))s.settings.notation="auto";
   if(!["cheap","expensive"].includes(s.settings.bulkOrder))s.settings.bulkOrder="cheap";
+  Object.assign(s.settings,cleanMomentPrefs(s.settings,MOMENT_IDS));
   s.boost.seconds=Math.min(s.boost.seconds,boostValues(s).capacity);
   normalizeWeights(s);
   return s;
