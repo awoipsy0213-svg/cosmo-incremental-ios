@@ -299,3 +299,21 @@ body.reduced-motion #touchField.cosmic-scene::before{animation:none;filter:none;
 .interference-action small{overflow-wrap:anywhere;}
 .interference-action button{margin-top:auto;}
 @media(max-width:360px){.interference-actions .kw-card{min-width:0;}.interference-action .card-top{flex-wrap:wrap;}}
+
+/* Ver.3.19 — historical measurements, shown inside existing statistics pane. */
+.telemetry-card{display:flex;flex-direction:column;gap:5px;}
+.telemetry-chart{height:105px;min-height:105px;width:100%;display:flex;gap:1px;
+ align-items:flex-end;overflow:hidden;border-radius:7px;padding:5px 3px 7px;
+ background:linear-gradient(180deg,rgba(20,30,69,.5),rgba(7,13,34,.9));
+ border:1px solid rgba(182,164,255,.25);}
+.telemetry-bar{display:block;flex:1 1 1px;min-width:1px;max-width:12px;
+ border-radius:3px 3px 0 0;background:linear-gradient(to top,rgba(122,82,241,.84),rgba(243,209,143,.95));
+ box-shadow:0 0 7px rgba(166,118,252,.28);}
+.telemetry-gap{height:2px!important;opacity:.19;background:#8196c8;box-shadow:none;}
+.telemetry-row{display:flex;flex-direction:column;gap:2px;}
+.telemetry-row strong{font-variant-numeric:tabular-nums;color:#ffe3b7;}
+.investment-ledger{border-color:rgba(215,189,248,.44);}
+.investment-ledger .kw-row{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.investment-ledger .kw-row strong{font-variant-numeric:tabular-nums;white-space:nowrap;}
+@media(max-width:360px){.telemetry-chart{height:82px;min-height:82px;}
+ .investment-ledger .kw-row{gap:5px;}}

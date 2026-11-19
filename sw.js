@@ -1,5 +1,5 @@
 /* Versioned, scope-specific cache. Does not delete saves or another app's cache. */
-const VERSION = "3.18.0-astral-universe";
+const VERSION = "3.19.0-astral-statistics";
 const PREFIX = "kotowari-handoff:" + new URL(self.registration.scope).pathname + ":";
 const CACHE = PREFIX + VERSION;
 const RELATIVE = [
@@ -13,6 +13,7 @@ const RELATIVE = [
   "universe-confirmed-v4.mjs",
   "universe-progression-v316.mjs",
   "universe-interference-v318.mjs",
+  "telemetry-v319.mjs",
   "engraving-rules-v317.mjs",
   "purchase-insights.mjs",
   "moment-filter.mjs",
@@ -57,6 +58,7 @@ const CORE_FILES = [
   "time-confirmed-v4.mjs", "universe-confirmed-v4.mjs",
   "universe-progression-v316.mjs",
   "universe-interference-v318.mjs",
+  "telemetry-v319.mjs",
   "engraving-rules-v317.mjs",
   "purchase-insights.mjs",
   "moment-filter.mjs",
