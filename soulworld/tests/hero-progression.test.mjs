@@ -188,7 +188,8 @@ test('level cap 200, smooth XP growth, baseline 10 and failure 25%, limit diffic
   assert.equal(hero.freeStatPoints,p);
   const h=createStarterHero();
   grantHeroActionExperience(h,'wood',10,{difficulty:3});
-  assert.equal(h.attributeXp.gathering,16); // 10 XP * max 2.0 * 80%
+  assert.equal(h.attributes.gathering,5);
+  assert.equal(h.attributeXp.gathering,16-xpNeededForNextAbility(4)); // level up consumes XP
   const f=createStarterHero();
   grantHeroActionExperience(f,'wood',10,{difficulty:0.1,success:false});
   assert.equal(f.attributeXp.gathering,1); // 10 * min 0.5 * 0.25 * 80%
