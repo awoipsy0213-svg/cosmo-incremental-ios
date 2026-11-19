@@ -1,5 +1,5 @@
 import {CONFIG} from "./balance-config.mjs";
-import * as SETSUNA from "./setsuna-engine.mjs";
+import * as SETSUNA from "./setsuna-rules-v39.mjs";
 import {CONTENT} from "./content.mjs";
 import {PROPOSED,resourcePrototype,trialResourceWeights,naturalGrowthFactors,boostTrialCost} from "./design-proposals.mjs";
 import {A,str,seriesCost,maxAffordable} from "./numbers.mjs";
@@ -72,21 +72,23 @@ export function tapPower(s,now=Date.now()) {
 // Each convergence gives a persistent, additive +1% per 0.01 surplus existence.
 // First existence (the protected 1) is not counted: 0.02 surplus => x1.02; 1 => x2.
 export function existenceMultiplier(s) { return A(1).add(s.surplusExistence); }
-// 30 distinct Setsuna effects. Projections never use the live wallet directly.
-const SETSUNA_RUNTIME_KEYS=["combo","lastTap","comboUntil","sourceBuffUntil","synergyUntil","awakenUntil",
-  "autoCredit","comboAutoCredit","recoverCredit","compressCredit","flowQueue","stored","autoTaps"];
-export const freshMomentRuntime=()=>Object.fromEntries(SETSUNA_RUNTIME_KEYS.map(k=>[k,k==="flowQueue"?[]:k==="stored"?"0":0]));
+// 210 confirmed Setsuna decisions. Time-dependent state persists in schema 31.
+const SETSUNA_RUNTIME_KEYS=SETSUNA.RUNTIME_KEYS;
+export const freshMomentRuntime=()=>SETSUNA.runtimeDefaults();
 function baseProduction(s){return SOURCE_IDS.reduce((sum,id)=>sum.add(sourceProduction(s,id)),A(0));}
 function setsunaProjection(s,rawSource=null,now=Date.now()){
   const t=SETSUNA.fresh(now);
   t.levels=MOMENT_IDS.map(id=>s.moment[id]||0);t.earned=[...t.levels];
   t.cycles=s.convergenceCount;t.taps=s.counters.taps;
   t.sourceLevel=Object.values(s.sources).reduce((n,v)=>n+v.level,0);
+  t.sourceMilestones=Object.values(s.sources).reduce((sum,v)=>sum+
+    CONFIG.confirmed.sourceMilestones.filter(m=>m<=v.level).length,0);
   t.sourceBase=(rawSource===null?baseProduction(s).div(existenceMultiplier(s)):A(rawSource)).toString();
   Object.assign(t,s.momentRuntime||{});t.wallet="0";t.lastTick=now;
   return t;
 }
 function rememberSetsuna(s,t){s.momentRuntime=Object.fromEntries(SETSUNA_RUNTIME_KEYS.map(k=>[k,t[k]]));}
+export function momentEffects(s){const p=setsunaProjection(s);return MOMENT_IDS.map((id,i)=>({...SETSUNA.effectInfo(p,i),id,level:s.moment[id]}));}
 
 // Base output from the first level of this Source. Subsequent levels compound by productionGrowth.
 // Returns Amount to avoid precision/overflow problems for late source tiers.
@@ -124,6 +126,7 @@ export function criticalMultiplier(percent,multiplier,rng=Math.random,allowSub10
   return rng()<percent/100?multiplier:1;
 }
 export function tap(s,now=Date.now(),rng=Math.random) {
+  if(s.intro.complete && now>s.lastWall)advance(s,now);
   s.counters.taps++;
   if(!s.intro.complete) {
     s.intro.touches++;
@@ -136,8 +139,11 @@ export function tap(s,now=Date.now(),rng=Math.random) {
   }
   const proj=setsunaProjection(s,null,now);proj.taps=Math.max(0,s.counters.taps-1);
   const hit=SETSUNA.tap(proj,now,rng);rememberSetsuna(s,proj);
-  const gain=hit.amount.mul(existenceMultiplier(s));addOrbs(s,gain);
-  return {ok:true,gain:gain.toString(),crit:hit.crit,combo:hit.combo};
+  const factor=existenceMultiplier(s);
+  const gain=hit.amount.mul(factor);addOrbs(s,gain);
+  return {ok:true,gain:gain.toString(),crit:hit.crit,combo:hit.combo,
+    miracle:hit.miracle,chain:hit.chain,components:Object.fromEntries(
+      Object.entries(hit.components||{}).map(([k,v])=>[k,A(v).mul(factor).toString()]))};
 }
 function purchaseData(s,kind,id) {
   if(kind==="source"){
@@ -178,7 +184,13 @@ export function buy(s,kind,id) {
     if(!s.time.unlocked && CONFIG.provisional.timeUnlock==="firstSource"){
       s.time.unlocked=true;event(s,"操作しなくても、光が生まれ始めた。《時》の兆しを観測した。");
     }
-  } else s.moment[id]+=q.count;
+  } else {
+    const wasZero=s.moment[id]===0;
+    s.moment[id]+=q.count;
+    // Focus starts charging only after its first purchase.
+    if(id===MOMENT_IDS[4]&&wasZero)s.momentRuntime.lastManualActive=s.momentRuntime.activeSeconds||0;
+    if(id===MOMENT_IDS[15]&&wasZero)s.momentRuntime.autoCredit=0;
+  }
   return {ok:true,...q};
 }
 /** Explicit, user-triggered bulk buy. Buys affordable individual levels in chosen price
@@ -495,12 +507,14 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
     // Source production, autonomous taps and periodic effects use the same engine.
     // BOOST and offline efficiency are already included in gameSeconds.
     const base=baseProduction(s),factor=existenceMultiplier(s);
-    const trialSeconds=Math.min(1800,gameSeconds);
+    const elapsedSeconds=Math.min(1800,gameSeconds);
     const proj=setsunaProjection(s,base.div(factor),now);
-    proj.lastTick=now-trialSeconds*1000;
-    SETSUNA.advance(proj,now);
+    // Pass real elapsed wall timestamps and effective game seconds separately.
+    // This respects BOOST and offline caps without extending 5-second buffs.
+    proj.lastTick=now-dt*1000;
+    const report=SETSUNA.advance(proj,now,{seconds:elapsedSeconds,offline,rng});
     rememberSetsuna(s,proj);
-    gained=A(proj.wallet).mul(factor).add(base.mul(Math.max(0,gameSeconds-trialSeconds)));
+    gained=A(report.source).mul(factor).add(base.mul(Math.max(0,gameSeconds-elapsedSeconds)));
     addOrbs(s,gained);
   }
   if(s.time.unlocked){
@@ -652,12 +666,20 @@ export function validateState(input,expectedMode=null) {
   if(!r||typeof r!=="object"||Array.isArray(r))fail("刹那状態");
   const normalized=freshMomentRuntime();
   for(const key of SETSUNA_RUNTIME_KEYS){
-    const v=r[key];if(v===undefined)continue;
+    let v=r[key];
+    if(v===undefined && key==="comboExpire")v=r.comboUntil; // v3.8 save migration
+    if(v===undefined)continue;
     if(key==="flowQueue"){
       if(!Array.isArray(v)||v.length>120)fail("刹那の予約生産");
       normalized.flowQueue=v.map(x=>{
         if(!x||typeof x!=="object"||!Number.isFinite(x.remaining)||x.remaining<0||x.remaining>5)fail("刹那の分散時間");
         return {left:str(x.left),remaining:x.remaining};
+      });
+    }else if(key==="miracleHistory"){
+      if(!Array.isArray(v)||v.length>10)fail("奇跡履歴");
+      normalized.miracleHistory=v.map(x=>{
+        if(!x||!Number.isFinite(x.at)||x.at<0||x.at>1e15)fail("奇跡時刻");
+        return {at:x.at,amount:str(x.amount)};
       });
     }else if(key==="stored")normalized.stored=str(v);
     else if(!Number.isFinite(v)||v<0||v>1e15)fail("刹那の内部値 "+key);
