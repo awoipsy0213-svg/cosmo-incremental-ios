@@ -13,7 +13,7 @@ const throws=(f,m)=>{assert.throws(f,m);checks++};
 const now=1800000000000,s=G.createState(now,"normal");
 s.intro.complete=true;s.orbs="1e20";s.moment.tap=9;
 const original=JSON.stringify(s),originalBalance=JSON.stringify(CONFIG.provisional.moment);
-eq(CONFIG.version,"3.12.0","release updated");
+ok(["3.12.0","3.13.0"].includes(CONFIG.version),"v3.12 features retained in current release");
 eq(CONFIG.schemaVersion,31,"save schema unchanged");
 eq(KEYS.normal,"kotowari_v31_normal","normal save key unchanged");
 eq(L.PRICE_MODEL_VERSION,"3.12.0-approx","trial model version");
