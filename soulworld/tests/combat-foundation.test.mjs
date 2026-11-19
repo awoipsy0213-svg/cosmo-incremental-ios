@@ -24,14 +24,14 @@ test('Q347/Q446/Q499: role +10% only for favored final stats before low-rarity b
  h.type='combat';h.rarity='common';h.breakthroughCount=6;
  const out=calculateHeroCombatStats(h);
  assert.ok(Math.abs(out.physicalAttack-60.5)<1e-9);
- assert.equal(out.magicAttack,55);
+ assert.ok(Math.abs(out.magicAttack-55)<1e-9);
  h.type='defense';
  const def=calculateHeroCombatStats(h);
  assert.ok(Math.abs(def.hp-242)<1e-9);
  assert.ok(Math.abs(def.physicalDefense-60.5)<1e-9);
- assert.equal(def.physicalAttack,55);
+ assert.ok(Math.abs(def.physicalAttack-55)<1e-9);
  h.type='support';h.breakthroughCount=0;
- assert.equal(calculateHeroCombatStats(h).magicAttack,55);
+ assert.ok(Math.abs(calculateHeroCombatStats(h).magicAttack-55)<1e-9);
 });
 test('internal float precision is preserved; UI rounds only the final number',()=>{
  const h=createStarterHero();
