@@ -126,6 +126,18 @@ export function validateHeroSavePayload(s){
     for(const value of Object.values(hero.attributes))if(!Number.isInteger(value)||value<1||value>1000)throw Error('英雄能力値が不正');
   }
   if(hero.attributeXp!==undefined && (!hero.attributeXp||typeof hero.attributeXp!=='object'||Array.isArray(hero.attributeXp)||Object.values(hero.attributeXp).some(v=>!Number.isFinite(v)||v<0)))throw Error('英雄経験値の形式が不正');
+  if(hero.fieldLife!==null&&hero.fieldLife!==undefined){
+    const life=hero.fieldLife;
+    if(!life||typeof life!=='object'||Array.isArray(life)||
+      !Number.isFinite(life.age)||life.age<0||
+      !Number.isFinite(life.remaining)||life.remaining<0||life.remaining>LIFETIME||
+      !Number.isFinite(life.walk)||life.walk<0||
+      !life.soul||typeof life.soul!=='object'||Array.isArray(life.soul)||
+      Object.values(life.soul).some(x=>!Number.isFinite(x)||x<0)||
+      !life.lifeMemory||typeof life.lifeMemory!=='object'||Array.isArray(life.lifeMemory)||
+      !Array.isArray(life.lifeMemory.attempts))
+      throw Error('英雄の待機中データが不正');
+  }
  }
  if(stored.pendingSouls!==undefined&&(!Array.isArray(stored.pendingSouls)||stored.pendingSouls.some(id=>typeof id!=='string'||!stored.profiles[id])))throw Error('神殿の魂データが不正');
  const roster=s.heroRoster;
