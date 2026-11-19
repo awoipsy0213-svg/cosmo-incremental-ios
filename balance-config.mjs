@@ -2,7 +2,7 @@
 // null = 未決定。nullを汎用倍率で埋めない。
 // provisionalの値は遊べる基盤の動作確認用で、正式な採用値ではない。
 export const CONFIG = {
-  version: "3.8.0",
+  version: "3.9.0",
   schemaVersion: 31,
   confirmed: {
     sourceMaxLevel: 1000000,
@@ -24,8 +24,8 @@ export const CONFIG = {
     introFadeMs: 1100,
     tapBase: 1,
     moment: {
-      // Six independent upgrades in the Setsuna tab (five direct tap lines + legacy amplifier).
-      // +1, +3, +9, +27, +81 each time the respective tier is purchased.
+      // 30 distinct approved Setsuna effects; old six purchase costs are preserved for save migration.
+      // The old baseCost/growth are price-only. Effect values live in setsuna-rules-v39.mjs.
       tap: {baseCost:10, growth:1.42, amount:1, maxLevel:1000000},
       tap2: {baseCost:75, growth:1.50, amount:3, maxLevel:1000000},
       tap3: {baseCost:450, growth:1.58, amount:9, maxLevel:1000000},
