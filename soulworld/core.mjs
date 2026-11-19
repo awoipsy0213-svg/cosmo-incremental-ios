@@ -2,7 +2,7 @@ import {BATTLE_LIMIT_SECONDS,createBattleManaState,advanceBattleMana} from './ba
 import {STARTER_HERO_ID,createHeroProgression,ensureHeroProgression,grantHeroActionExperience,markHeroSoulPending,collectAllHeroSouls,awardRerollPointsForCollectedXP,createLifeMemory,ensureLifeMemory,recordLifeAttempt,recordWalkAttempt,recordHeroWalkProgress,fadeLifeDangerWarnings} from './hero-progression.mjs';
 import {ensureHeroRoster, registeredHeroIds} from './hero-roster.mjs';
 // Soul World browser prototype: deterministic gameplay state. No real purchases or network.
-export const VERSION = '0.2.0';
+export const VERSION = '0.2.5';
 export const SAVE_KEY = 'soul_world_browser_proto_v001';
 export const N = 5;
 export const LIFETIME = 300;
@@ -77,6 +77,18 @@ export function validateHeroSavePayload(s){
   if(hero.attributeXp!==undefined && (!hero.attributeXp||typeof hero.attributeXp!=='object'||Array.isArray(hero.attributeXp)||Object.values(hero.attributeXp).some(v=>!Number.isFinite(v)||v<0)))throw Error('英雄経験値の形式が不正');
  }
  if(stored.pendingSouls!==undefined&&(!Array.isArray(stored.pendingSouls)||stored.pendingSouls.some(id=>typeof id!=='string'||!stored.profiles[id])))throw Error('神殿の魂データが不正');
+ const roster=s.heroRoster;
+ if(roster!==undefined){
+  if(!roster||typeof roster!=='object'||Array.isArray(roster)||!roster.assignments||
+      typeof roster.assignments!=='object'||Array.isArray(roster.assignments)||!Array.isArray(roster.deployments))
+    throw Error('英雄編成の保存形式が不正');
+  const known=new Set(Object.keys(stored.profiles));
+  const assignments=Object.values(roster.assignments);
+  if(assignments.some(id=>typeof id!=='string'||!known.has(id))||assignments.length!==new Set(assignments).size ||
+    roster.deployments.some(id=>typeof id!=='string'||!assignments.includes(id))||
+    roster.deployments.length!==new Set(roster.deployments).size || roster.deployments.length>3)
+    throw Error('英雄編成の識別情報が不正');
+ }
  return true;
 }
 export function deserialize(text,now=Date.now()){const v=JSON.parse(text);if(v.schema!==1||!v.state||v.state.schema!==1)throw Error('未対応セーブ形式');const s=v.state;s.effects=[];if(!Array.isArray(s.exploreTiles))s.exploreTiles=EXPLORATION_NODES.map(x=>({...x}));if(!s.command||!s.temple||!s.buildings||!Array.isArray(s.actors)||!Array.isArray(s.tiles))throw Error('セーブデータの構造が不正');validateHeroSavePayload(s);ensureHeroProgression(s);ensureStarterTempleInstalled(s);ensureHeroRoster(s);s.saveFormatRevision=2;claimOffline(s,now,v.saveTime||now);return s}
