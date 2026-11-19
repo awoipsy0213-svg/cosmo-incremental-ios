@@ -37,13 +37,18 @@ function earnings(snapshot,now,durationSeconds,tapsPerSecond){
  const passive=A(G.advance(s,now+durationSeconds*1000,{offline:false,rng:()=>0.5}).orbs);
  return {passive,manual,total:passive.add(manual)};
 }
-export function compareMomentPrice(snapshot,{momentId,profile="current",durationSeconds=300,tapsPerSecond=5,now=1800000000000}={}){
+export function compareMomentPrice(snapshot,{momentId,profile="current",durationSeconds=300,tapsPerSecond=5,levelOverride=null,now=1800000000000}={}){
  if(!CONTENT.moment.some(x=>x.id===momentId))throw Error("刹那IDが不正");
  if(!PRICE_PROFILES.includes(profile))throw Error("検証条件が不正");
  if(!PRICE_DURATIONS.includes(durationSeconds)||!PRICE_TAP_RATES.includes(tapsPerSecond))throw Error("検証時間・タップ頻度が不正");
  if(!Number.isFinite(now)||now<0)throw Error("時刻が不正");
  const s=priceSandbox(snapshot,profile,now);
- const level=s.moment[momentId],cfg=CONFIG.provisional.moment[momentId];
+ const cfg=CONFIG.provisional.moment[momentId];
+ if(levelOverride!==null){
+  if(!Number.isSafeInteger(levelOverride)||levelOverride<0||levelOverride>cfg.maxLevel)throw Error("検証Lvが不正");
+  s.moment[momentId]=levelOverride;
+ }
+ const level=s.moment[momentId];
  const base={momentId,profile,durationSeconds,tapsPerSecond,level,maxed:level>=cfg.maxLevel,
   disclaimer:"検証値：手動は基本タップ獲得を一定頻度で換算。連撃・確率抽選・奇跡・手動発動の周期効果は未算入。源と自動獲得は現行計算エンジンで代表条件を推計。"};
  const before=earnings(s,now,durationSeconds,tapsPerSecond);
