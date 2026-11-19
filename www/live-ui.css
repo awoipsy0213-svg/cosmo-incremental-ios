@@ -215,3 +215,14 @@ body.low-power .purchase-card,body.low-power .purchase-card .buy-progress>i{tran
 .kw-sheet-body .moment-card .card-top .moment-favorite{border:1px solid #adc58a80;border-radius:6px;background:#1d2a37;color:#f9d886;min-width:26px;min-height:26px;padding:2px;font-size:17px;cursor:pointer}
 .kw-sheet-body .moment-card .card-top .moment-favorite[aria-pressed="true"]{background:#3d3828;border-color:#f0c96b}
 .kw-sheet-body .moment-card .card-top strong{max-width:62%}
+
+
+/* Ver.3.11 — isolated trial-price comparison (no gameplay write actions). */
+.kw-sheet-body .price-lab{display:flex;flex-direction:column;gap:10px}
+.kw-sheet-body .price-lab>label,.kw-sheet-body .price-lab-fields label{display:flex;flex-direction:column;gap:5px;font-size:11px;color:#c9dfef}
+.kw-sheet-body .price-lab select,.kw-sheet-body .price-lab input{width:100%;box-sizing:border-box;background:#091b30;color:#e7f8ff;border:1px solid #749cb37a;border-radius:6px;padding:9px;font-size:13px;min-height:35px}
+.kw-sheet-body .price-lab-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.kw-sheet-body .price-lab-results{border:1px solid #6eb0b06b;background:#0a202ad6;border-radius:9px;padding:10px;color:#dcf8f4;font-size:12px;line-height:1.5}
+.kw-sheet-body .price-lab-results p{margin:5px 0;overflow-wrap:anywhere}
+.kw-sheet-body .price-lab-table{width:100%;border-collapse:collapse;font-size:11px}
+.kw-sheet-body .price-lab-table th,.kw-sheet-body .price-lab-table td{text-align:left;border-bottom:1px solid #7fa0ae53;padding:7px 4px;overflow-wrap:anywhere}
