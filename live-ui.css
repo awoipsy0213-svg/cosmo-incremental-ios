@@ -199,3 +199,19 @@ body.low-power .purchase-card,body.low-power .purchase-card .buy-progress>i{tran
 .kw-combo-track>i{display:block;height:100%;background:#77d9fa;border-radius:4px}
 .kw-stored{font-size:10px;color:#b6e8d5}
 .wave-special{position:absolute;pointer-events:none;color:#b7f4fd;font:10px system-ui,sans-serif;white-space:nowrap;max-width:85vw;overflow:hidden;text-overflow:ellipsis;animation:wave-number .8s ease-out forwards;transform:translate(-50%,25%)}
+
+
+/* Ver.3.10: presentational-only Setsuna browsing tools. Never change payouts. */
+.kw-sheet-body .moment-tools{background:#09192ac7;border:1px solid #64829d54;border-radius:10px;padding:10px;margin-bottom:10px}
+.kw-sheet-body .moment-groups,.kw-sheet-body .moment-fav-pins{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+.kw-sheet-body .moment-groups button,.kw-sheet-body .moment-fav-pins button{font:11px system-ui,sans-serif;border:1px solid #6391b86f;background:#112337;color:#d9f3ff;border-radius:7px;padding:7px 9px;cursor:pointer}
+.kw-sheet-body .moment-groups button[aria-pressed="true"]{background:#174a54;border-color:#71d8c8;color:#f6fffe}
+.kw-sheet-body .moment-fav-pins button{background:#223040;border-color:#acbf7f6b;color:#f7e5b4}
+.kw-sheet-body .moment-filter-row{display:flex;align-items:end;flex-wrap:wrap;gap:7px;margin-bottom:7px}
+.kw-sheet-body .moment-filter-row label{display:flex;flex-direction:column;gap:4px;font-size:10px;color:#bbd2e2;flex:1;min-width:100px}
+.kw-sheet-body .moment-filter-row input,.kw-sheet-body .moment-filter-row select{box-sizing:border-box;width:100%;min-height:34px;padding:7px;color:#e3f6ff;background:#091827;border:1px solid #668bad80;border-radius:6px;font-size:13px}
+.kw-sheet-body .moment-filter-count{display:block;color:#a8d7d5;font-size:10px}
+.kw-sheet-body .moment-card[hidden],.kw-sheet-body .moment-group-title[hidden]{display:none!important}
+.kw-sheet-body .moment-card .card-top .moment-favorite{border:1px solid #adc58a80;border-radius:6px;background:#1d2a37;color:#f9d886;min-width:26px;min-height:26px;padding:2px;font-size:17px;cursor:pointer}
+.kw-sheet-body .moment-card .card-top .moment-favorite[aria-pressed="true"]{background:#3d3828;border-color:#f0c96b}
+.kw-sheet-body .moment-card .card-top strong{max-width:62%}
