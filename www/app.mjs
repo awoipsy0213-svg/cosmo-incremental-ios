@@ -1,6 +1,7 @@
 import {CONFIG} from "./balance-config.mjs";
 import {UNIVERSE_RESOURCE_RULES,resourceEligible} from "./universe-confirmed-v4.mjs";
 import {KNOWLEDGE_IDS,KNOWLEDGE_NAMES,knowledgeLevel,coreRequirements,autoPlanetAvailable} from "./universe-progression-v316.mjs";
+import {engravingCatalogue,engravingSlots,engravingPurchaseQuote,ENGRAVING_AUTO_CONVERGE_ID} from "./engraving-rules-v317.mjs";
 import {compareMomentPrice,compareMomentPriceProfiles,exportPriceReport,PRICE_MODEL_VERSION} from "./price-lab.mjs";
 import {MOMENT_GROUP_NAMES,cleanMomentPrefs,toggleMomentFavorite,momentVisible} from "./moment-filter.mjs";
 import {CONTENT} from "./content.mjs";
@@ -244,13 +245,47 @@ function sourcesHTML(){
   }).join("")}</div>`;
 }
 function engravingHTML(){
-  const editing=state.engraving.draft!==null,q=G.engravingQuote(state);
-  return `<p class="panel-intro">通常購入の倍率は使いません。仮振り → 確定で反映。未決定ノードは通常プレイに勝手な効果を付けません。</p>
-    <div class="kw-card"><div class="card-top"><strong>余剰の存在 ${f(state.surplusExistence,3)}</strong><span class="badge confirmed">存在1は保護</span></div><p>毎日1回の無料再編・実績再編権・トークンの方針は保持。更新時刻・返却額・費用は要確認です。</p>
-    ${!editing?'<button class="wide-button" data-action="edit-engraving">ビルドを編集する</button>':`<p class="tiny">編集中。確定まで現在のビルドは変わりません。</p>`}</div>
-    <h3>刻印の枝</h3><div class="row-grid">${CONTENT.engravings.map(x=>`<div class="kw-card"><strong>${x.name}</strong><p class="tiny">${x.description}</p><small>${state.engraving.active.includes(x.id)?"適用中":"未取得"} / ${mode==="lab"?"検証費用 0.001":"費用 ？？？"}</small><button class="wide-button" data-draft="${x.id}" ${!editing||mode!=="lab"?"disabled":""}>${state.engraving.draft?.includes(x.id)?"仮選択を外す":"仮選択"}</button></div>`).join("")}</div>
-    ${editing?`<div class="status-note">${state.engraving.observationUnlocked?`追加取得 ${q.added.length} / 消費予定 ${f(q.cost,3)} 存在（検証値）`:"詳細な合算・比較は《刻印の観測》で解放。達成条件は？？？"}</div><div class="sub-grid"><button class="wide-button" data-action="cancel-engraving">編集を取り消す</button><button class="wide-button" data-action="confirm-engraving">確定する</button></div>`:""}
-    <p class="tiny muted">権能・断片・装備型奇跡は採用保留。ここでは追加していません。</p>`;
+  const e=state.engraving,editing=e.draft!==null,slots=engravingSlots(state.convergenceCount),quote=G.engravingQuote(state);
+  const catalogue=engravingCatalogue();
+  const count=(tier)=>catalogue.filter(x=>x.tier===tier&&e.owned.includes(x.id)).length;
+  const options=["0.025","0.05","0.1","0.5","1"];
+  return `<p class="panel-intro">刻印30種・3価格帯。取得は一度きり、所有と装備は別管理です。装備していない刻印の効果は発動しません。</p>
+    <div class="kw-card engraving-overview">
+      <div class="card-top"><strong>余剰存在 ${f(state.surplusExistence,3)}</strong><span class="badge confirmed">不可侵の存在1は保護</span></div>
+      <small>所有 ${e.owned.length}/30 · 装備 ${e.equipped.length}/${slots}枠 · 収束 ${state.convergenceCount}回</small>
+      <small>装備枠は収束1・5・20・100回で各1枠追加。装備変更・取り外しに費用はかかりません。</small>
+      ${!editing?'<button class="wide-button" data-action="edit-engraving">装備を編集</button>':`<div class="status-note">編集中：${e.draft.length}/${slots}枠 · 追加 ${quote.added.length} / 解除 ${quote.removed.length} · 費用なし</div>
+      <div class="invest-choices"><button class="wide-button" data-action="cancel-engraving">変更を破棄</button>
+      <button class="wide-button" data-action="confirm-engraving">この装備で確定</button></div>`}
+    </div>
+    ${e.owned.includes(ENGRAVING_AUTO_CONVERGE_ID)?`<div class="kw-card engraving-auto">
+      <div class="card-top"><strong>ENG-24 自動収束</strong><span class="badge ${e.autoConverge.enabled?"confirmed":""}">${e.autoConverge.enabled?"ON":"OFF"}</span></div>
+      <small>装備中＋ONの場合のみ実行。最短60秒間隔・オフライン実行なし。手動収束はいつでも可能です。</small>
+      <label class="kw-row">最低獲得存在
+        <select id="autoConvergeThreshold" class="input-select" aria-label="自動収束の最低報酬">
+          ${[...new Set([...options,e.autoConverge.minReward])].map(v=>`<option value="${v}" ${A(v).cmp(e.autoConverge.minReward)===0?"selected":""}>${v}</option>`).join("")}
+        </select>
+      </label>
+      <button class="wide-button" data-action="toggle-auto-converge" ${!e.equipped.includes(ENGRAVING_AUTO_CONVERGE_ID)?"disabled":""}>${e.autoConverge.enabled?"自動収束を停止":"自動収束を開始"}</button>
+    </div>`:""}
+    ${[1,2,3].map(tier=>`<h3>刻印 ${["初級","中級","上級"][tier-1]} · ${["0.005","0.025","0.125"][tier-1]} 存在 / 所有 ${count(tier)}/10</h3>
+      ${tier>1?`<p class="tiny muted">購入条件：直前の価格帯の刻印を3種所有。現在 ${count(tier-1)}/3種。</p>`:""}
+      <div class="row-grid engraving-list">
+      ${catalogue.filter(x=>x.tier===tier).map(item=>{
+        const owned=e.owned.includes(item.id),equipped=e.equipped.includes(item.id),selected=(editing?e.draft:e.equipped).includes(item.id);
+        const q=engravingPurchaseQuote(state,item.id);
+        return `<article class="kw-card engraving-card">
+          <div class="card-top"><strong>${esc(item.id)}</strong><span class="badge ${equipped?"confirmed":""}">${equipped?"装備中":owned?"取得済":"未取得"}</span></div>
+          <small>${esc(item.description)}</small>
+          <small>費用 ${item.cost} 存在 · ${item.status==="implemented"?"効果が利用可能":"効果は照合待ち"}</small>
+          ${owned?
+            (editing?`<button class="wide-button" data-draft="${item.id}">${selected?"装備を外す":"装備する"}</button>`:
+              '<small>装備を変更する場合は「装備を編集」を選択</small>'):
+            `<button class="wide-button" data-engraving-buy="${item.id}" ${!q.ok||readOnly||store.blocked?"disabled":""}>${q.ok?"取得する":q.reason}</button>`}
+        </article>`;
+      }).join("")}</div>`).join("")}
+    ${mode==="lab"&&e.active.length?'<p class="tiny muted">旧検証版の4ノード効果はlabデータにのみ保持されています。通常版の刻印所有・装備とは混在しません。</p>':""}
+    <p class="tiny muted">刻印番号は安定した保存IDです。ENG-24以外の固有効果は、対象・数式の原文が照合できるまで誤った補正を与えません。</p>`;
 }
 function flowHTML(){
   const t=state.time;
@@ -817,7 +852,11 @@ async function dispatchAction(action){
   }
   if(action==="edit-engraving")return resultDone(G.beginEngraving(state));
   if(action==="cancel-engraving")return resultDone(G.cancelEngraving(state),"変更を取り消しました");
-  if(action==="confirm-engraving")return resultDone(G.confirmEngraving(state),"ビルドを確定しました");
+  if(action==="confirm-engraving")return resultDone(G.confirmEngraving(state),"刻印装備を確定しました");
+  if(action==="toggle-auto-converge"){
+    const on=!state.engraving.autoConverge.enabled;
+    return resultDone(G.configureAutoConvergence(state,{enabled:on},Date.now()),on?"自動収束をONにしました":"自動収束をOFFにしました");
+  }
   if(action==="convert-common")return resultDone(G.convertCommon(state),"ひとつの残滓を得ました");
   if(action==="create-planet")return resultDone(G.createPlanet(state));
   if(action==="start-core"){
@@ -927,6 +966,13 @@ document.addEventListener("click",async e=>{
       if(!await ask("＋循環の確認",x.name+"：Lv."+source.level.toLocaleString("ja-JP")+" / ＋"+source.plus+" → ＋"+(source.plus+1)+"・Lv1から再開始します。","＋循環する"))return;
       resultDone(G.breakthrough(state,id));return;
     }
+    if(b.dataset.engravingBuy){
+      const id=b.dataset.engravingBuy,quote=engravingPurchaseQuote(state,id);
+      if(!quote.ok)return toast(quote.reason||"購入できません");
+      if(!await ask("刻印の取得を確認",`${id}を余剰存在 ${quote.price} で一度だけ取得します。取得後の存在は ${f(A(state.surplusExistence).sub(quote.price),3)} です。所有だけでは効果は発動しません。`,"取得する"))return;
+      checkpoint();
+      return resultDone(G.buyEngraving(state,id),id+"を取得しました");
+    }
     if(b.dataset.draft){resultDone(G.toggleDraft(state,b.dataset.draft));return;}
     if(b.dataset.form){resultDone(G.formConcept(state,b.dataset.form),"概念を認識しました");return;}
     if(b.dataset.formMax){resultDone(G.formConceptMax(state,b.dataset.formMax),"概念を一括強化しました");return;}
@@ -968,6 +1014,7 @@ document.addEventListener("change",async e=>{
   if(t.dataset.weight!==undefined){G.setWeight(state,Number(t.dataset.weight),Number(t.value));save();render(true);return;}
   if(t.id==="planetSelect"){state.universe.selectedPlanetId=t.value;save();render(true);return;}
   if(t.id==="autoReserveSelect"){resultDone(G.setAutoPlanetReserve(state,Number(t.value)),"最低保有量を変更しました");return;}
+  if(t.id==="autoConvergeThreshold"){resultDone(G.configureAutoConvergence(state,{minReward:t.value}),"自動収束の最低報酬を変更しました");return;}
   if(t.id==="receiptSelect"&&mode==="lab"){
     if(state.universe.planets.some(p=>Object.values(p.pendingResources).some(x=>A(x).cmp(0)>0))){
       toast("保留報酬があるため、先に現在方式で崩壊を確認してください。");renderPanel(true);return;
