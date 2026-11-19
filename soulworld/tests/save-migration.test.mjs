@@ -65,7 +65,7 @@ test('Q405 roster change requires backup of previous hero-learning save',()=>{
   assert.equal(db.getItem(SAVE_KEY),raw);
   assert.equal(db.getItem(SAVE_KEY+'_legacy_backup_1'),raw);
   const upgraded=deserialize(raw);
-  assert.equal(upgraded.saveFormatRevision,3);
+  assert.equal(upgraded.saveFormatRevision,4);
   assert.ok(upgraded.heroRoster.assignments);
   assert.equal(needsHeroLearningMigration(serialize(upgraded)),false);
 });

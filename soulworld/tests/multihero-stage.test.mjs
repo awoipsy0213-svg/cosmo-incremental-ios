@@ -142,7 +142,7 @@ test('v2 save migrates to v3 additively without changing legacy key or collapsin
   s.saveFormatRevision=2;
   delete s.heroProgression.profiles['hero-b'].fieldLife;
   const restored=deserialize(serialize(s));
-  assert.equal(restored.saveFormatRevision,3);
+  assert.equal(restored.saveFormatRevision,4);
   assert.equal(restored.resources.stone,8);
   assert.equal(restored.heroProgression.profiles['hero-b'].name,'テスト英雄 hero-b');
   assert.equal(restored.heroProgression.profiles['hero-b'].fieldLife,null);

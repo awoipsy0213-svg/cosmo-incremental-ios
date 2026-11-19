@@ -23,5 +23,11 @@ jobs:
           node --check soulworld/hero-progression.mjs
           node --check soulworld/save-migration.mjs
           node --check soulworld/hero-roster.mjs
+          node --check soulworld/base-progression.mjs
+          node --check soulworld/combat-foundation.mjs
+          node --check soulworld/scene.mjs
+          node --check soulworld/base-progression.mjs
+          node --check soulworld/scene.mjs
+          node --check soulworld/fallback.mjs
       - name: Run Soul World tests
         run: node --test soulworld/tests/*.test.mjs

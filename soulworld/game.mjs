@@ -4,6 +4,8 @@ import {BASE_ABILITY_KEYS, BASE_ABILITY_LABELS, STARTER_HERO_ID, xpNeededForNext
 import {backupBeforeSaveMigration,needsHeroLearningMigration} from './save-migration.mjs';
 import {heroRosterRows,assignHeroHouse,toggleHeroDeployment,nextHeroHouseUnlock} from './hero-roster.mjs';
 import {SceneFallback} from './fallback.mjs';
+import {previewNextWarehouseCapacity} from './base-progression.mjs';
+import {combatDisplayStats} from './combat-foundation.mjs';
 const $=id=>document.getElementById(id);
 const canvas=$('world');let scene;
 let state;let loaded=false;let legacyBackupBlocked=false;
@@ -81,7 +83,7 @@ function updateUI(){
  const activeString=Array.from({length:count},(_,i)=>`<span class="mini-sub ${i<alive?'alive':''}"><img src="./sub-portrait.svg" alt=""><span class="mini-life"></span></span>`).join('');
  if(activeString!==avatarStatus){$('sub-avatar-strip').innerHTML=activeString;avatarStatus=activeString;}
 
- $('stage-label').textContent=state.stage==='base'?'拠点 Rank 1':state.stage==='explore'?'探索：霧の谷':'PvE 模擬戦';$('gem-top').textContent=number(state.resources.gem);$('temple-top').textContent=pendingHeroes()?`${number(pending())}Pt / 魂${pendingHeroes()}`:number(pending());$('temple-quick').textContent=pendingHeroes()?`魂${pendingHeroes()}｜${number(pending())}Pt`:`${number(pending())} Pt`;
+ $('stage-label').textContent=state.stage==='base'?`拠点 Rank ${state.baseRank||1}`:state.stage==='explore'?'探索：霧の谷':'PvE 模擬戦';$('gem-top').textContent=number(state.resources.gem);$('temple-top').textContent=pendingHeroes()?`${number(pending())}Pt / 魂${pendingHeroes()}`:number(pending());$('temple-quick').textContent=pendingHeroes()?`魂${pendingHeroes()}｜${number(pending())}Pt`:`${number(pending())} Pt`;
  $('btn-battle-pause').classList.toggle('hidden',state.stage!=='battle');
  $('stage-hud').classList.toggle('hidden',state.stage!=='explore');if(state.stage==='explore')$('stage-hud').textContent=`探索：霧の谷　｜　荷台 ${Object.values(state.cargo).reduce((a,b)=>a+b,0)} / 20　｜　復活10秒`;
  if(scene&&state.stage==='base'&&scene.project){
@@ -100,7 +102,22 @@ function updateUI(){
 function modal(title,html,id='generic'){currentModal=id;$('modal-title').textContent=title;$('modal-body').innerHTML=html;$('modal-backdrop').classList.remove('hidden');}
 function closeModal(){if(pausedBattle)pausedBattle=false;currentModal=null;$('modal-backdrop').classList.add('hidden')}
 function stageModal(){let html='<p>育成中の経験は魂に蓄積され、死亡後に神殿で回収できます。独立PvE戦闘では学習しません。</p><div class="action-grid">';for(const [stage,name,desc] of [['base','🏡 拠点','採集・建築・襲撃・魂'],['explore','🧭 探索','特化学習・キャラバン'],['battle','⚔️ PvE','NPC戦・初回ボウガン設計図']])html+=`<button class="action-card" data-stage="${stage}"><strong>${name}</strong><small>${desc}</small></button>`;html+='</div><div class="footer-note">※各ステージは試験用の小規模実装です。実際のPvE/PvP完成ルールは今後調整します。</div>';modal('ステージを選択',html,'stage');}
-function buildModal(){if(state.stage!=='base'){toast('建築は拠点で行います');return}let html='<p>建築する施設を選び、フィールド上の空きマスをタップしてください。建築中はサブが自律作業します。</p><div class="action-grid">';for(const [key,cfg] of Object.entries(TEST_BUILDINGS)){const costs=Object.entries(cfg.costs).map(([k,v])=>`${k==='wood'?'木':'石'}${v}`).join('・');const locked=key==='bowgun'&&!state.blueprints.bowgun;html+=`<button class="action-card" data-build="${key}" ${locked?'disabled':''}><strong>${cfg.label}${locked?' 🔒':''}</strong><small>${costs}｜${cfg.info}</small></button>`}html+='</div><div class="footer-note">建築費用・建築時間・追加サブタウン容量は検証値であり正式仕様ではありません。</div>';modal('建築する施設',html,'build');}
+function buildModal(){
+ if(state.stage!=='base'){toast('建築は拠点で行います');return}
+ const unlock=nextHeroHouseUnlock(state);
+ let html='<p>拠点Rank '+(state.baseRank||1)+'｜累計経験値 '+(state.baseXp||0)+'Pt｜マップ '+(state.mapSize||5)+'×'+(state.mapSize||5)+'</p>'+
+   '<p>施設を選び、フィールド上の空きマスをタップします。</p><div class="action-grid">';
+ for(const [key,cfg] of Object.entries(TEST_BUILDINGS)){
+  const costs=key==='heroHouse'&&unlock?unlock.costs:cfg.costs;
+  const costText=Object.entries(costs).map(([k,v])=>(k==='wood'?'木':'石')+v).join('・');
+  const locked=key==='bowgun'&&!state.blueprints.bowgun ||
+    key==='heroHouse'&&(!unlock||!unlock.rankMet||state.buildings.some(b=>b.type==='heroHouse'&&b.progress<1));
+  const description=key==='heroHouse'?(unlock?'Rank '+unlock.rank+'必要｜'+(unlock.houseNumber===2?30:60)+'秒相当の作業量':'最大3軒'):cfg.info;
+  html+='<button class="action-card" data-build="'+key+'" '+(locked?'disabled':'')+'><strong>'+cfg.label+(locked?' 🔒':'')+'</strong><small>'+costText+'｜'+description+'</small></button>';
+ }
+ html+='</div><div class="footer-note">拠点Rank 2は累計100Pt、Rank 4は600Ptで確定。Rank 3閾値・建築報酬20Ptは試験値です。倉庫アップグレード費用は未決定です。</div>';
+ modal('建築する施設',html,'build');
+}
 function terrainModal(){modal('地形を編集','<p>地形の変更は試験版では無料です。施設や資源のあるマスは編集できません。</p><div class="action-grid">'+[['river','🌊 川'],['grass','🌿 草原'],['cliff','🪨 崖'],['lava','🌋 溶岩'],['pond','💧 溜池']].map(([k,label])=>`<button class="action-card" data-terrain="${k}"><strong>${label}</strong><small>タップ後、マスを選択</small></button>`).join('')+'</div><div class="footer-note">山・坂・氷雪・毒沼・回復の泉などは次段階です。</div>','terrain')}
 function templeModal(){
  const skills=Object.entries(state.temple.pending);
@@ -130,7 +147,10 @@ function heroDetails(tab='basic',heroId=STARTER_HERO_ID){
   <div class="rowline"><strong>状態</strong><span>${hero.status==='pending_soul'?'魂の回収待ち':hero.status==='ready'?'英雄の家で待機':'育成中'}</span></div>
   <p>個別レベル経験値は育成中のみ獲得します。</p>`;
  } else if(tab==='combat'){
-  contents='<p>最終ステータスは基本能力値・キャラタイプ・限界突破・装備から算出予定です。正式な計算式は未実装のため、ここでは未確定値を表示しません。</p>';
+  const preview=combatDisplayStats(hero);
+  contents='<p>確定済みの基礎式・タイプ倍率・低レア突破補正に基づく試験計算です。</p>'+
+    Object.values(preview).map(row=>'<div class="rowline"><strong>'+row.label+'</strong><span>'+row.display+'</span></div>').join('')+
+    '<div class="footer-note">装備・個別スキル・命中回避の換算係数・戦闘中の強化弱体化は未反映。正式な戦闘シミュレーションへの接続は今後実装します。</div>';
  } else {
   const learned=Object.entries(hero.learnedActions||{}).filter(([,x])=>x);
   contents=`<p>未使用スキルポイント：${hero.freeSkillPoints}</p><p>習得済みの行動</p>`+
@@ -172,9 +192,9 @@ function heroHouseModal(filter='all'){
  const filterButtons='<div class="action-grid">'+filters.map(([id,label])=>'<button class="action-card" data-house-filter="'+id+'" '+(id===filter?'disabled':'')+'>'+label+'</button>').join('')+'</div>';
  modal('英雄の家・出撃登録',
  '<p>完成済みの英雄の家：'+rows.houses.length+' / 3軒｜出撃登録：'+rows.deployments.length+' / 3体</p>'+
- houseCards+'<p>未解放：'+rows.lockedHouses+'軒'+(unlock?'｜次の家は拠点Rank '+unlock.rank+'・木材'+unlock.costs.wood+'・石材'+unlock.costs.stone:'')+'（拠点ランク拡張が未実装のため建築不可）</p><p>英雄名簿</p>'+
+ houseCards+'<p>拠点Rank '+(state.baseRank||1)+'｜累計 '+(state.baseXp||0)+'Pt</p><p>未解放：'+rows.lockedHouses+'軒'+(unlock?'｜次の家はRank '+unlock.rank+'・木材'+unlock.costs.wood+'・石材'+unlock.costs.stone:'')+'（追加建築は建築メニューから）</p><p>英雄名簿</p>'+
  filterButtons+roster+
- '<div class="footer-note">この画面は配置・登録データの試験版です。現在の模擬戦のキャラ表示は1体のままです。複数英雄が同時に活動する処理は未完成です。</div>',
+ '<div class="footer-note">この画面は配置・登録データの試験版です。完成済みの家に配置した英雄は育成・探索で個別に活動します。正式PvEでの複数英雄出撃・ガチャ入手・個別AIの高度学習は未完成です。</div>',
  'heroHouse');
 }
 function heroHouseChoose(houseId){
@@ -187,7 +207,7 @@ function heroHouseChoose(houseId){
  modal('配置する英雄を選択','<p>英雄の家 '+houseId+' を変更します。前の英雄は待機名簿に戻ります。</p><div class="action-grid">'+entries+'</div><div class="footer-note">フィールド上の3Dキャラ切り替えは今後の実装です。</div>','heroHouseChoose');
 }
 function statsModal(){const keys=Object.keys(SKILLS);const rows=keys.map(k=>{const xp=state.worldXP[k]||0,l=levelFromXP(xp);return`<div class="rowline"><strong>${SKILLS[k]}</strong><span>Lv.${l} <small>${number(xp)} Pt</small></span></div>`}).join('');modal('世界共有熟練度',`<p>魂を神殿で回収すると、次の行動から世界の熟練度が反映されます。</p>${rows}<div class="footer-note">Lv.0→1は10Pt。レベル2以降の経験テーブルは試作用です。Lv.50以降の性能差も未実装です。</div>`,'stats')}
-function settingsModal(){modal('設定・開発用ツール',`<p>通信・実課金なし。保存キーは《理》とは完全に分離しています。</p><div class="rowline"><strong>検証速度</strong><div class="change"><button data-speed="1">×1</button><button data-speed="5">×5</button><button data-speed="20">×20</button></div></div><div class="rowline"><strong>3D表示</strong><div class="change"><button data-quality="1">標準</button><button data-quality="0">軽量</button></div></div><div class="rowline"><strong>保存</strong><button data-action="save">今すぐ保存</button></div><div class="rowline"><strong>バックアップ</strong><button data-action="export">JSONを書き出し</button></div><div class="rowline"><strong>復元</strong><button data-action="import">JSONを読み込み</button></div><div class="rowline"><strong>新規開始</strong><button data-action="reset">全データ初期化</button></div><div class="footer-note">×5・×20は開発検証専用。オンライン対戦・リアル課金・確定バランスは実装していません。バックアップは端末内ファイルとして大切に保存してください。</div>`,'settings')}
+function settingsModal(){const warehouse=previewNextWarehouseCapacity(state);modal('設定・開発用ツール',`<p>通信・実課金なし。保存キーは《理》とは完全に分離しています。</p><p>拠点Rank ${state.baseRank||1}｜累計 ${state.baseXp||0}Pt｜拠点${state.mapSize||5}×${state.mapSize||5}｜次の倉庫容量 ${warehouse.next??'MAX'}（強化費用は未決定）</p><div class="rowline"><strong>検証速度</strong><div class="change"><button data-speed="1">×1</button><button data-speed="5">×5</button><button data-speed="20">×20</button></div></div><div class="rowline"><strong>3D表示</strong><div class="change"><button data-quality="1">標準</button><button data-quality="0">軽量</button></div></div><div class="rowline"><strong>保存</strong><button data-action="save">今すぐ保存</button></div><div class="rowline"><strong>バックアップ</strong><button data-action="export">JSONを書き出し</button></div><div class="rowline"><strong>復元</strong><button data-action="import">JSONを読み込み</button></div><div class="rowline"><strong>新規開始</strong><button data-action="reset">全データ初期化</button></div><div class="footer-note">×5・×20は開発検証専用。オンライン対戦・リアル課金・確定バランスは実装していません。バックアップは端末内ファイルとして大切に保存してください。</div>`,'settings')}
 const menuItems=[['英雄の家','英雄の配置・待機・出撃登録（試験版）'],['スキン','指示別スキン（開発中）'],['ステータス','世界共有熟練度を確認'],['装備','装備の準備中'],['持ち物','資源とキャラバンの表示'],['ガチャ','能力再抽選の開発予定'],['ショップ','実課金なし・準備中'],['設定','検証速度とセーブ'],['お知らせ','バージョン情報'],['図鑑','初期図鑑（開発中）'],['メール','オンライン機能未実装'],['ヘルプ','操作方法'],['タイトル','ホームに戻る（同じページ）']];
 function mainMenu(){modal('メニュー','<div class="action-grid">'+menuItems.map(([name,desc])=>`<button data-menu="${name}" class="action-card info"><strong>${name}</strong><small>${desc}</small></button>`).join('')+'</div>','mainMenu')}
 function menuChoice(name){if(name==='英雄の家'||name==='兵舎'){heroHouseModal();return}if(name==='設定'){settingsModal();return}if(name==='ステータス'){statsModal();return}if(name==='持ち物'){modal('持ち物',`<p>拠点の資源</p>${Object.keys(state.resources).map(k=>`<div class="rowline"><strong>${({wood:'木材',stone:'石材',food:'食料',meat:'肉',hide:'皮',gem:'試験ジェム'})[k]}</strong><span>${number(state.resources[k])}</span></div>`).join('')}<p>探索キャラバン</p>${Object.keys(state.cargo).map(k=>`<div class="rowline"><strong>${({wood:'木材',stone:'石材',meat:'肉',hide:'皮'})[k]}</strong><span>${number(state.cargo[k])}</span></div>`).join('')}`,'inventory');return}if(name==='ヘルプ'){modal('遊び方',`<p>①自動生成されるサブたちが木や石を集めます。②建築→資材庫を選び、空きマスをタップ。③生命は最大5分、死亡すると魂が神殿へ。④神殿を押して経験を回収。⑤探索やPvEで違う遊びを試します。</p><p>画面ドラッグ：視点移動／ピンチ・ホイール：拡大縮小／キャラタップ：選択・可愛がる／右下円形：指示を選ぶ。</p><div class="footer-note">実装済み：実際の3D表示、生成、採集、建築、魂、神殿、熟練度、交流、探索、簡易PvE、セーブ。未実装：オンライン、課金、対人PvP、本格ガチャ、全施設。</div>`,'help');return}if(name==='お知らせ'){modal('お知らせ',`<p>魂の世界 ブラウザ試作 Ver.${VERSION}</p><p>《理》とは別の作品です。操作確認用の数値を含みます。</p><p>GitHub Pagesで公開できる、サーバー・課金不要のHTML/CSS/WebGL実装です。</p>`,'notice');return}if(name==='タイトル'){modal('魂の世界', '<p>3D見守り育成・ブラウザ試作版</p><p>この世界はブラウザ内に自動保存されています。拠点に戻って続きを遊べます。</p><button class="modal-btn" data-action="back-base">拠点に戻る</button>', 'title');return}modal(name,`<p>この機能は現在の試作版では未実装です。押しても資源の消費や課金はありません。</p><div class="footer-note">構想済みの機能を、動いているように見せないために準備中として表示しています。</div>`,'future')}
@@ -203,7 +223,7 @@ canvas.addEventListener('wheel',e=>{e.preventDefault();if(scene)scene.zoom=Math.
 canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);pointer.set(e.pointerId,{x:e.clientX,y:e.clientY,ox:e.clientX,oy:e.clientY});wasDrag=false});
 canvas.addEventListener('pointermove',e=>{const p=pointer.get(e.pointerId);if(!p||!scene)return;const dx=e.clientX-p.x,dy=e.clientY-p.y;p.x=e.clientX;p.y=e.clientY;if(Math.hypot(p.x-p.ox,p.y-p.oy)>8)wasDrag=true;if(pointer.size===2){const vals=[...pointer.values()],d0=Math.hypot(vals[0].ox-vals[1].ox,vals[0].oy-vals[1].oy),d1=Math.hypot(vals[0].x-vals[1].x,vals[0].y-vals[1].y);if(d0>0)scene.zoom=Math.max(.7,Math.min(2.2,scene.zoom*(1+(d1-d0)/Math.max(100,d1)*.6)));for(const v of vals){v.ox=v.x;v.oy=v.y}}else if(wasDrag)scene.moveCamera(dx,dy)});
 canvas.addEventListener('pointerup',e=>{const p=pointer.get(e.pointerId);pointer.delete(e.pointerId);if(!p||!scene)return;if(wasDrag||pointer.size)return;const x=e.clientX-canvas.getBoundingClientRect().left,y=e.clientY-canvas.getBoundingClientRect().top;const t=scene.locateTile(x,y,state.stage);if(mode==='build'){if(!t){toast('フィールドのマスを選んでください');return}const result=reserveBuild(state,selectedBuild,t.x,t.z);toast(result.ok?'建設予約が完了しました':result.reason);if(result.ok){mode='observe';selectedBuild=null;save()}return}if(mode==='terrain'){if(!t){toast('地形のマスを選んでください');return}const result=editTerrain(state,t.x,t.z,selectedTerrain);toast(result.ok?'地形を変更しました':result.reason);if(result.ok){mode='observe';save()}return}const a=scene.locateActor(state,x,y);if(a){selection=a.id;follow=false;toast(a.kind==='main'?'英雄を選択しました':'サブを選択しました');return}if(state.trash&&t&&t.x===state.trash.x&&t.z===state.trash.z){const r=removeTrash(state);toast(r.completed?'ゴミを撤去しました！':`ゴミ撤去 ${state.trash?.hits||0}/8`);save();return}scene.previewTile=t});canvas.addEventListener('pointercancel',e=>pointer.delete(e.pointerId));
-function loop(now){const frame=Math.min(.5,Math.max(0,(now-prevTime)/1000));prevTime=now;if(!document.hidden){const speed=Math.max(1,Math.min(20,state.settings.speed||1));accum+=frame*speed;let steps=0;while(accum>=.08&&steps<30){if(!(pausedBattle&&state.stage==='battle'))updateGame(state,.08);accum-=.08;steps++}if(scene)try{scene.render(state,pausedBattle&&state.stage==='battle'?0:frame)}catch(err){console.error('Render error',err);recoverRenderer(err)}maintainFrameRate(frame);if(now-lastUI>240){updateUI();lastUI=now}if(now-lastSave>8000)save()}requestAnimationFrame(loop)}
+function loop(now){const frame=Math.min(.5,Math.max(0,(now-prevTime)/1000));prevTime=now;if(!document.hidden){const speed=Math.max(1,Math.min(20,state.settings.speed||1));accum+=frame*speed;let steps=0;while(accum>=.08&&steps<30){if(!(pausedBattle&&state.stage==='battle'))updateGame(state,.08);accum-=.08;steps++}if(scene)try{scene.render(state,pausedBattle&&state.stage==='battle'?0:frame)}catch(err){console.error('Render error',err);recoverRenderer(err)}maintainFrameRate(frame);if(now-lastUI>240){updateUI();lastUI=now}if(now-lastSave>15000)save()}requestAnimationFrame(loop)}
 if(scene)scene.setQuality(state.settings.quality??1);updateUI();requestAnimationFrame(loop);window.addEventListener('pagehide',()=>save(true));document.addEventListener('visibilitychange',()=>{if(document.hidden)save();prevTime=performance.now()});window.addEventListener('keydown',e=>{if(e.key==='Escape'){if(currentModal)closeModal();else if(mode!=='observe'){mode='observe';selectedBuild=null;toast('操作を解除しました')}}});
 if('serviceWorker'in navigator&&location.protocol==='https:'){navigator.serviceWorker.register('./sw.js').catch(err=>console.warn('SW register',err))}
 if(loaded)setTimeout(()=>toast('保存された世界を再開しました'),900);
