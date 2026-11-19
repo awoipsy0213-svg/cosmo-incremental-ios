@@ -114,6 +114,21 @@ export class SaveStore {
             return {state:s,blocked:true,warning:"Ver.3.18移行前の元データ退避に失敗しました。既存セーブは上書きせず保護しています。"};
           }
         }
+        // v3.19 adds bounded online samples, offline/convergence history and
+        // per-planet resource investment counts. Never rewrite a sole v3.18 save.
+        if(this.mode==="normal"&&(
+          oldShape.telemetry===undefined||
+          (oldShape.universe?.planets||[]).some(p=>p.evidence?.investmentsByResource===undefined)
+        )){
+          const key=this.key+".before-v319";
+          try{
+            if(!this.read(key))this.storage.setItem(key,raw);
+            if(this.read(key)!==raw)throw Error("backup verification failed");
+          }catch(e){
+            this.blocked=true;
+            return {state:s,blocked:true,warning:"Ver.3.19の統計移行前に元のセーブを退避できませんでした。既存データを守るため書き込みを停止しています。"};
+          }
+        }
         return {state:s};
       }catch(error){
         // Quarantine original bytes and do not silently overwrite invalid data.
