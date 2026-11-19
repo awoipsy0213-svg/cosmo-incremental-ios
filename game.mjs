@@ -1196,7 +1196,7 @@ export function validateState(input,expectedMode=null) {
       fail("惑星干渉データ");
   const seenTransferIds=new Set(),occupiedPlanets=new Set();
   for(const t of iv.transfers){
-    if(typeof t.id!=="string"||!/^TRANSFER_\\d+$/.test(t.id)||
+    if(typeof t.id!=="string"||!/^TRANSFER_\d+$/.test(t.id)||
        !u.planets.some(p=>p.id===t.from)||!u.planets.some(p=>p.id===t.to)||
        t.from===t.to||!Number.isFinite(t.remainingSeconds)||
        t.remainingSeconds<=0||t.remainingSeconds>600||
