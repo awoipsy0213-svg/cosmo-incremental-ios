@@ -1,7 +1,10 @@
-// Authoritative content derived from the attached handoff. Display names may be provisional.
+// Historical handoff content; v3.16 confirmed rules are attached below.
+// Display names may be provisional and are never used as save identifiers.
+import {TIME_EFFECTS} from "./time-confirmed-v4.mjs";
+import {UNIVERSE_RESOURCE_RULES} from "./universe-confirmed-v4.mjs";
 export const CONTENT = {
   "title": "理",
-  "version": "3.1.0",
+  "version": "3.16.0",
   "reference": "kotowari_handoff_full(1).txt",
   "referenceSha256": "7069b8aa311655b21f84e5af8fd134b716f69bd2baaced838e09606940f241d2",
   "stages": [
@@ -2290,3 +2293,42 @@ export const CONTENT = {
     }
   ]
 };
+
+/* Confirmed decisions overlay. Old handoff snapshots remain in source history.
+ * This does not mark unimplemented phenomenology, engraving or BOOST as complete.
+ * Changes to display labels never alter stable TC/UR keys. */
+for(const c of CONTENT.concepts){
+  if(TIME_EFFECTS[c.id]){
+    c.effect=TIME_EFFECTS[c.id];
+    c.status="効果仕様確定・数値検証継続";
+  }
+}
+for(const r of CONTENT.resources){
+  const rule=UNIVERSE_RESOURCE_RULES[r.id];
+  if(rule){
+    r.effect=rule.effects;
+    r.unlock=rule.conditions;
+    r.massPerUnit=rule.mass;
+  }
+}
+const statRoles={
+  density:"上位の適格資源の抽選重みを増やす。解放条件の判定とは別。",
+  temperature:"熱状態によって熱関連現象と適格資源の抽選傾向を変える。",
+  energy:"惑星内部に生じた現象の報酬強度に作用。独立した通貨ではない。",
+  gravity:"複数惑星間の引力・接近・合流等の相互作用を強める。",
+  acceleration:"惑星間の移動・接近・衝突関連イベントの進行速度に作用。",
+  radiation:"周辺惑星への放出現象の発生と影響を強める。",
+  magnetism:"周辺からの放射等の外部干渉を緩和する。"
+};
+for(const st of CONTENT.stats){
+  if(statRoles[st.id]){
+    st.description=statRoles[st.id];
+    st.status="役割確定・計算一部実装";
+  }
+}
+const pendingRevision={
+  directions:"6方向と最大3方向配分、初回10残滓、次Lv費用、77概念を確定し、基本進行を実装。細部の抽選率・TIME換算はバランス調整待ち。",
+  effect:"77概念と42資源の効果データ・基本計算を採用。源の通常特殊効果、全惑星物理現象、刻印、BOOST等には未実装が残る。",
+  life:"コア形成・脈動・生命認識の基本進行を導入。無機現象の全対応表・生命の詳細育成は未実装。"
+};
+for(const p of CONTENT.pending)if(pendingRevision[p.id])p.description=pendingRevision[p.id];
