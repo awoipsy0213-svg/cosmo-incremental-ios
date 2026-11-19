@@ -399,6 +399,15 @@ export function formConcept(s,id) {
   else event(s,`《${c.name}》がLv.${next}になった。`);
   return {ok:true,level:next,cost};
 }
+export function formConceptMax(s,id) {
+  let count=0;
+  while(count<100){
+    const result=formConcept(s,id);
+    if(!result.ok)break;
+    count++;
+  }
+  return count?{ok:true,count,level:s.time.concepts[id]}:{ok:false,reason:"現在の残滓では強化できません"};
+}
 export function conceptEffect(s,id) {
   const c=CONTENT.concepts.find(x=>x.id===id),rule=TIME_EFFECTS[id];
   if(!c||!rule)return null;
@@ -725,19 +734,20 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
   if(s.time.unlocked){
     const mods=conceptBonuses(s,CONTENT.concepts);
     const weightedDirection=s.time.selected.reduce((sum,i)=>sum+(s.time.weights[i]||0)/100*(mods.directions[i]||0),0);
-    s.time.elapsed+=gameSeconds*(1+mods.time)*(1+mods.all+weightedDirection);
+    const timeSeconds=offline?Math.min(dt,b.offlineCap)*Math.min(1,b.efficiency+mods.offlineEfficiency)*(1+mods.offlineGrowth):gameSeconds;
+    s.time.elapsed+=timeSeconds*(1+mods.time)*(1+mods.all+weightedDirection);
     // Calibrated initial trial coefficient to be balance-tested (TE-31/32).
     const existenceScore=Math.max(0,Math.log10(1+Math.min(1e300,Number(s.surplusExistence)||0)));
     const chancePerSecond=.00055*(1+Math.min(100,existenceScore))*(1+mods.event);
-    const expected=gameSeconds*(s.mode==="lab"?CONFIG.lab.residueEventsPerSecond:chancePerSecond);
+    const expected=timeSeconds*(s.mode==="lab"?CONFIG.lab.residueEventsPerSecond:chancePerSecond);
     const events=Math.min(5000,Math.floor(expected)+(rng()<expected%1?1:0));
     for(let i=0;i<events;i++)rollResidue(s,rng);
     // Per-tick Bernoulli fraction prevents biased over-awards at 150ms refresh.
     s.time.residueAccumulator=0;
-    tryDirectionMiracle(s,gameSeconds,rng);
+    tryDirectionMiracle(s,timeSeconds,rng);
     // TIME is never spent by world-clock progression.
     s.time.worldSeconds=Math.min(1,s.time.worldSeconds+
-      gameSeconds*(1+mods.world)/(24*3600));
+      timeSeconds*(1+mods.world)/(24*3600));
     checkUniverse(s);
   }
   if(s.universe.unlocked){
