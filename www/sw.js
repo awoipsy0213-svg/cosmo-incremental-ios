@@ -1,5 +1,5 @@
 /* Versioned, scope-specific cache. Does not delete saves or another app's cache. */
-const VERSION = "3.14.0-source-cycle-unlock";
+const VERSION = "3.15.0-source-final-effects";
 const PREFIX = "kotowari-handoff:" + new URL(self.registration.scope).pathname + ":";
 const CACHE = PREFIX + VERSION;
 const RELATIVE = [
@@ -19,6 +19,7 @@ const RELATIVE = [
   "numbers.mjs",
   "setsuna-engine.mjs",
   "setsuna-rules-v39.mjs",
+  "source-effects-v315.mjs",
   "game.mjs",
   "save.mjs",
   "app.mjs",
