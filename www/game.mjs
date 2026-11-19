@@ -134,6 +134,7 @@ export function momentComboView(s,now=Date.now()){
 
 // Base output from the first level of this Source. Subsequent levels compound by productionGrowth.
 // Returns Amount to avoid precision/overflow problems for late source tiers.
+export function sourcePlusGain(plus){return sourcePlusMultiplier(plus);}
 export function sourceProductionPerLevel(id) {
   const i=SOURCE_IDS.indexOf(id);
   if(i<0)throw Error("源IDが不正です");
