@@ -2,6 +2,7 @@ import {CONFIG} from "./balance-config.mjs";
 import {TIME_EFFECTS,conceptLevelCost,conceptBonuses,conceptActive,residueWeights} from "./time-confirmed-v4.mjs";
 import {UNIVERSE_RESOURCE_RULES,eligibleResourceWeights,pickWeightedResource,investmentDelta,collapsePressureFactor,collapseHazardPerMinute} from "./universe-confirmed-v4.mjs";
 import {KNOWLEDGE_IDS,addKnowledge,knowledgeLevel,coreRequirements,makeCoreState,advanceCore,autoPlanetAvailable} from "./universe-progression-v316.mjs";
+import {INTERFERENCE_RULES,R1_RESOURCE_IDS,STABILIZING_RESOURCES,resourceSpendPlan,induceResourceCost,interferenceKnowledgeReady} from "./universe-interference-v318.mjs";
 import {ENGRAVING_IDS,ENGRAVING_AUTO_CONVERGE_ID,AUTO_CONVERGE_MIN_INTERVAL_MS,AUTO_CONVERGE_DEFAULT_MIN_REWARD,engravingSlots,engravingPurchaseQuote,validRewardThreshold} from "./engraving-rules-v317.mjs";
 import {FINAL_EFFECTS,ownsSourceFinal,sourceFinalMarker,sourcePlusMultiplier} from "./source-effects-v315.mjs";
 import {cleanMomentPrefs} from "./moment-filter.mjs";
@@ -40,7 +41,7 @@ export function createState(now=Date.now(),mode="normal") {
       residueAccumulator:0,miracles:[]},
     universe:{unlocked:false,planets:[],nextPlanetId:1,selectedPlanetId:null,
       maxPlanets:1,collapseCount:0,resources:{},discoveredResources:[],
-      receiptMode:null,resourceAccumulator:0,unlockedRanks:[1],autoGenerate:false,autoAccumulator:0,autoReserve:0,knowledge:{}},
+      receiptMode:null,resourceAccumulator:0,unlockedRanks:[1],autoGenerate:false,autoAccumulator:0,autoReserve:0,knowledge:{},interference:{transfers:[],nextTransferId:1,lastInduceAt:0,stabilizeCooldowns:{}}},
     life:{unlocked:false},
     // Separate experiment flag; never active in normal saves.
     trial:{enabled:false},
@@ -604,6 +605,7 @@ export function collapsePlanet(s,id=s.universe.selectedPlanetId,rng=Math.random,
   const bag=confirmedResourceBag(reward,p.stats,rng);
   // A planet is deleted after award. Replays cannot award the same planet twice.
   s.universe.planets=s.universe.planets.filter(x=>x.id!==id);
+  stopTransfersForPlanet(s,id);
   receive(s,bag);
   s.universe.selectedPlanetId=s.universe.planets[0]?.id||null;
   s.universe.collapseCount++;
@@ -612,6 +614,117 @@ export function collapsePlanet(s,id=s.universe.selectedPlanetId,rng=Math.random,
   achievement(s,"planetRuin","《惑星の破滅》：最初の崩壊を観測した。2惑星の生成が解放された。");
   event(s,`惑星${id}が崩壊し、${Object.keys(bag).length}種の資源を受け取った。`,now);
   return {ok:true,bag,reward:reward.toString()};
+}
+// Planetary interference uses stable planet IDs and a single affordability check.
+// The caller only renders the controls; balances are never calculated in the DOM.
+function spendResourcePlan(s,plan){
+  for(const row of plan.items)s.universe.resources[row.id]=sub(s.universe.resources[row.id]||0,row.count);
+}
+function selectedPlanetPair(s,firstId,secondId){
+  if(!firstId||!secondId||firstId===secondId)return {ok:false,reason:"生存中の異なる2惑星を選んでください"};
+  const first=planet(s,firstId),second=planet(s,secondId);
+  if(!first||!second)return {ok:false,reason:"対象惑星は終了しています"};
+  return {ok:true,first,second};
+}
+function interferenceReady(s,id){
+  if(!s.universe.unlocked)return {ok:false,reason:"《宇宙》が未解放です"};
+  if(!interferenceKnowledgeReady(s.universe,INTERFERENCE_RULES[id].knowledge))
+    return {ok:false,reason:"対応する現象の理解度100が必要です"};
+  return {ok:true};
+}
+export function interferenceQuote(s,type,firstId,secondId,now=Date.now()){
+  if(!INTERFERENCE_RULES[type])return {ok:false,reason:"干渉の種類が不正です"};
+  const ready=interferenceReady(s,type);
+  if(!ready.ok)return ready;
+  const data=s.universe.interference;
+  const pair=type==="collision"||type==="transfer"?
+    selectedPlanetPair(s,firstId,secondId):{ok:!!planet(s,firstId),first:planet(s,firstId),reason:"対象惑星が見つかりません"};
+  if(!pair.ok)return pair;
+  let price,plan,rule=INTERFERENCE_RULES[type];
+  if(type==="collision"){
+    if(pair.first.core?.formed||pair.first.core?.started||pair.second.core?.formed||pair.second.core?.started)
+      return {ok:false,reason:"コア形成中または完成済みの惑星は衝突できません"};
+    if(data.transfers.some(t=>[firstId,secondId].includes(t.from)||[firstId,secondId].includes(t.to)))
+      return {ok:false,reason:"成長移転中の惑星は衝突できません"};
+    price=rule.cost;
+  } else if(type==="transfer"){
+    if(data.transfers.some(t=>[firstId,secondId].includes(t.from)||[firstId,secondId].includes(t.to)))
+      return {ok:false,reason:"移転に参加中の惑星は別の移転を開始できません"};
+    price=rule.cost;
+  } else if(type==="induce"){
+    if(s.universe.collapseCount<rule.requiredCollapses)
+      return {ok:false,reason:"最終崩壊を累計10回観測してください"};
+    if(!Number.isFinite(now)||now-data.lastInduceAt<rule.cooldownMs)
+      return {ok:false,reason:"誘発崩壊の待機中です"};
+    price=induceResourceCost(pair.first.stats.mass).toString();
+  } else if(type==="stabilize"){
+    if(A(pair.first.stats.stability||0).cmp(rule.maxStability)>=0)
+      return {ok:false,reason:"惑星の安定は最大90%です"};
+    if((data.stabilizeCooldowns[firstId]||0)>0)
+      return {ok:false,reason:"この惑星の安定化は待機中です"};
+    price=rule.cost;
+  }
+  plan=resourceSpendPlan(s.universe.resources,price,type==="stabilize"?STABILIZING_RESOURCES:R1_RESOURCE_IDS);
+  return plan.ok?{ok:true,type,firstId,secondId:secondId||null,price,plan}:
+    {ok:false,reason:plan.reason,price};
+}
+function stopTransfersForPlanet(s,id){
+  s.universe.interference.transfers=s.universe.interference.transfers.filter(t=>t.from!==id&&t.to!==id);
+  delete s.universe.interference.stabilizeCooldowns[id];
+}
+export function collidePlanets(s,firstId,secondId,now=Date.now()){
+  const q=interferenceQuote(s,"collision",firstId,secondId,now);
+  if(!q.ok)return q;
+  const first=planet(s,firstId),second=planet(s,secondId);
+  const ma=A(first.stats.mass),mb=A(second.stats.mass),total=ma.add(mb);
+  const stats=Object.fromEntries(STAT_IDS.filter(id=>id!=="age").map(id=>{
+    if(id==="mass")return [id,total.mul(.8).toString()];
+    const value=total.cmp(0)>0?
+      A(first.stats[id]).mul(ma).add(A(second.stats[id]).mul(mb)).div(total):A(0);
+    return [id,(id==="stability"&&value.cmp(90)>0?A(90):value).toString()];
+  }));
+  const id="PLANET_"+s.universe.nextPlanetId++;
+  spendResourcePlan(s,q.plan);
+  stopTransfersForPlanet(s,firstId);stopTransfersForPlanet(s,secondId);
+  s.universe.planets=s.universe.planets.filter(p=>p.id!==firstId&&p.id!==secondId);
+  s.universe.planets.push({id,bornAt:now,stats,observed:[],pendingResources:{},receiptMode:null,core:makeCoreState(),evidence:{}});
+  s.universe.selectedPlanetId=id;
+  addKnowledge(s.universe,"collision",10);
+  event(s,`惑星${firstId}と${secondId}が衝突。新しい惑星${id}が形成された。`,now);
+  return {ok:true,id,cost:q.price};
+}
+export function transferPlanetGrowth(s,fromId,toId,now=Date.now()){
+  const q=interferenceQuote(s,"transfer",fromId,toId,now);
+  if(!q.ok)return q;
+  const data=s.universe.interference;
+  spendResourcePlan(s,q.plan);
+  const id="TRANSFER_"+data.nextTransferId++;
+  data.transfers.push({id,from:fromId,to:toId,remainingSeconds:INTERFERENCE_RULES.transfer.durationSeconds});
+  event(s,`成長移転を開始：${fromId}の質量自然成長を10分間止め、50%相当を${toId}へ送る。`,now);
+  return {ok:true,id,cost:q.price};
+}
+export function inducePlanetCollapse(s,id,now=Date.now(),rng=Math.random){
+  const q=interferenceQuote(s,"induce",id,null,now);
+  if(!q.ok)return q;
+  const out=collapsePlanet(s,id,rng,now);
+  if(!out.ok)return out;
+  spendResourcePlan(s,q.plan);
+  s.universe.interference.lastInduceAt=now;
+  event(s,`崩壊干渉：R1資源${q.price}を消費した。`,now);
+  return {ok:true,...out,cost:q.price};
+}
+export function stabilizePlanet(s,id,now=Date.now()){
+  const q=interferenceQuote(s,"stabilize",id,null,now);
+  if(!q.ok)return q;
+  const p=planet(s,id);
+  const next=A(p.stats.stability||0).add(INTERFERENCE_RULES.stabilize.stabilityGain);
+  spendResourcePlan(s,q.plan);
+  p.stats.stability=(next.cmp(INTERFERENCE_RULES.stabilize.maxStability)>0?
+    A(INTERFERENCE_RULES.stabilize.maxStability):next).toString();
+  s.universe.interference.stabilizeCooldowns[id]=INTERFERENCE_RULES.stabilize.cooldownMs/1000;
+  addKnowledge(s.universe,"stability",10);
+  event(s,`惑星${id}を安定化した。安定 ${p.stats.stability}% 。`,now);
+  return {ok:true,id,cost:q.price,stability:p.stats.stability};
 }
 export function startCore(s,id=s.universe.selectedPlanetId) {
   const p=planet(s,id),q=coreRequirements(p,s.universe);
@@ -812,9 +925,27 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
     checkUniverse(s);
   }
   if(s.universe.unlocked){
+    const interference=s.universe.interference;
+    const growthBonuses=new Map(),growthBlocks=new Map();
+    for(const t of [...interference.transfers]){
+      const from=planet(s,t.from),to=planet(s,t.to);
+      if(!from||!to||t.remainingSeconds<=0)continue;
+      const active=Math.min(gameSeconds,t.remainingSeconds);
+      const factor=Math.min(2,1.01**Math.min(100,Math.floor(Number(from.stats.activity||0)/100)));
+      const wouldGrow=A(active/60).mul(factor);
+      growthBlocks.set(t.from,(growthBlocks.get(t.from)||A(0)).add(wouldGrow));
+      growthBonuses.set(t.to,(growthBonuses.get(t.to)||A(0)).add(wouldGrow.mul(.5)));
+      t.remainingSeconds=Math.max(0,t.remainingSeconds-gameSeconds);
+    }
+    interference.transfers=interference.transfers.filter(t=>t.remainingSeconds>0&&planet(s,t.from)&&planet(s,t.to));
+    for(const [id,cooldown] of Object.entries(interference.stabilizeCooldowns)){
+      if(!planet(s,id))delete interference.stabilizeCooldowns[id];
+      else interference.stabilizeCooldowns[id]=Math.max(0,cooldown-gameSeconds);
+    }
     for(const p of [...s.universe.planets]){
       const activity=Math.min(2,1.01**Math.min(100,p.stats.activity?Math.floor(Number(p.stats.activity)/100):0));
-      const growth=A(gameSeconds/60).mul(activity);
+      const growth=A(gameSeconds/60).mul(activity).sub(growthBlocks.get(p.id)||A(0))
+        .add(growthBonuses.get(p.id)||A(0));
       p.stats.mass=add(p.stats.mass,growth);
       if(!p.evidence||typeof p.evidence!=="object")p.evidence={};
       p.evidence.naturalTicks=(p.evidence.naturalTicks||0)+gameSeconds/60;
@@ -1026,6 +1157,7 @@ export function validateState(input,expectedMode=null) {
     if(u.autoAccumulator===undefined)u.autoAccumulator=0;
     if(u.autoReserve===undefined)u.autoReserve=0;
     if(u.knowledge===undefined)u.knowledge={};
+    if(u.interference===undefined)u.interference={transfers:[],nextTransferId:1,lastInduceAt:0,stabilizeCooldowns:{}};
   }
   if(!u||!Array.isArray(u.planets)||u.planets.length>20)fail("宇宙");
   if(!Number.isInteger(u.maxPlanets)||u.maxPlanets<1||u.maxPlanets>20||!Number.isInteger(u.nextPlanetId)||u.nextPlanetId<1)fail("惑星数");
@@ -1055,6 +1187,25 @@ export function validateState(input,expectedMode=null) {
   if(!u.knowledge||typeof u.knowledge!=="object"||Array.isArray(u.knowledge))fail("理解度");
   for(const [id,v] of Object.entries(u.knowledge)){
     if(!KNOWLEDGE_IDS.includes(id)||!Number.isFinite(v)||v<0||v>100)fail("理解度の範囲");
+  }
+  const iv=u.interference;
+  if(!iv||typeof iv!=="object"||Array.isArray(iv)||!Array.isArray(iv.transfers)||
+    iv.transfers.length>10||!Number.isSafeInteger(iv.nextTransferId)||iv.nextTransferId<1||
+    !Number.isFinite(iv.lastInduceAt)||iv.lastInduceAt<0||iv.lastInduceAt>1e15||
+    !iv.stabilizeCooldowns||typeof iv.stabilizeCooldowns!=="object"||Array.isArray(iv.stabilizeCooldowns))
+      fail("惑星干渉データ");
+  const seenTransferIds=new Set(),occupiedPlanets=new Set();
+  for(const t of iv.transfers){
+    if(typeof t.id!=="string"||!/^TRANSFER_\\d+$/.test(t.id)||
+       !u.planets.some(p=>p.id===t.from)||!u.planets.some(p=>p.id===t.to)||
+       t.from===t.to||!Number.isFinite(t.remainingSeconds)||
+       t.remainingSeconds<=0||t.remainingSeconds>600||
+       seenTransferIds.has(t.id)||occupiedPlanets.has(t.from)||occupiedPlanets.has(t.to))
+      fail("成長移転");
+    seenTransferIds.add(t.id);occupiedPlanets.add(t.from);occupiedPlanets.add(t.to);
+  }
+  for(const [id,v] of Object.entries(iv.stabilizeCooldowns)){
+    if(!u.planets.some(p=>p.id===id)||!Number.isFinite(v)||v<0||v>300)fail("安定化待機");
   }
   const e=s.engraving;
   if(!e||typeof e!=="object"||Array.isArray(e))fail("刻印");
