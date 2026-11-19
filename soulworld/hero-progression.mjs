@@ -279,3 +279,18 @@ export function recordHeroWalkProgress(hero, success=true) {
   hero.walkStage=Math.min(5,Math.floor(hero.walkPracticeCount/6));
   return hero.walkStage;
 }
+
+// Q413: exploration-specific basic abilities can grow, but neither hero
+// level XP nor individual action-mastery XP is awarded outside training.
+export const EXPLORATION_ABILITY_ACTIONS = Object.freeze(['survey','swim']);
+export function grantExplorationBasicAbilityExperience(hero, action, baseExperience, {success=true,difficulty=1}={}) {
+  if(!EXPLORATION_ABILITY_ACTIONS.includes(action))return {ok:false,reason:'not-exploration-ability'};
+  const keys=PROVISIONAL_ACTION_ATTRIBUTES[action];
+  if(!keys || !Number.isFinite(baseExperience) || baseExperience<=0 ||
+     !Number.isFinite(difficulty) || difficulty<=0)return {ok:false,reason:'invalid-experience'};
+  const amount=baseExperience*Math.max(ACTION_DIFFICULTY_MIN,Math.min(ACTION_DIFFICULTY_MAX,difficulty))*(success?1:FAILED_ACTION_XP_FACTOR);
+  const growth={};
+  growth[keys[0]]=grantAbilityExperience(hero,keys[0],amount*0.8);
+  growth[keys[1]]=grantAbilityExperience(hero,keys[1],amount*0.2);
+  return {ok:true,amount,abilityGrowth:growth};
+}
