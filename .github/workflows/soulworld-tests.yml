@@ -16,5 +16,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Parse Soul World browser modules
+        run: |
+          node --check soulworld/game.mjs
+          node --check soulworld/core.mjs
+          node --check soulworld/hero-progression.mjs
+          node --check soulworld/save-migration.mjs
       - name: Run Soul World tests
         run: node --test soulworld/tests/*.test.mjs

@@ -34,3 +34,14 @@ Date: 2026-11-19. Q1–312 decisions have been confirmed in the design conversat
 - Block overwriting an old save without an available backup; test round-trip serialization.
 - Implement in feature branches, pass all regressions + compatibility tests, merge only when green.
 - Next: Q313–362 clarifies hero experience, learning/action mastery, individual roles and detailed reincarnation UX. These questions are **proposals** until answered.
+
+
+## Q313–362 checkpoint (confirmed by user)
+- Individual hero level cap is 200. Level XP grows smoothly, although the current coefficient remains provisional.
+- Training success grants base 10XP, difficulty multiplier 0.5–2.0, failure gives 25%. The 80/20 basic-ability allocation remains.
+- A given action is marked learned only after three successful attempts (old earned flags stay preserved during migration).
+- The field actor retains at most 20 short-lived attempts and fading hazard memory, which resets with its life; hero keeps long-term learned actions and walking mastery.
+- Walking learning is targeted at ~30 attempts in five stages; the current implementation provides milestone counters and persistence. The **animation/behavior** still uses the old movement algorithm and does not yet show autonomous falling/standing trials.
+- The temple panel now shows pending heroes even if soul XP is zero, and bulk recovery can revive them. Hero detail tabs show basic abilities, growth, skills, and a clearly labelled unimplemented final-stat panel.
+- Three rolling legacy save backups before a format transition plus write protection and JSON export remain separate from Kotowari. Browser JavaScript parse checks were added to CI. Soul World Service Worker precaches the imported modules for offline operation.
+- Final-stat formulas, exact AI learning policy, full multi-hero roster, full battle, exact walking difficulty, broad iPhone QA are not completed. This does not constitute a fully playable release for these planned features.
