@@ -1,4 +1,5 @@
 import {CONFIG} from "./balance-config.mjs";
+import {MOMENT_GROUP_NAMES,cleanMomentPrefs,toggleMomentFavorite,momentVisible} from "./moment-filter.mjs";
 import {CONTENT} from "./content.mjs";
 import {PROPOSED,PLANET_EFFECT_PROPOSALS,resourcePrototype,trialPreview,boostTrialCost,proposedSourceSlots,FIRST_CONCEPT_PROPOSALS} from "./design-proposals.mjs";
 import {A,formatAmount} from "./numbers.mjs";
@@ -174,16 +175,52 @@ function cardQuote(kind,id){
   const q=G.purchaseQuote(state,kind,id),name=kind==="source"?CONTENT.sources.find(x=>x.id===id).name:CONTENT.moment.find(x=>x.id===id).name;
   return `<button class="buy-button" data-purchase="${kind}" data-id="${id}" ${!q.enabled||readOnly?"disabled":""} aria-label="${esc(name+"を購入")}" title="${esc(name+": "+quoteText(q)+" オーブ")}"><span class="buy-amount" data-quote-label>${esc(quoteText(q))}</span><small>オーブ</small></button><div class="live-buy-hint" data-live-hint aria-live="off"></div>`;
 }
+const MOMENT_PREF_IDS=CONTENT.moment.map(x=>x.id);
+let momentSearch="",lastMomentFilterRefresh=0;
+function momentControls(){
+ const prefs=cleanMomentPrefs(state.settings,MOMENT_PREF_IDS);
+ const buttons=[["all","全系統"],...MOMENT_GROUP_NAMES.map((x,i)=>[String(i),x])];
+ return `<section class="moment-tools" aria-label="刹那の表示切替">
+   <div class="moment-groups">${buttons.map(([k,label])=>`<button type="button" data-moment-group-select="${k}" aria-pressed="${prefs.momentGroup===k}">${esc(label)}</button>`).join("")}</div>
+   <div class="moment-filter-row">
+     <label>名前・効果を検索 <input id="momentSearch" type="search" value="${esc(momentSearch)}" placeholder="強化名や効果を入力" maxlength="60"></label>
+     <label>表示 <select data-moment-filter>
+       <option value="all" ${prefs.momentFilter==="all"?"selected":""}>すべて</option>
+       <option value="affordable" ${prefs.momentFilter==="affordable"?"selected":""}>購入可能</option>
+       <option value="favorites" ${prefs.momentFilter==="favorites"?"selected":""}>お気に入り</option>
+     </select></label>
+   </div>
+   <div class="moment-fav-pins">${prefs.momentFavorites.map(id=>{const x=CONTENT.moment.find(x=>x.id===id);return x?`<button type="button" data-moment-shortcut="${id}" title="${esc(x.name)}">★ ${esc(x.name)}</button>`:"";}).join("")}</div>
+   <small data-moment-filter-count aria-live="polite"></small>
+ </section>`;
+}
+function refreshMomentVisibility(){
+ if(!state||currentStage!=="existence"||currentSub!=="moment")return;
+ const body=$("sheetBody"),prefs=cleanMomentPrefs(state.settings,MOMENT_PREF_IDS);
+ const groups=new Set();let visible=0;
+ for(const x of CONTENT.moment){
+   const card=body.querySelector(`[data-moment-entry="${x.id}"]`);
+   if(!card)continue;
+   const affordable=prefs.momentFilter==="affordable"?G.purchaseQuote(state,"moment",x.id).enabled:false;
+   const shown=momentVisible({...x,affordable},{group:prefs.momentGroup,filter:prefs.momentFilter,search:momentSearch,favorites:prefs.momentFavorites});
+   card.hidden=!shown;if(shown){visible++;groups.add(String(x.group));}
+ }
+ for(const header of body.querySelectorAll("[data-moment-heading]"))
+   header.hidden=!groups.has(header.dataset.momentHeading);
+ const counter=body.querySelector("[data-moment-filter-count]");
+ if(counter)counter.textContent=`表示 ${visible} / 30項目 ・ お気に入り ${prefs.momentFavorites.length} / 5`;
+}
+
 function momentHTML(){
   const q=G.convergenceQuote(state),effects=G.momentEffects(state);
   return `<p class="tiny muted">刹那30項目・6系統。第1〜7回の確定効果を反映。新24項目の価格・節目倍率は検証値です。</p>
-  <div class="row-grid compact-upgrades">${CONTENT.moment.map((x,i)=>{
-    const heading=i%5===0?`<div class="moment-group-title">${esc(["基礎干渉","連続干渉","確率干渉","自律干渉","源泉共鳴","超越干渉"][Math.floor(i/5)])}</div>`:"";
+  ${momentControls()}<div class="row-grid compact-upgrades">${CONTENT.moment.map((x,i)=>{
+    const heading=i%5===0?`<div class="moment-group-title" data-moment-heading="${Math.floor(i/5)}">${esc(["基礎干渉","連続干渉","確率干渉","自律干渉","源泉共鳴","超越干渉"][Math.floor(i/5)])}</div>`:"";
     const e=effects[i],offer=G.purchaseQuote(state,"moment",x.id);
     const after=offer.enabled&&offer.count>0?`<p><b>${state.purchaseMode}購入後 · Lv.${(state.moment[x.id]+offer.count).toLocaleString("ja-JP")}</b> ${esc(G.momentAfterQuote(state,i,offer.count))}</p>`:"";
     const events=i===14?(state.momentRuntime?.miracleHistory||[]):[];
     const miracle=events.length?`<p>直近の奇跡：${events.slice().reverse().map(y=>esc(new Date(y.at).toLocaleString("ja-JP")+" +"+f(y.amount))).join(" / ")}</p>`:"";
-    return `${heading}<article class="kw-card purchase-card moment-card" data-purchase-card data-moment-card="${x.id}"><div class="card-top"><strong>${esc(x.name)}</strong><small data-moment-level="${x.id}">Lv.${state.moment[x.id].toLocaleString("ja-JP")}</small></div>
+    return `${heading}<article class="kw-card purchase-card moment-card" data-purchase-card data-moment-card="${x.id}" data-moment-entry="${x.id}"><div class="card-top"><strong>${esc(x.name)}</strong><button type="button" class="moment-favorite" data-moment-favorite="${x.id}" aria-pressed="${state.settings.momentFavorites?.includes(x.id)?"true":"false"}" aria-label="${esc(x.name)}のお気に入り切り替え">${state.settings.momentFavorites?.includes(x.id)?"★":"☆"}</button><small data-moment-level="${x.id}">Lv.${state.moment[x.id].toLocaleString("ja-JP")}</small></div>
       <small class="compact-upgrade-rate" title="${esc(x.description)}">${esc(x.description)}</small>
       <small class="moment-live-effect"><b>現在</b> ${esc(e.current)}</small>
       ${cardQuote("moment",x.id)}
@@ -386,6 +423,7 @@ function renderPanel(force=false){
 
   body.querySelectorAll("details[data-preserve]").forEach(x=>x.open=details.includes(x.dataset.preserve));
   body.scrollTop=force&&body.dataset.sub!==currentSub?0:top;body.dataset.sub=currentSub;
+  refreshMomentVisibility();
 }
 function refreshPurchaseButtons(){
   if(!state||sheetState==="closed"||currentStage!=="existence"||!["moment","sources"].includes(currentSub))return;
@@ -460,7 +498,9 @@ function refreshPurchaseButtons(){
     const bonus=$("sheetBody").querySelector("[data-existence-rate]");
     if(bonus)bonus.textContent=`×${f(G.existenceMultiplier(state),3)}`;
   }
-
+  if(currentSub==="moment"&&state.settings.momentFilter==="affordable"&&Date.now()-lastMomentFilterRefresh>900){
+    lastMomentFilterRefresh=Date.now();refreshMomentVisibility();
+  }
 }
 function refreshBoostShortcut(){
   if(!state||!state.intro.complete)return;
@@ -712,6 +752,24 @@ document.addEventListener("click",async e=>{
     if(b.dataset.stage){setStage(b.dataset.stage);return;}
     if(b.dataset.child){currentSub=b.dataset.child;renderPanel(true);return;}
     if(b.dataset.organizer){openOrganizerPage(b.dataset.organizer);return;}
+    if(b.dataset.momentGroupSelect!==undefined){
+      if(readOnly||store.blocked)return toast("読み取り専用です");
+      state.settings.momentGroup=b.dataset.momentGroupSelect;
+      save();renderPanel(true);return;
+    }
+    if(b.dataset.momentFavorite){
+      if(readOnly||store.blocked)return toast("読み取り専用です");
+      const next=toggleMomentFavorite(state.settings.momentFavorites,b.dataset.momentFavorite,MOMENT_PREF_IDS);
+      if(!next.changed)return toast(next.error==="limit"?"お気に入りは5項目までです":"対象が見つかりません");
+      state.settings.momentFavorites=next.favorites;save();renderPanel(true);return;
+    }
+    if(b.dataset.momentShortcut){
+      if(readOnly||store.blocked)return toast("読み取り専用です");
+      const entry=CONTENT.moment.find(x=>x.id===b.dataset.momentShortcut);
+      if(entry){state.settings.momentGroup=String(entry.group);state.settings.momentFilter="all";momentSearch="";
+        save();renderPanel(true);$("sheetBody").querySelector(`[data-moment-entry="${entry.id}"]`)?.scrollIntoView({block:"center"});}
+      return;
+    }
     if(b.dataset.action){await dispatchAction(b.dataset.action);return;}
     if(b.matches("[data-legacy-link]")){save(true);return;}
     if(b.dataset.sourceDetail){
@@ -750,6 +808,9 @@ document.addEventListener("change",async e=>{
   }
   if(readOnly){render(true);return;}
   checkpoint();
+  if(t.dataset.momentFilter!==undefined){
+    state.settings.momentFilter=t.value;save();renderPanel(true);return;
+  }
   if(t.dataset.pref){
     state.settings[t.dataset.pref]=t.type==="checkbox"?t.checked:t.value;applySettings();save();render(true);return;
   }
@@ -763,7 +824,9 @@ document.addEventListener("change",async e=>{
     state.universe.receiptMode=t.value||null;save();render(true);return;
   }
 });
-document.addEventListener("input",e=>{lastInteraction=Date.now();if(e.target.id==="importText")importDraft=e.target.value;});
+document.addEventListener("input",e=>{lastInteraction=Date.now();if(e.target.id==="importText")importDraft=e.target.value;
+  if(e.target.id==="momentSearch"){momentSearch=e.target.value.slice(0,60);refreshMomentVisibility();}
+});
 function hidePage(){
   stopHoldPurchase();
   if(!state||readOnly)return;
