@@ -48,7 +48,16 @@ try {
       window.localStorage.setItem(S.KEYS.normal,S.encode(state,"browser-fixture"));
     });
     await page.reload({waitUntil:"domcontentloaded"});
-    await page.locator('[data-stage="universe"]').waitFor();
+    await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
+    const diagnostics=await page.evaluate(()=>{
+      const raw=localStorage.getItem("kotowari_v31_normal"), parsed=raw?JSON.parse(raw):null;
+      return {indicator:document.querySelector("#saveIndicator")?.textContent,
+        notice:document.querySelector("#noticeText")?.textContent,
+        stageNav:document.querySelector("#stageNav")?.textContent,
+        intro:parsed?.data?.intro,unlocked:parsed?.data?.universe?.unlocked,
+        localStorageKeys:Object.keys(localStorage)};
+    });
+    assert.ok(await page.locator('[data-stage="universe"]').count(),label+" fixture stage absent: "+JSON.stringify(diagnostics));
     await page.locator('[data-stage="universe"]').click();
     await page.locator('[data-child="observations"]').click();
     await page.locator('button[data-interference="collision"]').waitFor();
