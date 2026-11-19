@@ -231,11 +231,11 @@ function momentHTML(){
 }
 function sourcesHTML(){
   const ms=CONFIG.confirmed.sourceMilestones,cycle=G.sourceCycleStatus(state);
-  return `<div class="status-note">源の一巡：${cycle.reached} / ${cycle.total}種到達 ${cycle.unlocked?"・＋循環解放済み":"・解放まで残り"+cycle.remaining+"種"}。＋値は永続記録、通常プレイの＋倍率は未決定です。</div><div class="row-grid compact-upgrades">${CONTENT.sources.map((x,i)=>{
+  return `<div class="status-note">源の一巡：${cycle.reached} / ${cycle.total}種到達 ${cycle.unlocked?"・＋循環解放済み":"・解放まで残り"+cycle.remaining+"種"}。＋値倍率は「1＋0.5×＋値」で、Lv1から再成長します。</div><div class="row-grid compact-upgrades">${CONTENT.sources.map((x,i)=>{
     const v=state.sources[x.id],done=ms.filter(m=>m<=v.level).length,next=ms.find(m=>m>v.level);
-    return `<article class="kw-card source-card purchase-card" data-purchase-card><div class="card-top"><strong>${String(i+1).padStart(2,"0")} ${esc(x.name)}</strong><small data-source-level="${x.id}">Lv.${v.level.toLocaleString("ja-JP")}</small></div>
+    return `<article class="kw-card source-card purchase-card" data-purchase-card><div class="card-top"><strong>${String(i+1).padStart(2,"0")} ${esc(x.name)} ＋${v.plus.toLocaleString("ja-JP")}</strong><small data-source-level="${x.id}">Lv.${v.level.toLocaleString("ja-JP")}</small></div>
     <button class="more-button source-detail-button" data-source-detail="${x.id}" aria-label="${esc(x.name)}の詳細">⋯</button>
-    <div class="source-meta"><span>節目 ${done}/21</span><span>次 ${next?next.toLocaleString("ja-JP"):"MAX"}</span></div>
+    <div class="source-meta"><span>節目 ${done}/21</span><span>次 ${next?next.toLocaleString("ja-JP"):"MAX"}</span><span>＋倍率 ×${f(G.sourcePlusGain(v.plus),2)}</span></div>
     <div class="source-rates" title="1Lv増加量 / この源の合計秒間生産量"><span data-source-next="${x.id}">次+${f(G.sourceNextGain(state,x.id))}/秒</span><span data-source-total="${x.id}">計 ${f(G.sourceProduction(state,x.id))}/秒</span></div>
     ${cardQuote("source",x.id)}
     ${v.level===1000000?`<button class="wide-button" data-breakthrough="${x.id}" ${!cycle.unlocked?"disabled":""}>＋循環 ${cycle.unlocked?"・Lv1から再開":"・全30源一巡まで残り"+cycle.remaining+"種"}</button>`:""}</article>`;
@@ -335,7 +335,7 @@ function settingsHTML(){
   return `<p class="panel-intro">背景は既存のORGANIC FLOWを維持。安全な保存・表示設定は序章から利用できます。</p>
   ${labels.map(([id,name,desc])=>`<label class="kw-row"><span>${name}<small>${desc}</small></span><input type="checkbox" data-pref="${id}" ${state.settings[id]?"checked":""}></label>`).join("")}
   <label class="kw-row">数値表記<select class="input-select" data-pref="notation"><option value="auto" ${state.settings.notation==="auto"?"selected":""}>標準（100万以降e）</option><option value="scientific" ${state.settings.notation==="scientific"?"selected":""}>指数 e（1.23e12）</option><option value="exponent" ${state.settings.notation==="exponent"?"selected":""}>指数 E（1.23E+12）</option><option value="zeros" ${state.settings.notation==="zeros"?"selected":""}>0の個数（10^12）</option></select></label>
-  <div class="kw-row"><span>バージョン<small>Ver.3.14 源30種の＋循環解放 / 水色×紫UI維持</small></span><strong>3.14.0</strong></div>
+  <div class="kw-row"><span>バージョン<small>Ver.3.15 源＋循環と固有最終効果 / 水色×紫UI維持</small></span><strong>3.15.0</strong></div>
   <div class="kw-row"><span>通信<small>クラウド・課金は未接続</small></span><strong>${navigator.onLine?"オンライン":"オフライン"}</strong></div>
   <button class="wide-button" data-organizer="backup">保存とバックアップ</button>
   <a class="link-button" href="./legacy/" data-legacy-link>保管した旧版Ver.3.0で続ける</a><br>
@@ -831,7 +831,8 @@ document.addEventListener("click",async e=>{
     if(b.matches("[data-legacy-link]")){save(true);return;}
     if(b.dataset.sourceDetail){
       const x=CONTENT.sources.find(x=>x.id===b.dataset.sourceDetail);
-      await ask(x.name+"（仮名）",`特性案：${x.role}\n最終効果：${x.finalDescription}\n\n通常6効果：？？？\n7効果の配置：？？？\n\n共通21節目：\n${CONFIG.confirmed.sourceMilestones.map(x=>x.toLocaleString("ja-JP")).join(" → ")}`,"閉じる");return;
+      const status=G.sourceFinalEffectStatus(state,x.id);
+      await ask(x.name+"（仮名）",`特性案：${x.role}\n最終効果：${status?.label||"？？？"}\n実装状態：${status?(status.implemented?"計算に適用":"解放履歴のみ・効果保留"):"未決定"}\n取得状態：${status?.unlocked?"解放済み":"未取得"}\n\n通常6効果の詳細：？？？（未確定）\n効果取得節目：25／1,000／10,000／50,000／100,000／500,000／1,000,000\n個別の未確定効果は適用しません。`,"閉じる");return;
     }
     if(readOnly){toast("別タブの書き込みを保護中です");return;}
     if(store.blocked && b.dataset.restore===undefined){toast("元セーブを保護中です。「保存」から復元してください。");return;}
@@ -859,7 +860,13 @@ document.addEventListener("click",async e=>{
         toast(result.count.toLocaleString("ja-JP")+"Lv購入しました。残りは「続けてMAX」で購入できます");
       return;
     }
-    if(b.dataset.breakthrough){resultDone(G.breakthrough(state,b.dataset.breakthrough));return;}
+    if(b.dataset.breakthrough){
+      const id=b.dataset.breakthrough,x=CONTENT.sources.find(item=>item.id===id);
+      if(!x)return toast("源を確認できません");
+      const source=state.sources[id];
+      if(!await ask("＋循環の確認",x.name+"：Lv."+source.level.toLocaleString("ja-JP")+" / ＋"+source.plus+" → ＋"+(source.plus+1)+"・Lv1から再開始します。","＋循環する"))return;
+      resultDone(G.breakthrough(state,id));return;
+    }
     if(b.dataset.draft){resultDone(G.toggleDraft(state,b.dataset.draft));return;}
     if(b.dataset.form){resultDone(G.formConcept(state,b.dataset.form),"概念を認識しました");return;}
     if(b.dataset.invest){const r=G.invest(state,b.dataset.invest);resultDone(r,r.trialSpecial?"試案：共通質量と個別ステータスを強化しました":"資源を投入しました。正式な個性効果は？？？です");return;}

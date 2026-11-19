@@ -2,12 +2,15 @@
 // null = 未決定。nullを汎用倍率で埋めない。
 // provisionalの値は遊べる基盤の動作確認用で、正式な採用値ではない。
 export const CONFIG = {
-  version: "3.14.0",
+  version: "3.15.0",
   schemaVersion: 31,
   confirmed: {
     sourceMaxLevel: 1000000,
     sourceMilestones: [25,50,100,250,500,1000,2000,3000,4000,5000,10000,20000,30000,40000,50000,100000,200000,300000,400000,500000,1000000],
     sourceEffectSlots: 7,
+    sourceEffectUnlockLevels: [25,1000,10000,50000,100000,500000,1000000],
+    sourceBreakthroughGate: "all-30-ever-max",
+    sourcePlusProductionStep: 0.5,
     maxDirections: 3,
     firstConceptFragments: 10,
     commonFragmentsPerDraw: 100,
@@ -96,7 +99,6 @@ export const CONFIG = {
     saveIntervalMs: 5000
   },
   unresolved: {
-    sourceBreakthroughGate:null,
     sourceEffectAssignment:null,
     residueEventsPerSecond:null,
     miracleUnlockRules:null,

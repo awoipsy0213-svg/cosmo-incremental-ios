@@ -70,10 +70,10 @@ export function focusFactor(s){
  const gap=Math.max(0,(s.activeSeconds||0)-(s.lastManualActive||0));
  return 1+clamp(boosted(s,4,.10*root(lv(s,4))*root(Math.max(0,gap-1))),4);
 }
-export function critRate(s){return active(s,10)?boosted(s,10,.0005*lv(s,10)):0}
+export function critRate(s){return (active(s,10)?boosted(s,10,.0005*lv(s,10)):0)+(Number(s.critExtraRate)||0)}
 export function critMulti(s){
- if(!active(s,11))return A(2);
- const m=A(2).mul(A(1.02).pow(lv(s,11)));
+ if(!active(s,11))return A(2).mul(s.critExtraMultiplier||1);
+ const m=A(2).mul(A(1.02).pow(lv(s,11))).mul(s.critExtraMultiplier||1);
  return A(1).add(m.sub(1).mul(resonance(s,11)));
 }
 export function probability(s,i){
