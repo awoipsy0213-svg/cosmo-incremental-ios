@@ -3,8 +3,9 @@ import {spawn} from "node:child_process";
 import {chromium} from "@playwright/test";
 
 const port=process.env.KOTOWARI_SMOKE_PORT||"8765";
-const root="http://127.0.0.1:"+port+"/";
-const server=spawn("python3",["-m","http.server",port,"--bind","127.0.0.1"],{stdio:"ignore"});
+const publicRoot=process.env.KOTOWARI_SMOKE_BASE_URL||"";
+const root=publicRoot||"http://127.0.0.1:"+port+"/";
+const server=publicRoot?null:spawn("python3",["-m","http.server",port,"--bind","127.0.0.1"],{stdio:"ignore"});
 let browser=null;
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 try {
@@ -78,5 +79,5 @@ try {
   }
 } finally {
   if(browser)await browser.close();
-  server.kill("SIGTERM");
+  server?.kill("SIGTERM");
 }
