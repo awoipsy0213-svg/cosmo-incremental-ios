@@ -1,5 +1,5 @@
 import {CONFIG} from "./balance-config.mjs";
-import {compareMomentPrice} from "./price-lab.mjs";
+import {compareMomentPrice,compareMomentPriceProfiles,exportPriceReport,PRICE_MODEL_VERSION} from "./price-lab.mjs";
 import {MOMENT_GROUP_NAMES,cleanMomentPrefs,toggleMomentFavorite,momentVisible} from "./moment-filter.mjs";
 import {CONTENT} from "./content.mjs";
 import {PROPOSED,PLANET_EFFECT_PROPOSALS,resourcePrototype,trialPreview,boostTrialCost,proposedSourceSlots,FIRST_CONCEPT_PROPOSALS} from "./design-proposals.mjs";
@@ -335,7 +335,7 @@ function settingsHTML(){
   return `<p class="panel-intro">背景は既存のORGANIC FLOWを維持。安全な保存・表示設定は序章から利用できます。</p>
   ${labels.map(([id,name,desc])=>`<label class="kw-row"><span>${name}<small>${desc}</small></span><input type="checkbox" data-pref="${id}" ${state.settings[id]?"checked":""}></label>`).join("")}
   <label class="kw-row">数値表記<select class="input-select" data-pref="notation"><option value="auto" ${state.settings.notation==="auto"?"selected":""}>標準（100万以降e）</option><option value="scientific" ${state.settings.notation==="scientific"?"selected":""}>指数 e（1.23e12）</option><option value="exponent" ${state.settings.notation==="exponent"?"selected":""}>指数 E（1.23E+12）</option><option value="zeros" ${state.settings.notation==="zeros"?"selected":""}>0の個数（10^12）</option></select></label>
-  <div class="kw-row"><span>バージョン<small>Ver.3.11 刹那30・価格試算（検証用） / 水色×紫UI維持</small></span><strong>3.11.0</strong></div>
+  <div class="kw-row"><span>バージョン<small>Ver.3.12 刹那30・価格条件比較（検証用） / 水色×紫UI維持</small></span><strong>3.12.0</strong></div>
   <div class="kw-row"><span>通信<small>クラウド・課金は未接続</small></span><strong>${navigator.onLine?"オンライン":"オフライン"}</strong></div>
   <button class="wide-button" data-organizer="backup">保存とバックアップ</button>
   <a class="link-button" href="./legacy/" data-legacy-link>保管した旧版Ver.3.0で続ける</a><br>
@@ -387,8 +387,8 @@ function proposalsHTML(){
   <h3>未決定・保留のまま残すもの</h3><div class="kw-card"><p>77概念の個別効果、生命・コアの成立、破壊と崩壊の関係、資源受取A/B、源＋循環の保持、刻印の正式ノード・費用、天体イベントの解放条件。</p><small>これらは効果・倍率を一律で埋めず、試案があってもゲーム正式仕様にはしません。</small></div>
   <a class="link-button" href="./RESEARCH_V35.md">参照作品・検証根拠（Markdown原文）</a>`;
 }
-const priceLabParams={momentId:CONTENT.moment[0].id,profile:"current",durationSeconds:300,tapsPerSecond:5,levelOverride:null};
-let priceLabReport=null;
+const priceLabParams={momentId:CONTENT.moment[0].id,profile:"current",durationSeconds:300,tapsPerSecond:5,levelOverride:null,factorOverride:null};
+let priceLabReport=null,priceLabComparisons=null;
 function priceLabHTML(){
  if(mode!=="lab")return '<p class="tiny">価格比較は通常セーブに影響しない検証モードでのみ利用できます。</p><a href="./?lab=1" class="link-button">検証モードで開く</a>';
  const p=priceLabParams;
@@ -405,15 +405,19 @@ function priceLabHTML(){
   <label>想定手動タップ <select data-price-lab="tapsPerSecond">${rates.map(v=>`<option value="${v}" ${p.tapsPerSecond===v?"selected":""}>${v}回/秒</option>`).join("")}</select></label>
   <label>検証Lv（空欄=条件のLv） <input type="number" data-price-lab="levelOverride" min="0" max="1000000" step="1" value="${p.levelOverride??""}" placeholder="自動"></label>
   </div>
+  <label>追加の価格倍率（0.01〜1000、任意） <input type="number" data-price-lab="factorOverride" min="0.01" max="1000" step="any" value="${p.factorOverride??""}" placeholder="例：1.25"></label>
   <button type="button" class="wide-button" data-action="run-price-lab">価格と回収時間を試算</button>
+  <button type="button" class="wide-button" data-action="run-price-lab-compare">序盤・中盤・後半を比較</button>
+  ${report||priceLabComparisons?'<button type="button" class="wide-button" data-action="export-price-lab">試算結果をJSONで書き出す</button>':""}
+  ${priceLabComparisons? `<div class="price-lab-results"><p>3条件の参考比較（試験値）</p><table class="price-lab-table"><thead><tr><th>条件</th><th>増加量/秒</th><th>試験価格の回収時間</th></tr></thead><tbody>${priceLabComparisons.map(r=>`<tr><td>${esc(({early:"序盤",middle:"中盤",late:"後半"})[r.profile])}</td><td>${r.maxed?"Lv上限":f(r.deltaPerSecond)}</td><td>${r.priceCandidates?.find(c=>c.factor===1)?.recoverSeconds==null?"算出不可":shortDuration(r.priceCandidates.find(c=>c.factor===1).recoverSeconds)}</td></tr>`).join("")}</tbody></table><p class="tiny">各条件の強化Lvや源の状態は試験用の代表条件です。</p></div>`:""}
   ${report?`<div class="price-lab-results">
   <p><b>検証対象:</b> ${esc(CONTENT.moment.find(x=>x.id===report.momentId)?.name)} Lv.${report.level} → Lv.${report.level+1}</p>
   ${report.maxed?"<p>Lv上限に到達しているため比較できません。</p>":`<p>現行試験価格：${f(report.trialCost)} オーブ</p>
   <p>評価期間内の想定獲得量：購入前 ${f(report.before)} → 購入後 ${f(report.after)}</p>
   <p>推定増加量：+${f(report.delta)} / ${duration(report.durationSeconds)}（約+${f(report.deltaPerSecond)}/秒）</p>
-  <table class="price-lab-table"><thead><tr><th>試験価格に対する比率</th><th>購入費用</th><th>回収時間</th></tr></thead>
-  <tbody>${report.priceCandidates.map(c=>`<tr><td>×${c.factor}</td><td>${f(c.price)}</td><td>${c.recoverSeconds===null?"算出不可":shortDuration(c.recoverSeconds)}</td></tr>`).join("")}</tbody></table>`}
-  <p class="tiny">${esc(report.disclaimer)}</p>
+  <table class="price-lab-table"><thead><tr><th>倍率</th><th>購入費用</th><th>試験価格との差</th><th>回収時間</th></tr></thead>
+  <tbody>${report.priceCandidates.map(c=>`<tr><td>×${c.factor}</td><td>${f(c.price)}</td><td>${c.trialPriceDifferencePercent>0?"+":""}${c.trialPriceDifferencePercent.toFixed(1)}%</td><td>${c.recoverSeconds===null?"算出不可":shortDuration(c.recoverSeconds)}</td></tr>`).join("")}</tbody></table>`}
+  <p class="tiny">計算対象：${report.includedEffects.map(esc).join("・")}</p><p class="tiny">未計算：${report.excludedEffects.map(esc).join("・")}</p><p class="tiny">試算モデル：${esc(report.modelVersion)}</p><p class="tiny">${esc(report.disclaimer)}</p>
   </div>`:"<p class='tiny'>条件を選び、試算を実行してください。</p>"}
   <p class="tiny">手動は「一定頻度×基本タップ量」の近似です。連続コンボ・確率抽選・奇跡などはこの試算では完全再現しません。試算不能な項目は「算出不可」と表示します。</p>
   </div>`;
@@ -688,9 +692,23 @@ function download(text,name,type="application/json"){
 }
 async function dispatchAction(action){
   if(action==="organizer"){openOrganizer();return;}
-  if(action==="run-price-lab"){
+  if(action==="run-price-lab"||action==="run-price-lab-compare"){
     if(mode!=="lab")return toast("検証モードでのみ使用できます");
-    try{priceLabReport=compareMomentPrice(state,{...priceLabParams,now:Date.now()});renderPanel(true);}catch(error){toast("価格試算を中止しました："+error.message);}
+    try{
+      if(action==="run-price-lab"){priceLabReport=compareMomentPrice(state,{...priceLabParams,now:Date.now()});priceLabComparisons=null;}
+      else {priceLabComparisons=compareMomentPriceProfiles(state,{...priceLabParams,profiles:["early","middle","late"],now:Date.now()});priceLabReport=null;}
+      renderPanel(true);
+    }catch(error){toast("価格試算を中止しました："+error.message);}
+    return;
+  }
+  if(action==="export-price-lab"){
+    if(mode!=="lab")return toast("検証モードでのみ使用できます");
+    try{
+      const result=priceLabComparisons||priceLabReport;
+      if(!result)return toast("先に価格を試算してください");
+      const data=exportPriceReport(result);
+      download(data,`kotowari-price-trial-${new Date().toISOString().slice(0,10)}.json`);
+    }catch(error){toast("書き出しできません："+error.message);}
     return;
   }
   if(action==="cycle-buy-mode"){
@@ -848,8 +866,8 @@ document.addEventListener("change",async e=>{
     if(mode!=="lab")return;
     const key=t.dataset.priceLab;
     if(!Object.prototype.hasOwnProperty.call(priceLabParams,key))return;
-    priceLabParams[key]=["durationSeconds","tapsPerSecond","levelOverride"].includes(key)?(t.value===""?null:Number(t.value)):t.value;
-    priceLabReport=null;renderPanel(true);return;
+    priceLabParams[key]=["durationSeconds","tapsPerSecond","levelOverride","factorOverride"].includes(key)?(t.value===""?null:Number(t.value)):t.value;
+    priceLabReport=null;priceLabComparisons=null;renderPanel(true);return;
   }
   if(readOnly){render(true);return;}
   checkpoint();

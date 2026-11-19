@@ -20,7 +20,9 @@ export function toggleMomentFavorite(favorites,id,validIds,max=5){
 export function momentVisible(item,{group="0",filter="all",search="",favorites=[]}={}){
  const key=String(search).trim().toLocaleLowerCase("ja-JP");
  const text=String(item.name||"")+" "+String(item.description||"");
- const found=!key||text.toLocaleLowerCase("ja-JP").includes(key);
+ const words=key.split(/\s+/u).filter(Boolean);
+ const haystack=text.toLocaleLowerCase("ja-JP");
+ const found=words.every(word=>haystack.includes(word));
  // Searching scans all six groups; clearing search returns to the selected group.
  const inGroup=!!key||group==="all"||String(item.group)===String(group);
  const passed=filter==="favorites"?favorites.includes(item.id):

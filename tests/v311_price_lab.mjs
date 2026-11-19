@@ -9,7 +9,7 @@ let checks=0;
 const eq=(a,b,m)=>{assert.deepEqual(a,b,m);checks++};
 const yes=(v,m)=>{assert.ok(v,m);checks++};
 const time=1800000000000;
-eq(CONFIG.version,"3.11.0","version");
+yes(["3.11.0","3.12.0"].includes(CONFIG.version),"v3.11 price lab regression preserved");
 eq(CONFIG.schemaVersion,31,"schema stays 31");
 eq(KEYS.normal,"kotowari_v31_normal","storage key unchanged");
 eq(L.PRICE_DURATIONS,[300,1800,7200],"three time windows");
