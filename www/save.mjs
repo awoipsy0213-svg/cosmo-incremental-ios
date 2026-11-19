@@ -68,6 +68,24 @@ export class SaveStore {
             return {state:s,blocked:true,warning:"Ver.3.9への移行前バックアップを検証できません。元のセーブを保護し、書き込みを停止しています。"};
           }
         }
+        // v3.16 adds observation/core/auto-generation state without changing
+        // the v31 save schema or key. Keep the untouched original bytes before
+        // the first write; never silently migrate the only recoverable copy.
+        if(this.mode==="normal"&&(
+          oldShape.time?.miracles===undefined||
+          oldShape.universe?.knowledge===undefined||
+          oldShape.universe?.autoGenerate===undefined||
+          (oldShape.universe?.planets||[]).some(p=>p.core===undefined)
+        )){
+          const key=this.key+".before-v316";
+          try{
+            if(!this.read(key))this.storage.setItem(key,raw);
+            if(this.read(key)!==raw)throw Error("backup write was not verified");
+          }catch(e){
+            this.blocked=true;
+            return {state:s,blocked:true,warning:"Ver.3.16への移行前バックアップを検証できません。元セーブを保護し、書き込みを停止しました。"};
+          }
+        }
         return {state:s};
       }catch(error){
         // Quarantine original bytes and do not silently overwrite invalid data.
