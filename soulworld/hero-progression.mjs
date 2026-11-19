@@ -55,6 +55,7 @@ export function createStarterHero() {
   return {
     id:STARTER_HERO_ID, name:'英雄（試作）', type:'combat', rarity:'common',
     status:'alive', lifeCount:1, level:1, levelXp:0,
+    personality:'balanced', learningPriorities:[], preferredTactic:'free', fieldLife:null,
     freeStatPoints:0, freeSkillPoints:0,
     attributes:starterAttributes(), attributeXp:xp, personalMasteryXp:{},
     learnedActions:{}, actionSuccessCounts:{}, walkPracticeCount:0, walkStage:0, skillTree:{}
@@ -95,6 +96,10 @@ export function ensureHeroProgression(state) {
       if (hero.learnedActions[action]) hero.actionSuccessCounts[action]=Math.max(ACTION_SUCCESS_REQUIREMENT,hero.actionSuccessCounts[action]||0);
     }
     if (!hero.skillTree) hero.skillTree={};
+    if(!['safe','balanced','challenge'].includes(hero.personality))hero.personality='balanced';
+    if(!Array.isArray(hero.learningPriorities))hero.learningPriorities=[];
+    if(!['attack','occupy','fortify','guard','free'].includes(hero.preferredTactic))hero.preferredTactic='free';
+    if(hero.fieldLife===undefined)hero.fieldLife=null;
     if (!Number.isInteger(hero.level)||hero.level<1) hero.level=1;
     hero.level=Math.min(HERO_LEVEL_CAP,hero.level);
     if (!Number.isFinite(hero.levelXp)||hero.levelXp<0) hero.levelXp=0;
@@ -278,4 +283,19 @@ export function recordHeroWalkProgress(hero, success=true) {
   }
   hero.walkStage=Math.min(5,Math.floor(hero.walkPracticeCount/6));
   return hero.walkStage;
+}
+
+// Q413: exploration-specific basic abilities can grow, but neither hero
+// level XP nor individual action-mastery XP is awarded outside training.
+export const EXPLORATION_ABILITY_ACTIONS = Object.freeze(['survey','swim']);
+export function grantExplorationBasicAbilityExperience(hero, action, baseExperience, {success=true,difficulty=1}={}) {
+  if(!EXPLORATION_ABILITY_ACTIONS.includes(action))return {ok:false,reason:'not-exploration-ability'};
+  const keys=PROVISIONAL_ACTION_ATTRIBUTES[action];
+  if(!keys || !Number.isFinite(baseExperience) || baseExperience<=0 ||
+     !Number.isFinite(difficulty) || difficulty<=0)return {ok:false,reason:'invalid-experience'};
+  const amount=baseExperience*Math.max(ACTION_DIFFICULTY_MIN,Math.min(ACTION_DIFFICULTY_MAX,difficulty))*(success?1:FAILED_ACTION_XP_FACTOR);
+  const growth={};
+  growth[keys[0]]=grantAbilityExperience(hero,keys[0],amount*0.8);
+  growth[keys[1]]=grantAbilityExperience(hero,keys[1],amount*0.2);
+  return {ok:true,amount,abilityGrowth:growth};
 }

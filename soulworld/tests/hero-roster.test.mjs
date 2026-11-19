@@ -78,7 +78,7 @@ test('pending hero gives a temporary place to another hero and recovers as stand
   collectTemple(s);
   assert.equal(s.heroProgression.profiles[STARTER_HERO_ID].status,'ready');
   assert.equal(heroRosterRows(s).standby.some(h=>h.id===STARTER_HERO_ID),true);
-  assert.equal(s.actors.filter(a=>a.kind==='main').length,0); // do not spawn displaced starter
+  assert.deepEqual(s.actors.filter(a=>a.kind==='main').map(a=>a.heroId),['hero-b']); // displaced starter remains on standby
 });
 test('combat mock receives registered IDs as an informational snapshot, not extra actors',()=>{
   const s=createInitialState();
@@ -93,7 +93,7 @@ test('old schema 1 saves migrate additively and do not lose worlds or souls',()=
   delete s.heroRoster;
   delete s.saveFormatRevision;
   const r=deserialize(serialize(s));
-  assert.equal(r.saveFormatRevision,2);
+  assert.equal(r.saveFormatRevision,3);
   assert.equal(r.resources.wood,9);
   assert.equal(r.temple.pending.stone,7);
   assert.deepEqual(registeredHeroIds(r),[STARTER_HERO_ID]);
