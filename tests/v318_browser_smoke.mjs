@@ -44,6 +44,7 @@ try {
       state.universe.knowledge.transfer=100;
       state.universe.knowledge.stability=100;
       state.universe.knowledge.collapse=100;
+      state.orbs="1500";state.totalOrbs="1500";
       state.universe.resources.UR1_01="1000";
       state.universe.resources.UR1_04="1000";
       G.invest(state,"UR1_01",2);
@@ -82,6 +83,22 @@ try {
     await page.getByText("直近10分の獲得量", {exact:false}).waitFor();
     await page.getByText("オフライン精算履歴", {exact:false}).waitFor();
     assert.ok(await page.locator(".telemetry-card").count()>0);
+    // U-10: visible subset, preflight quote and explicit confirmation.
+    await page.locator('[data-stage="existence"]').click();
+    await page.locator('[data-child="moment"]').click();
+    await page.locator('[data-moment-group-select="0"]').click();
+    await page.locator("#bulkScopeButton").click();
+    assert.match(await page.locator("#bulkScopeButton").textContent(),/表示中/);
+    await page.locator("#bulkBuyButton").click();
+    assert.equal(await page.locator("#confirmDialog").evaluate(el=>el.open),true);
+    assert.match(await page.locator("#confirmDialog").textContent(),/一括購入の金額確認/);
+    await page.locator("#confirmYes").click();
+    await page.waitForFunction(()=>{
+      try{
+        const raw=JSON.parse(localStorage.getItem("kotowari_v31_normal"));
+        return raw.data.moment.tap>0;
+      }catch{return false;}
+    });
     assert.equal(pageErrors.length,0,label+" JS errors: "+pageErrors.join("; "));
     console.log("PASS browser",label,viewport.width+"x"+viewport.height,"load, organizer, intervention, persisted save");
     await context.close();
