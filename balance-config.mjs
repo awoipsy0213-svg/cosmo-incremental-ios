@@ -2,7 +2,7 @@
 // null = 未決定。nullを汎用倍率で埋めない。
 // provisionalの値は遊べる基盤の動作確認用で、正式な採用値ではない。
 export const CONFIG = {
-  version: "3.15.0",
+  version: "3.16.0",
   schemaVersion: 31,
   confirmed: {
     sourceMaxLevel: 1000000,
@@ -12,6 +12,10 @@ export const CONFIG = {
     sourceBreakthroughGate: "all-30-ever-max",
     sourcePlusProductionStep: 0.5,
     maxDirections: 3,
+    resourceReceipt: "B",
+    sourceOfTruth: "2026-11-19 unified decisions; runtime implementation subset",
+    conceptMaxLevel: 100,
+    conceptNextLevelCostStep: 10,
     firstConceptFragments: 10,
     commonFragmentsPerDraw: 100,
     worldGoalSeconds: 1,
@@ -93,7 +97,7 @@ export const CONFIG = {
     convergence: {baseCost:1000, costGrowth:1.1, existencePerStep:0.001, spend:"all"},
     // firstSourceは時導入と自動生産の接続を確認するための仮ルール。
     timeUnlock: "firstSource",
-    universe: {startingMass:1, massGrowthPerSecond:0.0006, massPerResource:1, ageClock:"real"},
+    universe: {startingMass:10, massGrowthPerSecond:1/60, massPerResource:1, ageClock:"real"},
     boost: {multiplier:2, consumptionRule:"additional-time"},
     commonResidueDraw: {trigger:"manual",distribution:"uniform"},
     saveIntervalMs: 5000
