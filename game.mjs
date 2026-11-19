@@ -1,4 +1,5 @@
 import {CONFIG} from "./balance-config.mjs";
+import {FINAL_EFFECTS,ownsSourceFinal,sourceFinalMarker,sourcePlusMultiplier} from "./source-effects-v315.mjs";
 import {cleanMomentPrefs} from "./moment-filter.mjs";
 import * as SETSUNA from "./setsuna-rules-v39.mjs";
 import {CONTENT} from "./content.mjs";
@@ -71,7 +72,7 @@ function spendOrbs(s,amount) {
   return true;
 }
 export function tapPower(s,now=Date.now()) {
-  return SETSUNA.tapPreview(setsunaProjection(s,null,now),now).mul(existenceMultiplier(s));
+  return SETSUNA.tapPreview(setsunaProjection(s,null,now),now).mul(existenceMultiplier(s)).mul(finalTap(s));
 }
 // Each convergence gives a persistent, additive +1% per 0.01 surplus existence.
 // First existence (the protected 1) is not counted: 0.02 surplus => x1.02; 1 => x2.
@@ -79,7 +80,23 @@ export function existenceMultiplier(s) { return A(1).add(s.surplusExistence); }
 // 210 confirmed Setsuna decisions. Time-dependent state persists in schema 31.
 const SETSUNA_RUNTIME_KEYS=SETSUNA.RUNTIME_KEYS;
 export const freshMomentRuntime=()=>SETSUNA.runtimeDefaults();
-function baseProduction(s){return SOURCE_IDS.reduce((sum,id)=>sum.add(sourceProduction(s,id)),A(0));}
+function baseProduction(s){
+ const total=SOURCE_IDS.reduce((sum,id)=>sum.add(sourceProduction(s,id)),A(0));
+ return ownsSourceFinal(s,"SOURCE_04")?total.mul(2):total;
+}
+function finalTap(s){return ownsSourceFinal(s,"SOURCE_03")?2:1;}
+function finalCritRate(s){return ownsSourceFinal(s,"SOURCE_05")?.05:0;}
+function finalCritMultiplier(s){return ownsSourceFinal(s,"SOURCE_06")?2:1;}
+export function sourceFinalEffectStatus(s,id){
+ const effect=FINAL_EFFECTS[id];return effect?{...effect,unlocked:ownsSourceFinal(s,id)}:null;
+}
+function earnSourceFinal(s,id){
+ const x=s.sources[id],spec=FINAL_EFFECTS[id];
+ if(!x||!spec||(x.level<CONFIG.confirmed.sourceMaxLevel&&x.plus===0))return false;
+ const marker=sourceFinalMarker(id);
+ if(x.effects.includes(marker)||x.effects.length>=7)return false;
+ x.effects.push(marker);return true;
+}
 function setsunaProjection(s,rawSource=null,now=Date.now()){
   const t=SETSUNA.fresh(now);
   t.levels=MOMENT_IDS.map(id=>s.moment[id]||0);t.earned=[...t.levels];
@@ -88,6 +105,8 @@ function setsunaProjection(s,rawSource=null,now=Date.now()){
   t.sourceMilestones=Object.values(s.sources).reduce((sum,v)=>sum+
     CONFIG.confirmed.sourceMilestones.filter(m=>m<=v.level).length,0);
   t.sourceBase=(rawSource===null?baseProduction(s).div(existenceMultiplier(s)):A(rawSource)).toString();
+  t.critExtraRate=finalCritRate(s);
+  t.critExtraMultiplier=finalCritMultiplier(s);
   Object.assign(t,s.momentRuntime||{});t.wallet="0";t.lastTick=now;
   return t;
 }
@@ -127,20 +146,20 @@ export function sourceProductionPerLevel(id) {
 export function sourceProduction(s,id) {
   const v=s.sources[id];
   if(!v)throw Error("源IDが不正です");
-  const plus=s.mode==="lab"?A(2).pow(v.plus):A(1);
+  const plus=sourcePlusMultiplier(v.plus);
   const unit=sourceProductionPerLevel(id);
   const growth=CONFIG.provisional.source.productionGrowth;
   const total=seriesCost(unit,growth,0,v.level);
-  return total.mul(plus).mul(existenceMultiplier(s));
+  return total.mul(plus).mul(ownsSourceFinal(s,"SOURCE_09")&&id==="SOURCE_09"?2:1).mul(existenceMultiplier(s));
 }
 /** Extra output from buying this Source's next one level, including all current bonuses. */
 export function sourceNextGain(s,id) {
   const v=s.sources[id];
   if(!v)throw Error("源IDが不正です");
-  const plus=s.mode==="lab"?A(2).pow(v.plus):A(1);
+  const plus=sourcePlusMultiplier(v.plus);
   return sourceProductionPerLevel(id)
     .mul(A(CONFIG.provisional.source.productionGrowth).pow(v.level))
-    .mul(plus).mul(existenceMultiplier(s));
+    .mul(plus).mul(ownsSourceFinal(s,"SOURCE_09")&&id==="SOURCE_09"?2:1).mul(existenceMultiplier(s));
 }
 export function production(s,now=Date.now()) {
   return baseProduction(s).mul(SETSUNA.sourceMultiplier(setsunaProjection(s,null,now),now));
@@ -166,10 +185,10 @@ export function tap(s,now=Date.now(),rng=Math.random) {
   const proj=setsunaProjection(s,null,now);proj.taps=Math.max(0,s.counters.taps-1);
   const hit=SETSUNA.tap(proj,now,rng);rememberSetsuna(s,proj);
   const factor=existenceMultiplier(s);
-  const gain=hit.amount.mul(factor);addOrbs(s,gain);
+  const gain=hit.amount.mul(factor).mul(finalTap(s));addOrbs(s,gain);
   return {ok:true,gain:gain.toString(),crit:hit.crit,combo:hit.combo,
     miracle:hit.miracle,chain:hit.chain,components:Object.fromEntries(
-      Object.entries(hit.components||{}).map(([k,v])=>[k,A(v).mul(factor).toString()]))};
+      Object.entries(hit.components||{}).map(([k,v])=>[k,A(v).mul(factor).mul(finalTap(s)).toString()]))};
 }
 function purchaseData(s,kind,id) {
   if(kind==="source"){
@@ -214,7 +233,10 @@ export function buy(s,kind,id) {
   spendOrbs(s,q.cost);
   if(kind==="source"){
     s.sources[id].level+=q.count;s.counters.sourcePurchases+=q.count;
-    if(s.sources[id].level>=CONFIG.confirmed.sourceMaxLevel)recordSourceMax(s);
+    if(s.sources[id].level>=CONFIG.confirmed.sourceMaxLevel){
+      recordSourceMax(s);
+      if(earnSourceFinal(s,id))event(s,"源の固有最終効果を解放："+id);
+    }
     if(!s.time.unlocked && CONFIG.provisional.timeUnlock==="firstSource"){
       s.time.unlocked=true;event(s,"操作しなくても、光が生まれ始めた。《時》の兆しを観測した。");
     }
@@ -286,6 +308,7 @@ export function breakthrough(s,id) {
   // Persist historic maximum levels before resetting the current level.
   recordSourceMax(s);
   const x=s.sources[id];
+  earnSourceFinal(s,id);
   if(x.plus>=1000000)return {ok:false,reason:"＋値の保存上限に到達しています"};
   x.plus++;x.level=1;
   // Keep source effects and cycle history. The PLUS production coefficient
@@ -295,10 +318,12 @@ export function breakthrough(s,id) {
 }
 export function convergenceQuote(s) {
   const c=CONFIG.provisional.convergence;
-  const steps=maxAffordable(s.orbs,c.baseCost,c.costGrowth,0,1000000000);
-  const spent=seriesCost(c.baseCost,c.costGrowth,0,steps);
-  const next=seriesCost(c.baseCost,c.costGrowth,0,steps+1);
-  return {steps,reward:A(c.existencePerStep).mul(steps).toString(),
+  const priceFactor=ownsSourceFinal(s,"SOURCE_02")?.5:1;
+  const cost=A(c.baseCost).mul(priceFactor);
+  const steps=maxAffordable(s.orbs,cost,c.costGrowth,0,1000000000);
+  const spent=seriesCost(cost,c.costGrowth,0,steps);
+  const next=seriesCost(cost,c.costGrowth,0,steps+1);
+  return {steps,reward:A(c.existencePerStep).mul(steps).mul(ownsSourceFinal(s,"SOURCE_01")?2:1).toString(),
     nextRequired:next.toString(),nextRemaining:next.sub(s.orbs).toString(),spent:spent.toString()};
 }
 export function converge(s) {
@@ -752,6 +777,9 @@ export function validateState(input,expectedMode=null) {
     const x=s.sources?.[id];
     if(!x||!Number.isInteger(x.level)||x.level<0||x.level>1000000||!Number.isInteger(x.plus)||x.plus<0||x.plus>1000000)fail("源 "+id);
     if(!Array.isArray(x.effects)||x.effects.length>7||x.effects.some(y=>typeof y!=="string"))fail("源効果");
+    if(new Set(x.effects).size!==x.effects.length)fail("源効果重複");
+    if(x.effects.some(marker=>marker.startsWith("final:")&&marker!==sourceFinalMarker(id)))fail("源効果ID");
+    if((x.level>=CONFIG.confirmed.sourceMaxLevel||x.plus>0)&&FINAL_EFFECTS[id])earnSourceFinal(s,id);
   }
   const priorCycle=s.sourceCycle;
   if(priorCycle!==undefined){
