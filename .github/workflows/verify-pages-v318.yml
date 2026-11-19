@@ -1,0 +1,49 @@
+name: Verify published Kotowari Web
+on:
+  push:
+    branches: [main]
+    paths: ['index.html', 'game.mjs', 'app.mjs', 'sw.js', 'astral-observatory.css', 'universe-interference-v318.mjs']
+  workflow_dispatch:
+jobs:
+  published-site:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify GitHub Pages HTML, PWA and intervention module
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://awoipsy0213-svg.github.io/cosmo-incremental-ios/"
+          echo "Checking $BASE"
+          ok=0
+          for n in $(seq 1 30); do
+            html="$(curl -fsSL --connect-timeout 10 --max-time 30 "${BASE}?check=${GITHUB_SHA}-${n}" 2>/dev/null || true)"
+            sw="$(curl -fsSL --connect-timeout 10 --max-time 30 "${BASE}sw.js?check=${GITHUB_SHA}-${n}" 2>/dev/null || true)"
+            module="$(curl -fsSL --connect-timeout 10 --max-time 30 "${BASE}universe-interference-v318.mjs?check=${GITHUB_SHA}-${n}" 2>/dev/null || true)"
+            if grep -qF '3.18 · ASTRAL' <<< "$html" &&
+               grep -qF '3.18.0-astral-universe' <<< "$sw" &&
+               grep -qF 'INTERFERENCE_RULES' <<< "$module"; then
+              echo "Live HTML, PWA cache version and module match Ver.3.18."
+              ok=1
+              break
+            fi
+            echo "Not yet on CDN, attempt $n"
+            sleep 10
+          done
+          test "$ok" -eq 1
+      - name: Verify live game engine module is accessible
+        run: |
+          curl -fsSL --retry 4 --retry-delay 3             https://awoipsy0213-svg.github.io/cosmo-incremental-ios/game.mjs             | grep -q 'collidePlanets'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install remote Web smoke dependencies
+        run: npm install --no-save @playwright/test
+      - name: Install Chromium for public-site checks
+        run: npx playwright install --with-deps chromium
+      - name: Exercise the published game in desktop and mobile Chromium
+        env:
+          KOTOWARI_SMOKE_BASE_URL: https://awoipsy0213-svg.github.io/cosmo-incremental-ios/
+        run: node tests/v318_browser_smoke.mjs

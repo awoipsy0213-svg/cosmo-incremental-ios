@@ -1,4 +1,9 @@
 import {CONFIG} from "./balance-config.mjs";
+import {TIME_EFFECTS,conceptLevelCost,conceptBonuses,conceptActive,residueWeights} from "./time-confirmed-v4.mjs";
+import {UNIVERSE_RESOURCE_RULES,eligibleResourceWeights,pickWeightedResource,investmentDelta,collapsePressureFactor,collapseHazardPerMinute} from "./universe-confirmed-v4.mjs";
+import {KNOWLEDGE_IDS,addKnowledge,knowledgeLevel,coreRequirements,makeCoreState,advanceCore,autoPlanetAvailable} from "./universe-progression-v316.mjs";
+import {INTERFERENCE_RULES,R1_RESOURCE_IDS,STABILIZING_RESOURCES,resourceSpendPlan,induceResourceCost,interferenceKnowledgeReady} from "./universe-interference-v318.mjs";
+import {ENGRAVING_IDS,ENGRAVING_AUTO_CONVERGE_ID,AUTO_CONVERGE_MIN_INTERVAL_MS,AUTO_CONVERGE_DEFAULT_MIN_REWARD,engravingSlots,engravingPurchaseQuote,validRewardThreshold} from "./engraving-rules-v317.mjs";
 import {FINAL_EFFECTS,ownsSourceFinal,sourceFinalMarker,sourcePlusMultiplier} from "./source-effects-v315.mjs";
 import {cleanMomentPrefs} from "./moment-filter.mjs";
 import * as SETSUNA from "./setsuna-rules-v39.mjs";
@@ -33,14 +38,15 @@ export function createState(now=Date.now(),mode="normal") {
     convergenceCount:0,purchaseMode:"1",
     time:{unlocked:false,revealedDirections:1,selected:[0],weights:[100,0,0,0,0,0],
       elapsed:0,worldSeconds:0,eventHappened:false,residues:{},concepts:{},common:0,
-      residueAccumulator:0},
+      residueAccumulator:0,miracles:[]},
     universe:{unlocked:false,planets:[],nextPlanetId:1,selectedPlanetId:null,
       maxPlanets:1,collapseCount:0,resources:{},discoveredResources:[],
-      receiptMode:null,resourceAccumulator:0,unlockedRanks:[1]},
+      receiptMode:null,resourceAccumulator:0,unlockedRanks:[1],autoGenerate:false,autoAccumulator:0,autoReserve:0,knowledge:{},interference:{transfers:[],nextTransferId:1,lastInduceAt:0,stabilizeCooldowns:{}}},
     life:{unlocked:false},
     // Separate experiment flag; never active in normal saves.
     trial:{enabled:false},
-    engraving:{active:[],draft:null,observationUnlocked:false},
+    engraving:{active:[],draft:null,observationUnlocked:false,owned:[],equipped:[],
+      autoConverge:{enabled:false,minReward:AUTO_CONVERGE_DEFAULT_MIN_REWARD,lastAt:0}},
     boost:{seconds:0,active:false,upgrades:[0,0,0,0,0]},
     counters:{taps:0,orbsSpent:"0",sourcePurchases:0,conversions:0,onlineSeconds:0,offlineSeconds:0},
     achievements:[],events:[],settings:{compact:true,showPurchaseHints:true,affordableOnly:false,bulkOrder:"cheap",holdToBuy:true,reducedMotion:false,highContrast:false,
@@ -367,16 +373,7 @@ export function setWeight(s,index,value){
   s.time.weights[index]=value;normalizeWeights(s);return true;
 }
 export function residueDistribution(s) {
-  // Flow-only 25/25/50 is in the source. Other ratios are explicitly lab-only.
-  if(s.time.selected.length===1&&s.time.selected[0]===0)
-    return [{id:"TC001",prob:.25},{id:"TC002",prob:.25},{id:"common",prob:.5}];
-  if(s.mode!=="lab")return null;
-  const eligible=CONTENT.concepts.filter(c=>c.principles.every(p=>s.time.selected.includes(CONTENT.principles.indexOf(p))));
-  const weights=eligible.map(c=>c.principles.reduce((w,p)=>w*s.time.weights[CONTENT.principles.indexOf(p)]/100,1));
-  const sum=weights.reduce((a,b)=>a+b,0);
-  if(!sum)return [{id:"common",prob:1}];
-  // Leave >=50% as common: no individual concept can exceed 50%.
-  return [...eligible.map((x,i)=>({id:x.id,prob:.5*weights[i]/sum})),{id:"common",prob:.5}];
+  return residueWeights(s,CONTENT.concepts);
 }
 export function rollResidue(s,rng=Math.random) {
   const dist=residueDistribution(s);
@@ -394,13 +391,49 @@ export function rollResidue(s,rng=Math.random) {
 export function formConcept(s,id) {
   const c=CONTENT.concepts.find(x=>x.id===id);
   if(!c)return {ok:false,reason:"概念IDが不正です"};
-  if(s.time.concepts[id])return {ok:false,reason:"Lv.2以降の必要数は？？？"};
-  if((s.time.residues[id]||0)<10)return {ok:false,reason:"同じ残滓が10個必要です"};
-  const notRevealed=c.principles.some(p=>CONTENT.principles.indexOf(p)>=s.time.revealedDirections);
-  if(notRevealed&&s.mode!=="lab")return {ok:false,reason:"未解放方向の概念形成条件は要確認です"};
-  s.time.residues[id]-=10;s.time.concepts[id]=1;
-  event(s,`《${c.name}》を認識した。効果は未決定。`);
-  return {ok:true};
+  const old=s.time.concepts[id]||0,next=old+1;
+  const cost=conceptLevelCost(next);
+  if(cost===null)return {ok:false,reason:"概念Lvは100が上限です"};
+  if(!old&&c.principles.some(p=>CONTENT.principles.indexOf(p)>=s.time.revealedDirections))
+    return {ok:false,reason:"概念の形成には該当方向の解放が必要です"};
+  if((s.time.residues[id]||0)<cost)return {ok:false,reason:`残滓が不足しています（必要 ${cost}個）`};
+  s.time.residues[id]-=cost;s.time.concepts[id]=next;
+  if(!old)event(s,`《${c.name}》を認識した。Lv.1の効果が発現した。`);
+  else event(s,`《${c.name}》がLv.${next}になった。`);
+  return {ok:true,level:next,cost};
+}
+export function formConceptMax(s,id) {
+  let count=0;
+  while(count<100){
+    const result=formConcept(s,id);
+    if(!result.ok)break;
+    count++;
+  }
+  return count?{ok:true,count,level:s.time.concepts[id]}:{ok:false,reason:"現在の残滓では強化できません"};
+}
+export function conceptEffect(s,id) {
+  const c=CONTENT.concepts.find(x=>x.id===id),rule=TIME_EFFECTS[id];
+  if(!c||!rule)return null;
+  const level=s.time.concepts[id]||0,bonus=Math.min(rule.max,level*rule.perLevel);
+  return {level,bonus,rule,active:level>0&&conceptActive(s,c)};
+}
+function miracleTarget(s) {
+  const lv=Object.entries(s.time.concepts).filter(([,v])=>v>0).map(([id])=>CONTENT.concepts.find(c=>c.id===id)).filter(Boolean);
+  const singles=lv.filter(c=>c.principles.length===1).length;
+  const doubles=lv.filter(c=>c.principles.length===2).length;
+  const triples=lv.filter(c=>c.principles.length===3).length;
+  const thresholds=[singles>=1,doubles>=1,triples>=1,triples>=2,triples>=5];
+  return s.time.revealedDirections<6 && thresholds[s.time.revealedDirections-1];
+}
+export function tryDirectionMiracle(s,elapsed,rng=Math.random) {
+  if(!s.time.unlocked||!miracleTarget(s)||!(elapsed>0))return false;
+  const probability=1-Math.exp(-elapsed/300);
+  if(rng()>=probability)return false;
+  const next=s.time.revealedDirections++;
+  if(!Array.isArray(s.time.miracles))s.time.miracles=[];
+  s.time.miracles.push(next);
+  event(s,`《奇跡》：${CONTENT.principles[next]}を認識した。配分できる方向が増えた。`);
+  return true;
 }
 export function convertCommon(s,rng=Math.random) {
   if(s.time.common<100)return {ok:false,reason:"共通の？？？が100個必要です"};
@@ -424,8 +457,8 @@ export function createPlanet(s,now=Date.now()) {
   if(s.universe.planets.length>=s.universe.maxPlanets)return {ok:false,reason:"同時生成数の上限です"};
   const id="PLANET_"+s.universe.nextPlanetId++;
   const stats=Object.fromEntries(STAT_IDS.filter(x=>x!=="age").map(x=>[x,"0"]));
-  stats.mass=str(CONFIG.provisional.universe.startingMass);
-  const planet={id,bornAt:now,stats,observed:[],pendingResources:{},receiptMode:null};
+  stats.mass="10";
+  const planet={id,bornAt:now,stats,observed:[],pendingResources:{},receiptMode:null,core:makeCoreState(),evidence:{}};
   s.universe.planets.push(planet);s.universe.selectedPlanetId=id;
   event(s,"ひとつの惑星が形を持ち始めた。数値の意味は、まだ分からない。",now);
   return {ok:true,id};
@@ -443,19 +476,40 @@ export function setTrialEnabled(s,enabled) {
 export function invest(s,id,count=1) {
   if(!RESOURCE_IDS.includes(id))return {ok:false,reason:"資源IDが不正です"};
   const p=planet(s);if(!p)return {ok:false,reason:"先に惑星を生成してください"};
-  if(!Number.isSafeInteger(count)||count<1)return {ok:false,reason:"投入個数が不正です"};
+  if(!Number.isSafeInteger(count)||count<1||count>10000)return {ok:false,reason:"投入数は1〜10,000個です"};
   if(A(s.universe.resources[id]||0).cmp(count)<0)return {ok:false,reason:"所持数が不足しています"};
+  const rule=UNIVERSE_RESOURCE_RULES[id],delta=investmentDelta(id,count);
+  if(!rule||!delta)return {ok:false,reason:"資源効果が定義されていません"};
   s.universe.resources[id]=sub(s.universe.resources[id],count);
-  const basic=A(count).mul(CONFIG.provisional.universe.massPerResource);
+  const basic=A(delta.mass);
   p.stats.mass=add(p.stats.mass,basic);
-  // All resources still grant mass. The extra specialization is opt-in, lab only.
-  const resource=CONTENT.resources.find(x=>x.id===id);
-  const special=trialEnabled(s)?resourcePrototype(resource):null;
-  if(special){
-    p.stats[special.stat]=add(p.stats[special.stat],A(count).mul(special.perUnit));
-    if(special.stat2)p.stats[special.stat2]=add(p.stats[special.stat2],A(count).mul(special.perUnit/2));
+  let special=delta.effects,trialSpecial=null;
+  if(trialEnabled(s)){
+    // Preserve the original sandbox comparison in addition to the adopted stats.
+    const resource=CONTENT.resources.find(x=>x.id===id),proposal=resourcePrototype(resource);
+    if(proposal){
+      special={...special,[proposal.stat]:proposal.perUnit*count};
+      if(proposal.stat2)special[proposal.stat2]=proposal.perUnit*count/2;
+      trialSpecial={stat:proposal.stat,added:String(proposal.perUnit*count)};
+    }
   }
-  return {ok:true,massAdded:basic.toString(),trialSpecial:special?{stat:special.stat,added:A(count).mul(special.perUnit).toString()}:null};
+  for(const [key,value] of Object.entries(special)){
+    const current=A(p.stats[key]||0).toNumber();
+    const cap=key==="stability"?90:Number.POSITIVE_INFINITY;
+    p.stats[key]=str(Math.min(cap,current+value));
+  }
+  if(!p.evidence||typeof p.evidence!=="object")p.evidence={};
+  p.evidence.investments=(p.evidence.investments||0)+1;
+  if(special.temperature>0||special.energy>0){
+    if(addKnowledge(s.universe,"heat",10))event(s,"熱の循環という現象を理解した。");
+  }
+  if(special.pressure>0){
+    if(addKnowledge(s.universe,"pressure",10))event(s,"惑星内部の圧力を理解した。");
+  }
+  if((p.evidence.naturalTicks||0)>0&&!p.observed.includes("mass")){
+    p.observed.push("mass");event(s,"質量：自然成長と資源投入による増加を認識した。");
+  }
+  return {ok:true,massAdded:basic.toString(),effects:special,trialSpecial};
 }
 export function distributeResources(total,ids,rng=Math.random) {
   const result={};
@@ -523,35 +577,284 @@ export function stabilityPreview(value,percent) {
   if(!Number.isFinite(percent)||percent<0||percent>100)return null;
   return A(value).mul(percent/100).toString();
 }
+export function confirmedResourceBag(total,stats,rng=Math.random) {
+  const entries=eligibleResourceWeights(CONTENT.resources,stats);
+  if(!entries.length)return {};
+  const n=A(total).toNumber();
+  const bag={};
+  if(Number.isFinite(n)&&n<=10000){
+    const whole=Math.floor(n);
+    for(let k=0;k<whole;k++){
+      const id=pickWeightedResource(entries,rng);
+      if(id)bag[id]=add(bag[id]||0,1);
+    }
+    if(n-whole>rng()){
+      const id=pickWeightedResource(entries,rng);if(id)bag[id]=add(bag[id]||0,1);
+    }
+  }else{
+    const weights=entries.reduce((a,x)=>a+x.weight,0);
+    // Large-number arithmetic uses expected distribution rather than O(N)
+    // independent draws; this is approximate and must be balance-tested.
+    for(const item of entries)bag[item.id]=A(total).mul(item.weight/weights).toString();
+  }
+  return bag;
+}
+export function collapsePlanet(s,id=s.universe.selectedPlanetId,rng=Math.random,now=Date.now()) {
+  const p=planet(s,id);if(!p)return {ok:false,reason:"対象惑星は既に存在しません"};
+  const reward=A(p.stats.mass).mul(2*collapsePressureFactor(p.stats.pressure));
+  const bag=confirmedResourceBag(reward,p.stats,rng);
+  // A planet is deleted after award. Replays cannot award the same planet twice.
+  s.universe.planets=s.universe.planets.filter(x=>x.id!==id);
+  stopTransfersForPlanet(s,id);
+  receive(s,bag);
+  s.universe.selectedPlanetId=s.universe.planets[0]?.id||null;
+  s.universe.collapseCount++;
+  if(addKnowledge(s.universe,"collapse",10))event(s,"惑星の崩壊法則を理解した。");
+  s.universe.maxPlanets=Math.max(s.universe.maxPlanets,s.universe.collapseCount>=100?10:s.universe.collapseCount>=20?5:s.universe.collapseCount>=5?3:2);
+  achievement(s,"planetRuin","《惑星の破滅》：最初の崩壊を観測した。2惑星の生成が解放された。");
+  event(s,`惑星${id}が崩壊し、${Object.keys(bag).length}種の資源を受け取った。`,now);
+  return {ok:true,bag,reward:reward.toString()};
+}
+// Planetary interference uses stable planet IDs and a single affordability check.
+// The caller only renders the controls; balances are never calculated in the DOM.
+function spendResourcePlan(s,plan){
+  for(const row of plan.items)s.universe.resources[row.id]=sub(s.universe.resources[row.id]||0,row.count);
+}
+function selectedPlanetPair(s,firstId,secondId){
+  if(!firstId||!secondId||firstId===secondId)return {ok:false,reason:"生存中の異なる2惑星を選んでください"};
+  const first=planet(s,firstId),second=planet(s,secondId);
+  if(!first||!second)return {ok:false,reason:"対象惑星は終了しています"};
+  return {ok:true,first,second};
+}
+function interferenceReady(s,id){
+  if(!s.universe.unlocked)return {ok:false,reason:"《宇宙》が未解放です"};
+  if(!interferenceKnowledgeReady(s.universe,INTERFERENCE_RULES[id].knowledge))
+    return {ok:false,reason:"対応する現象の理解度100が必要です"};
+  return {ok:true};
+}
+export function interferenceQuote(s,type,firstId,secondId,now=Date.now()){
+  if(!INTERFERENCE_RULES[type])return {ok:false,reason:"干渉の種類が不正です"};
+  const ready=interferenceReady(s,type);
+  if(!ready.ok)return ready;
+  const data=s.universe.interference;
+  const pair=type==="collision"||type==="transfer"?
+    selectedPlanetPair(s,firstId,secondId):{ok:!!planet(s,firstId),first:planet(s,firstId),reason:"対象惑星が見つかりません"};
+  if(!pair.ok)return pair;
+  let price,plan,rule=INTERFERENCE_RULES[type];
+  if(type==="collision"){
+    if(pair.first.core?.formed||pair.first.core?.started||pair.second.core?.formed||pair.second.core?.started)
+      return {ok:false,reason:"コア形成中または完成済みの惑星は衝突できません"};
+    if(data.transfers.some(t=>[firstId,secondId].includes(t.from)||[firstId,secondId].includes(t.to)))
+      return {ok:false,reason:"成長移転中の惑星は衝突できません"};
+    price=rule.cost;
+  } else if(type==="transfer"){
+    if(data.transfers.some(t=>[firstId,secondId].includes(t.from)||[firstId,secondId].includes(t.to)))
+      return {ok:false,reason:"移転に参加中の惑星は別の移転を開始できません"};
+    price=rule.cost;
+  } else if(type==="induce"){
+    if(s.universe.collapseCount<rule.requiredCollapses)
+      return {ok:false,reason:"最終崩壊を累計10回観測してください"};
+    if(!Number.isFinite(now)||now-data.lastInduceAt<rule.cooldownMs)
+      return {ok:false,reason:"誘発崩壊の待機中です"};
+    price=induceResourceCost(pair.first.stats.mass).toString();
+  } else if(type==="stabilize"){
+    if(A(pair.first.stats.stability||0).cmp(rule.maxStability)>=0)
+      return {ok:false,reason:"惑星の安定は最大90%です"};
+    if((data.stabilizeCooldowns[firstId]||0)>0)
+      return {ok:false,reason:"この惑星の安定化は待機中です"};
+    price=rule.cost;
+  }
+  plan=resourceSpendPlan(s.universe.resources,price,type==="stabilize"?STABILIZING_RESOURCES:R1_RESOURCE_IDS);
+  return plan.ok?{ok:true,type,firstId,secondId:secondId||null,price,plan}:
+    {ok:false,reason:plan.reason,price};
+}
+function stopTransfersForPlanet(s,id){
+  s.universe.interference.transfers=s.universe.interference.transfers.filter(t=>t.from!==id&&t.to!==id);
+  delete s.universe.interference.stabilizeCooldowns[id];
+}
+export function collidePlanets(s,firstId,secondId,now=Date.now()){
+  const q=interferenceQuote(s,"collision",firstId,secondId,now);
+  if(!q.ok)return q;
+  const first=planet(s,firstId),second=planet(s,secondId);
+  const ma=A(first.stats.mass),mb=A(second.stats.mass),total=ma.add(mb);
+  const stats=Object.fromEntries(STAT_IDS.filter(id=>id!=="age").map(id=>{
+    if(id==="mass")return [id,total.mul(.8).toString()];
+    const value=total.cmp(0)>0?
+      A(first.stats[id]).mul(ma).add(A(second.stats[id]).mul(mb)).div(total):A(0);
+    return [id,(id==="stability"&&value.cmp(90)>0?A(90):value).toString()];
+  }));
+  const id="PLANET_"+s.universe.nextPlanetId++;
+  spendResourcePlan(s,q.plan);
+  stopTransfersForPlanet(s,firstId);stopTransfersForPlanet(s,secondId);
+  s.universe.planets=s.universe.planets.filter(p=>p.id!==firstId&&p.id!==secondId);
+  s.universe.planets.push({id,bornAt:now,stats,observed:[],pendingResources:{},receiptMode:null,core:makeCoreState(),evidence:{}});
+  s.universe.selectedPlanetId=id;
+  addKnowledge(s.universe,"collision",10);
+  event(s,`惑星${firstId}と${secondId}が衝突。新しい惑星${id}が形成された。`,now);
+  return {ok:true,id,cost:q.price};
+}
+export function transferPlanetGrowth(s,fromId,toId,now=Date.now()){
+  const q=interferenceQuote(s,"transfer",fromId,toId,now);
+  if(!q.ok)return q;
+  const data=s.universe.interference;
+  spendResourcePlan(s,q.plan);
+  const id="TRANSFER_"+data.nextTransferId++;
+  data.transfers.push({id,from:fromId,to:toId,remainingSeconds:INTERFERENCE_RULES.transfer.durationSeconds});
+  event(s,`成長移転を開始：${fromId}の質量自然成長を10分間止め、50%相当を${toId}へ送る。`,now);
+  return {ok:true,id,cost:q.price};
+}
+export function inducePlanetCollapse(s,id,now=Date.now(),rng=Math.random){
+  const q=interferenceQuote(s,"induce",id,null,now);
+  if(!q.ok)return q;
+  const out=collapsePlanet(s,id,rng,now);
+  if(!out.ok)return out;
+  spendResourcePlan(s,q.plan);
+  s.universe.interference.lastInduceAt=now;
+  event(s,`崩壊干渉：R1資源${q.price}を消費した。`,now);
+  return {ok:true,...out,cost:q.price};
+}
+export function stabilizePlanet(s,id,now=Date.now()){
+  const q=interferenceQuote(s,"stabilize",id,null,now);
+  if(!q.ok)return q;
+  const p=planet(s,id);
+  const next=A(p.stats.stability||0).add(INTERFERENCE_RULES.stabilize.stabilityGain);
+  spendResourcePlan(s,q.plan);
+  p.stats.stability=(next.cmp(INTERFERENCE_RULES.stabilize.maxStability)>0?
+    A(INTERFERENCE_RULES.stabilize.maxStability):next).toString();
+  s.universe.interference.stabilizeCooldowns[id]=INTERFERENCE_RULES.stabilize.cooldownMs/1000;
+  addKnowledge(s.universe,"stability",10);
+  event(s,`惑星${id}を安定化した。安定 ${p.stats.stability}% 。`,now);
+  return {ok:true,id,cost:q.price,stability:p.stats.stability};
+}
+export function startCore(s,id=s.universe.selectedPlanetId) {
+  const p=planet(s,id),q=coreRequirements(p,s.universe);
+  if(!q.ok)return q;
+  if(A(s.universe.resources.UR6_01||0).cmp(1)<0)return {ok:false,reason:"R6資源が1個必要です"};
+  s.universe.resources.UR6_01=sub(s.universe.resources.UR6_01,1);
+  p.core=makeCoreState(p.core);p.core.started=true;
+  event(s,"惑星コアの形成を開始した。熱と圧力の均衡が変わると形成は停止する。");
+  return {ok:true};
+}
+export function toggleAutoPlanet(s) {
+  if(!autoPlanetAvailable(s.universe))return {ok:false,reason:"累計崩壊20回・5枠・崩壊現象の理解度100が必要です"};
+  s.universe.autoGenerate=!s.universe.autoGenerate;
+  if(!s.universe.autoGenerate)s.universe.autoAccumulator=0;
+  event(s,s.universe.autoGenerate?"惑星の自動生成を有効にした。":"惑星の自動生成を停止した。");
+  return {ok:true,enabled:s.universe.autoGenerate};
+}
+export function setAutoPlanetReserve(s,units) {
+  if(!Number.isSafeInteger(units)||units<0||units>1000000)return {ok:false,reason:"最低保有量は0〜1,000,000です"};
+  s.universe.autoReserve=units;
+  return {ok:true};
+}
+function autoPlanetOnce(s,now) {
+  const u=s.universe;
+  if(u.planets.length>=u.maxPlanets)return false;
+  const reserve=u.autoReserve||0;
+  let need=A(100);const transactions=[];
+  for(const r of CONTENT.resources.filter(x=>x.rank===1)){
+    const current=A(u.resources[r.id]||0);
+    const available=current.sub(reserve);
+    if(available.cmp(0)<=0)continue;
+    const amount=available.cmp(need)>=0?need:available;
+    transactions.push([r.id,amount.toString()]);
+    need=need.sub(amount);
+    if(need.cmp(0)<=0)break;
+  }
+  if(need.cmp(0)>0)return false;
+  const p=createPlanet(s,now);if(!p.ok)return false;
+  for(const [id,value] of transactions)u.resources[id]=sub(u.resources[id],value);
+  event(s,"資源を用いて惑星が自律生成された。",now);
+  return true;
+}
+// One-time purchases and reusable equipment are distinct. Existing four-node
+// lab experiments stay in engraving.active but do not count as owned engravings.
+export function buyEngraving(s,id) {
+  const q=engravingPurchaseQuote(s,id);
+  if(!q.ok)return q;
+  if(A(s.surplusExistence).cmp(q.price)<0)return {ok:false,reason:"余剰存在が不足しています"};
+  s.surplusExistence=sub(s.surplusExistence,q.price);
+  s.engraving.owned.push(id);
+  event(s,`${id} を取得した。装備しない限り効果は発動しません。`);
+  return {ok:true,id,price:q.price};
+}
 export function beginEngraving(s) {
-  s.engraving.draft=[...s.engraving.active];return {ok:true};
+  if(s.engraving.draft!==null)return {ok:false,reason:"編集中です"};
+  s.engraving.draft=[...s.engraving.equipped];
+  return {ok:true};
 }
 export function toggleDraft(s,id) {
-  if(!CONTENT.engravings.some(x=>x.id===id))return {ok:false,reason:"刻印IDが不正です"};
+  if(!ENGRAVING_IDS.includes(id))return {ok:false,reason:"刻印IDが不正です"};
   if(s.engraving.draft===null)return {ok:false,reason:"編集を開始してください"};
-  if(s.mode!=="lab")return {ok:false,reason:"このノードの条件・費用は？？？です"};
-  const d=s.engraving.draft;s.engraving.draft=d.includes(id)?d.filter(x=>x!==id):[...d,id];
+  if(!s.engraving.owned.includes(id))return {ok:false,reason:"先に刻印を取得してください"};
+  const draft=s.engraving.draft;
+  if(draft.includes(id))s.engraving.draft=draft.filter(x=>x!==id);
+  else{
+    if(draft.length>=engravingSlots(s.convergenceCount))return {ok:false,reason:"装備スロットの上限です"};
+    s.engraving.draft=[...draft,id];
+  }
   return {ok:true};
 }
 export function engravingQuote(s) {
-  const active=s.engraving.active, draft=s.engraving.draft||active;
-  const added=draft.filter(x=>!active.includes(x));
-  const removed=active.filter(x=>!draft.includes(x));
-  return {added,removed,cost:A(CONFIG.lab.engravingCost).mul(added.length).toString()};
+  const slots=engravingSlots(s.convergenceCount);
+  const draft=s.engraving.draft??s.engraving.equipped;
+  const equipped=s.engraving.equipped;
+  return {added:draft.filter(id=>!equipped.includes(id)),
+    removed:equipped.filter(id=>!draft.includes(id)),
+    slots,cost:"0"};
 }
 export function confirmEngraving(s) {
-  if(s.engraving.draft===null)return {ok:false,reason:"編集中ではありません"};
-  const q=engravingQuote(s);
-  if(!q.added.length&&!q.removed.length){s.engraving.draft=null;return {ok:true,unchanged:true};}
-  if(s.mode!=="lab")return {ok:false,reason:"再編の費用と条件は要確認です"};
-  if(q.removed.length)return {ok:false,reason:"再編の返却額・消費優先順は未決定です。検証版も追加取得のみ対応。"};
-  if(A(s.surplusExistence).cmp(q.cost)<0)return {ok:false,reason:"存在はなくせません。保護された1を除く余剰が必要です。"};
-  s.surplusExistence=sub(s.surplusExistence,q.cost);
-  s.engraving.active=[...s.engraving.draft];s.engraving.draft=null;
-  event(s,"【検証】刻印の仮振りを確定した。");
-  return {ok:true};
+  const draft=s.engraving.draft;
+  if(draft===null)return {ok:false,reason:"編集中ではありません"};
+  if(new Set(draft).size!==draft.length||draft.length>engravingSlots(s.convergenceCount)||
+     draft.some(id=>!s.engraving.owned.includes(id)||!ENGRAVING_IDS.includes(id)))
+    return {ok:false,reason:"装備対象・スロットが不正です"};
+  const diff=engravingQuote(s);
+  s.engraving.equipped=[...draft];
+  s.engraving.draft=null;
+  if(!s.engraving.equipped.includes(ENGRAVING_AUTO_CONVERGE_ID))
+    s.engraving.autoConverge.enabled=false;
+  if(diff.added.length||diff.removed.length)
+    event(s,`刻印装備を確定した（${s.engraving.equipped.length}/${diff.slots}枠）。所有刻印は消費されません。`);
+  return {ok:true,...diff};
 }
-export function cancelEngraving(s) {s.engraving.draft=null;return {ok:true};}
+export function cancelEngraving(s) {
+  if(s.engraving.draft===null)return {ok:false,reason:"編集中ではありません"};
+  s.engraving.draft=null;return {ok:true};
+}
+export function configureAutoConvergence(s,{enabled,minReward}={},now=Date.now()) {
+  const a=s.engraving.autoConverge;
+  if(minReward!==undefined){
+    if(!validRewardThreshold(minReward))return {ok:false,reason:"報酬閾値は0.025以上で指定してください"};
+    a.minReward=str(minReward);
+  }
+  if(enabled!==undefined){
+    if(typeof enabled!=="boolean")return {ok:false,reason:"設定が不正です"};
+    if(enabled&&(!s.engraving.owned.includes(ENGRAVING_AUTO_CONVERGE_ID)||
+      !s.engraving.equipped.includes(ENGRAVING_AUTO_CONVERGE_ID)))
+      return {ok:false,reason:"ENG-24の取得・装備が必要です"};
+    if(enabled&&!a.enabled)a.lastAt=now; // 60s safety interval after ON
+    a.enabled=enabled;
+  }
+  return {ok:true,enabled:a.enabled,minReward:a.minReward};
+}
+export function autoConvergenceTick(s,now=Date.now(),offline=false) {
+  if(offline||!s.intro.complete||!s.engraving.autoConverge.enabled ||
+    !s.engraving.owned.includes(ENGRAVING_AUTO_CONVERGE_ID)||
+    !s.engraving.equipped.includes(ENGRAVING_AUTO_CONVERGE_ID))
+    return {ok:false,reason:"自動収束の条件を満たしていません"};
+  if(!Number.isFinite(now)||now<0||now-s.engraving.autoConverge.lastAt<AUTO_CONVERGE_MIN_INTERVAL_MS)
+    return {ok:false,reason:"自動収束の待機中です"};
+  const q=convergenceQuote(s);
+  if(!q.steps||A(q.reward).cmp(s.engraving.autoConverge.minReward)<0)
+    return {ok:false,reason:"報酬閾値または必要オーブが不足しています"};
+  const result=converge(s);
+  if(result.ok){
+    s.engraving.autoConverge.lastAt=now;
+    event(s,"ENG-24により自動収束を実行した。",now);
+  }
+  return result;
+}
 export function boostValues(s) {
   // Five paths have no approved costs. Extra effects are sandbox-only.
   const u=s.mode==="lab"?s.boost.upgrades:[0,0,0,0,0],c=CONFIG.confirmed;
@@ -603,44 +906,91 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
     addOrbs(s,gained);
   }
   if(s.time.unlocked){
-    s.time.elapsed+=gameSeconds;
-    // Time -> world seconds and random event interval are undefined.
-    if(s.mode==="lab"){
-      s.time.residueAccumulator+=gameSeconds*CONFIG.lab.residueEventsPerSecond;
-      const events=Math.min(500,Math.floor(s.time.residueAccumulator));
-      s.time.residueAccumulator-=events;
-      for(let i=0;i<events;i++)rollResidue(s,rng);
-      if(s.time.revealedDirections===6)s.time.worldSeconds+=gameSeconds*CONFIG.lab.worldSecondsPerSecond;
-    }
+    const mods=conceptBonuses(s,CONTENT.concepts);
+    const weightedDirection=s.time.selected.reduce((sum,i)=>sum+(s.time.weights[i]||0)/100*(mods.directions[i]||0),0);
+    const timeSeconds=offline?Math.min(dt,b.offlineCap)*Math.min(1,b.efficiency+mods.offlineEfficiency)*(1+mods.offlineGrowth):gameSeconds;
+    s.time.elapsed+=timeSeconds*(1+mods.time)*(1+mods.all+weightedDirection);
+    // Calibrated initial trial coefficient to be balance-tested (TE-31/32).
+    const existenceScore=Math.max(0,Math.log10(1+Math.min(1e300,Number(s.surplusExistence)||0)));
+    const chancePerSecond=.00055*(1+Math.min(100,existenceScore))*(1+mods.event);
+    const expected=timeSeconds*(s.mode==="lab"?CONFIG.lab.residueEventsPerSecond:chancePerSecond);
+    const events=Math.min(5000,Math.floor(expected)+(rng()<expected%1?1:0));
+    for(let i=0;i<events;i++)rollResidue(s,rng);
+    // Per-tick Bernoulli fraction prevents biased over-awards at 150ms refresh.
+    s.time.residueAccumulator=0;
+    tryDirectionMiracle(s,timeSeconds,rng);
+    // TIME is never spent by world-clock progression.
+    s.time.worldSeconds=Math.min(1,s.time.worldSeconds+
+      timeSeconds*(1+mods.world)/(24*3600));
     checkUniverse(s);
   }
   if(s.universe.unlocked){
-    for(const p of s.universe.planets){
-      const m=trialEnabled(s)?naturalGrowthFactors(p.stats):{activity:1,gravity:1};
-      const growth=A(gameSeconds).mul(CONFIG.provisional.universe.massGrowthPerSecond).mul(m.gravity*m.activity);
-      p.stats.mass=add(p.stats.mass,growth);
+    const interference=s.universe.interference;
+    const growthBonuses=new Map(),growthBlocks=new Map();
+    for(const t of [...interference.transfers]){
+      const from=planet(s,t.from),to=planet(s,t.to);
+      if(!from||!to||t.remainingSeconds<=0)continue;
+      const active=Math.min(gameSeconds,t.remainingSeconds);
+      const factor=Math.min(2,1.01**Math.min(100,Math.floor(Number(from.stats.activity||0)/100)));
+      const wouldGrow=A(active/60).mul(factor);
+      growthBlocks.set(t.from,(growthBlocks.get(t.from)||A(0)).add(wouldGrow));
+      growthBonuses.set(t.to,(growthBonuses.get(t.to)||A(0)).add(wouldGrow.mul(.5)));
+      t.remainingSeconds=Math.max(0,t.remainingSeconds-gameSeconds);
     }
-    // Receipt timing and collapse are only simulated in isolated lab data.
-    if(s.mode==="lab"&&["A","B"].includes(s.universe.receiptMode)){
-      s.universe.resourceAccumulator+=gameSeconds;
-      const draws=Math.min(360,Math.floor(s.universe.resourceAccumulator/CONFIG.lab.resourceInterval));
-      s.universe.resourceAccumulator-=draws*CONFIG.lab.resourceInterval;
-      const eligible=CONTENT.resources.filter(x=>s.universe.unlockedRanks.includes(x.rank));
-      const ids=eligible.map(x=>x.id);
-      for(let i=0;i<draws;i++)for(const p of s.universe.planets){
-        const bag=trialEnabled(s)?distributeTrialResources(p.stats.mass,eligible,p.stats,rng):distributeResources(p.stats.mass,ids,rng);
-        if(s.universe.receiptMode==="B")receive(s,bag);
-        else for(const [id,v]of Object.entries(bag))p.pendingResources[id]=add(p.pendingResources[id]||0,v);
+    interference.transfers=interference.transfers.filter(t=>t.remainingSeconds>0&&planet(s,t.from)&&planet(s,t.to));
+    for(const [id,cooldown] of Object.entries(interference.stabilizeCooldowns)){
+      if(!planet(s,id))delete interference.stabilizeCooldowns[id];
+      else interference.stabilizeCooldowns[id]=Math.max(0,cooldown-gameSeconds);
+    }
+    for(const p of [...s.universe.planets]){
+      const activity=Math.min(2,1.01**Math.min(100,p.stats.activity?Math.floor(Number(p.stats.activity)/100):0));
+      const growth=A(gameSeconds/60).mul(activity).sub(growthBlocks.get(p.id)||A(0))
+        .add(growthBonuses.get(p.id)||A(0));
+      p.stats.mass=add(p.stats.mass,growth);
+      if(!p.evidence||typeof p.evidence!=="object")p.evidence={};
+      p.evidence.naturalTicks=(p.evidence.naturalTicks||0)+gameSeconds/60;
+      if(p.evidence.investments>0&&!p.observed.includes("mass")){
+        p.observed.push("mass");event(s,"質量：自然成長と資源投入による増加を認識した。");
       }
-      // Aggregate hazard, no predicted death timer. Offline collapse remains unimplemented.
-      if(!offline){
-        for(const p of [...s.universe.planets]){
-          if(rng()<1-Math.exp(-CONFIG.lab.collapseHazardPerSecond*gameSeconds))labCollapse(s,p.id,rng);
+      if((now-p.bornAt)>=600000&&!p.observed.includes("age")){
+        p.observed.push("age");event(s,"星齢：惑星が生まれてからの時間だと認識した。");
+      }
+      if(Number(p.stats.temperature)>=1&&Number(p.stats.energy)>=1){
+        if(addKnowledge(s.universe,"heat",Math.min(10,gameSeconds/60*10)))event(s,"熱の循環という現象を理解した。");
+        if(knowledgeLevel(s.universe,"heat")>=100&&!p.observed.includes("temperature"))p.observed.push("temperature");
+      }
+      if(Number(p.stats.pressure)>=1){
+        if(addKnowledge(s.universe,"pressure",Math.min(10,gameSeconds/60*10)))event(s,"惑星内部の圧力を理解した。");
+        if(knowledgeLevel(s.universe,"pressure")>=100&&!p.observed.includes("pressure"))p.observed.push("pressure");
+      }
+      if(p.core?.started||p.core?.formed){
+        const result=advanceCore(p,s.universe,gameSeconds,(message)=>event(s,message,now));
+        if(result.life&&!s.life.unlocked){
+          s.life.unlocked=true;
+          achievement(s,"firstLife","《生命》を認識した。微生物・有機生物の段階へ進む。");
         }
       }
     }
+    s.universe.resourceAccumulator+=gameSeconds;
+    const draws=Math.min(360,Math.floor(s.universe.resourceAccumulator/60));
+    s.universe.resourceAccumulator-=draws*60;
+    for(let i=0;i<draws;i++){
+      for(const p of s.universe.planets)receive(s,confirmedResourceBag(p.stats.mass,p.stats,rng));
+    }
+    // Natural final collapse uses a hazard, not a scheduled death timer.
+    for(const p of [...s.universe.planets]){
+      const hazard=collapseHazardPerMinute(p.stats)*(p.core?.formed ? .7 : 1);
+      if(rng()<1-Math.pow(1-hazard,gameSeconds/60))collapsePlanet(s,p.id,rng,now);
+    }
+    if(s.universe.autoGenerate&&autoPlanetAvailable(s.universe)){
+      s.universe.autoAccumulator+=gameSeconds;
+      const ticks=Math.min(20,Math.floor(s.universe.autoAccumulator/300));
+      s.universe.autoAccumulator-=ticks*300;
+      for(let i=0;i<ticks;i++)autoPlanetOnce(s,now);
+    }
   }
-  if(s.mode==="lab"&&!offline&&s.intro.complete){
+  if(!offline)autoConvergenceTick(s,now,false);
+  if(s.mode==="lab"){
     if(s.engraving.active.includes("autoTap"))addOrbs(s,tapPower(s).mul(gameSeconds));
     if(s.engraving.active.includes("autoSource")){
       const mode=s.purchaseMode;s.purchaseMode="1";
@@ -792,22 +1142,39 @@ export function validateState(input,expectedMode=null) {
   s.sourceCycle={reached:cycle.reachedIds,unlocked:cycle.unlocked};
   if(!modeSet.has(s.purchaseMode))fail("購入モード");
   if(!Number.isInteger(s.convergenceCount)||s.convergenceCount<0)fail("収束回数");
-  const t=s.time;if(!t||typeof t.unlocked!=="boolean"||!Number.isInteger(t.revealedDirections)||t.revealedDirections<1||t.revealedDirections>6)fail("時");
+  const t=s.time;if(t&&t.miracles===undefined)t.miracles=[];if(!t||typeof t.unlocked!=="boolean"||!Number.isInteger(t.revealedDirections)||t.revealedDirections<1||t.revealedDirections>6)fail("時");
   if(!Array.isArray(t.selected)||!t.selected.length||t.selected.length>3||new Set(t.selected).size!==t.selected.length||t.selected.some(i=>!Number.isInteger(i)||i<0||i>=t.revealedDirections))fail("配分");
   if(!Array.isArray(t.weights)||t.weights.length!==6||t.weights.some(v=>!Number.isFinite(v)||v<0||v>100))fail("比率");
   for(const k of ["elapsed","worldSeconds","common","residueAccumulator"])if(!Number.isFinite(t[k])||t[k]<0)fail("時の数値");
   if(!Number.isSafeInteger(t.common))fail("共通残滓");
+  if(!Array.isArray(t.miracles)||t.miracles.length>5||t.miracles.some(v=>!Number.isInteger(v)||v<1||v>5))fail("方向解放履歴");
   for(const key of ["residues","concepts"]){
     if(!t[key]||typeof t[key]!=="object"||Array.isArray(t[key]))fail("概念データ");
     for(const [id,v] of Object.entries(t[key]))if(!CONCEPT_IDS.includes(id)||!Number.isSafeInteger(v)||v<0)fail("概念ID・数量");
   }
-  const u=s.universe;if(!u||!Array.isArray(u.planets)||u.planets.length>20)fail("宇宙");
+  const u=s.universe;if(u){
+    if(u.autoGenerate===undefined)u.autoGenerate=false;
+    if(u.autoAccumulator===undefined)u.autoAccumulator=0;
+    if(u.autoReserve===undefined)u.autoReserve=0;
+    if(u.knowledge===undefined)u.knowledge={};
+    if(u.interference===undefined)u.interference={transfers:[],nextTransferId:1,lastInduceAt:0,stabilizeCooldowns:{}};
+  }
+  if(!u||!Array.isArray(u.planets)||u.planets.length>20)fail("宇宙");
   if(!Number.isInteger(u.maxPlanets)||u.maxPlanets<1||u.maxPlanets>20||!Number.isInteger(u.nextPlanetId)||u.nextPlanetId<1)fail("惑星数");
   if(new Set(u.planets.map(p=>p.id)).size!==u.planets.length)fail("惑星ID重複");
   for(const p of u.planets){
     if(typeof p.id!=="string"||!/^PLANET_\d+$/.test(p.id)||!Number.isFinite(p.bornAt)||p.bornAt<0)fail("惑星ID・星齢");
     for(const id of STAT_IDS.filter(x=>x!=="age"))p.stats[id]=str(p.stats?.[id]);
     if(!Array.isArray(p.observed)||p.observed.some(x=>!STAT_IDS.includes(x)))fail("観測");
+    p.core=makeCoreState(p.core);
+    if(p.evidence===undefined)p.evidence={};
+    if(!p.core||typeof p.core.formed!=="boolean"||typeof p.core.started!=="boolean"||
+       !Number.isFinite(p.core.progress)||p.core.progress<0||p.core.progress>100||
+       !Number.isFinite(p.core.pulses)||p.core.pulses<0||
+       !Number.isFinite(p.core.pulseAccumulator)||p.core.pulseAccumulator<0||
+       !Number.isFinite(p.core.surfaceCount)||p.core.surfaceCount<0||
+       !Number.isInteger(p.core.lifeStage)||p.core.lifeStage<0||p.core.lifeStage>3)fail("コア状態");
+    if(!p.evidence||typeof p.evidence!=="object"||Array.isArray(p.evidence))fail("観測証拠");
     for(const [id,v]of Object.entries(p.pendingResources||{})){if(!RESOURCE_IDS.includes(id))fail("報酬ID");p.pendingResources[id]=str(v);}
   }
   if(!u.resources||typeof u.resources!=="object"||Array.isArray(u.resources))fail("資源");
@@ -815,8 +1182,63 @@ export function validateState(input,expectedMode=null) {
   if(!Array.isArray(u.discoveredResources)||u.discoveredResources.some(id=>!RESOURCE_IDS.includes(id)))fail("資源発見");
   if(!Array.isArray(u.unlockedRanks)||u.unlockedRanks.some(x=>!Number.isInteger(x)||x<1||x>6))fail("Rank");
   if(![null,"A","B"].includes(u.receiptMode))fail("受取方式");
-  const e=s.engraving;if(!e||!Array.isArray(e.active)||e.active.some(x=>!CONTENT.engravings.some(y=>y.id===x)))fail("刻印");
-  if(e.draft!==null&&(!Array.isArray(e.draft)||e.draft.some(x=>!CONTENT.engravings.some(y=>y.id===x))))fail("仮振り");
+  if(typeof u.autoGenerate!=="boolean"||!Number.isFinite(u.autoAccumulator)||u.autoAccumulator<0)fail("自動生成状態");
+  if(!Number.isSafeInteger(u.autoReserve)||u.autoReserve<0||u.autoReserve>1000000)fail("自動生成の最低保有量");
+  if(!u.knowledge||typeof u.knowledge!=="object"||Array.isArray(u.knowledge))fail("理解度");
+  for(const [id,v] of Object.entries(u.knowledge)){
+    if(!KNOWLEDGE_IDS.includes(id)||!Number.isFinite(v)||v<0||v>100)fail("理解度の範囲");
+  }
+  const iv=u.interference;
+  if(!iv||typeof iv!=="object"||Array.isArray(iv)||!Array.isArray(iv.transfers)||
+    iv.transfers.length>10||!Number.isSafeInteger(iv.nextTransferId)||iv.nextTransferId<1||
+    !Number.isFinite(iv.lastInduceAt)||iv.lastInduceAt<0||iv.lastInduceAt>1e15||
+    !iv.stabilizeCooldowns||typeof iv.stabilizeCooldowns!=="object"||Array.isArray(iv.stabilizeCooldowns))
+      fail("惑星干渉データ");
+  const seenTransferIds=new Set(),occupiedPlanets=new Set();
+  for(const t of iv.transfers){
+    if(typeof t.id!=="string"||!/^TRANSFER_\d+$/.test(t.id)||
+       !u.planets.some(p=>p.id===t.from)||!u.planets.some(p=>p.id===t.to)||
+       t.from===t.to||!Number.isFinite(t.remainingSeconds)||
+       t.remainingSeconds<=0||t.remainingSeconds>600||
+       seenTransferIds.has(t.id)||occupiedPlanets.has(t.from)||occupiedPlanets.has(t.to))
+      fail("成長移転");
+    seenTransferIds.add(t.id);occupiedPlanets.add(t.from);occupiedPlanets.add(t.to);
+  }
+  for(const [id,v] of Object.entries(iv.stabilizeCooldowns)){
+    if(!u.planets.some(p=>p.id===id)||!Number.isFinite(v)||v<0||v>300)fail("安定化待機");
+  }
+  const e=s.engraving;
+  if(!e||typeof e!=="object"||Array.isArray(e))fail("刻印");
+  // Additive v3.17 migration; preserve the historical lab-only four-node list.
+  if(e.owned===undefined)e.owned=[];
+  if(e.equipped===undefined)e.equipped=[];
+  if(e.autoConverge===undefined)e.autoConverge={enabled:false,minReward:AUTO_CONVERGE_DEFAULT_MIN_REWARD,lastAt:0};
+  if(!Array.isArray(e.active)||e.active.some(x=>!CONTENT.engravings.some(y=>y.id===x)))fail("旧刻印");
+  const checkIds=(list,label)=>{
+    if(!Array.isArray(list)||list.length>30||new Set(list).size!==list.length||
+       list.some(id=>!ENGRAVING_IDS.includes(id)))fail(label);
+  };
+  checkIds(e.owned,"刻印所有");
+  checkIds(e.equipped,"刻印装備");
+  if(e.equipped.length>engravingSlots(s.convergenceCount)||
+     e.equipped.some(id=>!e.owned.includes(id)))fail("刻印装備条件");
+  if(e.draft!==null){
+    // Older lab-only drafts use the four original prototype IDs.
+    if(s.mode==="lab"&&Array.isArray(e.draft)&&e.draft.every(id=>CONTENT.engravings.some(x=>x.id===id)))
+      e.draft=null;
+    else{
+      checkIds(e.draft,"刻印仮装備");
+      if(e.draft.length>engravingSlots(s.convergenceCount)||e.draft.some(id=>!e.owned.includes(id)))fail("刻印仮装備条件");
+    }
+  }
+  if(!e.autoConverge||typeof e.autoConverge!=="object"||
+      typeof e.autoConverge.enabled!=="boolean"||
+      !validRewardThreshold(e.autoConverge.minReward)||
+      !Number.isFinite(e.autoConverge.lastAt)||e.autoConverge.lastAt<0||e.autoConverge.lastAt>1e15)
+    fail("自動収束設定");
+  e.autoConverge.minReward=str(e.autoConverge.minReward);
+  if(e.autoConverge.enabled&&(!e.owned.includes(ENGRAVING_AUTO_CONVERGE_ID)||
+      !e.equipped.includes(ENGRAVING_AUTO_CONVERGE_ID)))fail("自動収束の未装備設定");
   const b=s.boost;if(!b||!Number.isFinite(b.seconds)||b.seconds<0||!Array.isArray(b.upgrades)||b.upgrades.length!==5||b.upgrades.some(x=>!Number.isInteger(x)||x<0||x>10000))fail("BOOST");
   if(typeof b.active!=="boolean")fail("BOOST状態");
   if(s.trial===undefined)s.trial={enabled:false};

@@ -1,3 +1,16 @@
+# 《理》Ver.3.18 — Astral / 宇宙干渉
+
+Web版：[《理》を開く](https://awoipsy0213-svg.github.io/cosmo-incremental-ios/)
+
+- Ver.3.16〜3.18：既存レイアウトを維持したAstralテーマ、77概念・42資源の基本進行、コア・生命、刻印30種の所有・装備、ENG-24自動収束、惑星の4干渉操作を追加。
+- 同一のセーブ形式31と既存キーを保持。移行時は旧版の元バイトを別キーに退避。利用者は公開前後に「保存」画面からJSON書き出しを推奨。
+- **確定仕様の全実装は未完了。** 全回答1,440件のうち回答原文に対応できる300件を台帳化し、未照合は保留。全体の実装率は未算出。
+- 主要な未対応：刻印の残りの固有効果、源通常効果、BOOST正式数値、部分破壊、知識獲得の完全ルート、生命育成、iPhone実機。
+- [仕様ID追跡台帳](./SPEC_TRACEABILITY_V318.json) / [Ver3.18実装・検証状況](./IMPLEMENTATION_STATUS_V318.md) / [Ver3.17刻印状況](./IMPLEMENTATION_STATUS_V317.md)
+- Web root とCapacitorの `www/` 共通ファイルを同期。GitHub ActionsでNode単体/回帰＋Chromium PC/mobile＋一致検査。Safari/iOS実機は未検証。
+
+---
+
 > Ver.3.7: 《刹那》強化カード6項目、スマホUIコンパクト化、一括購入、収束補正、指数表記。詳細 `CHANGELOG_V37.md`。
 
 # 《理（ことわり）》Ver.3.6 — SOURCES / 源の生産量・価格バランス

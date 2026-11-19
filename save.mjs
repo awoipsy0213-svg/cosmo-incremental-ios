@@ -68,6 +68,52 @@ export class SaveStore {
             return {state:s,blocked:true,warning:"Ver.3.9への移行前バックアップを検証できません。元のセーブを保護し、書き込みを停止しています。"};
           }
         }
+        // v3.16 adds observation/core/auto-generation state without changing
+        // the v31 save schema or key. Keep the untouched original bytes before
+        // the first write; never silently migrate the only recoverable copy.
+        if(this.mode==="normal"&&(
+          oldShape.time?.miracles===undefined||
+          oldShape.universe?.knowledge===undefined||
+          oldShape.universe?.autoGenerate===undefined||
+          (oldShape.universe?.planets||[]).some(p=>p.core===undefined)
+        )){
+          const key=this.key+".before-v316";
+          try{
+            if(!this.read(key))this.storage.setItem(key,raw);
+            if(this.read(key)!==raw)throw Error("backup write was not verified");
+          }catch(e){
+            this.blocked=true;
+            return {state:s,blocked:true,warning:"Ver.3.16への移行前バックアップを検証できません。元セーブを保護し、書き込みを停止しました。"};
+          }
+        }
+        // A v3.16 save gains permanent ENG-01..ENG-30 ownership and equipment.
+        // Never rewrite the sole existing save until a byte-perfect copy exists.
+        if(this.mode==="normal"&&(
+          oldShape.engraving?.owned===undefined||
+          oldShape.engraving?.equipped===undefined||
+          oldShape.engraving?.autoConverge===undefined
+        )){
+          const key=this.key+".before-v317";
+          try{
+            if(!this.read(key))this.storage.setItem(key,raw);
+            if(this.read(key)!==raw)throw Error("backup not verified");
+          }catch(error){
+            this.blocked=true;
+            return {state:s,blocked:true,warning:"Ver.3.17への移行前バックアップを検証できません。元セーブを保護し、書き込みを停止しました。"};
+          }
+        }
+        // v3.18 stores interference timers and selected transfers separately.
+        // Keep old progress byte-for-byte before adding a new state field.
+        if(this.mode==="normal"&&oldShape.universe?.interference===undefined){
+          const key=this.key+".before-v318";
+          try{
+            if(!this.read(key))this.storage.setItem(key,raw);
+            if(this.read(key)!==raw)throw Error("backup verification failed");
+          }catch(e){
+            this.blocked=true;
+            return {state:s,blocked:true,warning:"Ver.3.18移行前の元データ退避に失敗しました。既存セーブは上書きせず保護しています。"};
+          }
+        }
         return {state:s};
       }catch(error){
         // Quarantine original bytes and do not silently overwrite invalid data.

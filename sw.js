@@ -1,5 +1,5 @@
 /* Versioned, scope-specific cache. Does not delete saves or another app's cache. */
-const VERSION = "3.15.0-source-final-effects";
+const VERSION = "3.18.0-astral-universe";
 const PREFIX = "kotowari-handoff:" + new URL(self.registration.scope).pathname + ":";
 const CACHE = PREFIX + VERSION;
 const RELATIVE = [
@@ -8,6 +8,12 @@ const RELATIVE = [
   "mobile.css",
   "neon-theme.css",
   "live-ui.css",
+  "astral-observatory.css",
+  "time-confirmed-v4.mjs",
+  "universe-confirmed-v4.mjs",
+  "universe-progression-v316.mjs",
+  "universe-interference-v318.mjs",
+  "engraving-rules-v317.mjs",
   "purchase-insights.mjs",
   "moment-filter.mjs",
   "price-lab.mjs",
@@ -47,7 +53,11 @@ const URLS = RELATIVE.map(path => new URL(path, self.registration.scope).href);
 // content and icons are helpful offline, but their absence must not prevent a
 // GitHub Pages update when an iPhone upload missed a subfolder.
 const CORE_FILES = [
-  "index.html", "organic-original.css", "mobile.css", "neon-theme.css", "live-ui.css",
+  "index.html", "organic-original.css", "mobile.css", "neon-theme.css", "live-ui.css", "astral-observatory.css",
+  "time-confirmed-v4.mjs", "universe-confirmed-v4.mjs",
+  "universe-progression-v316.mjs",
+  "universe-interference-v318.mjs",
+  "engraving-rules-v317.mjs",
   "purchase-insights.mjs",
   "moment-filter.mjs",
   "price-lab.mjs",

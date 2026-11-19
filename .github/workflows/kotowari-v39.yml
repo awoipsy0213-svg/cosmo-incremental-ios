@@ -18,8 +18,28 @@ jobs:
           node-version: '22'
       - run: npm test
       - run: |
-          for f in game.mjs app.mjs content.mjs balance-config.mjs setsuna-rules-v39.mjs save.mjs; do
+          for f in game.mjs app.mjs content.mjs time-confirmed-v4.mjs universe-confirmed-v4.mjs universe-progression-v316.mjs engraving-rules-v317.mjs universe-interference-v318.mjs sw.js; do
+            node --check "$f" || exit 1
+          done
+      - run: |
+          for f in game.mjs app.mjs content.mjs balance-config.mjs setsuna-rules-v39.mjs save.mjs time-confirmed-v4.mjs universe-confirmed-v4.mjs universe-progression-v316.mjs engraving-rules-v317.mjs universe-interference-v318.mjs astral-observatory.css; do
             cmp "$f" "www/$f" || exit 1
           done
           cmp index.html www/index.html
           cmp sw.js www/sw.js
+
+  browser-smoke:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser test tooling
+        run: npm install --no-save @playwright/test
+      - name: Install Chromium and runtime libraries
+        run: npx playwright install --with-deps chromium
+      - name: Smoke-test Web UI in desktop and mobile Chromium
+        run: node tests/v318_browser_smoke.mjs
