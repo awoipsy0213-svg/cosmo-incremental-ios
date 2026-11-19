@@ -80,4 +80,32 @@ for(const upgrade of CONTENT.moment){
   const quote=G.purchaseQuote(huge,'moment',upgrade.id);
   yes(quote.count>=0&&quote.count<=1000000,'huge quote '+upgrade.id);
 }
+
+// Added cross-checks for final integration boundary cases.
+const chainNoCrit=E.fresh(time);
+chainNoCrit.levels[13]=1000;
+same(E.critExpected(chainNoCrit).cmp(1),0,'no critical success means no chain');
+const critTrial=E.fresh(time);
+critTrial.levels[10]=100;critTrial.levels[11]=1;critTrial.levels[13]=500;
+const rate=E.critRate(critTrial),cm=E.critMulti(critTrial).toNumber(),cp=E.probability(critTrial,13);
+const chainMath=(1-cp)+cp*(1-cp)*cm+cp*cp*(1-cp)*cm*cm+cp*cp*cp*cm*cm*cm;
+const expected=1-rate+rate*cm*chainMath;
+yes(Math.abs(E.critExpected(critTrial).toNumber()-expected)<1e-7,'conditional chain expected value matches independent rolls');
+const haste=E.fresh(time);
+haste.levels[7]=500;haste.hasteSteps=2;haste.hasteUntil=time+5000;haste.combo=0;
+yes(E.sourceMultiplier(haste,time+2000)>1,'5-second acceleration survives expired combo');
+same(E.sourceMultiplier(haste,time+6000),1,'5-second acceleration eventually expires');
+const longOnline=E.fresh(time);longOnline.sourceBase='100';
+same(E.advance(longOnline,time+3600000,{seconds:3600,offline:false}).source.cmp(360000),0,'online rewards not cut to 1800 seconds');
+const offlineAuto=E.fresh(time);offlineAuto.levels[5]=100;offlineAuto.levels[15]=10000;offlineAuto.levels[17]=1000;
+const soloAuto=E.fresh(time);soloAuto.levels[5]=100;soloAuto.levels[15]=10000;
+const onCombo=E.advance(offlineAuto,time+1200000,{seconds:360,offline:true}).source;
+const withoutCombo=E.advance(soloAuto,time+1200000,{seconds:360,offline:true}).source;
+yes(onCombo.cmp(withoutCombo)>0,'capped offline self-combo adds reward');
+yes(offlineAuto.offlineCombo<=300,'offline self-combo cap 300');
+const onlineGame=state();onlineGame.sources.SOURCE_01.level=1;
+const expectedOnline=G.production(onlineGame,time).mul(3600);
+G.advance(onlineGame,time+3600000,{offline:false});
+same(A(onlineGame.orbs).cmp(expectedOnline),0,'main-game online interval exceeds 1800 seconds');
+
 console.log('PASS '+checks+' Setsuna 210-choice integration and save tests');
