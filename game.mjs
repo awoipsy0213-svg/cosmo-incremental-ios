@@ -258,10 +258,14 @@ export function buy(s,kind,id) {
 /** Explicit, user-triggered bulk buy. Buys affordable individual levels in chosen price
  * priority order, so the first cheapest line cannot absorb the entire wallet via MAX.
  * Capped to protect slow phones; another tap resumes the rest. Does not automate play. */
-export function buyAll(s,kind,order="cheap") {
+export function buyAll(s,kind,order="cheap",selectedIds=null) {
   if(!["cheap","expensive"].includes(order))return {ok:false,reason:"購入順が不正"};
   if(!["moment","source"].includes(kind)||!s.intro.complete)return {ok:false,reason:"購入対象がありません"};
-  const ids=kind==="source"?SOURCE_IDS:MOMENT_IDS;
+  const available=kind==="source"?SOURCE_IDS:MOMENT_IDS;
+  if(selectedIds!==null&&(!Array.isArray(selectedIds)||!selectedIds.length||
+    new Set(selectedIds).size!==selectedIds.length||selectedIds.some(id=>!available.includes(id))))
+    return {ok:false,reason:"一括購入の対象IDが不正です"};
+  const ids=selectedIds===null?available:available.filter(id=>selectedIds.includes(id));
   const previousMode=s.purchaseMode;
   const before=A(s.orbs);
   let count=0,iterations=0;
@@ -283,6 +287,15 @@ export function buyAll(s,kind,order="cheap") {
   if(!count)return {ok:false,reason:"購入できる強化がありません"};
   const limitReached=iterations>=MAX_LEVELS_PER_ACTION&&ids.some(id=>purchaseQuote(s,kind,id,"1").enabled);
   return {ok:true,count,spent:before.sub(s.orbs).toString(),limitReached};
+}
+/** Non-mutating confirmation quote for U-10.
+ * Same bounded engine and target list as the eventual purchase.
+ * A single-user-click must re-quote after awaiting the dialog.
+ */
+export function quoteBuyAll(s,kind,order="cheap",selectedIds=null){
+  const sample=clone(s),q=buyAll(sample,kind,order,selectedIds);
+  return q.ok?{...q,remaining:sample.orbs,
+    selectedIds:selectedIds===null?null:[...selectedIds]}:q;
 }
 // The first pass is complete only after all 30 Sources have individually
 // reached Lv.1,000,000 at least once, including across Convergences.
