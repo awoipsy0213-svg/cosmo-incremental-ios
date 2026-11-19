@@ -28,6 +28,7 @@ export function createState(now=Date.now(),mode="normal") {
     orbs:"0",totalOrbs:"0",surplusExistence:"0",totalExistenceEarned:"0",
     moment:freshMoment(),momentRuntime:freshMomentRuntime(),
     sources:Object.fromEntries(SOURCE_IDS.map(id=>[id,{level:0,plus:0,effects:[]}])),
+    sourceCycle:{reached:[],unlocked:false},
     convergenceCount:0,purchaseMode:"1",
     time:{unlocked:false,revealedDirections:1,selected:[0],weights:[100,0,0,0,0,0],
       elapsed:0,worldSeconds:0,eventHappened:false,residues:{},concepts:{},common:0,
@@ -213,6 +214,7 @@ export function buy(s,kind,id) {
   spendOrbs(s,q.cost);
   if(kind==="source"){
     s.sources[id].level+=q.count;s.counters.sourcePurchases+=q.count;
+    if(s.sources[id].level>=CONFIG.confirmed.sourceMaxLevel)recordSourceMax(s);
     if(!s.time.unlocked && CONFIG.provisional.timeUnlock==="firstSource"){
       s.time.unlocked=true;event(s,"操作しなくても、光が生まれ始めた。《時》の兆しを観測した。");
     }
@@ -254,15 +256,42 @@ export function buyAll(s,kind,order="cheap") {
   const limitReached=iterations>=MAX_LEVELS_PER_ACTION&&ids.some(id=>purchaseQuote(s,kind,id,"1").enabled);
   return {ok:true,count,spent:before.sub(s.orbs).toString(),limitReached};
 }
+// The first pass is complete only after all 30 Sources have individually
+// reached Lv.1,000,000 at least once, including across Convergences.
+// Source levels/plus from old saves are evidence, but missing history is never
+// guessed. This function does not mutate the save or change production.
+export function sourceCycleStatus(s){
+  const already=Array.isArray(s.sourceCycle?.reached)?s.sourceCycle.reached:[];
+  const reached=new Set(already.filter(id=>SOURCE_IDS.includes(id)));
+  for(const id of SOURCE_IDS){
+    const x=s.sources?.[id];
+    if(x&&(x.level>=CONFIG.confirmed.sourceMaxLevel||x.plus>0))reached.add(id);
+  }
+  const reachedIds=SOURCE_IDS.filter(id=>reached.has(id));
+  return {reached:reachedIds.length,remaining:SOURCE_IDS.length-reachedIds.length,
+    total:SOURCE_IDS.length,unlocked:!!s.sourceCycle?.unlocked||reachedIds.length===SOURCE_IDS.length,
+    reachedIds};
+}
+function recordSourceMax(s){
+  const previous=!!s.sourceCycle?.unlocked;
+  const status=sourceCycleStatus(s);
+  s.sourceCycle={reached:status.reachedIds,unlocked:status.unlocked};
+  if(!previous&&status.unlocked)event(s,"源30種の一巡を達成。各源のLv.1,000,000から＋循環を選べるようになった。");
+}
 export function breakthrough(s,id) {
-  if(!s.sources[id])return {ok:false,reason:"源IDが不正です"};
+  if(!s.sources?.[id])return {ok:false,reason:"源IDが不正です"};
   if(s.sources[id].level<CONFIG.confirmed.sourceMaxLevel)return {ok:false,reason:"Lv.1,000,000で限界突破"};
-  if(s.mode!=="lab" && CONFIG.unresolved.sourceBreakthroughGate===null)
-    return {ok:false,reason:"個別突破と30源一巡の関係は要確認です"};
-  const x=s.sources[id];x.plus++;x.level=1;
-  // 解放済み効果のフラグは保持。新規取得・重複加算は行わない。
-  event(s,`${CONTENT.sources.find(x=>x.id===id).name} ＋${x.plus}（検証用の個別突破）`);
-  return {ok:true};
+  const status=sourceCycleStatus(s);
+  if(!status.unlocked)return {ok:false,reason:"全30源の一巡達成まで残り"+status.remaining+"種"};
+  // Persist historic maximum levels before resetting the current level.
+  recordSourceMax(s);
+  const x=s.sources[id];
+  if(x.plus>=1000000)return {ok:false,reason:"＋値の保存上限に到達しています"};
+  x.plus++;x.level=1;
+  // Keep source effects and cycle history. The PLUS production coefficient
+  // remains unresolved in normal mode; never promote the lab's ×2 to official.
+  event(s,`${CONTENT.sources.find(x=>x.id===id).name} ＋${x.plus}：Lv.1へ戻した（生産倍率は未確定）`);
+  return {ok:true,plus:x.plus,level:x.level};
 }
 export function convergenceQuote(s) {
   const c=CONFIG.provisional.convergence;
@@ -724,6 +753,17 @@ export function validateState(input,expectedMode=null) {
     if(!x||!Number.isInteger(x.level)||x.level<0||x.level>1000000||!Number.isInteger(x.plus)||x.plus<0||x.plus>1000000)fail("源 "+id);
     if(!Array.isArray(x.effects)||x.effects.length>7||x.effects.some(y=>typeof y!=="string"))fail("源効果");
   }
+  const priorCycle=s.sourceCycle;
+  if(priorCycle!==undefined){
+    if(!priorCycle||typeof priorCycle!=="object"||Array.isArray(priorCycle)||
+       !Array.isArray(priorCycle.reached)||priorCycle.reached.length>30||
+       priorCycle.reached.some(id=>!SOURCE_IDS.includes(id))||
+       new Set(priorCycle.reached).size!==priorCycle.reached.length||
+       typeof priorCycle.unlocked!=="boolean")fail("源の一巡履歴");
+  }
+  const cycle=sourceCycleStatus(s);
+  if(priorCycle?.unlocked&&cycle.reached!==30)fail("源の一巡達成フラグ");
+  s.sourceCycle={reached:cycle.reachedIds,unlocked:cycle.unlocked};
   if(!modeSet.has(s.purchaseMode))fail("購入モード");
   if(!Number.isInteger(s.convergenceCount)||s.convergenceCount<0)fail("収束回数");
   const t=s.time;if(!t||typeof t.unlocked!=="boolean"||!Number.isInteger(t.revealedDirections)||t.revealedDirections<1||t.revealedDirections>6)fail("時");

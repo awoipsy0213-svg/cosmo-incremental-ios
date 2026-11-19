@@ -10,7 +10,7 @@ const yes=(a,msg)=>{assert.ok(a,msg);checks++};
 const ids=CONTENT.moment.map(x=>x.id);
 eq(ids.length,30,"moment entry count");
 eq(M.MOMENT_GROUP_NAMES.length,6,"six groups");
-yes(["3.10.0","3.11.0","3.12.0","3.13.0"].includes(CONFIG.version),"v3.10 features retained in current release");
+yes(["3.10.0","3.11.0","3.12.0","3.13.0","3.14.0"].includes(CONFIG.version),"v3.10 features retained in current release");
 eq(CONFIG.schemaVersion,31,"save format untouched");
 eq(KEYS.normal,"kotowari_v31_normal","normal data key unchanged");
 const initial=G.createState(1800000000000);
