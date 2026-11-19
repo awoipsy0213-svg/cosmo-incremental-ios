@@ -36,3 +36,14 @@ jobs:
       - name: Verify live game engine module is accessible
         run: |
           curl -fsSL --retry 4 --retry-delay 3             https://awoipsy0213-svg.github.io/cosmo-incremental-ios/game.mjs             | grep -q 'collidePlanets'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install remote Web smoke dependencies
+        run: npm install --no-save @playwright/test
+      - name: Install Chromium for public-site checks
+        run: npx playwright install --with-deps chromium
+      - name: Exercise the published game in desktop and mobile Chromium
+        env:
+          KOTOWARI_SMOKE_BASE_URL: https://awoipsy0213-svg.github.io/cosmo-incremental-ios/
+        run: node tests/v318_browser_smoke.mjs
