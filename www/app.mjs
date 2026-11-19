@@ -230,15 +230,15 @@ function momentHTML(){
   <div class="kw-card converge-compact"><div class="card-top"><strong>収束 · 永続補正</strong><small data-existence-rate>×${f(G.existenceMultiplier(state),3)}</small></div><small data-convergence-reward>獲得予定 +${f(q.reward,3)} 存在</small><button class="wide-button" data-action="converge" ${!q.steps||readOnly?"disabled":""}>収束する · 次まで ${f(q.nextRemaining)} オーブ</button><small>余剰存在0.02 → 獲得量×1.02 / 1 → ×2（試験値）</small></div>`;
 }
 function sourcesHTML(){
-  const ms=CONFIG.confirmed.sourceMilestones;
-  return `<div class="row-grid compact-upgrades">${CONTENT.sources.map((x,i)=>{
+  const ms=CONFIG.confirmed.sourceMilestones,cycle=G.sourceCycleStatus(state);
+  return `<div class="status-note">源の一巡：${cycle.reached} / ${cycle.total}種到達 ${cycle.unlocked?"・＋循環解放済み":"・解放まで残り"+cycle.remaining+"種"}。＋値は永続記録、通常プレイの＋倍率は未決定です。</div><div class="row-grid compact-upgrades">${CONTENT.sources.map((x,i)=>{
     const v=state.sources[x.id],done=ms.filter(m=>m<=v.level).length,next=ms.find(m=>m>v.level);
     return `<article class="kw-card source-card purchase-card" data-purchase-card><div class="card-top"><strong>${String(i+1).padStart(2,"0")} ${esc(x.name)}</strong><small data-source-level="${x.id}">Lv.${v.level.toLocaleString("ja-JP")}</small></div>
     <button class="more-button source-detail-button" data-source-detail="${x.id}" aria-label="${esc(x.name)}の詳細">⋯</button>
     <div class="source-meta"><span>節目 ${done}/21</span><span>次 ${next?next.toLocaleString("ja-JP"):"MAX"}</span></div>
     <div class="source-rates" title="1Lv増加量 / この源の合計秒間生産量"><span data-source-next="${x.id}">次+${f(G.sourceNextGain(state,x.id))}/秒</span><span data-source-total="${x.id}">計 ${f(G.sourceProduction(state,x.id))}/秒</span></div>
     ${cardQuote("source",x.id)}
-    ${v.level===1000000?`<button class="wide-button" data-breakthrough="${x.id}" ${mode!=="lab"?"disabled":""}>＋循環 ${mode==="lab"?"（仮の個別突破）":"要確認"}</button>`:""}</article>`;
+    ${v.level===1000000?`<button class="wide-button" data-breakthrough="${x.id}" ${!cycle.unlocked?"disabled":""}>＋循環 ${cycle.unlocked?"・Lv1から再開":"・全30源一巡まで残り"+cycle.remaining+"種"}</button>`:""}</article>`;
   }).join("")}</div>`;
 }
 function engravingHTML(){
