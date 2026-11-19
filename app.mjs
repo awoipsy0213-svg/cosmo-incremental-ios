@@ -283,7 +283,7 @@ function conceptHTML(){
       return `<div class="kw-card concept-card"><div class="card-top">${icon(c)}<strong class="${formed?"":"unrecognized"}">${esc(name)}</strong></div>
         <small>残滓 ${t.residues[c.id]||0} ${need===null?"· MAX":`/ ${need}`} ${formed?`· Lv.${level}`:""}</small>
         <small>${formed?`${effectText} +${current} · ${active?"有効":"配分条件待ち"}`:"まだ、形を持たない。"}</small>
-        ${need!==null?`<button class="wide-button" data-form="${c.id}" ${(t.residues[c.id]||0)<need?"disabled":""}>${formed?"Lv.を上げる":"概念として形成"}</button>`:"<small>最大Lv100</small>"}</div>`;
+        ${need!==null?`<div class="invest-choices"><button class="wide-button" data-form="${c.id}" ${(t.residues[c.id]||0)<need?"disabled":""}>${formed?"Lv＋1":"形成"}</button><button class="wide-button" data-form-max="${c.id}" ${(t.residues[c.id]||0)<need?"disabled":""}>MAX Lv</button></div>`:"<small>最大Lv100</small>"}</div>`;
     }).join("")}</div>`:'<div class="empty-state"><div class="glyph">·</div><p>まだ残滓は見つかっていません。</p></div>'}`;
 }
 function planetHTML(){
@@ -328,7 +328,7 @@ function resourcesHTML(){
       return `<div class="kw-card"><div class="card-top"><strong>${esc(r.name)}</strong><span class="badge">R${r.rank} / 仮名</span></div>
       <small>所持 ${f(u.resources[r.id]||0)}</small>
       <small>1個投入：質量 +${rule?.mass||0} / ${effects}</small>
-      <button class="wide-button" data-invest="${r.id}" ${!G.planet(state)||A(u.resources[r.id]||0).cmp(1)<0?"disabled":""}>1個を投入</button></div>`;
+      <div class="invest-choices">${[1,10,10000].map((n,k)=>{const max=A(u.resources[r.id]||0).cmp(10000)>=0?10000:Math.floor(A(u.resources[r.id]||0).toNumber());const amount=k===2?max:n;return `<button class="wide-button" data-invest="${r.id}" data-count="${amount}" ${!G.planet(state)||amount<1||A(u.resources[r.id]||0).cmp(amount)<0?"disabled":""}>${k===2?"MAX":"×"+n}</button>`;}).join("")}</div></div>`;
     }).join("")}</div>`:'<div class="empty-state"><p>まだ資源を所持していません。惑星の時間生産を観測してください。</p></div>'}`;
 }
 function observationsHTML(){
@@ -929,7 +929,8 @@ document.addEventListener("click",async e=>{
     }
     if(b.dataset.draft){resultDone(G.toggleDraft(state,b.dataset.draft));return;}
     if(b.dataset.form){resultDone(G.formConcept(state,b.dataset.form),"概念を認識しました");return;}
-    if(b.dataset.invest){const r=G.invest(state,b.dataset.invest);resultDone(r,"資源を投入し、質量と固有ステータスを強化しました");return;}
+    if(b.dataset.formMax){resultDone(G.formConceptMax(state,b.dataset.formMax),"概念を一括強化しました");return;}
+    if(b.dataset.invest){const r=G.invest(state,b.dataset.invest,Number(b.dataset.count||1));resultDone(r,"資源を投入し、質量と固有ステータスを強化しました");return;}
     if(b.dataset.boostUpgrade!==undefined){resultDone(G.labBoostUpgrade(state,Number(b.dataset.boostUpgrade)));return;}
     if(b.dataset.restore!==undefined){
       if(!await ask("保存履歴から復元","現在のデータを退避して、この履歴へ戻します。","復元する"))return;
