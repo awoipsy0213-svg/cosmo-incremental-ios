@@ -42,21 +42,25 @@ export function advanceCore(p,universe,seconds,announce=()=>{}){
   const core=p.core=makeCoreState(p.core);
   const report={formed:false,pulses:0,surface:0,life:false};
   if(!(seconds>0)||!Number.isFinite(seconds))return report;
+  let pulseSeconds=seconds;
   if(core.started&&!core.formed){
     const ready= num(p.stats.energy)>=2000 && num(p.stats.pressure)>=1000 &&
       num(p.stats.temperature)>=1000 && knowledgeLevel(universe,"heat")>=100 &&
       knowledgeLevel(universe,"pressure")>=100;
     if(ready){
-      core.progress=Math.min(100,core.progress+seconds/1800*100);
+      const remaining=Math.max(0,(100-core.progress)*18);
+      const formationSeconds=Math.min(seconds,remaining);
+      core.progress=Math.min(100,core.progress+formationSeconds/18);
+      pulseSeconds=Math.max(0,seconds-formationSeconds);
       if(core.progress>=100){
         core.formed=true;core.started=false;report.formed=true;
         announce("惑星内部にコアが形成された。脈動が始まる。");
       }
-    }
+    }else pulseSeconds=0;
   }
   if(!core.formed)return report;
   const oldPulses=core.pulses;
-  const total=core.pulseAccumulator+seconds;
+  const total=core.pulseAccumulator+pulseSeconds;
   report.pulses=Math.floor(total/60);
   core.pulseAccumulator=total-report.pulses*60;
   core.pulses+=report.pulses;
