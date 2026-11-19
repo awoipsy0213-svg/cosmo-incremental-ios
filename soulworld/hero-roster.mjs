@@ -4,6 +4,21 @@
 import {STARTER_HERO_ID, ensureHeroProgression} from './hero-progression.mjs';
 export const MAX_HERO_HOUSES = 3;
 export const MAX_REGISTERED_HEROES = 3;
+export const HERO_HOUSE_UNLOCKS = Object.freeze([
+  Object.freeze({houseNumber:1,rank:1,costs:Object.freeze({wood:0,stone:0})}),
+  Object.freeze({houseNumber:2,rank:2,costs:Object.freeze({wood:50,stone:30})}),
+  Object.freeze({houseNumber:3,rank:4,costs:Object.freeze({wood:150,stone:100})}),
+]);
+export function nextHeroHouseUnlock(world){
+  const count=builtHeroHouses(world).length;
+  if(count>=MAX_HERO_HOUSES)return null;
+  const requirement=HERO_HOUSE_UNLOCKS[count];
+  const rank=Number.isInteger(world.baseRank)?world.baseRank:1;
+  const enough=Object.entries(requirement.costs).every(([k,v])=>(world.resources?.[k]||0)>=v);
+  return { ...requirement, available:rank>=requirement.rank && enough,
+    rankMet:rank>=requirement.rank, resourcesMet:enough };
+}
+
 
 export function builtHeroHouses(world) {
   if(!world || !Array.isArray(world.buildings)) throw new TypeError('World buildings required');
