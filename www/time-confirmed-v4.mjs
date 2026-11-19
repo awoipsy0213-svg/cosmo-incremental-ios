@@ -51,6 +51,9 @@ export function conceptActive(s,c){
   const all=(c.principles||[]).map(p=>["流動","空間","変化","因果","秩序","可能性"].indexOf(p));
   if(all.some(i=>i<0))return false;
   const effect=TIME_EFFECTS[c.id];if(!effect)return false;
+  if(c.id==="TC004")return selected.length>=2&&selected.includes(1)&&Number(s.time?.weights?.[1])>0;
+  if(c.id==="TC010")return selected.length>=2;
+  if(c.id==="TC006")return selected.length>0;
   if(all.length===1 && ["event","all","weight"].includes(effect.type))return true;
   return all.every(i=>selected.includes(i)&&Number(s.time?.weights?.[i])>0);
 }
@@ -66,7 +69,7 @@ export function conceptBonuses(s,conceptContent){
     if(rule.type==="balanced"){
       b*=Math.min(1,3*Math.min(...ids.map(i=>weights[i]||0))/100);
     }else if(rule.type==="weakest"){
-      const chosen=ids.filter(i=>selected.includes(i));
+      const chosen=c.id==="TC006"?selected.filter(i=>(weights[i]||0)>0):ids.filter(i=>selected.includes(i));
       if(chosen.length) {
         const target=chosen.reduce((a,i)=>weights[i]<weights[a]?i:a,chosen[0]);
         bonus.directions[target]+=b;
