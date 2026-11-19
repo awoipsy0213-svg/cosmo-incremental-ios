@@ -677,19 +677,11 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
     // Calibrated initial trial coefficient to be balance-tested (TE-31/32).
     const existenceScore=Math.max(0,Math.log10(1+Math.min(1e300,Number(s.surplusExistence)||0)));
     const chancePerSecond=.00055*(1+Math.min(100,existenceScore))*(1+mods.event);
-    const expected=gameSeconds*chancePerSecond;
-    if(s.mode==="lab"){
-      s.time.residueAccumulator+=gameSeconds*CONFIG.lab.residueEventsPerSecond;
-    }else{
-      s.time.residueAccumulator+=Math.min(1e9,expected);
-    }
-    const events=Math.min(5000,Math.floor(s.time.residueAccumulator));
-    s.time.residueAccumulator-=events;
+    const expected=gameSeconds*(s.mode==="lab"?CONFIG.lab.residueEventsPerSecond:chancePerSecond);
+    const events=Math.min(5000,Math.floor(expected)+(rng()<expected%1?1:0));
     for(let i=0;i<events;i++)rollResidue(s,rng);
-    // Fractional accumulation is stochastic, not an integer-only ticker.
-    if(s.time.residueAccumulator>0&&rng()<s.time.residueAccumulator){
-      rollResidue(s,rng);s.time.residueAccumulator=0;
-    }
+    // Per-tick Bernoulli fraction prevents biased over-awards at 150ms refresh.
+    s.time.residueAccumulator=0;
     tryDirectionMiracle(s,gameSeconds,rng);
     // TIME is never spent by world-clock progression.
     s.time.worldSeconds=Math.min(1,s.time.worldSeconds+
@@ -718,10 +710,11 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
     }
     // Natural final collapse uses a hazard, not a scheduled death timer.
     for(const p of [...s.universe.planets]){
-      const hazard=collapseHazardPerMinute(p.stats)*(p.core?.formed?.7:1);
+      const hazard=collapseHazardPerMinute(p.stats)*(p.core?.formed ? .7 : 1);
       if(rng()<1-Math.pow(1-hazard,gameSeconds/60))collapsePlanet(s,p.id,rng,now);
     }
   }
+  if(s.mode==="lab"){
     if(s.engraving.active.includes("autoTap"))addOrbs(s,tapPower(s).mul(gameSeconds));
     if(s.engraving.active.includes("autoSource")){
       const mode=s.purchaseMode;s.purchaseMode="1";
