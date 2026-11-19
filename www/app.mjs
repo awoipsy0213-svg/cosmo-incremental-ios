@@ -376,8 +376,8 @@ function statisticsHTML(){
 function guideHTML(){
   return `<div class="kw-list"><div class="kw-card"><strong>世界を生み、変化を観測する</strong><p>《無》は序章です。光に干渉すると最初の存在が成立します。存在1は失われません。</p></div>
   ${state.intro.complete?'<div class="kw-card"><strong>刹那・源・刻印</strong><p>タップと源は通常資源のオーブを生みます。任意のタイミングで収束して、余剰の存在を得ます。刻印は余剰分だけを使う設計です。</p></div>':""}
-  ${state.time.unlocked?'<div class="kw-card"><strong>流れと概念</strong><p>時は自律成長を見守る場所です。同じ残滓10個で最初の概念を認識。未決定効果はまだ働きません。</p></div>':""}
-  <div class="kw-card"><strong>調査した未確定の効果</strong><p>惑星7ステータス・42資源・源7枠・BOOST5強化を暫定値として整理。検証用の別セーブで比較できます。</p><button class="wide-button" data-organizer="proposals">数値と効果の試案を見る</button></div>
+  ${state.time.unlocked?'<div class="kw-card"><strong>流れと概念</strong><p>時は自律成長を見守る場所です。同じ残滓10個で最初の概念を認識し、確定した概念効果が有効になります。</p></div>':""}
+  <div class="kw-card"><strong>採用済み効果と旧研究候補</strong><p>42資源と77概念の基本効果を本編へ採用。源の通常特殊効果・BOOSTの未確定係数は別セーブで研究できます。</p><button class="wide-button" data-organizer="proposals">数値と効果の試案を見る</button></div>
   <div class="kw-card"><strong>この版の範囲</strong><p>設定データに「確定」「暫定」「要確認」「未決定」を保持しています。価格・速度など動作確認用の値と、正式仕様は別です。</p><button class="wide-button" data-organizer="spec">反映済みと未決定を確認</button></div></div>`;
 }
 function settingsHTML(){
@@ -414,11 +414,11 @@ function specHTML(){
   <h3>惑星15ステータス</h3>${CONTENT.stats.map(x=>`<div class="kw-row"><span>${x.name}<small>${x.description}<br>未定：${x.pending}</small></span><span class="badge ${x.status==="確定"?"confirmed":"pending"}">${x.status}</span></div>`).join("")}
   <a class="link-button" href="./docs/implementation.html">今回の反映・保留一覧</a><button class="wide-button" data-organizer="proposals">Ver.3.5の数値・効果試案を見る</button>
   <h3>Ver.3.3での購入支援</h3><div class="kw-card"><strong>リアルタイム購入表示</strong><p>購入可能・不足額・所要時間を自動更新。購入可能のみ表示／長押し連続購入は操作補助であり、自動購入やマクロの解放ではありません。</p><small>源の仮の秒間生産係数を0.02から0.4へ調整。正式仕様ではありません。</small></div>
-  <p class="tiny">源の名称・42資源名は暫定名を保持。概念の個別効果や未決定ステータスへ汎用倍率は付けていません。</p>`;
+  <p class="tiny">源・42資源の表示名は暫定。77概念と42資源の基本効果は確定ルールで計算し、未実装の現象や源特殊効果には仮倍率を付けていません。</p>`;
 }
 function proposalsHTML(){
   // Do not spoil undiscovered materials, principles, or stats in normal play.
-  if(mode!=="lab")return `<p class="panel-intro">未決定効果の研究候補を追加しました。正式な効果や値は？？？のままで、通常プレイは変更していません。</p><div class="kw-card"><strong>研究した方向</strong><p>1. 価格と生産の回収時間を調整する。2. 資源は共通の成長と個性を両立させる。3. 自動化は《刻印》で段階的に解放する。</p><p class="tiny">未発見の名前・属性をここで公開しないため、具体的な候補表は検証モードにだけ表示します。</p><a class="link-button" href="./?lab=1">別セーブで研究候補を確認・試用する</a></div>`;
+  if(mode!=="lab")return `<p class="panel-intro">過去の研究候補を保存しています。現在は77概念と42資源の基本効果を通常プレイへ反映済みです。</p><div class="kw-card"><strong>研究した方向</strong><p>1. 価格と生産の回収時間を調整する。2. 資源は共通の成長と個性を両立させる。3. 自動化は《刻印》で段階的に解放する。</p><p class="tiny">未発見の名前・属性をここで公開しないため、具体的な候補表は検証モードにだけ表示します。</p><a class="link-button" href="./?lab=1">別セーブで研究候補を確認・試用する</a></div>`;
   const enabled=G.trialEnabled(state),p=G.planet(state);
   const exampleValue=id=>p?Math.min(10000,Number(p.stats[id]||0)):100;
   return `<p class="panel-intro">他ゲームの研究を基にした<strong>未採用の候補</strong>です。「設計確定」「現在の通常プレイへの適用」とは異なります。現在の未知効果は引き続き？？？です。</p>
@@ -431,10 +431,10 @@ function proposalsHTML(){
   ${[1,2,3,4,5,6].map(rank=>{const arr=CONTENT.resources.filter(r=>r.rank===rank);return `<details class="proposal-item" data-preserve="rank-${rank}"><summary>Rank ${rank} · ${arr.length}種類 <span class="badge">暫定</span></summary>${arr.map(r=>{const sp=resourcePrototype(r);return `<div class="proposal-line"><strong>${esc(r.name)}</strong><small>${esc(sp?.description||"候補未作成")}</small></div>`;}).join("")}</details>`;}).join("")}
   <h3>《源》30種：21節目の中で7枠を配置する候補</h3><p class="tiny">共通節目21個は確定。下記の7枠配置・値は暫定で、本編へは未適用です。源の自動購入等は《刻印》の領分に残します。</p>
   <details class="proposal-item" data-preserve="sources-all"><summary>30種の候補配置を見る <span class="badge">21節目は維持</span></summary>${CONTENT.sources.map(x=>`<details class="proposal-item" data-preserve="src-${x.id}"><summary>${esc(x.name)} <small>仮名</small></summary><p class="tiny">${esc(x.role)}</p>${proposedSourceSlots(x).map(sl=>`<div class="proposal-line"><small>Lv.${sl.level.toLocaleString("ja-JP")} · ${esc(sl.kind)}</small><span>${esc(sl.description)}</span></div>`).join("")}</details>`).join("")}</details>
-  <h3>《時》12概念の小規模な効果候補</h3><p class="tiny">全77種の正式な個別効果はまだ？？？。初期単独12概念だけ発見・観測の方向性を研究したもので、通常プレイ・検証プレイの能力計算にも未適用です。</p>
+  <h3>《時》12概念の小規模な効果候補</h3><p class="tiny">この欄は旧研究案です。現行の77概念効果は別の確定ルール表を使用しており、旧案を二重適用しません。</p>
   <details class="proposal-item" data-preserve="concept-drafts"><summary>最初の12概念の候補一覧 <span class="badge">未採用</span></summary>${FIRST_CONCEPT_PROPOSALS.map(x=>`<div class="proposal-line"><strong>${esc(x.name)}</strong><span>${esc(x.idea)}<br><small>${esc(x.trial)}／注意：${esc(x.risk)}</small></span></div>`).join("")}</details>
   <h3>BOOST：5強化の暫定比較</h3><div class="kw-card"><p>初回コスト ${duration(PROPOSED.boost.initialCostSeconds)}、次回以降×${PROPOSED.boost.nextCostGrowth}。上限・増加量は全て試案で、通常プレイの既定値は変更しません。</p><small>報酬効率 +4ポイント/段階（最大86%）・対象時間 +10分/段階（最大6時間）・基本獲得 +12%/段階・オフライン獲得 +10%/段階・容量 +20分/段階（最大6時間）。</small></div>
-  <h3>未決定・保留のまま残すもの</h3><div class="kw-card"><p>77概念の個別効果、生命・コアの成立、破壊と崩壊の関係、資源受取A/B、源＋循環の保持、刻印の正式ノード・費用、天体イベントの解放条件。</p><small>これらは効果・倍率を一律で埋めず、試案があってもゲーム正式仕様にはしません。</small></div>
+  <h3>未決定・保留のまま残すもの</h3><div class="kw-card"><p>惑星の部分破壊・高度干渉、生命の詳細育成、源の通常特殊効果、刻印の購入・装備、BOOST強化の個別費用。既に採用した77概念・42資源・受取B方式は再び未決定扱いにしません。</p><small>これらは効果・倍率を一律で埋めず、試案があってもゲーム正式仕様にはしません。</small></div>
   <a class="link-button" href="./RESEARCH_V35.md">参照作品・検証根拠（Markdown原文）</a>`;
 }
 const priceLabParams={momentId:CONTENT.moment[0].id,profile:"current",durationSeconds:300,tapsPerSecond:5,levelOverride:null,factorOverride:null};
