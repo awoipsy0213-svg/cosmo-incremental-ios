@@ -408,7 +408,7 @@ function observationsHTML(){
         <button class="wide-button" data-interference="${action.type}"
           ${!quote.ok||readOnly||store.blocked?"disabled":""}>${quote.ok?"確認して実行":"実行不可"}</button>
       </div>`;
-    }).join("")}</div>`:"<div class='status-note'>惑星を生成すると対象を選べます。衝突・成長移転には2つの惑星が必要です。</div>"}
+    }).join("")}</div>
     <p class="tiny muted">干渉による資源消費は実行時に再検証します。成長移転・安定化は保存データへ記録されます。</p>`:"<div class='status-note'>先に惑星を生成してください。</div>"}
     <div class="status-note">干渉の操作本体は追加済みです。ただし現象理解を獲得するすべての物理イベントは未実装であり、未達の操作は利用できません。部分破壊は引き続き未実装です。</div>`;
 }
