@@ -651,6 +651,7 @@ function stopHoldPurchase(evt=null){
 }
 function buyWhileHeld(h){
   if(h!==holdPurchase||readOnly||store.blocked||document.hidden||!state?.settings.holdToBuy)return;
+  if(!["1","10"].includes(state.purchaseMode)){stopHoldPurchase();return;}
   checkpoint();
   const result=G.buy(state,h.kind,h.id);
   if(!result.ok)return;
@@ -665,7 +666,7 @@ function buyWhileHeld(h){
 }
 document.addEventListener("pointerdown",e=>{
   const b=e.target.closest?.('button[data-purchase]');
-  if(!b||b.disabled||!state?.settings.holdToBuy||readOnly||store.blocked||holdPurchase)return;
+  if(!b||b.disabled||!state?.settings.holdToBuy||readOnly||store.blocked||holdPurchase||!["1","10"].includes(state.purchaseMode))return;
   if(e.pointerType==="mouse"&&e.button!==0)return;
   const h={button:b,kind:b.dataset.purchase,id:b.dataset.id,pointerId:e.pointerId,
     x:e.clientX,y:e.clientY,started:false,bought:0,timer:null,repeat:null,lastSave:Date.now()};
@@ -838,7 +839,25 @@ document.addEventListener("click",async e=>{
     if(b.dataset.buyMode){G.setPurchaseMode(state,b.dataset.buyMode);save();renderPanel(true);return;}
     if(b.dataset.purchase){
       if(skipClickFor&&skipClickFor.key===b.dataset.purchase+":"+b.dataset.id&&Date.now()<skipClickFor.until){skipClickFor=null;return;}
-      resultDone(G.buy(state,b.dataset.purchase,b.dataset.id));return;
+      if(readOnly||store.blocked)return toast("読み取り専用のため購入できません");
+      checkpoint();
+      const kind=b.dataset.purchase,id=b.dataset.id,modeBefore=state.purchaseMode;
+      const quote=G.purchaseQuote(state,kind,id);
+      if(!quote.enabled)return toast(quote.reason||"購入できません");
+      if(modeBefore==="MAX"&&A(quote.cost).cmp(A(state.orbs).mul(.9))>=0){
+        const label=(kind==="source"?CONTENT.sources:CONTENT.moment).find(x=>x.id===id)?.name||id;
+        const cost=f(quote.cost),remaining=f(A(state.orbs).sub(quote.cost));
+        if(!await ask("MAX購入の確認",label+"："+quote.count.toLocaleString("ja-JP")+"Lv購入 / 消費 "+cost+" オーブ / 購入後 "+remaining+" オーブ","購入する"))return;
+        checkpoint();
+        const updated=G.purchaseQuote(state,kind,id);
+        if(state.purchaseMode!==modeBefore||updated.count!==quote.count||updated.cost!==quote.cost)
+          return toast("購入価格または購入可能Lvが変化したため、再度お試しください");
+      }
+      const result=G.buy(state,kind,id);
+      if(!resultDone(result))return;
+      if(modeBefore==="MAX"&&result.limitReached)
+        toast(result.count.toLocaleString("ja-JP")+"Lv購入しました。残りは「続けてMAX」で購入できます");
+      return;
     }
     if(b.dataset.breakthrough){resultDone(G.breakthrough(state,b.dataset.breakthrough));return;}
     if(b.dataset.draft){resultDone(G.toggleDraft(state,b.dataset.draft));return;}
