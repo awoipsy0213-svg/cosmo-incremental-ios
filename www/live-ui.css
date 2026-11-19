@@ -189,3 +189,13 @@ body.low-power .purchase-card,body.low-power .purchase-card .buy-progress>i{tran
 .kw-sheet-body .moment-card .moment-effect-detail p{font-size:10px;margin:3px 0;line-height:1.4}
 .kw-sheet-body .moment-card .moment-effect-detail small{display:block;color:#9aa9ba;font-size:9px}
 .kw-sheet-body .moment-card .card-top strong{max-width:72%;overflow:hidden;text-overflow:ellipsis}
+
+/* 《理》Ver.3.9 · Setsuna 210 approved choices */
+.moment-card .moment-live-effect{display:block;line-height:1.35;color:#b8ecdd;font-size:10px;margin:4px 0;overflow-wrap:anywhere}
+.moment-card .moment-live-effect b{font-weight:700;color:#e5f8fa}
+.moment-card .compact-upgrade-rate{display:block;overflow-wrap:anywhere;white-space:normal;font-size:10px;line-height:1.35}
+.kw-combo{display:inline-flex;gap:6px;align-items:center;font-size:11px;color:#b8edfe}
+.kw-combo-track{display:inline-block;width:44px;height:4px;border:1px solid #a2b9d852;border-radius:5px;overflow:hidden;background:#203044}
+.kw-combo-track>i{display:block;height:100%;background:#77d9fa;border-radius:4px}
+.kw-stored{font-size:10px;color:#b6e8d5}
+.wave-special{position:absolute;pointer-events:none;color:#b7f4fd;font:10px system-ui,sans-serif;white-space:nowrap;max-width:85vw;overflow:hidden;text-overflow:ellipsis;animation:wave-number .8s ease-out forwards;transform:translate(-50%,25%)}
