@@ -32,7 +32,7 @@ try {
     await page.locator('button[data-action="close-drawer"]').click();
     await page.evaluate(async ()=>{
       const G=await import("./game.mjs"),S=await import("./save.mjs");
-      const state=G.createState(Date.now()-30000);
+      const state=G.createState(Date.now());
       state.intro.complete=true;
       state.time.unlocked=true;
       state.universe.unlocked=true;
