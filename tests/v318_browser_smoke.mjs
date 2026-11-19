@@ -31,7 +31,7 @@ try {
     await page.locator('button[data-action="organizer"]').first().click();
     assert.equal(await page.locator("#organizerDrawer").evaluate(el=>el.open),true);
     await page.locator('button[data-action="close-drawer"]').click();
-    await page.evaluate(async ()=>{
+    const fixture=await page.evaluate(async ()=>{
       const G=await import("./game.mjs"),S=await import("./save.mjs");
       const state=G.createState(Date.now());
       state.intro.complete=true;
@@ -45,8 +45,9 @@ try {
       state.universe.knowledge.collapse=100;
       state.universe.resources.UR1_01="1000";
       state.universe.resources.UR1_04="1000";
-      window.localStorage.setItem(S.KEYS.normal,S.encode(state,"browser-fixture"));
+      return S.encode(state,"browser-fixture");
     });
+    await page.addInitScript(raw=>localStorage.setItem("kotowari_v31_normal",raw),fixture);
     await page.reload({waitUntil:"domcontentloaded"});
     await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
     const diagnostics=await page.evaluate(()=>{
