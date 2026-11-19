@@ -18,11 +18,11 @@ jobs:
           node-version: '22'
       - run: npm test
       - run: |
-          for f in game.mjs app.mjs content.mjs time-confirmed-v4.mjs universe-confirmed-v4.mjs universe-progression-v316.mjs sw.js; do
+          for f in game.mjs app.mjs content.mjs time-confirmed-v4.mjs universe-confirmed-v4.mjs universe-progression-v316.mjs engraving-rules-v317.mjs sw.js; do
             node --check "$f" || exit 1
           done
       - run: |
-          for f in game.mjs app.mjs content.mjs balance-config.mjs setsuna-rules-v39.mjs save.mjs time-confirmed-v4.mjs universe-confirmed-v4.mjs universe-progression-v316.mjs astral-observatory.css; do
+          for f in game.mjs app.mjs content.mjs balance-config.mjs setsuna-rules-v39.mjs save.mjs time-confirmed-v4.mjs universe-confirmed-v4.mjs universe-progression-v316.mjs engraving-rules-v317.mjs astral-observatory.css; do
             cmp "$f" "www/$f" || exit 1
           done
           cmp index.html www/index.html
