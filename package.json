@@ -8,7 +8,7 @@
     "ios:sync": "npx cap sync ios",
     "ios:open": "npx cap open ios",
     "test:setsuna": "node tests/v39_setsuna_210.mjs",
-    "test": "node tests/v312_price_compare.mjs && node tests/v311_price_lab.mjs && node tests/v310_moment_filter.mjs && node tests/v39_setsuna_210.mjs && node tests/v35_logic.mjs && node tests/v34_logic.mjs"
+    "test": "node tests/v313_max_purchase.mjs && node tests/v312_price_compare.mjs && node tests/v311_price_lab.mjs && node tests/v310_moment_filter.mjs && node tests/v39_setsuna_210.mjs && node tests/v35_logic.mjs && node tests/v34_logic.mjs"
   },
   "dependencies": {
     "@capacitor/core": "^7.0.0",

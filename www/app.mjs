@@ -335,7 +335,7 @@ function settingsHTML(){
   return `<p class="panel-intro">背景は既存のORGANIC FLOWを維持。安全な保存・表示設定は序章から利用できます。</p>
   ${labels.map(([id,name,desc])=>`<label class="kw-row"><span>${name}<small>${desc}</small></span><input type="checkbox" data-pref="${id}" ${state.settings[id]?"checked":""}></label>`).join("")}
   <label class="kw-row">数値表記<select class="input-select" data-pref="notation"><option value="auto" ${state.settings.notation==="auto"?"selected":""}>標準（100万以降e）</option><option value="scientific" ${state.settings.notation==="scientific"?"selected":""}>指数 e（1.23e12）</option><option value="exponent" ${state.settings.notation==="exponent"?"selected":""}>指数 E（1.23E+12）</option><option value="zeros" ${state.settings.notation==="zeros"?"selected":""}>0の個数（10^12）</option></select></label>
-  <div class="kw-row"><span>バージョン<small>Ver.3.12 刹那30・価格条件比較（検証用） / 水色×紫UI維持</small></span><strong>3.12.0</strong></div>
+  <div class="kw-row"><span>バージョン<small>Ver.3.13 刹那30・MAX購入上限3,000Lv / 水色×紫UI維持</small></span><strong>3.13.0</strong></div>
   <div class="kw-row"><span>通信<small>クラウド・課金は未接続</small></span><strong>${navigator.onLine?"オンライン":"オフライン"}</strong></div>
   <button class="wide-button" data-organizer="backup">保存とバックアップ</button>
   <a class="link-button" href="./legacy/" data-legacy-link>保管した旧版Ver.3.0で続ける</a><br>
@@ -651,6 +651,7 @@ function stopHoldPurchase(evt=null){
 }
 function buyWhileHeld(h){
   if(h!==holdPurchase||readOnly||store.blocked||document.hidden||!state?.settings.holdToBuy)return;
+  if(!["1","10"].includes(state.purchaseMode)){stopHoldPurchase();return;}
   checkpoint();
   const result=G.buy(state,h.kind,h.id);
   if(!result.ok)return;
@@ -665,7 +666,7 @@ function buyWhileHeld(h){
 }
 document.addEventListener("pointerdown",e=>{
   const b=e.target.closest?.('button[data-purchase]');
-  if(!b||b.disabled||!state?.settings.holdToBuy||readOnly||store.blocked||holdPurchase)return;
+  if(!b||b.disabled||!state?.settings.holdToBuy||readOnly||store.blocked||holdPurchase||!["1","10"].includes(state.purchaseMode))return;
   if(e.pointerType==="mouse"&&e.button!==0)return;
   const h={button:b,kind:b.dataset.purchase,id:b.dataset.id,pointerId:e.pointerId,
     x:e.clientX,y:e.clientY,started:false,bought:0,timer:null,repeat:null,lastSave:Date.now()};
@@ -838,7 +839,25 @@ document.addEventListener("click",async e=>{
     if(b.dataset.buyMode){G.setPurchaseMode(state,b.dataset.buyMode);save();renderPanel(true);return;}
     if(b.dataset.purchase){
       if(skipClickFor&&skipClickFor.key===b.dataset.purchase+":"+b.dataset.id&&Date.now()<skipClickFor.until){skipClickFor=null;return;}
-      resultDone(G.buy(state,b.dataset.purchase,b.dataset.id));return;
+      if(readOnly||store.blocked)return toast("読み取り専用のため購入できません");
+      checkpoint();
+      const kind=b.dataset.purchase,id=b.dataset.id,modeBefore=state.purchaseMode;
+      const quote=G.purchaseQuote(state,kind,id);
+      if(!quote.enabled)return toast(quote.reason||"購入できません");
+      if(G.maxPurchaseRequiresConfirmation(state.orbs,quote,modeBefore)){
+        const label=(kind==="source"?CONTENT.sources:CONTENT.moment).find(x=>x.id===id)?.name||id;
+        const cost=f(quote.cost),remaining=f(A(state.orbs).sub(quote.cost));
+        if(!await ask("MAX購入の確認",label+"："+quote.count.toLocaleString("ja-JP")+"Lv購入 / 消費 "+cost+" オーブ / 購入後 "+remaining+" オーブ","購入する"))return;
+        checkpoint();
+        const updated=G.purchaseQuote(state,kind,id);
+        if(state.purchaseMode!==modeBefore||updated.count!==quote.count||updated.cost!==quote.cost)
+          return toast("購入価格または購入可能Lvが変化したため、再度お試しください");
+      }
+      const result=G.buy(state,kind,id);
+      if(!resultDone(result))return;
+      if(modeBefore==="MAX"&&result.limitReached)
+        toast(result.count.toLocaleString("ja-JP")+"Lv購入しました。残りは「続けてMAX」で購入できます");
+      return;
     }
     if(b.dataset.breakthrough){resultDone(G.breakthrough(state,b.dataset.breakthrough));return;}
     if(b.dataset.draft){resultDone(G.toggleDraft(state,b.dataset.draft));return;}

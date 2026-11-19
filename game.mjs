@@ -13,6 +13,7 @@ const SOURCE_IDS=CONTENT.sources.map(x=>x.id);
 const CONCEPT_IDS=CONTENT.concepts.map(x=>x.id);
 const RESOURCE_IDS=CONTENT.resources.map(x=>x.id);
 const modeSet=new Set(["1","10","NEXT","MAX"]);
+export const MAX_LEVELS_PER_ACTION=3000; // U-06: MAX is repeatable in bounded transactions.
 const MOMENT_IDS=CONTENT.moment.map(x=>x.id);
 const freshMoment=()=>Object.fromEntries(MOMENT_IDS.map(id=>[id,0]));
 const add=(a,b)=>A(a).add(b).toString();
@@ -186,7 +187,7 @@ function purchaseData(s,kind,id) {
 export function purchaseQuote(s,kind,id,mode=s.purchaseMode) {
   if(!modeSet.has(mode))throw Error("購入モードが不正です");
   const p=purchaseData(s,kind,id),remain=Math.max(0,p.max-p.level);
-  let n=mode==="MAX"?maxAffordable(s.orbs,p.base,p.growth,p.level,remain)
+  let n=mode==="MAX"?maxAffordable(s.orbs,p.base,p.growth,p.level,Math.min(remain,MAX_LEVELS_PER_ACTION))
     :mode==="10"?maxAffordable(s.orbs,p.base,p.growth,p.level,Math.min(10,remain))
     :Math.min(1,remain);
   if(mode==="NEXT"){
@@ -196,8 +197,15 @@ export function purchaseQuote(s,kind,id,mode=s.purchaseMode) {
   }
   if(!n)return {count:0,cost:remain?seriesCost(p.base,p.growth,p.level,1).toString():"0",enabled:false,reason:remain?"資源不足":"上限到達"};
   const cost=seriesCost(p.base,p.growth,p.level,n);
+  const limited=mode==="MAX"&&n===MAX_LEVELS_PER_ACTION&&remain>MAX_LEVELS_PER_ACTION&&
+    A(s.orbs).cmp(seriesCost(p.base,p.growth,p.level,MAX_LEVELS_PER_ACTION+1))>=0;
   return {count:n,cost:cost.toString(),enabled:s.intro.complete&&A(s.orbs).cmp(cost)>=0,
-    reason:A(s.orbs).cmp(cost)>=0?"":"資源不足"};
+    limitReached:limited,reason:A(s.orbs).cmp(cost)>=0?"":"資源不足"};
+}
+// Returns whether the confirmed 90%-spend safeguard applies.
+export function maxPurchaseRequiresConfirmation(wallet,quote,mode="MAX"){
+  return mode==="MAX"&&!!quote?.enabled&&A(wallet).cmp(0)>0&&
+    A(quote.cost).mul(10).cmp(A(wallet).mul(9))>=0;
 }
 export function buy(s,kind,id) {
   const q=purchaseQuote(s,kind,id);
@@ -229,7 +237,7 @@ export function buyAll(s,kind,order="cheap") {
   let count=0,iterations=0;
   try {
     s.purchaseMode="1";
-    for(;iterations<3000;iterations++){
+    for(;iterations<MAX_LEVELS_PER_ACTION;iterations++){
       const offers=[];
       for(const id of ids){
         const quote=purchaseQuote(s,kind,id,"1");
@@ -243,7 +251,8 @@ export function buyAll(s,kind,order="cheap") {
     }
   } finally {s.purchaseMode=previousMode;}
   if(!count)return {ok:false,reason:"購入できる強化がありません"};
-  return {ok:true,count,spent:before.sub(s.orbs).toString(),limitReached:iterations>=3000};
+  const limitReached=iterations>=MAX_LEVELS_PER_ACTION&&ids.some(id=>purchaseQuote(s,kind,id,"1").enabled);
+  return {ok:true,count,spent:before.sub(s.orbs).toString(),limitReached};
 }
 export function breakthrough(s,id) {
   if(!s.sources[id])return {ok:false,reason:"源IDが不正です"};
