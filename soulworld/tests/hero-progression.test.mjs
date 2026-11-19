@@ -6,7 +6,11 @@ import {
   createStarterHero, createHeroProgression, ensureHeroProgression,
   xpNeededForNextAbility, grantAbilityExperience, grantHeroLevelExperience,
   grantHeroActionExperience, allocateStatPoint,
-  awardRerollPointsForCollectedXP
+  awardRerollPointsForCollectedXP,
+  HERO_LEVEL_CAP, ACTION_SUCCESS_REQUIREMENT, LIFE_ATTEMPT_HISTORY_CAP,
+  BASE_ACTION_XP, FAILED_ACTION_XP_FACTOR,
+  createLifeMemory, ensureLifeMemory, recordLifeAttempt,recordWalkAttempt,
+  recordDangerWarning,fadeLifeDangerWarnings
 } from '../hero-progression.mjs';
 import {
   SAVE_KEY, createInitialState, updateGame, addSoul, die,
@@ -36,7 +40,12 @@ test('an action gives main attribute 80% and auxiliary 20% XP, lower XP on failu
   assert.equal(failed.attributeXp.gathering,2);
   assert.equal(failed.attributeXp.strength,.5);
   assert.equal(failed.learnedActions.wood,undefined);
+  assert.equal(hero.learnedActions.wood,undefined);
+  grantHeroActionExperience(hero,'wood',10);
+  assert.equal(hero.learnedActions.wood,undefined);
+  grantHeroActionExperience(hero,'wood',10);
   assert.equal(hero.learnedActions.wood,true);
+  assert.equal(hero.actionSuccessCounts.wood,3);
 });
 test('higher abilities require more XP and growth stops at the cap',()=>{
   assert.ok(xpNeededForNextAbility(100)>xpNeededForNextAbility(10));
@@ -163,4 +172,84 @@ test('no individual hero XP in exploration stage, but life progression remains',
   updateGame(s,1);
   assert.equal(JSON.stringify(hero.attributeXp),before);
   assert.equal(hero.levelXp,levelBefore);
+});
+
+
+test('level cap 200, smooth XP growth, baseline 10 and failure 25%, limit difficulty range',()=>{
+  assert.equal(HERO_LEVEL_CAP,200);
+  assert.equal(BASE_ACTION_XP,10);
+  assert.equal(FAILED_ACTION_XP_FACTOR,.25);
+  const hero=createStarterHero();
+  grantHeroLevelExperience(hero,1e10);
+  assert.equal(hero.level,200);
+  assert.equal(hero.levelXp,0);
+  const p=hero.freeStatPoints;
+  assert.equal(grantHeroLevelExperience(hero,100),0);
+  assert.equal(hero.freeStatPoints,p);
+  const h=createStarterHero();
+  grantHeroActionExperience(h,'wood',10,{difficulty:3});
+  assert.equal(h.attributeXp.gathering,16); // 10 XP * max 2.0 * 80%
+  const f=createStarterHero();
+  grantHeroActionExperience(f,'wood',10,{difficulty:0.1,success:false});
+  assert.equal(f.attributeXp.gathering,1); // 10 * min 0.5 * 0.25 * 80%
+});
+test('training action is learned after 3 successes, failed actions do not count',()=>{
+  assert.equal(ACTION_SUCCESS_REQUIREMENT,3);
+  const h=createStarterHero();
+  for(let i=0;i<2;i++)grantHeroActionExperience(h,'food',10);
+  grantHeroActionExperience(h,'food',10,{success:false});
+  assert.equal(h.learnedActions.food,undefined);
+  assert.equal(h.actionSuccessCounts.food,2);
+  grantHeroActionExperience(h,'food',10);
+  assert.equal(h.learnedActions.food,true);
+  assert.equal(h.actionSuccessCounts.food,3);
+});
+test('migrate old acquired learned flags without removing achievements',()=>{
+  const s=createInitialState();
+  const h=s.heroProgression.profiles[STARTER_HERO_ID];
+  h.learnedActions.food=true;
+  delete h.actionSuccessCounts;
+  ensureHeroProgression(s);
+  assert.equal(h.actionSuccessCounts.food,3);
+  assert.equal(h.learnedActions.food,true);
+});
+test('life attempts keep at most 20 and danger warnings fade, life memory is separate from soul',()=>{
+  assert.equal(LIFE_ATTEMPT_HISTORY_CAP,20);
+  const actor={lifeMemory:createLifeMemory()};
+  for(let i=0;i<40;i++)recordLifeAttempt(actor,'walk',i%2===0,i);
+  assert.equal(actor.lifeMemory.attempts.length,20);
+  assert.equal(actor.lifeMemory.attempts[0].time,20);
+  const a=recordDangerWarning(actor,'river',1);
+  assert.equal(a,1);
+  fadeLifeDangerWarnings(actor,60,1/120);
+  assert.equal(actor.lifeMemory.dangerWarnings.river,.5);
+  fadeLifeDangerWarnings(actor,120,1/120);
+  assert.equal(actor.lifeMemory.dangerWarnings.river,undefined);
+  const fresh=ensureLifeMemory({lifeMemory:{}});
+  assert.deepEqual(fresh.attempts,[]);
+  assert.deepEqual(fresh.dangerWarnings,{});
+});
+test('five stages of walking practice spread over approx 30 attempts',()=>{
+  const actor={lifeMemory:createLifeMemory()};
+  for(let i=0;i<30;i++){
+    const stage=recordWalkAttempt(actor,true,i);
+    assert.equal(stage,Math.min(5,Math.floor((i+1)/6)));
+  }
+  assert.equal(actor.lifeMemory.walking.stage,5);
+  assert.equal(actor.lifeMemory.walking.attempts,30);
+});
+test('after death and collection a newly spawned actor has no detailed life history',()=>{
+  const s=createInitialState();
+  const a=s.actors.find(x=>x.kind==='main');
+  const h=s.heroProgression.profiles[STARTER_HERO_ID];
+  recordLifeAttempt(a,'swim',false,17);
+  recordDangerWarning(a,'water',1);
+  grantHeroActionExperience(h,'wood',10);
+  die(s,a,'寿命');
+  collectTemple(s);
+  const next=s.actors.find(x=>x.kind==='main');
+  assert.notEqual(next.id,a.id);
+  assert.equal(next.heroId,a.heroId);
+  assert.deepEqual(ensureLifeMemory(next).attempts,[]);
+  assert.equal(h.actionSuccessCounts.wood,1);
 });
