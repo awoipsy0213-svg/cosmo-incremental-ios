@@ -831,7 +831,8 @@ document.addEventListener("click",async e=>{
     if(b.matches("[data-legacy-link]")){save(true);return;}
     if(b.dataset.sourceDetail){
       const x=CONTENT.sources.find(x=>x.id===b.dataset.sourceDetail);
-      await ask(x.name+"（仮名）",`特性案：${x.role}\n最終効果：${x.finalDescription}\n\n通常6効果：？？？\n7効果の配置：？？？\n\n共通21節目：\n${CONFIG.confirmed.sourceMilestones.map(x=>x.toLocaleString("ja-JP")).join(" → ")}`,"閉じる");return;
+      const status=G.sourceFinalEffectStatus(state,x.id);
+      await ask(x.name+"（仮名）",`特性案：${x.role}\n最終効果：${status?.label||"？？？"}\n実装状態：${status?(status.implemented?"計算に適用":"解放履歴のみ・効果保留"):"未決定"}\n取得状態：${status?.unlocked?"解放済み":"未取得"}\n\n通常6効果の詳細：？？？（未確定）\n効果取得節目：25／1,000／10,000／50,000／100,000／500,000／1,000,000\n個別の未確定効果は適用しません。`,"閉じる");return;
     }
     if(readOnly){toast("別タブの書き込みを保護中です");return;}
     if(store.blocked && b.dataset.restore===undefined){toast("元セーブを保護中です。「保存」から復元してください。");return;}
