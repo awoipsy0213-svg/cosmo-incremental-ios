@@ -28,6 +28,7 @@ let state,readOnly=false,storageUnavailable=false,lockRelease=null;
 let currentStage="existence",currentSub="moment",sheetState="closed";
 let lastFrame=Date.now(),hiddenAt=null,lastSavedAt=0,lastPanelRender=0,lastInteraction=0;
 let toastTimer,importDraft="",offlineReport=null,updateWorker=null,confirmedAction=null;
+let interferencePartnerId=null;
 let navDigest="",notice="",busyBirth=false;
 const BOOST_QUICK_ICON=`<svg class="boost-quick-symbol" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M13 2 5 13h6l-1 9 9-12h-6V2z" fill="currentColor"/></svg>`;
 let holdPurchase=null,skipClickFor=null;
@@ -368,6 +369,14 @@ function resourcesHTML(){
 }
 function observationsHTML(){
   const u=state.universe,p=G.planet(state);
+  const partners=u.planets.filter(x=>x.id!==p?.id);
+  const other=partners.find(x=>x.id===interferencePartnerId)||partners[0]||null;
+  const actions=[
+    {type:"collision",name:"惑星衝突",detail:"2惑星を消費して質量80%を持つ新惑星を生成。コア保有惑星は対象外。"},
+    {type:"transfer",name:"成長移転",detail:"元の自然質量成長を10分停止し、通常成長の50%を別惑星に移転。"},
+    {type:"induce",name:"崩壊誘発",detail:"指定惑星を即時に最終崩壊。自然崩壊と同額の報酬、10分間隔。"},
+    {type:"stabilize",name:"惑星安定化",detail:"防護系R1を消費し安定度を1上昇（最大90）。同一惑星で有効時間5分間隔。"}
+  ];
   return `<p class="panel-intro">現象の観測から名称を認識し、理解度100で干渉を解放。発見済みの知識は惑星が崩壊しても保持します。</p>
     <h3>観測した現象の理解度</h3>
     <div class="row-grid">${KNOWLEDGE_IDS.map(id=>{
@@ -382,8 +391,26 @@ function observationsHTML(){
       <small>認識ステータス ${p.observed.length} / 15</small>
       <small>惑星内部 ${p.core?.formed?"脈動中":p.core?.started?"コア形成中":"未形成"} · 地表事象 ${p.core?.surfaceCount||0}回</small>
       <small>生命へ続く変化 ${p.core?.lifeStage||0}/3</small>
-    </div>`:""}
-    <div class="status-note">惑星の衝突・成長移転・誘発崩壊・安定化は解放条件まで設計済みですが、操作本体は未実装です。実行可能と誤表示しないよう保護しています。</div>`;
+    </div>
+    <h3>惑星への干渉</h3>
+    ${partners.length?`<label class="kw-row interference-selector">相手の惑星
+       <select id="interferencePartner" class="input-select" aria-label="干渉する相手惑星">
+       ${partners.map(x=>`<option value="${esc(x.id)}" ${other?.id===x.id?"selected":""}>${esc(x.id)}</option>`).join("")}
+       </select></label>`:""}
+    <div class="row-grid interference-actions">${actions.map(action=>{
+      const two=action.type==="collision"||action.type==="transfer";
+      const quote=G.interferenceQuote(state,action.type,p.id,two?other?.id:null,Date.now());
+      return `<div class="kw-card interference-action">
+        <div class="card-top"><strong>${esc(action.name)}</strong>
+        <span class="badge ${quote.ok?"confirmed":""}">${quote.ok?"解放済み":"条件未達"}</span></div>
+        <small>${esc(action.detail)}</small>
+        ${quote.ok?`<small>必要なR1資源：${f(quote.price)}</small>`:`<small>${esc(quote.reason)}</small>`}
+        <button class="wide-button" data-interference="${action.type}"
+          ${!quote.ok||readOnly||store.blocked?"disabled":""}>${quote.ok?"確認して実行":"実行不可"}</button>
+      </div>`;
+    }).join("")}</div>`:"<div class='status-note'>惑星を生成すると対象を選べます。衝突・成長移転には2つの惑星が必要です。</div>"}
+    <p class="tiny muted">干渉による資源消費は実行時に再検証します。成長移転・安定化は保存データへ記録されます。</p>`:"<div class='status-note'>先に惑星を生成してください。</div>"}
+    <div class="status-note">干渉の操作本体は追加済みです。ただし現象理解を獲得するすべての物理イベントは未実装であり、未達の操作は利用できません。部分破壊は引き続き未実装です。</div>`;
 }
 function boostHTML(){
   const v=G.boostValues(state),s=state.boost;
@@ -966,6 +993,28 @@ document.addEventListener("click",async e=>{
       if(!await ask("＋循環の確認",x.name+"：Lv."+source.level.toLocaleString("ja-JP")+" / ＋"+source.plus+" → ＋"+(source.plus+1)+"・Lv1から再開始します。","＋循環する"))return;
       resultDone(G.breakthrough(state,id));return;
     }
+    if(b.dataset.interference){
+      const type=b.dataset.interference;
+      const p=G.planet(state),list=state.universe.planets.filter(x=>x.id!==p?.id);
+      const partner=list.find(x=>x.id===interferencePartnerId)||list[0];
+      const other=type==="collision"||type==="transfer"?partner?.id:null;
+      if(!p)return toast("先に惑星を選択してください");
+      const quote=G.interferenceQuote(state,type,p.id,other,Date.now());
+      if(!quote.ok)return toast(quote.reason||"操作できません");
+      const names={collision:"衝突",transfer:"成長移転",induce:"崩壊誘発",stabilize:"安定化"};
+      const details=type==="collision"||type==="transfer"?" / 相手："+other:"";
+      if(!await ask(names[type]+"の確認",
+        "対象："+p.id+details+"\n必要資源：R1合計 "+f(quote.price)+
+        "\n実行後の消費は取り消せません。","実行する"))return;
+      checkpoint();
+      const current=G.interferenceQuote(state,type,p.id,other,Date.now());
+      if(!current.ok||A(current.price).cmp(quote.price)!==0)return toast("状態・費用が変化したため再確認してください");
+      const out=type==="collision"?G.collidePlanets(state,p.id,other):
+        type==="transfer"?G.transferPlanetGrowth(state,p.id,other):
+        type==="induce"?G.inducePlanetCollapse(state,p.id):
+        G.stabilizePlanet(state,p.id);
+      return resultDone(out,names[type]+"を実行しました");
+    }
     if(b.dataset.engravingBuy){
       const id=b.dataset.engravingBuy,quote=engravingPurchaseQuote(state,id);
       if(!quote.ok)return toast(quote.reason||"購入できません");
@@ -1014,6 +1063,7 @@ document.addEventListener("change",async e=>{
   if(t.dataset.weight!==undefined){G.setWeight(state,Number(t.dataset.weight),Number(t.value));save();render(true);return;}
   if(t.id==="planetSelect"){state.universe.selectedPlanetId=t.value;save();render(true);return;}
   if(t.id==="autoReserveSelect"){resultDone(G.setAutoPlanetReserve(state,Number(t.value)),"最低保有量を変更しました");return;}
+  if(t.id==="interferencePartner"){interferencePartnerId=t.value;renderPanel(true);return;}
   if(t.id==="autoConvergeThreshold"){resultDone(G.configureAutoConvergence(state,{minReward:t.value}),"自動収束の最低報酬を変更しました");return;}
   if(t.id==="receiptSelect"&&mode==="lab"){
     if(state.universe.planets.some(p=>Object.values(p.pendingResources).some(x=>A(x).cmp(0)>0))){
