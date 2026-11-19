@@ -72,3 +72,36 @@ Date: 2026-11-19. Q1–312 decisions have been confirmed in the design conversat
 - **Saved data:** original Soul World key \`soul_world_browser_proto_v001\` and schema 1 are preserved. Additive \`saveFormatRevision:3\` triggers 3-generation pre-migration backup. JSON malformed paused-life fields cause validation failure, not silent loss.
 - **Testing:** automated CI tests ensure 3 independent field hero actors, pause/resume identity and lifespan, exploratory basic XP without level XP, soul recovery/standby behavior and legacy v2 migration. GitHub Pages deployment is automatically checked. Real iPhone Safari manual UX and offline tests still pending.
 - **Deferred:** base rank upgrade, 10x10→30x30 map expansion, construction costs and materials needed to build houses, full AI autonomy, real multiple-combat-hero simulation, stamina recovery, physically visualized falling/walking and exact combat-stat parameters.
+
+
+## Q463–512 confirmed, Q500 design-versus-implementation review (2026-11-19)
+
+### Confirmed
+- Main base rank gains XP from facility construction, upgrades and missions; the only exact rank thresholds confirmed so far are **Rank2=100 cumulative XP** and **Rank4=600 cumulative XP**.
+- Base size begins **10×10**, grows to **20×20 at Rank2** and **30×30 at Rank4**. Earlier 5×5 coordinates, buildings, tiles, and actor positions must never be shifted or discarded during migration.
+- 2nd Hero House requires Rank2, 50 wood +30 stone, target construction time 30s. 3rd requires Rank4, 150 wood +100 stone, target 60s. Building placement is chosen by player, and houses cannot host heroes before complete.
+- Wood/stone storage can be upgraded by rank up to a capacity of 200 each. Construction/upgrade prices for the storage itself remain **undecided**.
+- Sub 17 base stats are derived from shared mastery; level 100 adds approximately 500 to corresponding ability (confirmed). Detailed mapping to all 17 requires more design.
+- Learned per-hero AI scores and hazard memory must be reproducible; no unattended/offline stage progression. 20Hz simulation / 30fps display are targets, not measured.
+- Stat coefficients are now confirmed for base HP, physical attack/defense, magic, mitigation, hit baseline, stamina. Full combined battle stat pipeline is **not yet integrated**.
+
+### This PR's scoped implementation
+- \`base-progression.mjs\` introduces rank thresholds, map size table, safe additive grid extension, next-house and next-warehouse capacity previews.
+- The existing 5×5 layout is **extended** into a 10×10 map at new-game creation or when loading a legacy game. Rank2 and Rank4 expand the map to 20×20 and 30×30 without shifting existing coordinates. Original resources, heroes, soul state and placed facilities are kept.
+- The live 3D WebGL and Canvas2D compatibility renderers use the dynamic map size, preserve the camera focus around the original base and skip far-off tiles when applicable.
+- Base construction awards **provisional 20 Rank XP per completed facility**. This amount, and **Rank3 at cumulative 300 XP**, are temporary tuning values, **not user-confirmed**.
+- The UI shows base rank, current map size and Hero House unlock requirements; building a second house at Rank2 is possible with enough wood/stone and space. A third house requires confirmed rank/resources but presently **cannot be funded with a 50-cap storage**, since storage upgrade costs are not yet decided.
+- Construction \`work\` values are 30/60 as placeholders for target *working time*, but real wall-clock completion times depend on active builders and their action timing; the exactly timed construction system is pending.
+- Autosave interval changes to **15 seconds** (plus existing important-action saves).
+- Save key stays \`soul_world_browser_proto_v001\`, same schema 1, additive \`saveFormatRevision:4\` triggers 3-generation raw pre-migration backups. Import validation rejects invalid resources, rank values, map sizes, and duplicate map coordinates.
+- Tests cover migration, no coordinate loss, rank progression, House availability, warehouse capacity previews, malformed imports and all prior regression cases. PWA cache version and module syntax checks are updated.
+
+### Unfinished / Q513+ review priorities
+1. **Rank3 actual threshold**, source-specific Rank XP rewards, repeatable mission rules.
+2. Storage upgrade construction costs and rank conditions; live ability to reach 150 wood/100 stone to build the 3rd house.
+3. Exact real-time 30s/60s Hero House building method and worker coordination.
+4. Real 20×20/30×30 iPhone performance and full-featured navigation and collisions.
+5. Verified offline cache update only after a successful save; current update behavior is not a complete approval-flow implementation.
+6. Full AI decision-making, balancing, complete final-stat formulas, genuine PvP, actual multihero battle, and native iPhone manual testing.
+
+The unrelated Kotowari game is outside this PR; preserve \`kotowari_v31_normal\` and \`cosmo_incremental_v01\`.
