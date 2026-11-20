@@ -105,4 +105,33 @@ test("UI never exports a generated empty placeholder while protected",()=>{
   assert.ok(app.includes("store.restoreBackup"));
   assert.ok(app.includes("report.elapsed<10"));
 });
+test("snapshot quota failure does not negate the successfully saved primary progress (U-32)",()=>{
+  const storeData=storageFrom([]);
+  const originalSet=storeData.setItem;
+  storeData.setItem=(key,value)=>{
+    if(key.endsWith(".backups"))throw new Error("quota exceeded for history");
+    originalSet(key,value);
+  };
+  const store=new SaveStore(storeData,"normal","quota-priority");
+  const s=createState(NOW);s.intro.complete=true;s.orbs="3200";
+  assert.equal(store.write(s,{snapshot:true}),true);
+  assert.equal(A(decode(storeData.getItem(KEYS.normal),"normal").orbs).cmp(3200),0);
+  assert.equal(store.expectedRevision,s.revision);
+  assert.ok(store.lastError.includes("進捗本体は保存済み"));
+  assert.equal(storeData.getItem(KEYS.normal+".backups"),null);
+  s.orbs="6400";
+  assert.equal(store.write(s),true);
+  assert.equal(A(decode(storeData.getItem(KEYS.normal),"normal").orbs).cmp(6400),0);
+  assert.ok(store.expectedRevision===s.revision);
+});
+test("primary write failure preserves progress in memory and does not falsely commit",()=>{
+  const storeData=storageFrom([]);
+  storeData.setItem=(key,value)=>{throw new Error("primary storage full");};
+  const store=new SaveStore(storeData,"normal","hard-quota");
+  const s=createState(NOW);s.orbs="123";const revision=s.revision;
+  assert.throws(()=>store.write(s,{snapshot:true}),/primary storage full/);
+  assert.equal(s.revision,revision);
+  assert.equal(store.expectedRevision,0);
+  assert.equal(storeData.getItem(KEYS.normal),null);
+});
 console.log("PASS "+checked+" Ver3.20 recovery/PWA checks");
