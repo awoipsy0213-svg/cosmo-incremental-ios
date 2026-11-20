@@ -15,11 +15,11 @@ test("Compact scientific format: zero, 3 significant digits and exponent carry",
   assert.equal(formatScientific3("3.14159e9999999"),"3.14e+9999999");
   assert.equal(formatScientific3("0.00123456"),"1.23e-3");
 });
-test("Three shared entries are visible after intro without creating saved fields",()=>{
+test("Six shared entries are visible after intro without creating saved fields",()=>{
   const html=source("index.html"),app=source("app.mjs");
   assert.match(html,/id="commonInfoBar"/);
-  assert.equal((html.match(/data-common-value="/g)||[]).length,3);
-  for(const metric of ["existence","speed","boost"])assert.ok(html.includes('data-common-value="'+metric+'"'));
+  assert.equal((html.match(/data-common-value="/g)||[]).length,6);
+  for(const metric of ["existence","orbs","speed","tap","convergences","boost"])assert.ok(html.includes('data-common-value="'+metric+'"'));
   assert.match(app,/function commonInfoHTML\(\)/);
   assert.match(app,/function renderWorld\(\)/);
   assert.match(app,/const showShared=state\.intro\.complete/);
@@ -27,18 +27,21 @@ test("Three shared entries are visible after intro without creating saved fields
   assert.match(app,/if\(action==="return-stage-panel"\)/);
   assert.match(source("astral-observatory.css"),/\.common-info-bar/);
   const s=createState();
+  assert.equal(s.settings.confirmBulkPurchase,false);
+  assert.equal(s.settings.confirmMaxPurchase,true);
   assert.equal(s.schemaVersion,31);
   assert.equal("commonInfo" in s,false);
   assert.equal("infoPanelOpen" in s,false);
 });
 test("Web and Capacitor copies are exactly synchronized",()=>{
-  for(const f of ["index.html","app.mjs","numbers.mjs","balance-config.mjs","astral-observatory.css","sw.js"])
+  for(const f of ["index.html","app.mjs","numbers.mjs","balance-config.mjs","astral-observatory.css","stage-worlds.css","sw.js"])
     assert.equal(source(f),source("www/"+f),f+" not in sync");
 });
 test("A coherent version is used by HTML, SW and game config",()=>{
-  assert.equal(CONFIG.version,"3.22.0");
-  assert.match(source("index.html"),/3\.22 · ASTRAL/);
-  assert.match(source("sw.js"),/3\.22\.0-shared-info/);
+  assert.equal(CONFIG.version,"3.23.0");
+  assert.match(source("index.html"),/3\.23 · WORLDS/);
+  assert.match(source("sw.js"),/3\.23\.0-stage-worlds/);
   assert.match(source("sw.js"),/CORE_FILES/);
+  assert.match(source("sw.js"),/stage-worlds\.css/);
 });
-console.log("PASS "+passed+" Ver3.22 shared-info tests");
+console.log("PASS "+passed+" Ver3.23 shared-info tests");

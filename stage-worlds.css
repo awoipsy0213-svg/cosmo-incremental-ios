@@ -1,0 +1,323 @@
+/*
+ * 《理》Ver.3.23 — compact illustrated HUD & stage-specific scenes.
+ * Visual-only: touches, purchases, stage sheets and save semantics stay in game/app.
+ * Stage 1: luminous creation; 2: clockflow; 3: planetary observatory; 4: cellular.
+ */
+:root{--world-accent:#79e8ff;--world-accent-alt:#b58bff}
+body.kw-app{--stage-surface:rgba(7,20,49,.95)}
+body[data-cosmo-stage="1"]{--world-accent:#7ce7ff;--world-accent-alt:#b395ff;--stage-surface:rgba(13,18,57,.97)}
+body[data-cosmo-stage="2"]{--world-accent:#f8cf82;--world-accent-alt:#64e6d7;--stage-surface:rgba(27,26,38,.97)}
+body[data-cosmo-stage="3"]{--world-accent:#8eaeff;--world-accent-alt:#db8bff;--stage-surface:rgba(10,19,53,.97)}
+body[data-cosmo-stage="4"]{--world-accent:#87f1b0;--world-accent-alt:#2fdcc9;--stage-surface:rgba(5,35,34,.97)}
+body[data-cosmo-stage="2"] #appRoot{
+  background:radial-gradient(circle at 54% 51%,rgba(169,122,44,.27),transparent 30%),
+             radial-gradient(ellipse at 91% 25%,rgba(22,150,149,.17),transparent 54%),
+             linear-gradient(175deg,#090d20,#191827 52%,#0a1820)
+}
+body[data-cosmo-stage="3"] #appRoot{
+  background:radial-gradient(circle at 63% 49%,rgba(36,78,190,.36),transparent 34%),
+             radial-gradient(circle at 20% 75%,rgba(144,54,173,.23),transparent 48%),
+             linear-gradient(165deg,#050d22,#090b27 55%,#080b16)
+}
+body[data-cosmo-stage="4"] #appRoot{
+  background:radial-gradient(circle at 55% 52%,rgba(13,130,92,.26),transparent 42%),
+             radial-gradient(circle at 88% 20%,rgba(61,128,104,.22),transparent 46%),
+             linear-gradient(160deg,#05151d,#06231d 60%,#07111e)
+}
+body[data-cosmo-stage="2"] .kw-sheet{background:linear-gradient(145deg,#241e30f9,#181c30fc);border-color:rgba(243,202,131,.5)}
+body[data-cosmo-stage="3"] .kw-sheet{background:linear-gradient(145deg,#131b43fa,#0b102ffe);border-color:rgba(143,179,255,.56)}
+body[data-cosmo-stage="4"] .kw-sheet{background:linear-gradient(145deg,#0b302af9,#09211dfd);border-color:rgba(122,248,173,.48)}
+body[data-cosmo-stage="2"] .stage-nav button.active{border-color:#f7d08b;background:#775130bb}
+body[data-cosmo-stage="3"] .stage-nav button.active{border-color:#92adff;background:#354aa2ad}
+body[data-cosmo-stage="4"] .stage-nav button.active{border-color:#7ee6b2;background:#195a48bf}
+
+/* The six compact global numbers occupy two rows without hiding gameplay. */
+.common-info-bar[hidden]{display:none!important}
+.common-info-bar{
+  z-index:22;top:calc(var(--safe-top) + 54px);height:98px;
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));
+  gap:4px;padding:5px 9px;box-sizing:border-box;
+  background:linear-gradient(180deg,rgba(8,17,37,.98),rgba(11,16,41,.96));
+  border-top:1px solid rgba(139,206,255,.14);
+  border-bottom:1px solid rgba(131,223,255,.4)
+}
+.common-info-item{
+  justify-content:flex-start;min-width:0;min-height:0;height:auto;
+  padding:4px 6px;gap:6px;border-radius:7px;
+  background:linear-gradient(135deg,rgba(45,73,124,.52),rgba(29,35,79,.48));
+  border:1px solid rgba(121,195,238,.36)
+}
+.shared-glyph{
+  display:grid;place-items:center;flex:0 0 19px;width:19px;height:25px;
+  color:var(--world-accent);font:bold 21px/1 Georgia,serif;
+  text-shadow:0 0 8px var(--world-accent),0 0 14px var(--world-accent-alt)
+}
+.common-info-copy{gap:2px;flex:1;min-width:0}
+.common-info-copy small{font-size:9px;line-height:1.18;color:#b7d8ee}
+.common-info-copy strong{
+  max-width:none;overflow:visible;text-overflow:clip;white-space:normal;
+  overflow-wrap:anywhere;line-height:1.15;font-size:11.3px;letter-spacing:-.3px;
+  color:#f7fcff
+}
+.run-indicator{
+  display:flex;flex-direction:column;justify-content:center;align-items:center;
+  flex:0 0 66px;min-width:0;gap:2px;border-left:1px solid #99b7ec4d;
+  font:10px/1.1 -apple-system,BlinkMacSystemFont,sans-serif;color:#b5c8ed
+}
+.run-indicator strong{font:600 16px/1.2 Georgia,serif;color:#f8f4ff;font-variant-numeric:tabular-nums}
+body.has-common-info .world{top:calc(var(--safe-top) + 152px)}
+body.has-common-info .world-header{top:5px;left:9px;right:9px;z-index:10}
+.stage-hud{
+  display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);
+  width:100%;min-height:115px;align-items:stretch;
+  border-radius:13px;border:1px solid rgba(127,196,254,.5);
+  background:linear-gradient(135deg,rgba(11,37,80,.93),rgba(10,22,50,.84) 60%,rgba(17,20,60,.94));
+  box-shadow:0 0 15px rgba(78,150,241,.13),inset 0 1px 0 rgba(213,241,255,.14);
+  padding:9px;box-sizing:border-box;gap:8px;text-align:left
+}
+body[data-cosmo-stage="2"] .stage-hud{background:linear-gradient(120deg,rgba(63,46,44,.9),rgba(27,41,51,.88));border-color:#d6b67b99}
+body[data-cosmo-stage="3"] .stage-hud{background:linear-gradient(120deg,rgba(21,44,92,.91),rgba(26,23,63,.87));border-color:#a5a0f2a3}
+body[data-cosmo-stage="4"] .stage-hud{background:linear-gradient(120deg,rgba(14,56,47,.92),rgba(9,35,39,.87));border-color:#82e9c18f}
+.stage-hud-primary{min-width:0;display:flex;flex-direction:column;justify-content:center}
+.stage-resource-label{font:600 10px/1.25 -apple-system,sans-serif;color:var(--world-accent);letter-spacing:.07em}
+.stage-hud .primary-value{
+  font:500 clamp(19px,5.4vw,31px)/1.18 Georgia,serif;
+  overflow:visible;text-overflow:clip;white-space:normal;overflow-wrap:anywhere;
+  margin:4px 0;color:#fdfbff;text-shadow:0 0 12px var(--world-accent-alt);
+  max-width:100%;letter-spacing:-.4px
+}
+.stage-hud .world-details{max-width:100%;margin:0;color:#c7dcf5;font-size:9.5px;line-height:1.42;overflow-wrap:anywhere}
+.stage-hud .world-details .wallet{display:block;margin:0;font-size:10px;line-height:1.3;color:#dcf8ff}
+.stage-hud .world-details .wallet b{color:#dcf8ff;font-weight:600}
+.stage-resource-list{
+  border-left:1px solid rgba(172,203,252,.28);padding-left:8px;
+  display:grid;grid-template-rows:repeat(4,minmax(20px,auto));
+  align-content:center;gap:2px;min-width:0
+}
+.stage-stat{min-width:0;display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:3px;align-items:center;
+  border-bottom:1px solid rgba(147,189,234,.13);font-size:9.5px;line-height:1.25}
+.stage-stat span{color:#c1cce4;overflow-wrap:anywhere}
+.stage-stat strong{font-weight:600;text-align:right;color:#f5faff;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+body.has-common-info #touchField.cosmic-scene{inset:21% 0 8%}
+body.has-common-info .world-bottom{bottom:10px}
+body.sheet-open .stage-hud{opacity:.84}
+body.sheet-open .world-bottom{visibility:hidden}
+
+/* The scenic layer is decorative, never an input target. */
+.stage-backdrop{position:absolute;inset:7% 3% 6%;pointer-events:none;z-index:1;display:none}
+.stage-backdrop i{position:absolute;display:block;pointer-events:none}
+body[data-cosmo-stage="2"] .stage-backdrop,
+body[data-cosmo-stage="3"] .stage-backdrop,
+body[data-cosmo-stage="4"] .stage-backdrop{display:block}
+body[data-cosmo-stage="2"] #touchField .flow-art,
+body[data-cosmo-stage="3"] #touchField .flow-art,
+body[data-cosmo-stage="4"] #touchField .flow-art{opacity:0}
+body[data-cosmo-stage="2"] #touchField.cosmic-scene::before,
+body[data-cosmo-stage="2"] #touchField.cosmic-scene::after,
+body[data-cosmo-stage="3"] #touchField.cosmic-scene::before,
+body[data-cosmo-stage="3"] #touchField.cosmic-scene::after,
+body[data-cosmo-stage="4"] #touchField.cosmic-scene::before,
+body[data-cosmo-stage="4"] #touchField.cosmic-scene::after{opacity:0}
+
+/* 時: kinetic clock face, chronal rings and luminous tick marks. */
+body[data-cosmo-stage="2"] .stage-backdrop::before{
+  content:"";position:absolute;left:50%;top:49%;width:min(69vw,300px);aspect-ratio:1;
+  transform:translate(-50%,-50%);border-radius:50%;
+  background:
+    radial-gradient(circle,rgba(255,234,173,.75) 0 3%,rgba(28,104,108,.42) 5%,transparent 30%),
+    repeating-conic-gradient(from 0deg,rgba(240,211,155,.66) 0deg 1deg,transparent 1.6deg 18deg),
+    radial-gradient(circle,transparent 41%,rgba(250,200,120,.3) 42%,transparent 44%,transparent 57%,rgba(103,239,225,.3) 58%,transparent 60%);
+  border:2px solid #d9bf8f86;box-shadow:0 0 32px #d7b36755,inset 0 0 40px #c89b6055;
+  animation:kw-time-turn 42s linear infinite
+}
+body[data-cosmo-stage="2"] .stage-backdrop::after{
+  content:"";position:absolute;left:50%;top:49%;width:min(47vw,210px);aspect-ratio:1;
+  transform:translate(-50%,-50%);border-radius:50%;
+  border:2px solid rgba(108,230,218,.76);box-shadow:0 0 27px #5cddd95c,inset 0 0 30px #63e3da38;
+  background:conic-gradient(from 25deg,transparent 0 30%,rgba(70,226,223,.16) 42%,transparent 65%,rgba(247,199,114,.11) 83%,transparent 100%);
+  animation:kw-time-reverse 18s linear infinite
+}
+body[data-cosmo-stage="2"] .stage-backdrop i:nth-child(1),
+body[data-cosmo-stage="2"] .stage-backdrop i:nth-child(2){
+  top:49%;left:50%;width:2px;height:96px;transform-origin:top center;
+  background:linear-gradient(#fff2cf,#8be2e6 52%,transparent);box-shadow:0 0 8px #f1dba1
+}
+body[data-cosmo-stage="2"] .stage-backdrop i:nth-child(1){transform:rotate(48deg)}
+body[data-cosmo-stage="2"] .stage-backdrop i:nth-child(2){height:71px;transform:rotate(224deg)}
+body[data-cosmo-stage="2"] .stage-backdrop i:nth-child(3){
+  top:12%;left:10%;width:80%;height:73%;border-radius:50%;
+  border:1px dashed rgba(129,210,212,.26);transform:rotate(-22deg)
+}
+@keyframes kw-time-turn{from{transform:translate(-50%,-50%) rotate(0)}to{transform:translate(-50%,-50%) rotate(360deg)}}
+@keyframes kw-time-reverse{from{transform:translate(-50%,-50%) rotate(360deg)}to{transform:translate(-50%,-50%) rotate(0)}}
+
+/* 宇宙: planet body, orbital paths and satellites, not a recolored orb. */
+body[data-cosmo-stage="3"] .stage-backdrop::before{
+  content:"";position:absolute;left:50%;top:49%;width:min(56vw,244px);aspect-ratio:1;border-radius:50%;
+  transform:translate(-50%,-50%) rotate(-19deg);
+  background:radial-gradient(circle at 32% 29%,#b2e3ff 0%,#769fe5 13%,#273d9d 42%,#281c6b 71%,#090f2d 94%);
+  box-shadow:inset -20px -20px 33px #050d34bd,inset 11px 7px 23px #d8b8ff52,0 0 37px #7da7ff73,0 0 90px #7b45c43d;
+  border:1px solid #97c5ff88
+}
+body[data-cosmo-stage="3"] .stage-backdrop::after{
+  content:"";position:absolute;left:50%;top:49%;width:min(95vw,450px);height:min(37vw,155px);
+  border:2px solid #8da2ffa6;border-radius:50%;transform:translate(-50%,-50%) rotate(-18deg);
+  box-shadow:0 0 10px #b0b6ff6e,inset 0 0 10px #aeb3ff50;
+  animation:kw-orbit-precess 21s ease-in-out infinite alternate
+}
+body[data-cosmo-stage="3"] .stage-backdrop i{
+  width:clamp(12px,4vw,23px);height:clamp(12px,4vw,23px);border-radius:50%;
+  background:radial-gradient(circle at 25% 24%,#edfaff,#7baeff 38%,#514ab5 80%);
+  box-shadow:0 0 15px #a3b0ff,0 0 27px #8370fb70
+}
+body[data-cosmo-stage="3"] .stage-backdrop i:nth-child(1){left:8%;top:37%}
+body[data-cosmo-stage="3"] .stage-backdrop i:nth-child(2){right:8%;top:60%;background:radial-gradient(circle at 25% 24%,#ffebf3,#d38bcf 40%,#744285)}
+body[data-cosmo-stage="3"] .stage-backdrop i:nth-child(3){left:24%;bottom:18%;transform:scale(.6)}
+body[data-cosmo-stage="3"] .stage-backdrop i:nth-child(4){right:21%;top:11%;transform:scale(.7)}
+@keyframes kw-orbit-precess{from{transform:translate(-50%,-50%) rotate(-13deg)}to{transform:translate(-50%,-50%) rotate(12deg)}}
+
+/* 生命: translucent cell membrane and reproductive micro-structures. */
+body[data-cosmo-stage="4"] .stage-backdrop::before{
+  content:"";position:absolute;left:50%;top:47%;width:min(69vw,305px);aspect-ratio:1;
+  transform:translate(-50%,-50%);border-radius:48% 52% 59% 41%/50% 43% 57% 50%;
+  background:radial-gradient(circle at 39% 38%,#e1ffe88c 0 4%,#5cdacb98 8%,#236b739c 21%,#0e3548c4 49%,#136c54ab 73%,#95f2a840 92%);
+  box-shadow:inset 0 0 21px #b9ffdc85,0 0 14px #7ceabb91,0 0 68px #2cb79b72;
+  border:3px solid #8aebbf8c;animation:kw-cell-pulse 9s ease-in-out infinite alternate
+}
+body[data-cosmo-stage="4"] .stage-backdrop::after{
+  content:"";position:absolute;left:51%;top:45%;width:min(30vw,135px);aspect-ratio:1;
+  transform:translate(-50%,-50%);border-radius:55% 45% 51% 49%;
+  background:radial-gradient(circle at 35% 35%,#d5fffbb0,#40d1a1c2 27%,#095a58 76%);
+  box-shadow:0 0 32px #50eed68c,inset 0 0 20px #aafac976;
+  border:1px solid #c8ffe4b8
+}
+body[data-cosmo-stage="4"] .stage-backdrop i{
+  width:23px;height:29px;background:radial-gradient(circle at 31% 29%,#e4fffacc,#48cf9e66 56%,transparent 82%);
+  border:1px solid #87ffd895;border-radius:43% 57% 59% 41%;box-shadow:0 0 13px #37e5b17a;
+  animation:kw-cell-pulse 4s ease-in-out infinite alternate
+}
+body[data-cosmo-stage="4"] .stage-backdrop i:nth-child(1){left:19%;top:26%}
+body[data-cosmo-stage="4"] .stage-backdrop i:nth-child(2){left:8%;top:58%;transform:scale(.64)}
+body[data-cosmo-stage="4"] .stage-backdrop i:nth-child(3){right:15%;top:19%;transform:scale(1.4)}
+body[data-cosmo-stage="4"] .stage-backdrop i:nth-child(4){right:12%;bottom:21%;transform:scale(.7)}
+body[data-cosmo-stage="4"] .stage-backdrop i:nth-child(5){left:40%;bottom:12%;transform:scale(.8)}
+@keyframes kw-cell-pulse{from{filter:brightness(.89);border-radius:48% 52% 59% 41%/50% 43% 57% 50%}to{filter:brightness(1.17);border-radius:55% 45% 41% 59%/42% 56% 44% 58%}}
+
+/* Purchase cards: names, levels, current total, next value, price. Detail on demand. */
+.kw-sheet-body .compact-upgrades .purchase-card{
+  min-height:0;max-height:none;height:auto;display:flex;flex-direction:column;
+  gap:5px;padding:8px 7px 7px;contain:layout style
+}
+.kw-sheet-body .compact-upgrades .purchase-card .card-top{
+  height:auto;min-height:30px;max-height:none;flex:0 0 auto;overflow:visible;gap:4px;
+  align-items:flex-start;margin:0
+}
+.kw-sheet-body .compact-upgrades .purchase-card .card-top strong{
+  min-width:0;max-width:none;flex:1 1 auto;overflow:visible;text-overflow:clip;
+  white-space:normal;overflow-wrap:anywhere;line-height:1.27;font-size:12px
+}
+.kw-sheet-body .compact-upgrades .purchase-card .card-top small{
+  flex:0 1 auto;min-width:0;max-width:48%;height:auto;min-height:0;max-height:none;
+  white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;
+  text-align:right;line-height:1.25;font-size:10px
+}
+.kw-sheet-body .compact-upgrades .purchase-card .compact-stat{
+  min-height:0;display:flex;flex-direction:column;gap:2px;padding:4px 5px;
+  border-radius:5px;background:rgba(3,18,40,.37);
+  border:1px solid rgba(149,199,255,.2)
+}
+.kw-sheet-body .compact-upgrades .purchase-card .compact-stat>span{
+  color:#9fc3ec;font-size:9px;line-height:1.25
+}
+.kw-sheet-body .compact-upgrades .purchase-card .compact-stat strong{
+  display:block;min-height:0;font-size:10.5px;line-height:1.35;font-weight:600;
+  white-space:normal;overflow:visible;overflow-wrap:anywhere;text-overflow:clip;
+  color:#e8f7ff;margin:0
+}
+.kw-sheet-body .compact-upgrades .source-card .card-top{padding-right:38px}
+.kw-sheet-body .compact-upgrades .source-card .source-detail-button{
+  min-height:34px;height:34px;min-width:34px;width:34px;top:3px;right:2px;
+  border:1px solid rgba(168,213,255,.4);border-radius:7px;color:#daebff
+}
+.kw-sheet-body .compact-upgrades .source-rates{
+  display:grid;grid-template-columns:minmax(0,1fr);height:auto;min-height:0;max-height:none;
+  flex:0 0 auto;gap:5px;font-size:10px;line-height:1.3;margin:1px 0
+}
+.kw-sheet-body .compact-upgrades .source-rates span{
+  display:block;height:auto;min-height:0;max-height:none;white-space:normal;
+  text-overflow:clip;overflow:visible;overflow-wrap:anywhere;text-align:left
+}
+.kw-sheet-body .compact-upgrades .source-rates span:last-child{text-align:left;color:#f4e3ff}
+.kw-sheet-body .compact-upgrades .purchase-card .buy-button{
+  flex:0 0 auto;height:auto;min-height:48px;max-height:none;padding:7px 4px;margin:4px 0 0;
+  white-space:normal;overflow:visible;line-height:1.28
+}
+.kw-sheet-body .compact-upgrades .purchase-card .buy-amount{
+  max-width:100%;height:auto;min-height:0;white-space:normal;overflow:visible;
+  text-overflow:clip;overflow-wrap:anywhere;font-size:11px;line-height:1.25
+}
+.kw-sheet-body .compact-upgrades .purchase-card .buy-button small{
+  height:auto;min-height:0;flex:0 0 auto;font-size:9px;line-height:1.2
+}
+.kw-sheet-body .compact-upgrades .purchase-card .live-buy-hint{
+  flex:0 0 auto;height:auto;min-height:0;max-height:none;line-height:1.3;
+  font-size:9px;padding:0;white-space:normal;overflow:visible;overflow-wrap:anywhere
+}
+.kw-sheet-body .compact-upgrades .purchase-card .live-buy-hint[hidden]{display:none!important}
+.kw-sheet-body .compact-upgrades .moment-effect-detail{
+  margin:2px 0 0;border-top:1px solid rgba(167,179,243,.25);padding-top:0
+}
+.kw-sheet-body .compact-upgrades .moment-effect-detail summary{
+  min-height:30px;display:flex;justify-content:center;
+  border:1px solid rgba(133,181,233,.38);border-radius:6px;
+  background:rgba(30,52,97,.35);font-size:10px;color:#c8e7ff
+}
+.kw-sheet-body .compact-upgrades .moment-favorite{
+  flex:0 0 22px;min-width:22px;max-width:22px;margin:0;padding:0
+}
+.kw-sheet-body .compact-upgrades .moment-card .card-top strong{max-width:none}
+.kw-sheet-body .compact-upgrades .purchase-card .buy-button:disabled{opacity:.65}
+.kw-sheet-body .purchase-toolbar-compact .trial-mark{display:none}
+@media(max-width:390px){
+  .common-info-bar{padding:4px 5px;gap:3px}
+  .common-info-item{padding:3px 4px;gap:3px}
+  .shared-glyph{width:15px;flex-basis:15px;font-size:17px}
+  .common-info-copy small{font-size:8px}
+  .common-info-copy strong{font-size:10.3px}
+  .stage-hud{padding:7px;gap:6px}
+  .stage-hud .primary-value{font-size:clamp(18px,5.2vw,26px)}
+  .stage-resource-list{padding-left:6px}
+  .stage-stat{font-size:9px}
+  .run-indicator{flex-basis:48px}
+}
+@media(max-width:350px){
+  .app-top{padding:0 8px}
+  .brand{gap:5px}
+  .brand-mark{font-size:22px}
+  .brand-caption{font-size:7px;letter-spacing:1px}
+  .run-indicator{flex-basis:43px}
+  .top-actions{gap:5px}
+  #saveIndicator{font-size:9px}
+  .stage-hud{grid-template-columns:minmax(0,1fr) minmax(0,1fr);padding:6px}
+  .stage-stat{font-size:8.5px}
+  .stage-hud .world-details{font-size:9px}
+  .kw-sheet-body .compact-upgrades .purchase-card{padding:6px}
+}
+@media(max-height:650px){
+  .common-info-bar{height:88px}
+  body.has-common-info .world{top:calc(var(--safe-top) + 142px)}
+  .stage-hud{min-height:97px;padding:5px}
+  .stage-hud .primary-value{font-size:20px}
+  body.has-common-info #touchField.cosmic-scene{inset:20% 0 6%}
+}
+body.is-intro .common-info-bar{display:none!important}
+body.is-intro .stage-hud{visibility:hidden}
+body.reduced-motion .stage-backdrop *,
+body.low-power .stage-backdrop *,
+body.reduced-motion .stage-backdrop::before,
+body.reduced-motion .stage-backdrop::after,
+body.low-power .stage-backdrop::before,
+body.low-power .stage-backdrop::after{animation:none!important}
+@media(prefers-reduced-motion:reduce){
+  .stage-backdrop *, .stage-backdrop::before,.stage-backdrop::after{animation:none!important}
+}

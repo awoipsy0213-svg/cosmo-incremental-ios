@@ -51,7 +51,7 @@ export function createState(now=Date.now(),mode="normal") {
     boost:{seconds:0,active:false,upgrades:[0,0,0,0,0]},
     counters:{taps:0,orbsSpent:"0",sourcePurchases:0,conversions:0,onlineSeconds:0,offlineSeconds:0},
     achievements:[],events:[],telemetry:freshTelemetry(),settings:{compact:true,showPurchaseHints:true,affordableOnly:false,bulkOrder:"cheap",holdToBuy:true,reducedMotion:false,highContrast:false,
-      lowPower:false,confirmConvergence:true,showOffline:true,notation:"auto",
+      lowPower:false,confirmConvergence:true,confirmBulkPurchase:false,confirmMaxPurchase:true,showOffline:true,notation:"auto",
       momentFavorites:[],momentGroup:"0",momentFilter:"all"},
     migration:null
   };

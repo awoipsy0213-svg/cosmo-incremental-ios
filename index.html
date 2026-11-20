@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="理">
-<title>《理》— Astral Observatory Ver.3.22</title>
+<title>《理》— Worlds UI Ver.3.23</title>
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./neon-icon-192.png">
 <link rel="icon" href="./neon-icon-192.png">
@@ -16,40 +16,39 @@
 <link rel="stylesheet" href="./neon-theme.css">
 <link rel="stylesheet" href="./live-ui.css">
 <link rel="stylesheet" href="./astral-observatory.css">
+<link rel="stylesheet" href="./stage-worlds.css">
 </head>
 <body class="kw-app">
 <div id="appRoot">
   <div class="app-top">
-    <div class="brand"><span class="brand-mark">理</span><span class="brand-caption">KOTOWARI<br><span id="buildLabel">3.22 · ASTRAL</span></span></div>
+    <div class="brand"><span class="brand-mark">理</span><span class="brand-caption">KOTOWARI<br><span id="buildLabel">3.23 · WORLDS</span></span></div>
+    <div class="run-indicator" aria-label="収束した回数"><span>収束</span><strong id="hudRunCount">0</strong></div>
     <div class="top-actions"><span id="saveIndicator" role="status" aria-label="保存状態">準備中</span><button class="icon-button" data-action="organizer" aria-label="設定と保存を開く">≡</button></div>
   </div>
   <div id="noticeBar" class="notice-bar" role="status" hidden><span id="noticeText"></span><button data-action="dismiss-notice" aria-label="案内を閉じる">×</button></div>
   <div id="updateBar" class="update-bar" hidden><span>更新版を受信しました</span><button data-action="update">保存して更新</button></div>
   <section id="commonInfoBar" class="common-info-bar" aria-label="全ステージ共通の進行情報" hidden>
-    <button type="button" class="common-info-item" data-action="open-common-info" aria-label="存在量の詳細">
-      <svg class="common-info-icon" viewBox="0 0 32 32" aria-hidden="true"><defs><radialGradient id="sharedOrb"><stop offset="0" stop-color="#fff"/><stop offset=".28" stop-color="#b9f0ff"/><stop offset=".7" stop-color="#8d88ff" stop-opacity=".8"/><stop offset="1" stop-color="#bd8dff" stop-opacity=".08"/></radialGradient></defs><circle cx="16" cy="16" r="14" fill="url(#sharedOrb)"/><circle cx="16" cy="16" r="6" fill="#eaffff" opacity=".85"/></svg>
-      <span class="common-info-copy"><small>存在量</small><strong data-common-value="existence">0</strong></span>
-    </button>
-    <button type="button" class="common-info-item" data-action="open-common-info" aria-label="現在の生成速度の詳細">
-      <svg class="common-info-icon" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="11" fill="none" stroke="#97daff" stroke-width="2"/><path d="M16 8v9l6 4" fill="none" stroke="#e9ecff" stroke-width="2.2" stroke-linecap="round"/><circle cx="16" cy="16" r="2" fill="#fff"/></svg>
-      <span class="common-info-copy"><small>生成/秒</small><strong data-common-value="speed">0</strong></span>
-    </button>
-    <button type="button" class="common-info-item" data-action="open-common-info" aria-label="共通BOOST残量の詳細">
-      <svg class="common-info-icon" viewBox="0 0 32 32" aria-hidden="true"><path d="M19 2 6 18h9l-2 12 13-18h-9z" fill="#f1d393" stroke="#fff0c8" stroke-width=".8"/></svg>
-      <span class="common-info-copy"><small>BOOST 秒</small><strong data-common-value="boost">0</strong></span>
-    </button>
+    <button class="common-info-item" type="button" data-action="open-common-info" aria-label="存在の詳細"><span class="shared-glyph" aria-hidden="true">✧</span><span class="common-info-copy"><small>存在</small><strong data-common-value="existence">0</strong></span></button>
+    <button class="common-info-item" type="button" data-action="open-common-info" aria-label="オーブの詳細"><span class="shared-glyph" aria-hidden="true">◈</span><span class="common-info-copy"><small>オーブ</small><strong data-common-value="orbs">0</strong></span></button>
+    <button class="common-info-item" type="button" data-action="open-common-info" aria-label="秒間生成の詳細"><span class="shared-glyph" aria-hidden="true">↗</span><span class="common-info-copy"><small>生成/秒</small><strong data-common-value="speed">0</strong></span></button>
+    <button class="common-info-item" type="button" data-action="open-common-info" aria-label="干渉効率の詳細"><span class="shared-glyph" aria-hidden="true">✦</span><span class="common-info-copy"><small>干渉/回</small><strong data-common-value="tap">0</strong></span></button>
+    <button class="common-info-item" type="button" data-action="open-common-info" aria-label="収束回数の詳細"><span class="shared-glyph" aria-hidden="true">◎</span><span class="common-info-copy"><small>収束</small><strong data-common-value="convergences">0</strong></span></button>
+    <button class="common-info-item" type="button" data-action="open-common-info" aria-label="BOOSTの詳細"><span class="shared-glyph" aria-hidden="true">ϟ</span><span class="common-info-copy"><small>BOOST 秒</small><strong data-common-value="boost">0</strong></span></button>
   </section>
   <main id="world" class="world">
     <header class="world-header">
       <span id="stageKicker" class="stage-kicker">STAGE 01</span>
       <h1 id="stageTitle">存在</h1>
-      <div id="primaryValue" class="primary-value">1.000</div>
-      <div id="worldDetails" class="world-details"></div>
+      <div class="stage-hud">
+        <div class="stage-hud-primary"><span id="stageResourceLabel" class="stage-resource-label">オーブ</span><div id="primaryValue" class="primary-value">0</div><div id="worldDetails" class="world-details"></div></div>
+        <div id="stageResourceList" class="stage-resource-list" aria-label="このステージの主要な数値"></div>
+      </div>
     </header>
     <div id="touchField" class="cosmic-scene" role="button" tabindex="0" aria-label="浮遊する光に干渉する">
       <div class="starfield" aria-hidden="true"></div>
       <div class="cosmic-halo" aria-hidden="true"></div>
       <div class="cosmic-motes" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="stage-backdrop" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
       <svg class="flow-art" viewBox="0 0 360 390" aria-hidden="true"><defs><radialGradient id="aura"><stop offset="0" stop-color="#f9faff" stop-opacity=".95"/><stop offset=".12" stop-color="#dceeff" stop-opacity=".75"/><stop offset=".45" stop-color="#906dff" stop-opacity=".18"/><stop offset="1" stop-color="#48cfff" stop-opacity="0"/></radialGradient><linearGradient id="silk" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#65baff" stop-opacity="0"/><stop offset=".45" stop-color="#c6d9ff" stop-opacity=".8"/><stop offset="1" stop-color="#a47aff" stop-opacity="0"/></linearGradient><filter id="soft"><feGaussianBlur stdDeviation="5"/></filter></defs><g class="flow-rotate"><ellipse cx="180" cy="195" rx="124" ry="124" fill="none" stroke="#8dbbff" stroke-width=".5" opacity=".17"/><ellipse cx="180" cy="195" rx="82" ry="82" fill="none" stroke="#8dbbff" stroke-width=".5" opacity=".22"/><path d="M-35 278 C95 300 95 40 225 80 S380 245 410 130" fill="none" stroke="url(#silk)" stroke-width="25" opacity=".26" filter="url(#soft)"/><path d="M-30 278 C95 300 95 40 225 80 S380 245 410 130" fill="none" stroke="url(#silk)" stroke-width="1.4" opacity=".8"/><path d="M-35 125 C125 40 230 360 390 250" fill="none" stroke="url(#silk)" stroke-width="34" opacity=".18" filter="url(#soft)"/><path d="M-35 125 C125 40 230 360 390 250" fill="none" stroke="url(#silk)" stroke-width="1.2" opacity=".65"/><path d="M-20 195 C115 380 250 -30 400 190" fill="none" stroke="url(#silk)" stroke-width="13" opacity=".21" filter="url(#soft)"/><path d="M-20 195 C115 380 250 -30 400 190" fill="none" stroke="url(#silk)" stroke-width=".9" opacity=".65"/></g><circle cx="180" cy="195" r="100" fill="url(#aura)"/><circle cx="180" cy="195" r="18" fill="#ecf9ff" opacity=".9" filter="url(#soft)"/><circle cx="180" cy="195" r="9" fill="#fafdff"/></svg>
       <div id="waves" aria-hidden="true"></div>
     </div>
@@ -62,7 +61,7 @@
     <div id="sheetBody" class="kw-sheet-body" tabindex="-1"></div>
   </aside>
   <nav id="stageNav" class="stage-nav" aria-label="ステージ切り替え" hidden></nav>
-  <dialog id="organizerDrawer" class="organizer-drawer"><div class="drawer-head"><div><small>WORLD ORGANIZER</small><h2>管理</h2></div><button class="icon-button" data-action="close-drawer" aria-label="管理メニューを閉じる">×</button></div><div id="organizerLinks"></div><div class="drawer-foot">VERSION 3.22<br>星環の観測者 · 刹那30 · 概念77 · 資源42</div></dialog>
+  <dialog id="organizerDrawer" class="organizer-drawer"><div class="drawer-head"><div><small>WORLD ORGANIZER</small><h2>管理</h2></div><button class="icon-button" data-action="close-drawer" aria-label="管理メニューを閉じる">×</button></div><div id="organizerLinks"></div><div class="drawer-foot">VERSION 3.23<br>星環の観測者 · 刹那30 · 概念77 · 資源42</div></dialog>
   <dialog id="confirmDialog" class="confirm-dialog"><h2 id="confirmTitle"></h2><p id="confirmText"></p><div class="dialog-actions"><button id="confirmNo">戻る</button><button id="confirmYes">実行する</button></div></dialog>
   <div id="birthOverlay" class="birth-overlay" aria-hidden="true"><span>存在 <b>1</b></span></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>

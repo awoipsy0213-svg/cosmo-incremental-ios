@@ -25,7 +25,7 @@ try {
     assert.equal(res?.status(),200);
     await page.locator("#buildLabel").waitFor({state:"attached"});
     await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
-    assert.match(await page.locator("#buildLabel").textContent(),/3\.22/);
+    assert.match(await page.locator("#buildLabel").textContent(),/3\.23/);
     assert.ok((await page.locator("#appRoot").boundingBox())?.width>0);
     const width=await page.evaluate(()=>document.documentElement.scrollWidth);
     assert.ok(width<=viewport.width+2,label+" horizontal overflow: "+width);
@@ -63,7 +63,8 @@ try {
     });
     assert.ok(await page.locator('[data-stage="universe"]').count(),label+" fixture stage absent: "+JSON.stringify(diagnostics));
     await page.locator("#commonInfoBar").waitFor({state:"visible"});
-    assert.equal(await page.locator("#commonInfoBar button").count(),3);
+    assert.equal(await page.locator("#commonInfoBar button").count(),6);
+    assert.equal(await page.locator("#stageResourceList .stage-stat").count(),4);
     assert.match(await page.locator('[data-common-value="existence"]').textContent(),/^[0-9]+[.][0-9]{2}e[+-][0-9]+$/);
     await page.locator("#commonInfoBar button").first().click();
     assert.equal(await page.locator("#sheetHeading").textContent(),"共通情報");
@@ -130,10 +131,10 @@ try {
     await page.locator('[data-moment-group-select="0"]').click();
     await page.locator("#bulkScopeButton").click();
     assert.match(await page.locator("#bulkScopeButton").textContent(),/表示中/);
+    const beforeBulk=await page.evaluate(()=>JSON.parse(localStorage.getItem("kotowari_v31_normal")).data.counters.orbsSpent);
     await page.locator("#bulkBuyButton").click();
-    assert.equal(await page.locator("#confirmDialog").evaluate(el=>el.open),true);
-    assert.match(await page.locator("#confirmDialog").textContent(),/一括購入の金額確認/);
-    await page.locator("#confirmYes").click();
+    assert.equal(await page.locator("#confirmDialog").evaluate(el=>el.open),false, "default bulk purchase is one tap");
+    assert.notEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem("kotowari_v31_normal")).data.counters.orbsSpent),beforeBulk,"bulk purchase must spend immediately");
     await page.waitForFunction(()=>{
       try{
         const raw=JSON.parse(localStorage.getItem("kotowari_v31_normal"));
