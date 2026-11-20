@@ -22,10 +22,10 @@ jobs:
             html="$(curl -fsSL --connect-timeout 10 --max-time 30 "${BASE}?check=${GITHUB_SHA}-${n}" 2>/dev/null || true)"
             sw="$(curl -fsSL --connect-timeout 10 --max-time 30 "${BASE}sw.js?check=${GITHUB_SHA}-${n}" 2>/dev/null || true)"
             module="$(curl -fsSL --connect-timeout 10 --max-time 30 "${BASE}universe-interference-v318.mjs?check=${GITHUB_SHA}-${n}" 2>/dev/null || true)"
-            if grep -qF '3.20 · ASTRAL' <<< "$html" &&
-               grep -qF '3.20.0-astral-recovery' <<< "$sw" &&
+            if grep -qF '3.21 · ASTRAL' <<< "$html" &&
+               grep -qF '3.21.0-astral-navigation' <<< "$sw" &&
                grep -qF 'INTERFERENCE_RULES' <<< "$module"; then
-              echo "Live HTML, PWA cache version and module match Ver.3.20."
+              echo "Live HTML, PWA cache version and module match Ver.3.21."
               ok=1
               break
             fi
