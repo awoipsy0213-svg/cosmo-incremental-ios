@@ -426,7 +426,7 @@
       "confirmedAnswer": "B",
       "recordedSummary": "お気に入り並び順を保存し収束後維持",
       "oldAssessment": null,
-      "currentStatus": "implemented-in-feature-branch; pending CI/browser verification",
+      "currentStatus": "implemented-and-tested-in-feature-branch; main-not-merged",
       "testedEvidence": [
         "tests/v321_favorite_order.mjs",
         "tests/v318_browser_smoke.mjs"
@@ -436,7 +436,8 @@
         "app.mjs:momentControls/momentMove",
         "astral-observatory.css:favorite-pin"
       ],
-      "scopeNote": "5件以内のお気に入りの移動操作、保存順表示、収束後保持。新しいゲーム効果・価格・セーブスキーマは変更しない。"
+      "scopeNote": "5件以内のお気に入りの移動操作、保存順表示、収束後保持。新しいゲーム効果・価格・セーブスキーマは変更しない。",
+      "ciRun": "https://github.com/awoipsy0213-svg/cosmo-incremental-ios/actions/runs/44648768639"
     },
     {
       "id": "U-43",
@@ -2963,5 +2964,5 @@
   ],
   "currentVersion": "3.20.0+u42-development",
   "updatedAt": "2026-11-20",
-  "knownImplementationNotes": "本追跡では今回のU-42だけを追加更新。300ID中ほかの状態はVer3.20台帳を保持し、未照合の原文を創作しない。CI結果はPR判定後に追記。"
+  "knownImplementationNotes": "U-42はNode回帰/Chromium PC・モバイルスモーク成功。PR #24の開発ブランチに実装済み、本番main未変更。残りの原文未照合/実装率未算出はVer3.20台帳のまま。"
 }
