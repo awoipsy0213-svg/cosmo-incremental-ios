@@ -2,7 +2,7 @@
 // null = 未決定。nullを汎用倍率で埋めない。
 // provisionalの値は遊べる基盤の動作確認用で、正式な採用値ではない。
 export const CONFIG = {
-  version: "3.24.0",
+  version: "3.25.0",
   schemaVersion: 31,
   confirmed: {
     sourceMaxLevel: 1000000,
@@ -20,8 +20,11 @@ export const CONFIG = {
     commonFragmentsPerDraw: 100,
     worldGoalSeconds: 1,
     boostCapacitySeconds: 3600,
-    boostOnlineSecondsPerHour: 600,
+    // BOOST-Q121/Q217: online awards are obsolete. Keep past saves, never generate more.
+    boostOnlineSecondsPerHour: 0,
+    // Independent 15 minutes of BOOST per real offline hour (not online-rate x1.5).
     boostOfflineSecondsPerHour: 900,
+    // Historical BASE stage-offline efficiency/cap values, not applied after BOOST-CORE-001.
     offlineEfficiency: 0.30,
     offlineCapSeconds: 1800
   },
