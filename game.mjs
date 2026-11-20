@@ -875,13 +875,17 @@ export function autoConvergenceTick(s,now=Date.now(),offline=false) {
   return result;
 }
 export function boostValues(s) {
-  // Five paths have no approved costs. Extra effects are sandbox-only.
+  // BOOST-Q121/Q217: no new BOOST earned online, including isolated lab mode.
+  // The offline base is an independent confirmed 15min per real hour, not a
+  // multiplier derived from the obsolete 10min-per-hour online mechanism.
+  // Legacy five-upgrade candidates remain isolated in lab saves; the new
+  // six-path prices and coefficients are not yet formally decided.
   const u=s.mode==="lab"?s.boost.upgrades:[0,0,0,0,0],c=CONFIG.confirmed;
-  // v3.5 candidate progression applies only to the isolated lab balance.
   const b=PROPOSED.boost;
   return {capacity:Math.min(b.maxCapacitySeconds,c.boostCapacitySeconds+u[4]*b.capacityStepSeconds),
-    onlineRate:c.boostOnlineSecondsPerHour*(1+u[2]*b.basicGainRateStep)/3600,
-    offlineRate:c.boostOfflineSecondsPerHour*(1+u[2]*b.basicGainRateStep)*(1+u[3]*b.offlineGainMultiplierStep)/3600,
+    onlineRate:0,
+    offlineRate:c.boostOfflineSecondsPerHour*(s.mode==="lab"?
+      (1+u[2]*b.basicGainRateStep)*(1+u[3]*b.offlineGainMultiplierStep):1)/3600,
     efficiency:Math.min(b.maxOfflineEfficiency,c.offlineEfficiency+u[0]*b.offlineEfficiencyStep),
     offlineCap:Math.min(b.maxOfflineCapSeconds,c.offlineCapSeconds+u[1]*b.offlineCapStepSeconds)};
 }
@@ -898,28 +902,49 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
   if(!Number.isFinite(dt)||dt<=0)return {elapsed:0,gameSeconds:0,orbs:"0",boost:0};
   s.lastWall=now;
   const b=boostValues(s),boostBefore=s.boost.seconds,totalBefore=A(s.totalOrbs);
-  let gameSeconds=offline?Math.min(dt,b.offlineCap)*b.efficiency:dt;
-  s.boost.seconds=Math.min(b.capacity,s.boost.seconds+dt*(offline?b.offlineRate:b.onlineRate));
-  if(!offline&&s.boost.active){
+  if(offline){
+    // BOOST-CORE-001, BOOST-Q253/257: elapsed real-world time is credited to
+    // BOOST only. No stage ticks, orbs, concepts, planets, draws, or purchases.
+    const rawEarned=dt*b.offlineRate;
+    s.boost.seconds=Math.min(b.capacity,boostBefore+rawEarned);
+    s.boost.active=false;
+    s.counters.offlineSeconds+=dt;
+    // Stage time is paused: preserve remaining combo/buff, planetary age,
+    // cooldown and automatic convergence safety windows, without a new save schema.
+    const ms=dt*1000,rt=s.momentRuntime;
+    for(const key of ["lastTap","comboUntil","comboExpire","hasteUntil",
+      "sourceBuffUntil","synergyUntil","awakenUntil"]){
+      if(Number.isFinite(rt?.[key])&&rt[key]>0)rt[key]+=ms;
+    }
+    for(const p of s.universe.planets)p.bornAt+=ms;
+    const interference=s.universe.interference;
+    if(interference.lastInduceAt>0)interference.lastInduceAt+=ms;
+    if(s.engraving.autoConverge.lastAt>0)s.engraving.autoConverge.lastAt+=ms;
+    const boostEarned=Math.max(0,s.boost.seconds-boostBefore);
+    const boostDiscarded=Math.max(0,rawEarned-boostEarned);
+    if(dt>=10)recordOfflineReport(s.telemetry,{
+      at:now,seconds:dt,effectiveSeconds:0,orbs:"0",boostEarned
+    });
+    return {elapsed:dt,gameSeconds:0,orbs:"0",boost:boostEarned,boostDiscarded};
+  }
+  // BOOST accumulation is offline-only; live active consumption is unchanged.
+  let gameSeconds=dt;
+  if(s.boost.active){
     const m=CONFIG.provisional.boost.multiplier;
     const extra=Math.min(s.boost.seconds,dt*(m-1));
     s.boost.seconds-=extra;gameSeconds+=extra;
     if(s.boost.seconds<=0)s.boost.active=false;
   }
-  // No automatic offline BOOST spend.
-  if(offline)s.boost.active=false;
-  s.counters[offline?"offlineSeconds":"onlineSeconds"]+=dt;
+  s.counters.onlineSeconds+=dt;
   let gained=A(0);
   if(s.intro.complete){
     // Source production, autonomous taps and periodic effects use the same engine.
-    // BOOST and offline efficiency are already included in gameSeconds.
+    // Online stage simulation uses the same effective time only once.
     const base=baseProduction(s),factor=existenceMultiplier(s);
-    const elapsedSeconds=offline?Math.min(1800,gameSeconds):gameSeconds;
+    const elapsedSeconds=gameSeconds;
     const proj=setsunaProjection(s,base.div(factor),now);
-    // Pass real elapsed wall timestamps and effective game seconds separately.
-    // This respects BOOST and offline caps without extending 5-second buffs.
     proj.lastTick=now-dt*1000;
-    const report=SETSUNA.advance(proj,now,{seconds:elapsedSeconds,offline,rng});
+    const report=SETSUNA.advance(proj,now,{seconds:elapsedSeconds,offline:false,rng});
     rememberSetsuna(s,proj);
     gained=A(report.source).mul(factor).add(base.mul(Math.max(0,gameSeconds-elapsedSeconds)));
     addOrbs(s,gained);
@@ -927,7 +952,7 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
   if(s.time.unlocked){
     const mods=conceptBonuses(s,CONTENT.concepts);
     const weightedDirection=s.time.selected.reduce((sum,i)=>sum+(s.time.weights[i]||0)/100*(mods.directions[i]||0),0);
-    const timeSeconds=offline?Math.min(dt,b.offlineCap)*Math.min(1,b.efficiency+mods.offlineEfficiency)*(1+mods.offlineGrowth):gameSeconds;
+    const timeSeconds=gameSeconds;
     s.time.elapsed+=timeSeconds*(1+mods.time)*(1+mods.all+weightedDirection);
     // Calibrated initial trial coefficient to be balance-tested (TE-31/32).
     const existenceScore=Math.max(0,Math.log10(1+Math.min(1e300,Number(s.surplusExistence)||0)));
@@ -1008,7 +1033,7 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
       for(let i=0;i<ticks;i++)autoPlanetOnce(s,now);
     }
   }
-  if(!offline)autoConvergenceTick(s,now,false);
+  autoConvergenceTick(s,now,false);
   if(s.mode==="lab"){
     if(s.engraving.active.includes("autoTap"))addOrbs(s,tapPower(s).mul(gameSeconds));
     if(s.engraving.active.includes("autoSource")){
@@ -1018,14 +1043,7 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
     }
     if(s.engraving.active.includes("autoConverge")&&A(s.orbs).cmp(CONFIG.lab.autoConvergeOrbs)>=0)converge(s);
   }
-  const measuredOrbs=A(s.totalOrbs).sub(totalBefore).toString();
-  const boostEarned=Math.max(0,s.boost.seconds-boostBefore);
-  if(offline){
-    if(dt>=10)recordOfflineReport(s.telemetry,{
-      at:now,seconds:dt,effectiveSeconds:gameSeconds,
-      orbs:measuredOrbs,boostEarned
-    });
-  }else sampleActualOrbs(s.telemetry,now,s.totalOrbs);
+  sampleActualOrbs(s.telemetry,now,s.totalOrbs);
   return {elapsed:dt,gameSeconds,orbs:gained.toString(),boost:s.boost.seconds-boostBefore};
 }
 export function labAction(s,action,now=Date.now()) {
