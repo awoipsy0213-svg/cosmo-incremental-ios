@@ -1,12 +1,12 @@
-# 《理》Ver.3.19 — Astral / 実測統計・安全な一括購入
+# 《理》Ver.3.20 — Astral / セーブ原本保護・PWA完全オフライン起動
 
 Web版：[《理》を開く](https://awoipsy0213-svg.github.io/cosmo-incremental-ios/)
 
-- Ver.3.16〜3.19：既存レイアウトを維持したAstralテーマ、77概念・42資源の基本進行、コア・生命、刻印30種の所有・装備、ENG-24自動収束、惑星の4干渉操作、実測統計・惑星投入台帳、全件／表示中の確認付き一括購入を追加。
+- Ver.3.16〜3.20：既存レイアウトを維持したAstralテーマ、77概念・42資源の基本進行、コア・生命、刻印30種の所有・装備、ENG-24自動収束、惑星の4干渉操作、実測統計・惑星投入台帳、全件／表示中の確認付き一括購入を追加。Ver3.20で破損原本の自動上書きを廃止し、復元前退避とPWA必須依存のオフラインキャッシュを強化。
 - 同一のセーブ形式31と既存キーを保持。移行時は旧版の元バイトを別キーに退避。利用者は公開前後に「保存」画面からJSON書き出しを推奨。
 - **確定仕様の全実装は未完了。** 全回答1,440件のうち回答原文に対応できる300件を台帳化し、未照合は保留。全体の実装率は未算出。
 - 主要な未対応：刻印の残りの固有効果、源通常効果、BOOST正式数値、部分破壊、知識獲得の完全ルート、生命育成、iPhone実機。
-- [仕様ID追跡台帳](./SPEC_TRACEABILITY_V319.json) / [Ver3.19実装・検証状況](./IMPLEMENTATION_STATUS_V319.md) / [Ver3.17刻印状況](./IMPLEMENTATION_STATUS_V317.md)
+- [仕様ID追跡台帳](./SPEC_TRACEABILITY_V320.json) / [Ver3.20実装・検証状況](./IMPLEMENTATION_STATUS_V320.md) / [Ver3.17刻印状況](./IMPLEMENTATION_STATUS_V317.md)
 - Web root とCapacitorの `www/` 共通ファイルを同期。GitHub ActionsでNode単体/回帰＋Chromium PC/mobile＋一致検査。Safari/iOS実機は未検証。
 
 ---
