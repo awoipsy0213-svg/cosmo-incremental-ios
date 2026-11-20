@@ -80,6 +80,7 @@ function save(forceSnapshot=false){
     checkpoint();store.write(state,{snapshot:forceSnapshot});
     lastSavedAt=Date.now();$("saveIndicator").textContent=storageUnavailable?"一時保存":"保存済";
     $("saveIndicator").title=new Date(lastSavedAt).toLocaleTimeString("ja-JP");
+    if(store.lastError)showNotice(store.lastError);
     return true;
   }catch(e){
     $("saveIndicator").textContent="保存不可";
@@ -980,7 +981,7 @@ async function dispatchAction(action){
     const result=G.setTrialEnabled(state,!G.trialEnabled(state));
     return resultDone(result,result.enabled?"候補効果の検証を開始しました":"候補効果の検証を停止しました");
   }
-  if(action==="snapshot"){if(save(true)){renderPanel(true);toast("履歴を保存しました");}return;}
+  if(action==="snapshot"){if(save(true)){renderPanel(true);toast(store.lastError?"進捗は保存しましたが履歴更新は失敗しました":"履歴を保存しました");}return;}
   if(action==="import-save"){
     const text=$("importText")?.value||importDraft;
     if(!text.trim()){toast("バックアップを選択・貼り付けてください");return;}
