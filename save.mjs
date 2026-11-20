@@ -212,6 +212,7 @@ export class SaveStore {
     }catch(e){return [];}
   }
   export(state){
+    if(this.blocked)throw Error("元セーブ保護中です。未保存の仮データを通常バックアップとして出力できません");
     const data=validateState(state,this.mode);
     let legacy=null;
     try{legacy=JSON.parse(this.read(KEYS.legacyArchive)||"null");}catch(e){}
