@@ -69,10 +69,10 @@ async function acquireLock(){
   });
 }
 function checkpoint(){
-  if(!state||readOnly||document.hidden)return;
+  if(!state||readOnly||store.blocked||document.hidden)return;
   const now=Date.now(),gap=now-state.lastWall;
-  const report=G.advance(state,now,{offline:gap>15000});
-  if(gap>15000&&report.elapsed>0)reportOffline(report);
+  const report=G.advance(state,now,{offline:gap>=10000});
+  if(gap>=10000&&report.elapsed>0)reportOffline(report);
 }
 function save(forceSnapshot=false){
   if(!state||readOnly)return false;
@@ -80,6 +80,7 @@ function save(forceSnapshot=false){
     checkpoint();store.write(state,{snapshot:forceSnapshot});
     lastSavedAt=Date.now();$("saveIndicator").textContent=storageUnavailable?"一時保存":"保存済";
     $("saveIndicator").title=new Date(lastSavedAt).toLocaleTimeString("ja-JP");
+    if(store.lastError)showNotice(store.lastError);
     return true;
   }catch(e){
     $("saveIndicator").textContent="保存不可";
@@ -89,7 +90,7 @@ function save(forceSnapshot=false){
   }
 }
 function reportOffline(report){
-  if(report.elapsed<15)return;
+  if(report.elapsed<10)return;
   offlineReport=report;
   if(state.settings.showOffline)showNotice(`復帰：オーブ +${f(report.orbs)} / BOOST +${duration(Math.max(0,report.boost))}。本編は30分上限×30%、BOOST蓄積は別計算です。`);
 }
@@ -477,7 +478,7 @@ function settingsHTML(){
   return `<p class="panel-intro">背景は既存のORGANIC FLOWを維持。安全な保存・表示設定は序章から利用できます。</p>
   ${labels.map(([id,name,desc])=>`<label class="kw-row"><span>${name}<small>${desc}</small></span><input type="checkbox" data-pref="${id}" ${state.settings[id]?"checked":""}></label>`).join("")}
   <label class="kw-row">数値表記<select class="input-select" data-pref="notation"><option value="auto" ${state.settings.notation==="auto"?"selected":""}>標準（100万以降e）</option><option value="scientific" ${state.settings.notation==="scientific"?"selected":""}>指数 e（1.23e12）</option><option value="exponent" ${state.settings.notation==="exponent"?"selected":""}>指数 E（1.23E+12）</option><option value="zeros" ${state.settings.notation==="zeros"?"selected":""}>0の個数（10^12）</option></select></label>
-  <div class="kw-row"><span>バージョン<small>Ver.3.19 Astral UI・統計・資源投入履歴</small></span><strong>${CONFIG.version}</strong></div>
+  <div class="kw-row"><span>バージョン<small>Ver.3.20 Astral UI・保存復旧・オフライン互換</small></span><strong>${CONFIG.version}</strong></div>
   <div class="kw-row"><span>通信<small>クラウド・課金は未接続</small></span><strong>${navigator.onLine?"オンライン":"オフライン"}</strong></div>
   <button class="wide-button" data-organizer="backup">保存とバックアップ</button>
   <a class="link-button" href="./legacy/" data-legacy-link>保管した旧版Ver.3.0で続ける</a><br>
@@ -494,9 +495,27 @@ function backupHTML(){
   <h3>データを読み込む</h3><input id="importFile" type="file" accept=".json,application/json,text/plain" aria-label="セーブJSONを選ぶ">
   <textarea id="importText" aria-label="バックアップ文字列" placeholder="バックアップJSONを貼り付け">${esc(importDraft)}</textarea>
   <button class="wide-button" data-action="import-save">内容を検証して読み込む</button>
-  <h3>保存履歴</h3>${bs.length?bs.map((x,i)=>`<div class="kw-row"><span>${new Date(x.at).toLocaleString("ja-JP")}</span><button data-restore="${i}">復元</button></div>`).join(""):'<p>まだ履歴はありません。</p>'}
+  <h3>保存履歴 · 候補を比較して選択</h3>
+  <div class="kw-card backup-comparison"><strong>現在の主セーブ</strong>
+  ${store.blocked?"<small>読み込み不可・原本保護中。仮の初期状態を比較対象にしません。</small>":
+    `<small>余剰存在 ${f(state.surplusExistence,3)} · オーブ ${f(state.orbs)} · 収束 ${state.convergenceCount}回</small>
+    <small>源Lv合計 ${Object.values(state.sources).reduce((n,v)=>n+v.level,0).toLocaleString("ja-JP")} · 概念 ${Object.values(state.time.concepts).filter(v=>v>0).length}/77 · 惑星 ${state.universe.planets.length}個</small>`}
+  </div>
+  ${bs.length?bs.map((x,i)=>{
+    let candidate;
+    try{candidate=decode(x.raw,mode);}catch(e){candidate=null;}
+    return `<div class="kw-card backup-comparison">
+      <div class="card-top"><strong>履歴 ${i+1} · ${new Date(x.at).toLocaleString("ja-JP")}</strong>
+        <span class="badge ${candidate?"confirmed":"pending"}">${candidate?"検証済":"破損"}</span></div>
+      ${candidate?`<small>余剰存在 ${f(candidate.surplusExistence,3)} · オーブ ${f(candidate.orbs)} · 収束 ${candidate.convergenceCount}回</small>
+      <small>源Lv合計 ${Object.values(candidate.sources).reduce((n,v)=>n+v.level,0).toLocaleString("ja-JP")} · 概念 ${Object.values(candidate.time.concepts).filter(v=>v>0).length}/77 · 惑星 ${candidate.universe.planets.length}個</small>
+      <small>保存世代 ${candidate.revision} · データ形式 ${candidate.schemaVersion}</small>`:
+      "<small>この履歴は検証に失敗しました。復元対象にはできません。元データは変更しません。</small>"}
+      <button class="wide-button" data-restore="${i}" ${candidate?"":"disabled"}>この履歴を選択して復元</button>
+    </div>`;
+  }).join(""):"<p>まだ履歴はありません。</p>"}
   <button class="wide-button" data-action="export-legacy">退避した旧データを書き出す</button>
-  ${store.blocked?'<button class="wide-button" data-action="export-corrupt">読めなかった元データを救出</button>':""}
+  ${store.blocked?'<div class="status-note">主セーブは保護中です。空の状態を通常のバックアップとして出力しません。復元を選択する前に、元データをファイルに保存してください。</div><button class="wide-button" data-action="export-corrupt">保護中の主セーブをそのまま救出（復旧用）</button>':""}
   <p class="tiny">旧セーブキーは削除しません。別URL・別ドメインへはJSONによる移行が必要です。</p>`;
 }
 function specHTML(){
@@ -913,9 +932,16 @@ async function dispatchAction(action){
   if(action==="expand"){setSheet(sheetState==="full"?"half":"full");return;}
   if(action==="collapse-sheet"){setSheet("closed");return;}
   if(action==="dismiss-notice"){showNotice("");return;}
-  if(action==="export-save"){save();download(store.export(state),`kotowari-v31-${mode}-${new Date().toISOString().slice(0,10)}.json`);return;}
+  if(action==="export-save"){
+    if(store.blocked)return toast("主セーブ保護中です。下の「保護中の主セーブを救出」を利用してください");
+    if(!save())return toast("保存を確認できないためバックアップを中止しました");
+    download(store.export(state),`kotowari-v31-${mode}-${new Date().toISOString().slice(0,10)}.json`);
+    return;
+  }
   if(action==="copy-save"){
-    save();const text=store.export(state);
+    if(store.blocked)return toast("主セーブ保護中です。下の「保護中の主セーブを救出」を利用してください");
+    if(!save())return toast("保存を確認できないためコピーを中止しました");
+    const text=store.export(state);
     try{await navigator.clipboard.writeText(text);toast("バックアップをコピーしました");}
     catch(e){importDraft=text;renderPanel(true);$("importText")?.focus();$("importText")?.select();toast("表示した文字列を選択してコピーしてください");}return;
   }
@@ -924,7 +950,7 @@ async function dispatchAction(action){
     if(text)download(text,"kotowari-legacy-archive.json");else toast("退避した旧データはありません");return;
   }
   if(action==="export-corrupt"){
-    const text=storage.getItem(store.key+".corrupt")||storage.getItem(store.key)||storage.getItem(KEYS.legacy);
+    const text=storage.getItem(store.key)||storage.getItem(store.key+".corrupt")||storage.getItem(KEYS.legacy);
     if(text)download(text,"kotowari-recovery-original.txt","text/plain");return;
   }
   if(readOnly){toast("別のタブが編集中です。ほかのゲーム画面を閉じてから再読み込みしてください。");return;}
@@ -973,7 +999,7 @@ async function dispatchAction(action){
     const result=G.setTrialEnabled(state,!G.trialEnabled(state));
     return resultDone(result,result.enabled?"候補効果の検証を開始しました":"候補効果の検証を停止しました");
   }
-  if(action==="snapshot"){if(save(true)){renderPanel(true);toast("履歴を保存しました");}return;}
+  if(action==="snapshot"){if(save(true)){renderPanel(true);toast(store.lastError?"進捗は保存しましたが履歴更新は失敗しました":"履歴を保存しました");}return;}
   if(action==="import-save"){
     const text=$("importText")?.value||importDraft;
     if(!text.trim()){toast("バックアップを選択・貼り付けてください");return;}
@@ -1140,19 +1166,19 @@ document.addEventListener("input",e=>{lastInteraction=Date.now();if(e.target.id=
 });
 function hidePage(){
   stopHoldPurchase();
-  if(!state||readOnly)return;
+  if(!state||readOnly||store.blocked)return;
   const now=Date.now();G.advance(state,now,{offline:false});hiddenAt=now;state.boost.active=false;
   save();
 }
 document.addEventListener("visibilitychange",()=>{
   if(document.hidden)hidePage();
-  else if(state&&!readOnly){
+  else if(state&&!readOnly&&!store.blocked){
     const now=Date.now();const r=G.advance(state,now,{offline:true});hiddenAt=null;lastFrame=now;reportOffline(r);save();render(true);
   }
 });
 window.addEventListener("pagehide",()=>{hidePage();lockRelease?.();lockRelease=null;});
 window.addEventListener("pageshow",async e=>{
-  if(e.persisted){await acquireLock();if(!readOnly){const loaded=store.load();state=loaded.state;reportOffline(G.advance(state,Date.now(),{offline:true}));save();render(true);}}
+  if(e.persisted){await acquireLock();if(!readOnly){const loaded=store.load();state=loaded.state;if(!store.blocked){reportOffline(G.advance(state,Date.now(),{offline:true}));save();}render(true);}}
 });
 window.addEventListener("online",()=>renderPanel(true));window.addEventListener("offline",()=>renderPanel(true));
 window.addEventListener("storage",e=>{

@@ -42,4 +42,6 @@ jobs:
       - name: Install Chromium and runtime libraries
         run: npx playwright install --with-deps chromium
       - name: Smoke-test Web UI in desktop and mobile Chromium
-        run: node tests/v318_browser_smoke.mjs
+        run: |
+          node tests/v318_browser_smoke.mjs
+          node tests/v320_browser_recovery.mjs

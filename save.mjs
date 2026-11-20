@@ -131,18 +131,26 @@ export class SaveStore {
         }
         return {state:s};
       }catch(error){
-        // Quarantine original bytes and do not silently overwrite invalid data.
-        try{this.storage.setItem(this.key+".corrupt",raw);}catch(e){}
-        const backups=this.backups();
-        for(const b of backups){
-          try{const s=decode(b.raw,this.mode);this.expectedRevision=s.revision||0;
-            // A restore is explicit in the returned message, original corrupt bytes preserved.
-            this.storage.setItem(this.key,b.raw);
-            return {state:s,warning:"主セーブの破損を検出し、保存履歴から復旧しました。破損前のデータも別に保管しています。"};
-          }catch(e){}
-        }
+        // I-31/I-34: broken or incompatible current saves must remain untouched.
+        // Never silently replace the user's latest progress with an older snapshot.
         this.blocked=true;
-        return {state:createState(now,this.mode),warning:"セーブを読めません。元データは上書きせず保護中です。「保存」からバックアップを読み込んでください。",blocked:true};
+        this.lastError=String(error?.message||error);
+        let quarantined=false;
+        try{
+          const key=this.key+".corrupt";
+          if(!this.read(key))this.storage.setItem(key,raw);
+          quarantined=this.read(key)===raw;
+        }catch(e){/* Original bytes are still intact under this.key. */}
+        const candidates=this.backups().filter(b=>{
+          try{decode(b.raw,this.mode);return true;}catch(e){return false;}
+        }).length;
+        const details=candidates?
+          "検証可能な保存履歴が"+candidates+"件あります。復元内容を選んで明示的に復元してください。":
+          "読み込み可能な保存履歴がありません。元データを外部へ書き出してください。";
+        return {state:createState(now,this.mode),blocked:true,recoverableBackups:candidates,
+          warning:"主セーブを読み込めません。元データは上書きせず保護しています。"+
+            (quarantined?"元データの別コピーも保存しました。":"")+
+            details};
       }
     }
     if(this.mode==="lab"){
@@ -183,19 +191,33 @@ export class SaveStore {
     }
     const previousRevision=state.revision||0;
     state.revision=Math.max(previousRevision,this.expectedRevision)+1;
+    let text;
+    // U-32: atomic primary save must not be treated as failed merely because
+    // an optional snapshot could not fit into localStorage.
     try{
-      const text=encode(state,this.writer);
+      text=encode(state,this.writer);
       this.storage.setItem(this.key,text);
       if(this.storage.getItem(this.key)!==text)throw Error("保存した内容を確認できません");
-      this.expectedRevision=state.revision;this.lastError="";
-      if(snapshot||Date.now()-this.lastSnapshot>600000){
+    }catch(e){
+      state.revision=previousRevision;this.lastError=e.message;throw e;
+    }
+    this.expectedRevision=state.revision;this.lastError="";
+    const now=Date.now();
+    if(snapshot||(now-this.lastSnapshot>600000&&now-(this.lastBackupAttempt||0)>60000)){
+      this.lastBackupAttempt=now;
+      try{
         const list=this.backups();
-        list.unshift({at:Date.now(),raw:text});
-        this.storage.setItem(this.key+".backups",JSON.stringify(list.slice(0,3)));
-        this.lastSnapshot=Date.now();
+        list.unshift({at:now,raw:text});
+        const history=JSON.stringify(list.slice(0,3));
+        this.storage.setItem(this.key+".backups",history);
+        if(this.storage.getItem(this.key+".backups")!==history)
+          throw Error("保存履歴を検証できません");
+        this.lastSnapshot=now;
+      }catch(e){
+        this.lastError="保存履歴の更新に失敗しましたが、進捗本体は保存済みです："+e.message;
       }
-      return true;
-    }catch(e){state.revision=previousRevision;this.lastError=e.message;throw e;}
+    }
+    return true;
   }
   backups(){
     try{
@@ -204,6 +226,7 @@ export class SaveStore {
     }catch(e){return [];}
   }
   export(state){
+    if(this.blocked)throw Error("元セーブ保護中です。未保存の仮データを通常バックアップとして出力できません");
     const data=validateState(state,this.mode);
     let legacy=null;
     try{legacy=JSON.parse(this.read(KEYS.legacyArchive)||"null");}catch(e){}
@@ -224,7 +247,17 @@ export class SaveStore {
     // Never grant offline progress on import/repeated re-import.
     state.lastWall=now;state.boost.active=false;state.engraving.draft=null;
     const before=this.read(this.key);
-    if(before)this.storage.setItem(this.key+".before-import",before);
+    if(before){
+      // Never overwrite the only pre-import copy. A second import keeps the
+      // first snapshot and creates an additional timestamped recovery point.
+      let key=this.key+".before-import";
+      const prior=this.read(key);
+      if(prior&&prior!==before)key=this.key+".before-import-"+now;
+      const existing=this.read(key);
+      if(existing&&existing!==before)throw Error("復元前バックアップの保存先が既に使用されています");
+      if(existing!==before)this.storage.setItem(key,before);
+      if(this.read(key)!==before)throw Error("復元前の元データを検証できません。復元を中止しました");
+    }
     if(legacy)this.storage.setItem(KEYS.legacyArchive,JSON.stringify(legacy));
     let revision=0;
     try{revision=JSON.parse(before||"{}").data?.revision||0;}catch(e){}
