@@ -131,18 +131,26 @@ export class SaveStore {
         }
         return {state:s};
       }catch(error){
-        // Quarantine original bytes and do not silently overwrite invalid data.
-        try{this.storage.setItem(this.key+".corrupt",raw);}catch(e){}
-        const backups=this.backups();
-        for(const b of backups){
-          try{const s=decode(b.raw,this.mode);this.expectedRevision=s.revision||0;
-            // A restore is explicit in the returned message, original corrupt bytes preserved.
-            this.storage.setItem(this.key,b.raw);
-            return {state:s,warning:"主セーブの破損を検出し、保存履歴から復旧しました。破損前のデータも別に保管しています。"};
-          }catch(e){}
-        }
+        // I-31/I-34: broken or incompatible current saves must remain untouched.
+        // Never silently replace the user's latest progress with an older snapshot.
         this.blocked=true;
-        return {state:createState(now,this.mode),warning:"セーブを読めません。元データは上書きせず保護中です。「保存」からバックアップを読み込んでください。",blocked:true};
+        this.lastError=String(error?.message||error);
+        let quarantined=false;
+        try{
+          const key=this.key+".corrupt";
+          if(!this.read(key))this.storage.setItem(key,raw);
+          quarantined=this.read(key)===raw;
+        }catch(e){/* Original bytes are still intact under this.key. */}
+        const candidates=this.backups().filter(b=>{
+          try{decode(b.raw,this.mode);return true;}catch(e){return false;}
+        }).length;
+        const details=candidates?
+          "検証可能な保存履歴が"+candidates+"件あります。復元内容を選んで明示的に復元してください。":
+          "読み込み可能な保存履歴がありません。元データを外部へ書き出してください。";
+        return {state:createState(now,this.mode),blocked:true,recoverableBackups:candidates,
+          warning:"主セーブを読み込めません。元データは上書きせず保護しています。"+
+            (quarantined?"元データの別コピーも保存しました。":"")+
+            details};
       }
     }
     if(this.mode==="lab"){
