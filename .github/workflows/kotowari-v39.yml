@@ -22,7 +22,7 @@ jobs:
             node --check "$f" || exit 1
           done
       - run: |
-          for f in game.mjs app.mjs content.mjs moment-filter.mjs balance-config.mjs setsuna-rules-v39.mjs save.mjs time-confirmed-v4.mjs universe-confirmed-v4.mjs universe-progression-v316.mjs engraving-rules-v317.mjs universe-interference-v318.mjs telemetry-v319.mjs astral-observatory.css; do
+          for f in game.mjs app.mjs content.mjs moment-filter.mjs balance-config.mjs setsuna-rules-v39.mjs save.mjs time-confirmed-v4.mjs universe-confirmed-v4.mjs universe-progression-v316.mjs engraving-rules-v317.mjs universe-interference-v318.mjs telemetry-v319.mjs astral-observatory.css stage-worlds.css; do
             cmp "$f" "www/$f" || exit 1
           done
           cmp index.html www/index.html
@@ -44,4 +44,5 @@ jobs:
       - name: Smoke-test Web UI in desktop and mobile Chromium
         run: |
           node tests/v318_browser_smoke.mjs
+          node tests/v323_ui_browser.mjs
           node tests/v320_browser_recovery.mjs
