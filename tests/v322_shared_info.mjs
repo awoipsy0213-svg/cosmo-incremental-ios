@@ -34,13 +34,13 @@ test("Six shared entries are visible after intro without creating saved fields",
   assert.equal("infoPanelOpen" in s,false);
 });
 test("Web and Capacitor copies are exactly synchronized",()=>{
-  for(const f of ["index.html","app.mjs","numbers.mjs","balance-config.mjs","astral-observatory.css","stage-worlds.css","sw.js"])
+  for(const f of ["index.html","app.mjs","numbers.mjs","balance-config.mjs","astral-observatory.css","stage-worlds.css","matrix-v324.css","sw.js"])
     assert.equal(source(f),source("www/"+f),f+" not in sync");
 });
 test("A coherent version is used by HTML, SW and game config",()=>{
-  assert.equal(CONFIG.version,"3.23.0");
-  assert.match(source("index.html"),/3\.23 · WORLDS/);
-  assert.match(source("sw.js"),/3\.23\.0-stage-worlds/);
+  assert.equal(CONFIG.version,"3.24.0");
+  assert.match(source("index.html"),/3\.24 · MATRIX/);
+  assert.match(source("sw.js"),/3\.24\.0-matrix-layout/);
   assert.match(source("sw.js"),/CORE_FILES/);
   assert.match(source("sw.js"),/stage-worlds\.css/);
 });

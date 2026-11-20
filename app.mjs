@@ -29,7 +29,7 @@ let state,readOnly=false,storageUnavailable=false,lockRelease=null;
 let currentStage="existence",currentSub="moment",sheetState="closed",infoPanelOpen=false;
 let lastFrame=Date.now(),hiddenAt=null,lastSavedAt=0,lastPanelRender=0,lastInteraction=0;
 let toastTimer,importDraft="",offlineReport=null,updateWorker=null,confirmedAction=null;
-let interferencePartnerId=null,bulkScope="all";
+let interferencePartnerId=null,bulkScope="all",bulkPurchasePending=false;
 let navDigest="",notice="",busyBirth=false;
 const BOOST_QUICK_ICON=`<svg class="boost-quick-symbol" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M13 2 5 13h6l-1 9 9-12h-6V2z" fill="currentColor"/></svg>`;
 let holdPurchase=null,skipClickFor=null;
@@ -143,7 +143,7 @@ function renderNav(){
   // Keep BOOST in its own fixed-size slot at the left of the stage bar.
   // It is accessible even when the stage sheet is fully expanded.
   const shortcut=`<button id="boostQuick" type="button" class="boost-quick" data-action="toggle-boost" aria-pressed="false" aria-label="BOOSTを操作する" title="BOOST：タップで加速を切り替える">${BOOST_QUICK_ICON}<span id="boostQuickTime" class="boost-quick-time" aria-hidden="true">--</span><span id="boostQuickFill" class="boost-quick-fill" aria-hidden="true"></span></button>`;
-  $("stageNav").innerHTML=shortcut+a.map(x=>`<button data-stage="${x.id}" class="${currentStage===x.id?"active":""}" aria-pressed="${currentStage===x.id}">${x.name}</button>`).join("")+`<button data-action="organizer" aria-label="共通管理メニュー">≡</button>`;
+  $("stageNav").innerHTML=shortcut+a.map(x=>`<button data-stage="${x.id}" class="${currentStage===x.id?"active":""}" aria-pressed="${currentStage===x.id}">${x.name}</button>`).join("");
 }
 function renderWorld(){
   document.body.classList.toggle("is-intro",!state.intro.complete);
@@ -153,6 +153,7 @@ function renderWorld(){
   $("stageKicker").textContent=`STAGE 0${stage.number}`;
   $("touchField").setAttribute("aria-label",stage.id==="existence"?"光へ干渉してオーブを生む":"この世界へ干渉してオーブを生む");
   $("stageTitle").textContent=stage.name;
+  $("activeStageTitle").textContent=`ステージ · ${stage.name}`;
   const rate=G.production(state),tap=G.tapPower(state);
   const showShared=state.intro.complete;
   $("commonInfoBar").hidden=!showShared;
@@ -185,7 +186,7 @@ function renderWorld(){
   if(["existence","organizer"].includes(currentStage)){
     $("primaryValue").textContent=f(state.orbs,3);
     $("worldDetails").innerHTML=`<span class="wallet">オーブ <b>${f(state.orbs)}</b></span><span>干渉 +${f(tap)} / 源 +${f(rate)} 毎秒</span>${comboHtml}${storedHtml}`;
-    $("worldHint").textContent="光に触れて、生み出す。";
+    $("worldHint").textContent="タップして理を観測";
     const q=G.convergenceQuote(state);
     $("convergeMain").disabled=!q.steps||readOnly;
     $("convergeMain").innerHTML=`<strong>収束 <span>+${f(q.reward,3)}</span></strong><span><small>次の報酬まで</small>${f(q.nextRemaining)} オーブ</span>`;
@@ -224,6 +225,24 @@ function renderWorld(){
     ["コンボ",combo.combo.toLocaleString("ja-JP")]
   ];
   $("stageResourceList").innerHTML=stageRows.map(([label,value])=>`<div class="stage-stat"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`).join("");
+  // Scene metadata is derived from existing saved state only; no mission or currency is fabricated.
+  const unlockedSourceCount=CONTENT.sources.filter(x=>state.sources[x.id]?.level>0).length;
+  const unlockedMomentCount=CONTENT.moment.filter(x=>state.moment[x.id]>0).length;
+  const conceptsCount=Object.keys(state.time.concepts).length;
+  const progress=currentStage==="time"?{done:conceptsCount,total:77,title:"認識した概念"}:
+    currentStage==="universe"?{done:state.universe.discoveredResources.length,total:42,title:"発見した資源"}:
+    currentStage==="life"?{done:0,total:0,title:"設計中"}:
+    {done:unlockedSourceCount+unlockedMomentCount,total:60,title:"強化した種類"};
+  $("matrixCaption").textContent=`${stage.name} のマトリクス`;
+  $("matrixSummary").textContent=progress.total?`${progress.title} ${progress.done} / ${progress.total}`:"詳細システムは設計中";
+  $("matrixFill").style.width=progress.total?`${Math.min(100,100*progress.done/progress.total).toFixed(1)}%`:"0%";
+  $("worldObserve").innerHTML=stageRows.slice(0,3).map(([name,value])=>`<div class="scene-stat"><span>${esc(name)}</span><strong>${esc(value)}</strong></div>`).join("");
+  const extra=currentStage==="time"?[["経過",Math.floor(state.time.elapsed).toLocaleString("ja-JP")+"秒"],["概念",`${conceptsCount} / 77`]]:
+    currentStage==="universe"?[["惑星",`${state.universe.planets.length} / ${state.universe.maxPlanets}`],["資源",`${state.universe.discoveredResources.length} / 42`]]:
+    currentStage==="life"?[["進行状況","設計中"]]:
+    [["存在倍率",`×${f(G.existenceMultiplier(state),2)}`],["収束回数",`${state.convergenceCount.toLocaleString("ja-JP")}回`]];
+  $("worldStatus").innerHTML=extra.map(([name,value])=>`<div class="scene-stat"><span>${esc(name)}</span><strong>${esc(value)}</strong></div>`).join("");
+  $("heroSigil").textContent=currentStage==="time"?"時":currentStage==="universe"?"宇":currentStage==="life"?"生":"理";
 }
 function quoteText(q){
   if(q.count) return `+${q.count.toLocaleString("ja-JP")} · ${f(q.cost)}`;
@@ -534,7 +553,7 @@ function settingsHTML(){
   return `<p class="panel-intro">背景は既存のORGANIC FLOWを維持。安全な保存・表示設定は序章から利用できます。</p>
   ${labels.map(([id,name,desc])=>`<label class="kw-row"><span>${name}<small>${desc}</small></span><input type="checkbox" data-pref="${id}" ${state.settings[id]?"checked":""}></label>`).join("")}
   <label class="kw-row">数値表記<select class="input-select" data-pref="notation"><option value="auto" ${state.settings.notation==="auto"?"selected":""}>標準（100万以降e）</option><option value="scientific" ${state.settings.notation==="scientific"?"selected":""}>指数 e（1.23e12）</option><option value="exponent" ${state.settings.notation==="exponent"?"selected":""}>指数 E（1.23E+12）</option><option value="zeros" ${state.settings.notation==="zeros"?"selected":""}>0の個数（10^12）</option></select></label>
-  <div class="kw-row"><span>バージョン<small>Ver.3.20 Astral UI・保存復旧・オフライン互換</small></span><strong>${CONFIG.version}</strong></div>
+  <div class="kw-row"><span>バージョン<small>Ver.3.24 Matrix UI・保存復旧・オフライン互換</small></span><strong>${CONFIG.version}</strong></div>
   <div class="kw-row"><span>通信<small>クラウド・課金は未接続</small></span><strong>${navigator.onLine?"オンライン":"オフライン"}</strong></div>
   <button class="wide-button" data-organizer="backup">保存とバックアップ</button>
   <a class="link-button" href="./legacy/" data-legacy-link>保管した旧版Ver.3.0で続ける</a><br>
@@ -687,7 +706,7 @@ function renderPanel(force=false){
   const stage=CONTENT.stages.find(x=>x.id===currentStage);
   const children=currentStage==="organizer"?organizerItems:stage.children;
   $("childTabs").innerHTML=children.map(id=>`<button data-child="${id}" class="${currentSub===id?"active":""}" aria-pressed="${currentSub===id}">${childNames[id]}</button>`).join("");
-  $("sheetHeading").textContent=(currentStage==="organizer"?"ORGANIZER":stage.name)+" / "+childNames[currentSub];
+  $("sheetHeading").textContent=(currentStage==="organizer"?"管理":"強化")+" / "+childNames[currentSub];
   $("purchaseToolbar").hidden=currentStage!=="existence"||!["moment","sources"].includes(currentSub);
   const cycle=$("purchaseCycle");
   const buyTabs=currentStage==="existence"&&["moment","sources"].includes(currentSub);
@@ -993,42 +1012,63 @@ async function dispatchAction(action){
     renderPanel(true);return;
   }
   if(action==="buy-all"){
+    if(bulkPurchasePending)return;
     if(readOnly||store.blocked)return toast("この画面では購入できません");
     const kind=currentStage==="existence"?(currentSub==="moment"?"moment":currentSub==="sources"?"source":null):null;
     if(!kind)return toast("《刹那》か《源》の画面で操作してください");
-    checkpoint();
-    const stageBefore=currentStage,subBefore=currentSub,orderBefore=state.settings.bulkOrder;
-    const scopeBefore=bulkScope;
-    const targets=()=>{
-      if(scopeBefore==="all")return null;
-      const selector=kind==="moment"?"[data-moment-entry]:not([hidden])":"[data-source-entry]:not([hidden])";
-      return [...$("sheetBody").querySelectorAll(selector)].map(el=>kind==="moment"?el.dataset.momentEntry:el.dataset.sourceEntry);
-    };
-    const ids=targets();
-    const quote=G.quoteBuyAll(state,kind,orderBefore,ids);
-    if(!quote.ok)return toast(quote.reason||"購入できません");
-    const label=kind==="moment"?"刹那":"源",description=scopeBefore==="all"?"全件":"表示中";
-    const text=label+"：対象 "+description+"（"+(ids?.length??30)+"項目）"+
-      "\n購入 "+quote.count.toLocaleString("ja-JP")+"Lv / 消費 "+f(quote.spent)+" オーブ"+
-      "\n購入後残高 "+f(quote.remaining)+" オーブ"+
-      (quote.limitReached?"\n1回の上限3,000Lvです。残りは再度手動で購入してください。":"")+
-      "\n購入対象と消費金額を確認してください。";
-    if(state.settings.confirmBulkPurchase&&!await ask("一括購入の金額確認",text,"この内容で購入"))return;
-    checkpoint();
-    if(currentStage!==stageBefore||currentSub!==subBefore||
-       state.settings.bulkOrder!==orderBefore||bulkScope!==scopeBefore)
-      return toast("購入条件が変わりました。再確認してください");
-    const idsNow=targets();
-    if(JSON.stringify(idsNow)!==JSON.stringify(ids))
-      return toast("購入対象が変わりました。再確認してください");
-    const updated=G.quoteBuyAll(state,kind,orderBefore,ids);
-    if(!updated.ok||updated.count!==quote.count||
-       A(updated.spent).cmp(quote.spent)!==0||A(updated.remaining).cmp(quote.remaining)!==0)
-      return toast("購入できる数量・価格が変化しました。再確認してください");
-    const result=G.buyAll(state,kind,orderBefore,ids);
-    if(!result.ok)return toast(result.reason);
-    save();render(true);
-    toast(result.count+"Lv 一括購入しました"+(result.limitReached?"。続きはもう一度押してください":""));
+    stopHoldPurchase(null,true);
+    bulkPurchasePending=true;
+    const bulkButton=$("bulkBuyButton");bulkButton.disabled=true;
+    try{
+      checkpoint();
+      const stageBefore=currentStage,subBefore=currentSub,orderBefore=state.settings.bulkOrder;
+      const scopeBefore=bulkScope;
+      const targets=()=>{
+        if(scopeBefore==="all")return null;
+        const selector=kind==="moment"?"[data-moment-entry]:not([hidden])":"[data-source-entry]:not([hidden])";
+        // CSS-based affordability filters also hide cards without setting [hidden].
+        return [...$("sheetBody").querySelectorAll(selector)]
+          .filter(el=>el.getClientRects().length>0)
+          .map(el=>kind==="moment"?el.dataset.momentEntry:el.dataset.sourceEntry);
+      };
+      const ids=targets();
+      if(scopeBefore==="visible"&&!ids.length)return toast("表示中の購入対象がありません");
+      if(state.settings.confirmBulkPurchase){
+        const quote=G.quoteBuyAll(state,kind,orderBefore,ids);
+        if(!quote.ok)return toast(quote.reason||"購入できません");
+        const label=kind==="moment"?"刹那":"源",description=scopeBefore==="all"?"全件":"表示中";
+        const detail=label+"：対象 "+description+"（"+(ids?.length??30)+"項目）"+
+          "\n購入 "+quote.count.toLocaleString("ja-JP")+"Lv / 消費 "+f(quote.spent)+" オーブ"+
+          "\n購入後残高 "+f(quote.remaining)+" オーブ"+
+          (quote.limitReached?"\n1回の上限3,000Lvです。残りは再度手動で購入してください。":"")+
+          "\n購入対象と消費金額を確認してください。";
+        if(!await ask("一括購入の金額確認",detail,"この内容で購入"))return;
+        checkpoint();
+        if(currentStage!==stageBefore||currentSub!==subBefore||
+           state.settings.bulkOrder!==orderBefore||bulkScope!==scopeBefore)
+          return toast("購入条件が変わりました。再確認してください");
+        const idsNow=targets();
+        if(JSON.stringify(idsNow)!==JSON.stringify(ids))
+          return toast("購入対象が変わりました。再確認してください");
+        const updated=G.quoteBuyAll(state,kind,orderBefore,ids);
+        // Passive earnings legitimately change remaining currency while the dialog is open.
+        // Only the explicitly confirmed number of levels and spend must stay identical.
+        if(!updated.ok||updated.count!==quote.count||A(updated.spent).cmp(quote.spent)!==0)
+          return toast("購入数または価格が変わりました。もう一度一括購入を押してください");
+      }
+      // Default one-tap path: no await, no second time advance, no stale quote.
+      // The engine checks affordability and the 3,000-level cap transactionally.
+      const result=G.buyAll(state,kind,orderBefore,ids);
+      if(!result.ok)return toast(result.reason||"購入できません");
+      const persisted=save();
+      render(true);
+      if(!persisted)return toast("購入を実行しましたが保存できません。保存状況を確認してください");
+      toast(result.count.toLocaleString("ja-JP")+"Lv 購入しました"+
+        (result.limitReached?"（3,000Lv上限。続きは再タップ）":""));
+    }finally{
+      bulkPurchasePending=false;
+      bulkButton.disabled=false;
+    }
     return;
   }
   if(action==="close-drawer"){$("organizerDrawer").close();return;}

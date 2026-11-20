@@ -2,7 +2,7 @@ name: Verify published Kotowari Web
 on:
   push:
     branches: [main]
-    paths: ['index.html', 'game.mjs', 'app.mjs', 'sw.js', 'astral-observatory.css', 'universe-interference-v318.mjs', 'telemetry-v319.mjs']
+    # Verify all main updates; even stylesheet-only releases must be checked.
   workflow_dispatch:
 jobs:
   published-site:
@@ -22,10 +22,10 @@ jobs:
             html="$(curl -fsSL --connect-timeout 10 --max-time 30 "${BASE}?check=${GITHUB_SHA}-${n}" 2>/dev/null || true)"
             sw="$(curl -fsSL --connect-timeout 10 --max-time 30 "${BASE}sw.js?check=${GITHUB_SHA}-${n}" 2>/dev/null || true)"
             module="$(curl -fsSL --connect-timeout 10 --max-time 30 "${BASE}universe-interference-v318.mjs?check=${GITHUB_SHA}-${n}" 2>/dev/null || true)"
-            if grep -qF '3.23 · WORLDS' <<< "$html" &&
-               grep -qF '3.23.0-stage-worlds' <<< "$sw" &&
+            if grep -qF '3.24 · MATRIX' <<< "$html" &&
+               grep -qF '3.24.0-matrix-layout' <<< "$sw" &&
                grep -qF 'INTERFERENCE_RULES' <<< "$module"; then
-              echo "Live HTML, PWA cache version and module match Ver.3.23."
+              echo "Live HTML, PWA cache version and module match Ver.3.24."
               ok=1
               break
             fi
@@ -36,6 +36,9 @@ jobs:
       - name: Verify live stage graphics are accessible
         run: |
           curl -fsSL --retry 4 --retry-delay 3 https://awoipsy0213-svg.github.io/cosmo-incremental-ios/stage-worlds.css | grep -q "kw-time-turn"
+      - name: Verify Matrix UI stylesheet is available
+        run: |
+          curl -fsSL --retry 4 --retry-delay 3 https://awoipsy0213-svg.github.io/cosmo-incremental-ios/matrix-v324.css | grep -q "matrix-hero-cube"
       - name: Verify live source effects module is accessible
         run: |
           curl -fsSL --retry 4 --retry-delay 3 https://awoipsy0213-svg.github.io/cosmo-incremental-ios/source-effects-v315.mjs | grep -q "SOURCE_EFFECT_MILESTONES"
@@ -58,4 +61,5 @@ jobs:
         run: |
           node tests/v318_browser_smoke.mjs
           node tests/v323_ui_browser.mjs
+          node tests/v324_matrix_browser.mjs
           node tests/v320_browser_recovery.mjs
