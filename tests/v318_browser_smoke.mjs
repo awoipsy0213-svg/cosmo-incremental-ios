@@ -86,6 +86,39 @@ try {
     // U-10: visible subset, preflight quote and explicit confirmation.
     await page.locator('[data-stage="existence"]').click();
     await page.locator('[data-child="moment"]').click();
+
+    // U-43: purchase mode survives tab changes; pending holds are canceled
+    // synchronously before timers can purchase against a detached card.
+    await page.locator("#purchaseCycle").click();
+    assert.equal(await page.locator("#purchaseCycle").textContent(),"×10");
+    await page.locator('[data-child="sources"]').click();
+    await page.locator('[data-child="moment"]').click();
+    assert.equal(await page.locator("#purchaseCycle").textContent(),"×10");
+    const beforePending=await page.evaluate(()=>JSON.parse(localStorage.getItem("kotowari_v31_normal")).data.moment.tap);
+    await page.locator('button[data-purchase="moment"][data-id="tap"]').evaluate(el=>
+      el.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,pointerId:713,pointerType:"touch",clientX:10,clientY:10})));
+    await page.locator('[data-child="sources"]').evaluate(el=>el.click());
+    await page.waitForTimeout(700);
+    assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem("kotowari_v31_normal")).data.moment.tap),
+      beforePending,label+" pending hold must not buy after changing tabs");
+    await page.locator('[data-child="moment"]').click();
+    assert.equal(await page.locator("#purchaseCycle").textContent(),"×10");
+    // Return to x1 and start an active hold. Navigation must stop later repeats.
+    for(let k=0;k<3;k++)await page.locator("#purchaseCycle").click();
+    assert.equal(await page.locator("#purchaseCycle").textContent(),"×1");
+    const beforeActive=await page.locator('[data-moment-level="tap"]').textContent();
+    await page.locator('button[data-purchase="moment"][data-id="tap"]').evaluate(el=>
+      el.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,pointerId:714,pointerType:"touch",clientX:10,clientY:10})));
+    await page.waitForTimeout(600);
+    assert.notEqual(await page.locator('[data-moment-level="tap"]').textContent(),beforeActive,
+      label+" active hold did not purchase");
+    await page.locator('[data-child="sources"]').evaluate(el=>el.click());
+    const afterStopped=await page.evaluate(()=>JSON.parse(localStorage.getItem("kotowari_v31_normal")).data.moment.tap);
+    await page.waitForTimeout(480);
+    assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem("kotowari_v31_normal")).data.moment.tap),
+      afterStopped,label+" active hold must stop on tab change");
+    assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem("kotowari_v31_normal")).data.purchaseMode),"1");
+    await page.locator('[data-child="moment"]').click();
     await page.locator('[data-moment-group-select="0"]').click();
     await page.locator("#bulkScopeButton").click();
     assert.match(await page.locator("#bulkScopeButton").textContent(),/表示中/);
