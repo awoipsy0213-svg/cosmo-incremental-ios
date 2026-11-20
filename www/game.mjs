@@ -176,7 +176,7 @@ export function criticalMultiplier(percent,multiplier,rng=Math.random,allowSub10
   return rng()<percent/100?multiplier:1;
 }
 export function tap(s,now=Date.now(),rng=Math.random) {
-  if(s.intro.complete && now>s.lastWall)advance(s,now,{offline:now-s.lastWall>15000});
+  if(s.intro.complete && now>s.lastWall)advance(s,now,{offline:false});
   s.counters.taps++;
   if(!s.intro.complete) {
     s.intro.touches++;
@@ -899,7 +899,12 @@ export function labBoostUpgrade(s,index){
 }
 export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
   const dt=Math.max(0,(now-s.lastWall)/1000);
-  if(!Number.isFinite(dt)||dt<=0)return {elapsed:0,gameSeconds:0,orbs:"0",boost:0};
+  if(!Number.isFinite(dt)||dt<=0){
+    // Clock rollback grants nothing and updates the baseline to prevent
+    // locking progression until the old future timestamp is reached.
+    if(Number.isFinite(now)&&now>=0&&now<s.lastWall)s.lastWall=now;
+    return {elapsed:0,gameSeconds:0,orbs:"0",boost:0,boostDiscarded:0};
+  }
   s.lastWall=now;
   const b=boostValues(s),boostBefore=s.boost.seconds,totalBefore=A(s.totalOrbs);
   if(offline){
@@ -923,7 +928,7 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
     const boostEarned=Math.max(0,s.boost.seconds-boostBefore);
     const boostDiscarded=Math.max(0,rawEarned-boostEarned);
     if(dt>=10)recordOfflineReport(s.telemetry,{
-      at:now,seconds:dt,effectiveSeconds:0,orbs:"0",boostEarned
+      at:now,seconds:dt,effectiveSeconds:0,orbs:"0",boostEarned,boostDiscarded
     });
     return {elapsed:dt,gameSeconds:0,orbs:"0",boost:boostEarned,boostDiscarded};
   }
