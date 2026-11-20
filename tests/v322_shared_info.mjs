@@ -15,7 +15,7 @@ test("Compact scientific format: zero, 3 significant digits and exponent carry",
   assert.equal(formatScientific3("3.14159e9999999"),"3.14e+9999999");
   assert.equal(formatScientific3("0.00123456"),"1.23e-3");
 });
-test("Three shared entries are visible after intro without creating saved fields",()=>{
+test("Six shared entries are visible after intro without creating saved fields",()=>{
   const html=source("index.html"),app=source("app.mjs");
   assert.match(html,/id="commonInfoBar"/);
   assert.equal((html.match(/data-common-value="/g)||[]).length,6);
@@ -39,8 +39,8 @@ test("Web and Capacitor copies are exactly synchronized",()=>{
 });
 test("A coherent version is used by HTML, SW and game config",()=>{
   assert.equal(CONFIG.version,"3.23.0");
-  assert.match(source("index.html"),/3\.22 · ASTRAL/);
-  assert.match(source("sw.js"),/3\.22\.0-shared-info/);
+  assert.match(source("index.html"),/3\.23 · WORLDS/);
+  assert.match(source("sw.js"),/3\.23\.0-stage-worlds/);
   assert.match(source("sw.js"),/CORE_FILES/);
   assert.match(source("sw.js"),/stage-worlds\.css/);
 });
