@@ -151,6 +151,7 @@ function renderWorld(){
   const stage=CONTENT.stages.find(x=>x.id===currentStage)||CONTENT.stages[0];
   document.body.dataset.cosmoStage=String(stage.number);
   $("stageKicker").textContent=`STAGE 0${stage.number}`;
+  $("touchField").setAttribute("aria-label",stage.id==="existence"?"光へ干渉してオーブを生む":"この世界へ干渉してオーブを生む");
   $("stageTitle").textContent=stage.name;
   const rate=G.production(state),tap=G.tapPower(state);
   const showShared=state.intro.complete;
@@ -158,14 +159,17 @@ function renderWorld(){
   document.body.classList.toggle("has-common-info",showShared);
   if(showShared){
     const metrics=[
-      ["existence",G.existence(state),"存在量",""],
-      ["speed",rate,"生成速度"," オーブ/秒"],
-      ["boost",state.boost.seconds,"BOOST残量"," 秒"]
+      ["existence",G.existence(state),"存在",""],
+      ["orbs",state.orbs,"オーブ",""],
+      ["speed",rate,"生成/秒"," オーブ/秒"],
+      ["tap",tap,"干渉/回"," オーブ"],
+      ["convergences",state.convergenceCount,"収束"," 回"],
+      ["boost",state.boost.seconds,"BOOST"," 秒"]
     ];
     for(const [id,value,label,unit] of metrics){
       const node=document.querySelector(`[data-common-value="${id}"]`);
       if(!node)continue;
-      const formatted=formatScientific3(value);
+      const formatted=id==="convergences"?Number(value).toLocaleString("ja-JP"):formatScientific3(value);
       node.textContent=formatted;
       const button=node.closest("button");
       button.title=`${label}：${f(value,3)}${unit}`;
@@ -173,12 +177,13 @@ function renderWorld(){
     }
   }
   const combo=G.momentComboView(state);
+  const run=$("hudRunCount");if(run)run.textContent=state.convergenceCount.toLocaleString("ja-JP");
   const ratio=combo.window>0?Math.round(Math.max(0,Math.min(100,100*combo.remaining/combo.window))):0;
   const comboHtml=combo.combo>0?`<span class="kw-combo">コンボ ${combo.combo.toLocaleString("ja-JP")} · ×${combo.multiplier.toFixed(2)}<i class="kw-combo-track"><i style="width:${ratio}%"></i></i></span>`:"";
   const storedHtml=A(combo.stored).cmp(0)>0?`<span class="kw-stored">蓄積 ${f(combo.stored)}</span>`:"";
   $("convergeMain").hidden=!state.intro.complete||!["existence","organizer"].includes(currentStage);
   if(["existence","organizer"].includes(currentStage)){
-    $("primaryValue").textContent=f(G.existence(state),3);
+    $("primaryValue").textContent=f(state.orbs,3);
     $("worldDetails").innerHTML=`<span class="wallet">オーブ <b>${f(state.orbs)}</b></span><span>干渉 +${f(tap)} / 源 +${f(rate)} 毎秒</span>${comboHtml}${storedHtml}`;
     $("worldHint").textContent="光に触れて、生み出す。";
     const q=G.convergenceQuote(state);
@@ -194,9 +199,31 @@ function renderWorld(){
     $("worldDetails").innerHTML=`<span class="wallet">宇宙資源 · 時間で蓄積</span><span>惑星 ${state.universe.planets.length} / ${state.universe.maxPlanets} · 資源 ${state.universe.discoveredResources.length} / 42</span>`;
     $("worldHint").textContent="観測し、理解し、干渉する。";
   }else{
-    $("primaryValue").textContent="";$("worldDetails").textContent="未知の変化が、自己を維持し始める。";
+    $("primaryValue").textContent="—";$("worldDetails").textContent="未知の変化が、自己を維持し始める。";
     $("worldHint").textContent="《生命》の詳細システムは設計中です。";
   }
+  const stageLabels={existence:"オーブ",time:"経過時間 · 秒",universe:"惑星数",life:"生命の兆し",organizer:"オーブ"};
+  $("stageResourceLabel").textContent=stageLabels[currentStage]||"進行";
+  const selected=state.universe.planets.find(p=>p.id===state.universe.selectedPlanetId);
+  const stageRows=currentStage==="time"?[
+    ["世界秒",Math.min(1,state.time.worldSeconds).toFixed(6)],
+    ["方向",state.time.selected.length+" / 6"],
+    ["概念",Object.keys(state.time.concepts).length+" / 77"],
+    ["残滓",Object.values(state.time.residues).reduce((a,b)=>a+b,0).toLocaleString("ja-JP")]
+  ]:currentStage==="universe"?[
+    ["資源",state.universe.discoveredResources.length+" / 42"],
+    ["上限",String(state.universe.maxPlanets)],
+    ["崩壊",String(state.universe.collapseCount)],
+    ["選択",selected?selected.id.replace("PLANET_","惑星 "):"未選択"]
+  ]:currentStage==="life"?[
+    ["段階","観測準備"],["状態","設計中"]
+  ]:[
+    ["源の生成",f(rate)+"/秒"],
+    ["干渉",f(tap)+"/回"],
+    ["累計オーブ",f(state.totalOrbs)],
+    ["コンボ",combo.combo.toLocaleString("ja-JP")]
+  ];
+  $("stageResourceList").innerHTML=stageRows.map(([label,value])=>`<div class="stage-stat"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`).join("");
 }
 function quoteText(q){
   if(q.count) return `+${q.count.toLocaleString("ja-JP")} · ${f(q.cost)}`;
@@ -258,10 +285,10 @@ function momentHTML(){
     const events=i===14?(state.momentRuntime?.miracleHistory||[]):[];
     const miracle=events.length?`<p>直近の奇跡：${events.slice().reverse().map(y=>esc(new Date(y.at).toLocaleString("ja-JP")+" +"+f(y.amount))).join(" / ")}</p>`:"";
     return `${heading}<article class="kw-card purchase-card moment-card" data-purchase-card data-moment-card="${x.id}" data-moment-entry="${x.id}"><div class="card-top"><strong>${esc(x.name)}</strong><button type="button" class="moment-favorite" data-moment-favorite="${x.id}" aria-pressed="${state.settings.momentFavorites?.includes(x.id)?"true":"false"}" aria-label="${esc(x.name)}のお気に入り切り替え">${state.settings.momentFavorites?.includes(x.id)?"★":"☆"}</button><small data-moment-level="${x.id}">Lv.${state.moment[x.id].toLocaleString("ja-JP")}</small></div>
-      <small class="compact-upgrade-rate" title="${esc(x.description)}">${esc(x.description)}</small>
-      <small class="moment-live-effect"><b>現在</b> ${esc(e.current)}</small>
+      <div class="compact-stat"><span>現在合計</span><strong class="moment-live-effect">${esc(e.current)}</strong></div>
+      <div class="compact-stat"><span>次Lvの値</span><strong class="moment-next-effect">${esc(e.next)}</strong></div>
       ${cardQuote("moment",x.id)}
-      <details class="moment-effect-detail" data-preserve="${x.id}"><summary>効果・次Lvを表示</summary><p>${esc(x.description)}</p><p><b>現在</b> ${esc(e.current)}</p><p><b>次Lv</b> ${esc(e.next)}</p>${after}${miracle}<small>固有効果は確定／購入価格と未指定節目は検証値</small></details></article>`;
+      <details class="moment-effect-detail" data-preserve="${x.id}"><summary>詳細</summary><p>${esc(x.description)}</p><p><b>現在</b> ${esc(e.current)}</p><p><b>次Lv</b> ${esc(e.next)}</p>${after}${miracle}<small>固有効果は確定／購入価格と未指定節目は検証値</small></details></article>`;
   }).join("")}</div>
   <div class="kw-card converge-compact"><div class="card-top"><strong>収束 · 永続補正</strong><small data-existence-rate>×${f(G.existenceMultiplier(state),3)}</small></div><small data-convergence-reward>獲得予定 +${f(q.reward,3)} 存在</small><button class="wide-button" data-action="converge" ${!q.steps||readOnly?"disabled":""}>収束する · 次まで ${f(q.nextRemaining)} オーブ</button><small>余剰存在0.02 → 獲得量×1.02 / 1 → ×2（試験値）</small></div>`;
 }
@@ -271,7 +298,6 @@ function sourcesHTML(){
     const v=state.sources[x.id],done=ms.filter(m=>m<=v.level).length,next=ms.find(m=>m>v.level);
     return `<article class="kw-card source-card purchase-card" data-source-entry="${x.id}" data-purchase-card><div class="card-top"><strong>${String(i+1).padStart(2,"0")} ${esc(x.name)} ＋${v.plus.toLocaleString("ja-JP")}</strong><small data-source-level="${x.id}">Lv.${v.level.toLocaleString("ja-JP")}</small></div>
     <button class="more-button source-detail-button" data-source-detail="${x.id}" aria-label="${esc(x.name)}の詳細">⋯</button>
-    <div class="source-meta"><span>節目 ${done}/21</span><span>次 ${next?next.toLocaleString("ja-JP"):"MAX"}</span><span>＋倍率 ×${f(G.sourcePlusGain(v.plus),2)}</span></div>
     <div class="source-rates" title="1Lv増加量 / この源の合計秒間生産量"><span data-source-next="${x.id}">次+${f(G.sourceNextGain(state,x.id))}/秒</span><span data-source-total="${x.id}">計 ${f(G.sourceProduction(state,x.id))}/秒</span></div>
     ${cardQuote("source",x.id)}
     ${v.level===1000000?`<button class="wide-button" data-breakthrough="${x.id}" ${!cycle.unlocked?"disabled":""}>＋循環 ${cycle.unlocked?"・Lv1から再開":"・全30源一巡まで残り"+cycle.remaining+"種"}</button>`:""}</article>`;
@@ -504,7 +530,7 @@ function guideHTML(){
   <div class="kw-card"><strong>この版の範囲</strong><p>設定データに「確定」「暫定」「要確認」「未決定」を保持しています。価格・速度など動作確認用の値と、正式仕様は別です。</p><button class="wide-button" data-organizer="spec">反映済みと未決定を確認</button></div></div>`;
 }
 function settingsHTML(){
-  const labels=[["compact","コンパクト表示","2列で多くの項目を表示"],["showPurchaseHints","購入見込みを表示","足りない額・自動生成での目安・獲得量（仮）を表示"],["holdToBuy","長押しで連続購入","押している間だけ通常購入を繰り返します"],["reducedMotion","動きを減らす","発光・波紋・開閉演出を抑える"],["highContrast","読みやすい境界線","文字と境界のコントラストを調整"],["lowPower","省電力","背景アニメーションを停止"],["confirmConvergence","収束前に確認","仮のリセット範囲を確認する"],["showOffline","復帰時に報告","オフラインの進行とBOOSTを表示"]];
+  const labels=[["confirmBulkPurchase","一括購入前に確認","OFF：タップですぐ購入。ON：数量・費用を確認してから購入します"],["confirmMaxPurchase","MAX購入前に確認","ON：所持資源の90%以上を使うMAX購入を確認します"],["compact","コンパクト表示","2列で多くの項目を表示"],["showPurchaseHints","購入見込みを表示","足りない額・自動生成での目安・獲得量（仮）を表示"],["holdToBuy","長押しで連続購入","押している間だけ通常購入を繰り返します"],["reducedMotion","動きを減らす","発光・波紋・開閉演出を抑える"],["highContrast","読みやすい境界線","文字と境界のコントラストを調整"],["lowPower","省電力","背景アニメーションを停止"],["confirmConvergence","収束前に確認","仮のリセット範囲を確認する"],["showOffline","復帰時に報告","オフラインの進行とBOOSTを表示"]];
   return `<p class="panel-intro">背景は既存のORGANIC FLOWを維持。安全な保存・表示設定は序章から利用できます。</p>
   ${labels.map(([id,name,desc])=>`<label class="kw-row"><span>${name}<small>${desc}</small></span><input type="checkbox" data-pref="${id}" ${state.settings[id]?"checked":""}></label>`).join("")}
   <label class="kw-row">数値表記<select class="input-select" data-pref="notation"><option value="auto" ${state.settings.notation==="auto"?"selected":""}>標準（100万以降e）</option><option value="scientific" ${state.settings.notation==="scientific"?"selected":""}>指数 e（1.23e12）</option><option value="exponent" ${state.settings.notation==="exponent"?"selected":""}>指数 E（1.23E+12）</option><option value="zeros" ${state.settings.notation==="zeros"?"selected":""}>0の個数（10^12）</option></select></label>
@@ -625,12 +651,15 @@ function labHTML(){
 function commonInfoHTML(){
   const metrics=[
     ["存在量",G.existence(state),""],
+    ["オーブ",state.orbs,""],
     ["生成速度",G.production(state)," オーブ/秒"],
+    ["干渉",G.tapPower(state)," オーブ/回"],
+    ["収束回数",state.convergenceCount," 回"],
     ["BOOST残量",state.boost.seconds," 秒"]
   ];
   return `<section class="common-info-detail" aria-label="全ステージ共通情報の詳細">
     <p class="panel-intro">共通情報バーの数値は科学表記・有効数字3桁です。各ステージ固有の資源と操作はステージ画面に表示します。</p>
-    ${metrics.map(([label,value,unit])=>`<div class="kw-card"><span>${esc(label)}</span><strong>${esc(formatScientific3(value))}${esc(unit)}</strong></div>`).join("")}
+    ${metrics.map(([label,value,unit])=>`<div class="kw-card"><span>${esc(label)}</span><strong>${esc(label==="収束回数"?Number(value).toLocaleString("ja-JP"):formatScientific3(value))}${esc(unit)}</strong></div>`).join("")}
     <button type="button" class="wide-button" data-action="return-stage-panel">ステージ操作に戻る</button>
   </section>`;
 }
@@ -984,7 +1013,7 @@ async function dispatchAction(action){
       "\n購入後残高 "+f(quote.remaining)+" オーブ"+
       (quote.limitReached?"\n1回の上限3,000Lvです。残りは再度手動で購入してください。":"")+
       "\n購入対象と消費金額を確認してください。";
-    if(!await ask("一括購入の金額確認",text,"この内容で購入"))return;
+    if(state.settings.confirmBulkPurchase&&!await ask("一括購入の金額確認",text,"この内容で購入"))return;
     checkpoint();
     if(currentStage!==stageBefore||currentSub!==subBefore||
        state.settings.bulkOrder!==orderBefore||bulkScope!==scopeBefore)
@@ -1130,7 +1159,8 @@ document.addEventListener("click",async e=>{
     if(b.dataset.sourceDetail){
       const x=CONTENT.sources.find(x=>x.id===b.dataset.sourceDetail);
       const status=G.sourceFinalEffectStatus(state,x.id);
-      await ask(x.name+"（仮名）",`特性案：${x.role}\n最終効果：${status?.label||"？？？"}\n実装状態：${status?(status.implemented?"計算に適用":"解放履歴のみ・効果保留"):"未決定"}\n取得状態：${status?.unlocked?"解放済み":"未取得"}\n\n通常6効果の詳細：？？？（未確定）\n効果取得節目：25／1,000／10,000／50,000／100,000／500,000／1,000,000\n個別の未確定効果は適用しません。`,"閉じる");return;
+      const v=state.sources[x.id],ms=CONFIG.confirmed.sourceMilestones,done=ms.filter(k=>k<=v.level).length,next=ms.find(k=>k>v.level);
+      await ask(x.name+"（仮名）",`現在 Lv.${v.level.toLocaleString("ja-JP")} / ＋${v.plus}\n節目 ${done}/21 / 次 ${next||"MAX"}\n＋倍率 ×${f(G.sourcePlusGain(v.plus))}\n合計 ${f(G.sourceProduction(state,x.id))} オーブ/秒\n次Lv増加 ${f(G.sourceNextGain(state,x.id))} オーブ/秒\n\n特性案：${x.role}\n最終効果：${status?.label||"？？？"}\n実装状態：${status?(status.implemented?"計算に適用":"解放履歴のみ・効果保留"):"未決定"}\n取得状態：${status?.unlocked?"解放済み":"未取得"}\n\n通常6効果の詳細：？？？（未確定）\n効果取得節目：25／1,000／10,000／50,000／100,000／500,000／1,000,000\n個別の未確定効果は適用しません。`,"閉じる");return;
     }
     if(readOnly){toast("別タブの書き込みを保護中です");return;}
     if(store.blocked && b.dataset.restore===undefined){toast("元セーブを保護中です。「保存」から復元してください。");return;}
@@ -1143,7 +1173,7 @@ document.addEventListener("click",async e=>{
       const kind=b.dataset.purchase,id=b.dataset.id,modeBefore=state.purchaseMode;
       const quote=G.purchaseQuote(state,kind,id);
       if(!quote.enabled)return toast(quote.reason||"購入できません");
-      if(G.maxPurchaseRequiresConfirmation(state.orbs,quote,modeBefore)){
+      if(state.settings.confirmMaxPurchase&&G.maxPurchaseRequiresConfirmation(state.orbs,quote,modeBefore)){
         const label=(kind==="source"?CONTENT.sources:CONTENT.moment).find(x=>x.id===id)?.name||id;
         const cost=f(quote.cost),remaining=f(A(state.orbs).sub(quote.cost));
         if(!await ask("MAX購入の確認",label+"："+quote.count.toLocaleString("ja-JP")+"Lv購入 / 消費 "+cost+" オーブ / 購入後 "+remaining+" オーブ","購入する"))return;
