@@ -317,3 +317,30 @@ body.reduced-motion #touchField.cosmic-scene::before{animation:none;filter:none;
 .investment-ledger .kw-row strong{font-variant-numeric:tabular-nums;white-space:nowrap;}
 @media(max-width:360px){.telemetry-chart{height:82px;min-height:82px;}
  .investment-ledger .kw-row{gap:5px;}}
+
+/* U-42: favorite order is explicit, keyboard-accessible, and layout-stable. */
+.kw-sheet-body .moment-fav-pins .favorite-pin{
+  display:inline-flex;align-items:stretch;gap:2px;min-width:0;
+  padding:2px;border:1px solid rgba(194,164,251,.43);
+  background:rgba(32,24,65,.62);border-radius:9px;
+}
+.kw-sheet-body .moment-fav-pins .favorite-pin button{
+  min-height:34px;min-width:32px;margin:0;touch-action:manipulation;
+}
+.kw-sheet-body .moment-fav-pins .favorite-pin button[data-moment-shortcut]{
+  min-width:0;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.kw-sheet-body .moment-fav-pins .favorite-pin button[data-moment-move]{
+  padding:5px 7px;color:#e7d5ff;font-size:18px;line-height:1;
+  border-color:rgba(195,166,250,.38);
+}
+.kw-sheet-body .moment-fav-pins .favorite-pin button[data-moment-move]:disabled{
+  opacity:.33;cursor:not-allowed;
+}
+.kw-sheet-body .moment-fav-pins .favorite-pin button:focus-visible{
+  outline:2px solid #fbd694;outline-offset:2px;
+}
+@media(max-width:390px){
+  .kw-sheet-body .moment-fav-pins .favorite-pin button[data-moment-shortcut]{max-width:136px;}
+  .kw-sheet-body .moment-fav-pins .favorite-pin button[data-moment-move]{min-width:30px;padding:5px;}
+}
