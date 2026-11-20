@@ -495,7 +495,25 @@ function backupHTML(){
   <h3>データを読み込む</h3><input id="importFile" type="file" accept=".json,application/json,text/plain" aria-label="セーブJSONを選ぶ">
   <textarea id="importText" aria-label="バックアップ文字列" placeholder="バックアップJSONを貼り付け">${esc(importDraft)}</textarea>
   <button class="wide-button" data-action="import-save">内容を検証して読み込む</button>
-  <h3>保存履歴</h3>${bs.length?bs.map((x,i)=>`<div class="kw-row"><span>${new Date(x.at).toLocaleString("ja-JP")}</span><button data-restore="${i}">復元</button></div>`).join(""):'<p>まだ履歴はありません。</p>'}
+  <h3>保存履歴 · 候補を比較して選択</h3>
+  <div class="kw-card backup-comparison"><strong>現在の主セーブ</strong>
+  ${store.blocked?"<small>読み込み不可・原本保護中。仮の初期状態を比較対象にしません。</small>":
+    `<small>余剰存在 ${f(state.surplusExistence,3)} · オーブ ${f(state.orbs)} · 収束 ${state.convergenceCount}回</small>
+    <small>源Lv合計 ${Object.values(state.sources).reduce((n,v)=>n+v.level,0).toLocaleString("ja-JP")} · 概念 ${Object.values(state.time.concepts).filter(v=>v>0).length}/77 · 惑星 ${state.universe.planets.length}個</small>`}
+  </div>
+  ${bs.length?bs.map((x,i)=>{
+    let candidate;
+    try{candidate=decode(x.raw,mode);}catch(e){candidate=null;}
+    return `<div class="kw-card backup-comparison">
+      <div class="card-top"><strong>履歴 ${i+1} · ${new Date(x.at).toLocaleString("ja-JP")}</strong>
+        <span class="badge ${candidate?"confirmed":"pending"}">${candidate?"検証済":"破損"}</span></div>
+      ${candidate?`<small>余剰存在 ${f(candidate.surplusExistence,3)} · オーブ ${f(candidate.orbs)} · 収束 ${candidate.convergenceCount}回</small>
+      <small>源Lv合計 ${Object.values(candidate.sources).reduce((n,v)=>n+v.level,0).toLocaleString("ja-JP")} · 概念 ${Object.values(candidate.time.concepts).filter(v=>v>0).length}/77 · 惑星 ${candidate.universe.planets.length}個</small>
+      <small>保存世代 ${candidate.revision} · データ形式 ${candidate.schemaVersion}</small>`:
+      "<small>この履歴は検証に失敗しました。復元対象にはできません。元データは変更しません。</small>"}
+      <button class="wide-button" data-restore="${i}" ${candidate?"":"disabled"}>この履歴を選択して復元</button>
+    </div>`;
+  }).join(""):"<p>まだ履歴はありません。</p>"}
   <button class="wide-button" data-action="export-legacy">退避した旧データを書き出す</button>
   ${store.blocked?'<div class="status-note">主セーブは保護中です。空の状態を通常のバックアップとして出力しません。復元を選択する前に、元データをファイルに保存してください。</div><button class="wide-button" data-action="export-corrupt">保護中の主セーブをそのまま救出（復旧用）</button>':""}
   <p class="tiny">旧セーブキーは削除しません。別URL・別ドメインへはJSONによる移行が必要です。</p>`;
