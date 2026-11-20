@@ -48,9 +48,9 @@ export function createState(now=Date.now(),mode="normal") {
     trial:{enabled:false},
     engraving:{active:[],draft:null,observationUnlocked:false,owned:[],equipped:[],
       autoConverge:{enabled:false,minReward:AUTO_CONVERGE_DEFAULT_MIN_REWARD,lastAt:0}},
-    boost:{seconds:0,active:false,upgrades:[0,0,0,0,0]},
+    boost:{seconds:0,active:false,upgrades:[0,0,0,0,0],accounting:freshBoostAccounting()},
     counters:{taps:0,orbsSpent:"0",sourcePurchases:0,conversions:0,onlineSeconds:0,offlineSeconds:0},
-    achievements:[],events:[],telemetry:freshTelemetry(),settings:{compact:true,showPurchaseHints:true,affordableOnly:false,bulkOrder:"cheap",holdToBuy:true,reducedMotion:false,highContrast:false,
+    achievements:[],events:[],telemetry:freshTelemetry(),settings:{compact:true,showPurchaseHints:true,affordableOnly:false,bulkOrder:"cheap",holdToBuy:true,hapticTap:false,reducedMotion:false,highContrast:false,
       lowPower:false,confirmConvergence:true,confirmBulkPurchase:false,confirmMaxPurchase:true,showOffline:true,notation:"auto",
       momentFavorites:[],momentGroup:"0",momentFilter:"all"},
     migration:null
@@ -59,6 +59,20 @@ export function createState(now=Date.now(),mode="normal") {
 export function event(s,text,now=Date.now()) {
   s.events.push({at:now,text:String(text).slice(0,500)});
   s.events=s.events.slice(-150);
+}
+// BOOST-Q209: preserve cumulative accounting independently of the capped
+// recent display window. Past saves are not retroactively assigned activity.
+const BOOST_ACCOUNT_KINDS=["earned","spent","upgrade","discarded","pending"];
+const BOOST_AUDIT_LIMIT=100;
+export function freshBoostAccounting(){
+  return {earned:0,spent:0,upgrade:0,discarded:0,pending:0,entries:[]};
+}
+function recordBoostAccounting(s,kind,seconds,at,note=""){
+  if(!BOOST_ACCOUNT_KINDS.includes(kind)||!Number.isFinite(seconds)||seconds<=0)return;
+  const ledger=s.boost.accounting??(s.boost.accounting=freshBoostAccounting());
+  ledger[kind]+=seconds;
+  ledger.entries.push({at,kind,seconds,note:String(note).slice(0,80)});
+  if(ledger.entries.length>BOOST_AUDIT_LIMIT)ledger.entries.splice(0,ledger.entries.length-BOOST_AUDIT_LIMIT);
 }
 function achievement(s,id,text) {
   if(s.achievements.includes(id))return false;
@@ -135,8 +149,23 @@ export function momentAfterQuote(s,i,count){
 export function momentComboView(s,now=Date.now()){
   const p=setsunaProjection(s,null,now),expires=p.comboExpire||p.comboUntil||0;
   const remaining=Math.max(0,expires-now);
-  return {combo:remaining>0?p.combo:0,remaining,window:SETSUNA.comboWindow(p),
+  const combo=remaining>0?p.combo:0,nextMark=SETSUNA.COMBO_MARKS.find(mark=>mark>combo)??null;
+  return {combo,remaining,window:SETSUNA.comboWindow(p),
+    nextMark,untilNext:nextMark===null?0:nextMark-combo,
     multiplier:SETSUNA.comboFactor(p),stored:p.stored||"0"};
+}
+export function sourceResonanceProgress(s){
+  const marks=CONFIG.confirmed.sourceMilestones;
+  let completed=0,next=null;
+  for(const id of SOURCE_IDS){
+    const level=s.sources[id]?.level||0;
+    completed+=marks.filter(mark=>mark<=level).length;
+    const target=marks.find(mark=>mark>level);
+    if(target===undefined)continue;
+    const remaining=target-level;
+    if(next===null||remaining<next.remaining)next={id,level:target,remaining};
+  }
+  return {completed,total:SOURCE_IDS.length*marks.length,next};
 }
 
 // Base output from the first level of this Source. Subsequent levels compound by productionGrowth.
@@ -895,14 +924,21 @@ export function labBoostUpgrade(s,index){
   if(s.boost.upgrades[index]>=PROPOSED.boost.limits[index])return {ok:false,reason:"検証上限に到達しました"};
   const cost=boostTrialCost(s.boost.upgrades[index]);
   if(s.boost.seconds<cost)return {ok:false,reason:"BOOST時間が不足しています"};
-  s.boost.seconds-=cost;s.boost.upgrades[index]++;return {ok:true,cost};
+  s.boost.seconds-=cost;s.boost.upgrades[index]++;
+  recordBoostAccounting(s,"upgrade",cost,Date.now(),"旧5系統・lab "+index);
+  return {ok:true,cost};
 }
 export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
   const dt=Math.max(0,(now-s.lastWall)/1000);
   if(!Number.isFinite(dt)||dt<=0){
     // Clock rollback grants nothing and updates the baseline to prevent
     // locking progression until the old future timestamp is reached.
-    if(Number.isFinite(now)&&now>=0&&now<s.lastWall)s.lastWall=now;
+    if(Number.isFinite(now)&&now>=0&&now<s.lastWall){
+      // R2-Q11-035: do not grant time/rewards on a clock rollback.
+      // Keep the anomaly visible, without changing prior rewards.
+      event(s,"端末時計の逆行を検出。経過時間の報酬を付与せず再同期しました。",now);
+      s.lastWall=now;
+    }
     return {elapsed:0,gameSeconds:0,orbs:"0",boost:0,boostDiscarded:0};
   }
   s.lastWall=now;
@@ -927,6 +963,8 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
     if(s.engraving.autoConverge.lastAt>0)s.engraving.autoConverge.lastAt+=ms;
     const boostEarned=Math.max(0,s.boost.seconds-boostBefore);
     const boostDiscarded=Math.max(0,rawEarned-boostEarned);
+    recordBoostAccounting(s,"earned",boostEarned,now,"現実オフライン");
+    recordBoostAccounting(s,"discarded",boostDiscarded,now,"保有上限超過");
     if(dt>=10)recordOfflineReport(s.telemetry,{
       at:now,seconds:dt,effectiveSeconds:0,orbs:"0",boostEarned,boostDiscarded
     });
@@ -940,6 +978,7 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
     s.boost.seconds-=extra;gameSeconds+=extra;
     if(s.boost.seconds<=0)s.boost.active=false;
   }
+  recordBoostAccounting(s,"spent",Math.max(0,boostBefore-s.boost.seconds),now,"時間加速（暫定）");
   s.counters.onlineSeconds+=dt;
   let gained=A(0);
   if(s.intro.complete){
@@ -1065,7 +1104,12 @@ export function labAction(s,action,now=Date.now()) {
   if(action==="mass"){const p=planet(s);if(!p)return {ok:false,reason:"先に惑星を生成してください"};p.stats.mass="1e2";p.stats.pressure="0";return {ok:true};}
   if(action==="collapse")return labCollapse(s);
   if(action==="life"){s.life.unlocked=true;return {ok:true};}
-  if(action==="boost"){s.boost.seconds=boostValues(s).capacity;return {ok:true};}
+  if(action==="boost"){
+    const previous=s.boost.seconds;
+    s.boost.seconds=boostValues(s).capacity;
+    recordBoostAccounting(s,"earned",Math.max(0,s.boost.seconds-previous),now,"lab検証用補充");
+    return {ok:true};
+  }
   if(action==="offline"){s.lastWall=now-8*3600*1000;return {ok:true,report:advance(s,now,{offline:true})};}
   return {ok:false,reason:"不明な検証操作です"};
 }
@@ -1298,6 +1342,14 @@ export function validateState(input,expectedMode=null) {
       !e.equipped.includes(ENGRAVING_AUTO_CONVERGE_ID)))fail("自動収束の未装備設定");
   const b=s.boost;if(!b||!Number.isFinite(b.seconds)||b.seconds<0||!Array.isArray(b.upgrades)||b.upgrades.length!==5||b.upgrades.some(x=>!Number.isInteger(x)||x<0||x>10000))fail("BOOST");
   if(typeof b.active!=="boolean")fail("BOOST状態");
+  if(b.accounting===undefined)b.accounting=freshBoostAccounting();
+  const ledger=b.accounting;
+  if(!ledger||typeof ledger!=="object"||Array.isArray(ledger)||
+     BOOST_ACCOUNT_KINDS.some(kind=>!Number.isFinite(ledger[kind])||ledger[kind]<0)||
+     !Array.isArray(ledger.entries)||ledger.entries.length>BOOST_AUDIT_LIMIT||
+     ledger.entries.some(x=>!x||!Number.isFinite(x.at)||x.at<0||x.at>1e15||
+       !BOOST_ACCOUNT_KINDS.includes(x.kind)||!Number.isFinite(x.seconds)||x.seconds<=0||
+       typeof x.note!=="string"||x.note.length>80))fail("BOOST計算履歴");
   if(s.trial===undefined)s.trial={enabled:false};
   if(!s.trial||typeof s.trial!=="object"||Array.isArray(s.trial)||typeof s.trial.enabled!=="boolean")fail("検証設定");
   if(s.mode==="normal"&&s.trial.enabled)fail("試案設定が通常データへ混入しています");

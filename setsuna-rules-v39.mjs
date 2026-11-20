@@ -6,7 +6,7 @@ import {A,formatAmount} from "./numbers.mjs";
 export const COUNT=30;
 export const GROUPS=["基礎干渉","連続干渉","確率干渉","自律干渉","源泉共鳴","超越干渉"];
 export const NAMES=["原初の接触","干渉増幅","余波","反響","集中","連撃","残響維持","加速","蓄積","連鎖","幸運","会心","二重干渉","連鎖会心","奇跡","自動接触","自律増幅","自律連撃","余剰回収","自律同期","源の反映","干渉供給","源の共振","循環","共鳴暴走","強化共鳴","時の圧縮","限界突破","刹那の覚醒","原初回帰"];
-const COMBO_MARKS=[10,50,100,250,500,1000];
+export const COMBO_MARKS=[10,50,100,250,500,1000];
 export const RUNTIME_KEYS=["combo","lastTap","comboUntil","comboExpire","hasteUntil","hasteSteps","sourceBuffUntil",
   "synergyUntil","awakenUntil","autoCredit","comboAutoCredit","recoverCredit","compressCredit",
   "activeSeconds","lastManualActive","cycleTaps","supplyCount","offlineCombo",

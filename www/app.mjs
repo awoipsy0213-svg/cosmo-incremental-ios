@@ -182,7 +182,8 @@ function renderWorld(){
   const combo=G.momentComboView(state);
   const run=$("hudRunCount");if(run)run.textContent=state.convergenceCount.toLocaleString("ja-JP");
   const ratio=combo.window>0?Math.round(Math.max(0,Math.min(100,100*combo.remaining/combo.window))):0;
-  const comboHtml=combo.combo>0?`<span class="kw-combo">コンボ ${combo.combo.toLocaleString("ja-JP")} · ×${combo.multiplier.toFixed(2)}<i class="kw-combo-track"><i style="width:${ratio}%"></i></i></span>`:"";
+  const milestone=combo.nextMark===null?" · 最終節目到達":` · 次${combo.nextMark}まで${combo.untilNext}回`;
+  const comboHtml=combo.combo>0?`<span class="kw-combo">コンボ ${combo.combo.toLocaleString("ja-JP")} · ×${combo.multiplier.toFixed(2)}${milestone}<i class="kw-combo-track"><i style="width:${ratio}%"></i></i></span>`:"";
   const storedHtml=A(combo.stored).cmp(0)>0?`<span class="kw-stored">蓄積 ${f(combo.stored)}</span>`:"";
   $("convergeMain").hidden=!state.intro.complete||!["existence","organizer"].includes(currentStage);
   if(["existence","organizer"].includes(currentStage)){
@@ -315,7 +316,10 @@ function momentHTML(){
 }
 function sourcesHTML(){
   const ms=CONFIG.confirmed.sourceMilestones,cycle=G.sourceCycleStatus(state);
-  return `<div class="status-note">源の一巡：${cycle.reached} / ${cycle.total}種到達 ${cycle.unlocked?"・＋循環解放済み":"・解放まで残り"+cycle.remaining+"種"}。＋値倍率は「1＋0.5×＋値」で、Lv1から再成長します。</div><div class="row-grid compact-upgrades">${CONTENT.sources.map((x,i)=>{
+  const resonance=G.sourceResonanceProgress(state);
+  const resonanceValue=state.moment.setsuna23>0?G.momentEffects(state)[22].current:"未購入";
+  const next= resonance.next?`${resonance.next.id} Lv.${resonance.next.level}（残り${resonance.next.remaining}Lv）`:"全節目到達";
+  return `<div class="status-note">源の共振：${resonance.completed} / ${resonance.total}節目 · ${esc(resonanceValue)} · 次 ${esc(next)}</div><div class="status-note">源の一巡：${cycle.reached} / ${cycle.total}種到達 ${cycle.unlocked?"・＋循環解放済み":"・解放まで残り"+cycle.remaining+"種"}。＋値倍率は「1＋0.5×＋値」で、Lv1から再成長します。</div><div class="row-grid compact-upgrades">${CONTENT.sources.map((x,i)=>{
     const v=state.sources[x.id],done=ms.filter(m=>m<=v.level).length,next=ms.find(m=>m>v.level);
     return `<article class="kw-card source-card purchase-card" data-source-entry="${x.id}" data-purchase-card><div class="card-top"><strong>${String(i+1).padStart(2,"0")} ${esc(x.name)} ＋${v.plus.toLocaleString("ja-JP")}</strong><small data-source-level="${x.id}">Lv.${v.level.toLocaleString("ja-JP")}</small></div>
     <button class="more-button source-detail-button" data-source-detail="${x.id}" aria-label="${esc(x.name)}の詳細">⋯</button>
@@ -501,6 +505,13 @@ function observationsHTML(){
 }
 function boostHTML(){
   const v=G.boostValues(state),s=state.boost;
+  const ledger=s.accounting||G.freshBoostAccounting();
+  const auditNames={earned:"獲得",spent:"使用",upgrade:"強化購入",discarded:"容量超過",pending:"保留"};
+  const items=ledger.entries.slice(-20).reverse().map(e=>`<li>${esc(new Date(e.at).toLocaleString("ja-JP"))} · ${auditNames[e.kind]||"保留"} ${e.seconds.toFixed(3)}秒${e.note?" · "+esc(e.note):""}</li>`).join("");
+  const auditHTML=`<details class="kw-card boost-audit"><summary>BOOST取引記録（直近20件を表示）</summary>
+    <p>Ver.3.26以降の記録：獲得 ${ledger.earned.toFixed(3)}秒／使用 ${ledger.spent.toFixed(3)}秒／旧検証強化購入 ${ledger.upgrade.toFixed(3)}秒／容量超過破棄 ${ledger.discarded.toFixed(3)}秒</p>
+    <p class="tiny">旧版の取得・購入は遡及推計しません。未受取補償は金額未決定で自動計上・返還しません。詳細は直近記録のみ表示し、累積値は保存します。</p>
+    ${items?`<ol>${items}</ol>`:"<p>まだ記録がありません。</p>"}</details>`;
   if(mode!=="lab"){
     const labels=["BOOST獲得速度","BOOST獲得倍率","BOOST容量","時間加速倍率","最終資源獲得倍率","BOOST消費効率"];
     return `<div class="kw-card boost-status-card"><div class="card-top"><strong data-boost-remaining>${duration(s.seconds)} / ${duration(v.capacity)}</strong><span class="badge" data-boost-state>${s.active?"加速中":"待機中"}</span></div>
@@ -513,7 +524,7 @@ function boostHTML(){
       <div class="kw-list">${labels.map((label,i)=>`<div class="kw-card"><div class="card-top"><strong>${esc(label)}</strong><span class="badge pending">要確認</span></div>
         <small>現在 ${i===0?duration(v.offlineRate*3600)+"/実時間":i===2?duration(v.capacity):"？？？"} · 強化費用 ？？？</small>
         <button class="wide-button" disabled>仕様確定後に解放</button></div>`).join("")}</div>
-      <p class="status-note">以前の5強化系統の購入履歴・補償は保留。既存投資の返還額やBOOST消費式を未確定のまま適用しません。</p>`;
+      <p class="status-note">以前の5強化系統の購入履歴・補償は保留。既存投資の返還額やBOOST消費式を未確定のまま適用しません。</p>${auditHTML}`;
   }
   const labels=["旧試験：オフライン効率","旧試験：進行対象時間","旧試験：BOOST基礎獲得","旧試験：オフライン獲得倍率","旧試験：容量"];
   return `<div class="kw-card boost-status-card"><div class="card-top"><strong data-boost-remaining>${duration(s.seconds)} / ${duration(v.capacity)}</strong><span class="badge" data-boost-state>${s.active?"加速中":"蓄積中"}</span></div><div class="slim-progress"><i data-boost-progress style="width:${Math.min(100,100*s.seconds/v.capacity)}%"></i></div>
@@ -527,7 +538,7 @@ function boostHTML(){
       const trial=JSON.parse(JSON.stringify(state));trial.mode="lab";trial.boost.upgrades[i]++;
       const next=G.boostValues(trial),nexts=[`${Math.round(next.efficiency*100)}%`,duration(next.offlineCap),`${duration(next.onlineRate*3600)}/時`,`${(next.offlineRate/(CONFIG.confirmed.boostOfflineSecondsPerHour/3600)).toFixed(2)}倍`,duration(next.capacity)];
       return `<div class="kw-card"><strong>${x}</strong><small>現在 ${current} → 強化後 ${mode==="lab"?nexts[i]:"？？？"}</small><button class="wide-button" data-boost-upgrade="${i}" ${mode!=="lab"?"disabled":""}>${mode==="lab"?duration(boostTrialCost(s.upgrades[i]))+"で1段階（新しい暫定案）":"費用 ？？？ / 未適用"}</button></div>`;
-    }).join("")}</div><p class="status-note">旧5系統のラボ用試案は通常プレイには適用されません。オフライン中はBOOSTのみ蓄積し、オーブ・時・惑星の進行は停止します。</p>`;
+    }).join("")}</div><p class="status-note">旧5系統のラボ用試案は通常プレイには適用されません。オフライン中はBOOSTのみ蓄積し、オーブ・時・惑星の進行は停止します。</p>${auditHTML}`;
 }
 function achievementHTML(){
   return `<p class="panel-intro">達成条件が決まっているものを実装。条件未定の実績に仮の倍率報酬は付けません。</p><div class="kw-list">${CONTENT.achievements.map(x=>`<div class="kw-card"><div class="card-top"><strong>${state.achievements.includes(x.id)?"✦":"◇"} ${x.name}</strong><span class="badge">${x.status}</span></div><p>${x.description}</p><small>${state.achievements.includes(x.id)?"記録済み":x.id==="engravingObservation"?"達成条件 ？？？":"未達成"}</small></div>`).join("")}</div>`;
@@ -565,11 +576,11 @@ function guideHTML(){
   <div class="kw-card"><strong>この版の範囲</strong><p>設定データに「確定」「暫定」「要確認」「未決定」を保持しています。価格・速度など動作確認用の値と、正式仕様は別です。</p><button class="wide-button" data-organizer="spec">反映済みと未決定を確認</button></div></div>`;
 }
 function settingsHTML(){
-  const labels=[["confirmBulkPurchase","一括購入前に確認","OFF：タップですぐ購入。ON：数量・費用を確認してから購入します"],["confirmMaxPurchase","MAX購入前に確認","ON：所持資源の90%以上を使うMAX購入を確認します"],["compact","コンパクト表示","2列で多くの項目を表示"],["showPurchaseHints","購入見込みを表示","足りない額・自動生成での目安・獲得量（仮）を表示"],["holdToBuy","長押しで連続購入","押している間だけ通常購入を繰り返します"],["reducedMotion","動きを減らす","発光・波紋・開閉演出を抑える"],["highContrast","読みやすい境界線","文字と境界のコントラストを調整"],["lowPower","省電力","背景アニメーションを停止"],["confirmConvergence","収束前に確認","仮のリセット範囲を確認する"],["showOffline","復帰時に報告","オフラインの進行とBOOSTを表示"]];
+  const labels=[["confirmBulkPurchase","一括購入前に確認","OFF：タップですぐ購入。ON：数量・費用を確認してから購入します"],["confirmMaxPurchase","MAX購入前に確認","ON：所持資源の90%以上を使うMAX購入を確認します"],["compact","コンパクト表示","2列で多くの項目を表示"],["showPurchaseHints","購入見込みを表示","足りない額・自動生成での目安・獲得量（仮）を表示"],["holdToBuy","長押しで連続購入","押している間だけ通常購入を繰り返します"],["hapticTap","タップ時の振動","対応端末のみ。初期設定はOFFです"],["reducedMotion","動きを減らす","発光・波紋・開閉演出を抑える"],["highContrast","読みやすい境界線","文字と境界のコントラストを調整"],["lowPower","省電力","背景アニメーションを停止"],["confirmConvergence","収束前に確認","仮のリセット範囲を確認する"],["showOffline","復帰時に報告","オフラインの進行とBOOSTを表示"]];
   return `<p class="panel-intro">背景は既存のORGANIC FLOWを維持。安全な保存・表示設定は序章から利用できます。</p>
   ${labels.map(([id,name,desc])=>`<label class="kw-row"><span>${name}<small>${desc}</small></span><input type="checkbox" data-pref="${id}" ${state.settings[id]?"checked":""}></label>`).join("")}
   <label class="kw-row">数値表記<select class="input-select" data-pref="notation"><option value="auto" ${state.settings.notation==="auto"?"selected":""}>標準（100万以降e）</option><option value="scientific" ${state.settings.notation==="scientific"?"selected":""}>指数 e（1.23e12）</option><option value="exponent" ${state.settings.notation==="exponent"?"selected":""}>指数 E（1.23E+12）</option><option value="zeros" ${state.settings.notation==="zeros"?"selected":""}>0の個数（10^12）</option></select></label>
-  <div class="kw-row"><span>バージョン<small>Ver.3.24 Matrix UI・保存復旧・オフライン互換</small></span><strong>${CONFIG.version}</strong></div>
+  <div class="kw-row"><span>バージョン<small>Ver.3.26 仕様同期・BOOST取引履歴</small></span><strong>${CONFIG.version}</strong></div>
   <div class="kw-row"><span>通信<small>クラウド・課金は未接続</small></span><strong>${navigator.onLine?"オンライン":"オフライン"}</strong></div>
   <button class="wide-button" data-organizer="backup">保存とバックアップ</button>
   <a class="link-button" href="./legacy/" data-legacy-link>保管した旧版Ver.3.0で続ける</a><br>
@@ -891,6 +902,9 @@ function handleTap(x,y){
   if(readOnly||store.blocked||busyBirth||!state)return;
   if(!["existence","organizer"].includes(currentStage)&&state.intro.complete)return;
   checkpoint();const result=G.tap(state);wave(x,y,result.gain,result);
+  if(state.settings.hapticTap && typeof navigator.vibrate==="function"){
+    try{navigator.vibrate(8);}catch{/* 端末非対応時もゲーム処理を妨げない */}
+  }
   if(result.foundation){save(true);birth();}
   render(false);
 }
