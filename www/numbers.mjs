@@ -84,6 +84,14 @@ export function formatAmount(value,precision=2,notation="auto") {
   if(notation==="exponent")return `${mant}E${n.e>=0?"+":""}${exponent}`;
   return `${mant}e${exponent}`; // auto and scientific avoid unfamiliar M/B/T suffixes
 }
+/** Compact scientific notation with exactly three significant figures. UI-only. */
+export function formatScientific3(value) {
+  const n=A(value);
+  if(n.m===0)return "0";
+  let mantissa=Number(n.m.toPrecision(3)),exponent=n.e;
+  if(mantissa>=10){mantissa/=10;exponent++;}
+  return `${mantissa.toFixed(2)}e${exponent>=0?"+":""}${exponent}`;
+}
 export function seriesCost(base,growth,start,count) {
   if(count<=0)return A(0);
   if(!Number.isInteger(start)||start<0||!Number.isInteger(count)||count<0||growth<1)throw Error("価格設定が不正");

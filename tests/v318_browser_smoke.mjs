@@ -25,7 +25,7 @@ try {
     assert.equal(res?.status(),200);
     await page.locator("#buildLabel").waitFor({state:"attached"});
     await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
-    assert.match(await page.locator("#buildLabel").textContent(),/3\.21/);
+    assert.match(await page.locator("#buildLabel").textContent(),/3\.22/);
     assert.ok((await page.locator("#appRoot").boundingBox())?.width>0);
     const width=await page.evaluate(()=>document.documentElement.scrollWidth);
     assert.ok(width<=viewport.width+2,label+" horizontal overflow: "+width);
@@ -62,7 +62,15 @@ try {
         localStorageKeys:Object.keys(localStorage)};
     });
     assert.ok(await page.locator('[data-stage="universe"]').count(),label+" fixture stage absent: "+JSON.stringify(diagnostics));
+    await page.locator("#commonInfoBar").waitFor({state:"visible"});
+    assert.equal(await page.locator("#commonInfoBar button").count(),3);
+    assert.match(await page.locator('[data-common-value="existence"]').textContent(),/^[0-9]+[.][0-9]{2}e[+-][0-9]+$/);
+    await page.locator("#commonInfoBar button").first().click();
+    assert.equal(await page.locator("#sheetHeading").textContent(),"共通情報");
+    assert.match(await page.locator("#sheetBody").textContent(),/生成速度/);
+    await page.locator('[data-action="return-stage-panel"]').click();
     await page.locator('[data-stage="universe"]').click();
+    assert.equal(await page.locator("#commonInfoBar").isVisible(),true);
     await page.locator('[data-child="planets"]').click();
     await page.locator(".investment-ledger").waitFor();
     assert.match(await page.locator(".investment-ledger").textContent(),/UR1_01/);

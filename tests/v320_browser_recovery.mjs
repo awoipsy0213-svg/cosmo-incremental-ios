@@ -66,14 +66,14 @@ try{
   await online.waitForFunction(()=>!!navigator.serviceWorker.controller,{timeout:30000});
   const cached=await online.evaluate(async()=>{
     const registration=await navigator.serviceWorker.ready;
-    const cache=await caches.open("kotowari-handoff:"+new URL(registration.scope).pathname+":3.21.0-astral-navigation");
+    const cache=await caches.open("kotowari-handoff:"+new URL(registration.scope).pathname+":3.22.0-shared-info");
     return !!(await cache.match(new URL("./source-effects-v315.mjs",registration.scope).href));
   });
   assert.equal(cached,true,"a required transitive module missing from offline app cache");
   await context.setOffline(true);
   await online.reload({waitUntil:"domcontentloaded",timeout:30000});
   await online.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中",{timeout:30000});
-  assert.match(await online.locator("#buildLabel").textContent(),/3\.21/);
+  assert.match(await online.locator("#buildLabel").textContent(),/3\.22/);
   await online.locator('button[data-action="organizer"]').first().click();
   assert.equal(await online.locator("#organizerDrawer").evaluate(el=>el.open),true);
   assert.deepEqual(offlineErrors,[]);

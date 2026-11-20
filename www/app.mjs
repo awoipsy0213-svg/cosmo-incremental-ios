@@ -7,7 +7,7 @@ import {compareMomentPrice,compareMomentPriceProfiles,exportPriceReport,PRICE_MO
 import {MOMENT_GROUP_NAMES,cleanMomentPrefs,toggleMomentFavorite,moveMomentFavorite,momentVisible} from "./moment-filter.mjs";
 import {CONTENT} from "./content.mjs";
 import {PROPOSED,PLANET_EFFECT_PROPOSALS,resourcePrototype,trialPreview,boostTrialCost,proposedSourceSlots,FIRST_CONCEPT_PROPOSALS} from "./design-proposals.mjs";
-import {A,formatAmount} from "./numbers.mjs";
+import {A,formatAmount,formatScientific3} from "./numbers.mjs";
 import * as G from "./game.mjs";
 import {SaveStore,KEYS,decode,encode} from "./save.mjs";
 import {purchaseInsight,shortDuration,formatTaps} from "./purchase-insights.mjs";
@@ -26,7 +26,7 @@ let memory={};let storage;
 try{storage=window.localStorage;}catch(e){storage={getItem:k=>memory[k]||null,setItem:(k,v)=>memory[k]=String(v),removeItem:k=>delete memory[k]};}
 const store=new SaveStore(storage,mode,globalThis.crypto?.randomUUID?.()||"tab-"+Date.now());
 let state,readOnly=false,storageUnavailable=false,lockRelease=null;
-let currentStage="existence",currentSub="moment",sheetState="closed";
+let currentStage="existence",currentSub="moment",sheetState="closed",infoPanelOpen=false;
 let lastFrame=Date.now(),hiddenAt=null,lastSavedAt=0,lastPanelRender=0,lastInteraction=0;
 let toastTimer,importDraft="",offlineReport=null,updateWorker=null,confirmedAction=null;
 let interferencePartnerId=null,bulkScope="all";
@@ -105,6 +105,7 @@ function applySettings(){
 }
 function setSheet(which){
   stopHoldPurchase(null,true);
+  if(which==="closed")infoPanelOpen=false;
   sheetState=which;$("sheet").dataset.state=which;$("sheet").hidden=which==="closed";
   document.body.classList.toggle("sheet-open",which!=="closed");
   $("expandButton").textContent=which==="full"?"↙":"↗";
@@ -114,6 +115,7 @@ function setSheet(which){
 function setStage(id){
   if(!availableStages().some(x=>x.id===id))return;
   stopHoldPurchase(null,true);
+  infoPanelOpen=false;
   if(currentStage===id&&sheetState!=="closed"){setSheet("closed");return;}
   currentStage=id;
   currentSub=CONTENT.stages.find(x=>x.id===id).children[0];
@@ -130,6 +132,7 @@ function openOrganizer(){
 function openOrganizerPage(id){
   stopHoldPurchase(null,true);
   $("organizerDrawer").close();
+  infoPanelOpen=false;
   currentStage="organizer";currentSub=id;setSheet("half");render(true);
 }
 function renderNav(){
@@ -150,6 +153,25 @@ function renderWorld(){
   $("stageKicker").textContent=`STAGE 0${stage.number}`;
   $("stageTitle").textContent=stage.name;
   const rate=G.production(state),tap=G.tapPower(state);
+  const showShared=state.intro.complete;
+  $("commonInfoBar").hidden=!showShared;
+  document.body.classList.toggle("has-common-info",showShared);
+  if(showShared){
+    const metrics=[
+      ["existence",G.existence(state),"存在量",""],
+      ["speed",rate,"生成速度"," オーブ/秒"],
+      ["boost",state.boost.seconds,"BOOST残量"," 秒"]
+    ];
+    for(const [id,value,label,unit] of metrics){
+      const node=document.querySelector(`[data-common-value="${id}"]`);
+      if(!node)continue;
+      const formatted=formatScientific3(value);
+      node.textContent=formatted;
+      const button=node.closest("button");
+      button.title=`${label}：${f(value,3)}${unit}`;
+      button.setAttribute("aria-label",`${label} ${formatted}${unit}。詳細を開く`);
+    }
+  }
   const combo=G.momentComboView(state);
   const ratio=combo.window>0?Math.round(Math.max(0,Math.min(100,100*combo.remaining/combo.window))):0;
   const comboHtml=combo.combo>0?`<span class="kw-combo">コンボ ${combo.combo.toLocaleString("ja-JP")} · ×${combo.multiplier.toFixed(2)}<i class="kw-combo-track"><i style="width:${ratio}%"></i></i></span>`:"";
@@ -599,9 +621,35 @@ function labHTML(){
   <button type="button" class="wide-button" data-organizer="priceLab">刹那の価格シミュレーター</button><div class="row-grid">${actions.map(([id,t])=>`<button class="wide-button" data-lab="${id}">${t}</button>`).join("")}</div><p class="tiny">崩壊前に「宇宙 → 資源」でA/Bを選択。圧力10単位で×1.1は検証用の仮式。安定の残留対象は未決定なので、破壊処理には適用していません。</p>
   <a class="link-button" href="./">通常プレイに戻る</a>`;
 }
+
+function commonInfoHTML(){
+  const metrics=[
+    ["存在量",G.existence(state),""],
+    ["生成速度",G.production(state)," オーブ/秒"],
+    ["BOOST残量",state.boost.seconds," 秒"]
+  ];
+  return `<section class="common-info-detail" aria-label="全ステージ共通情報の詳細">
+    <p class="panel-intro">共通情報バーの数値は科学表記・有効数字3桁です。各ステージ固有の資源と操作はステージ画面に表示します。</p>
+    ${metrics.map(([label,value,unit])=>`<div class="kw-card"><span>${esc(label)}</span><strong>${esc(formatScientific3(value))}${esc(unit)}</strong></div>`).join("")}
+    <button type="button" class="wide-button" data-action="return-stage-panel">ステージ操作に戻る</button>
+  </section>`;
+}
 function renderPanel(force=false){
   if(sheetState==="closed")return;
   const now=Date.now();
+  if(infoPanelOpen){
+    if(!force&&(now-lastPanelRender<1700||now-lastInteraction<700))return;
+    lastPanelRender=now;
+    $("childTabs").hidden=true;
+    $("sheetHeading").textContent="共通情報";
+    $("purchaseToolbar").hidden=true;
+    $("purchaseCycle").hidden=true;
+    const body=$("sheetBody");
+    body.innerHTML=commonInfoHTML();
+    body.dataset.sub="commonInfo";
+    return;
+  }
+  $("childTabs").hidden=false;
   // Currency/affordability is patched on the existing buttons every UI tick.
   // Do not rebuild the purchase cards while earning resources or holding a finger.
   if(!force&&(holdPurchase||currentSub==="proposals"||currentStage==="existence"&&["moment","sources"].includes(currentSub)))return;
@@ -867,6 +915,19 @@ function download(text,name,type="application/json"){
 }
 async function dispatchAction(action){
   if(action==="organizer"){openOrganizer();return;}
+  if(action==="open-common-info"){
+    stopHoldPurchase(null,true);
+    infoPanelOpen=true;
+    if(sheetState==="closed")setSheet("half");
+    else renderPanel(true);
+    return;
+  }
+  if(action==="return-stage-panel"){
+    stopHoldPurchase(null,true);
+    infoPanelOpen=false;
+    renderPanel(true);
+    return;
+  }
   if(action==="run-price-lab"||action==="run-price-lab-compare"){
     if(mode!=="lab")return toast("検証モードでのみ使用できます");
     try{

@@ -1,5 +1,5 @@
 /* Versioned, scope-specific cache. Does not delete saves or another app's cache. */
-const VERSION = "3.21.0-astral-navigation";
+const VERSION = "3.22.0-shared-info";
 const PREFIX = "kotowari-handoff:" + new URL(self.registration.scope).pathname + ":";
 const CACHE = PREFIX + VERSION;
 const RELATIVE = [
