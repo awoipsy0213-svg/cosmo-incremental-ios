@@ -55,7 +55,9 @@ try{
   await input.uncheck();
   const stored=await page.evaluate(()=>JSON.parse(localStorage.getItem("kotowari_v31_normal")).data);
   assert.equal(stored.settings.hapticTap,false,"haptic preference not saved");
-  assert.equal(stored.boost.accounting.earned,125);
+  // Boot resumes a few milliseconds of real offline time after the fixture.
+  assert.ok(stored.boost.accounting.earned>=125&&stored.boost.accounting.earned<126,
+    "unexpected extra BOOST accounting after startup: "+stored.boost.accounting.earned);
   assert.ok(stored.boost.accounting.entries.some(x=>x.note==="現実オフライン"));
   assert.deepEqual(errors,[]);
   console.log("PASS v326",name,"combo milestones, source resonance, BOOST audit and haptic persistence");
