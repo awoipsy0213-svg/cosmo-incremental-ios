@@ -59,6 +59,7 @@ const CORE_FILES = [
   "universe-progression-v316.mjs",
   "universe-interference-v318.mjs",
   "telemetry-v319.mjs",
+  "source-effects-v315.mjs",
   "engraving-rules-v317.mjs",
   "purchase-insights.mjs",
   "moment-filter.mjs",
