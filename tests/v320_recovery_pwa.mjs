@@ -103,6 +103,8 @@ test("UI never exports a generated empty placeholder while protected",()=>{
   assert.ok(app.includes('if(store.blocked)return toast("主セーブ保護中です'));
   assert.ok(app.includes("保護中の主セーブをそのまま救出"));
   assert.ok(app.includes("store.restoreBackup"));
+  assert.ok(app.includes("candidate=decode(x.raw,mode)"));
+  assert.ok(app.includes("この履歴を選択して復元"));
   assert.ok(app.includes("report.elapsed<10"));
 });
 test("snapshot quota failure does not negate the successfully saved primary progress (U-32)",()=>{
