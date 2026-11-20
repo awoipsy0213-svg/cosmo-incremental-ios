@@ -888,6 +888,7 @@ async function dispatchAction(action){
   }
   if(action==="cycle-buy-mode"){
     if(readOnly)return toast("読み取り専用のため切り替えできません");
+    stopHoldPurchase(null,true);
     const modes=["1","10","NEXT","MAX"];
     G.setPurchaseMode(state,modes[(modes.indexOf(state.purchaseMode)+1)%modes.length]);
     save();renderPanel(true);return;
