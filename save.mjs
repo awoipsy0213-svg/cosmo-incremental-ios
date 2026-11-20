@@ -191,19 +191,33 @@ export class SaveStore {
     }
     const previousRevision=state.revision||0;
     state.revision=Math.max(previousRevision,this.expectedRevision)+1;
+    let text;
+    // U-32: atomic primary save must not be treated as failed merely because
+    // an optional snapshot could not fit into localStorage.
     try{
-      const text=encode(state,this.writer);
+      text=encode(state,this.writer);
       this.storage.setItem(this.key,text);
       if(this.storage.getItem(this.key)!==text)throw Error("保存した内容を確認できません");
-      this.expectedRevision=state.revision;this.lastError="";
-      if(snapshot||Date.now()-this.lastSnapshot>600000){
+    }catch(e){
+      state.revision=previousRevision;this.lastError=e.message;throw e;
+    }
+    this.expectedRevision=state.revision;this.lastError="";
+    const now=Date.now();
+    if(snapshot||(now-this.lastSnapshot>600000&&now-(this.lastBackupAttempt||0)>60000)){
+      this.lastBackupAttempt=now;
+      try{
         const list=this.backups();
-        list.unshift({at:Date.now(),raw:text});
-        this.storage.setItem(this.key+".backups",JSON.stringify(list.slice(0,3)));
-        this.lastSnapshot=Date.now();
+        list.unshift({at:now,raw:text});
+        const history=JSON.stringify(list.slice(0,3));
+        this.storage.setItem(this.key+".backups",history);
+        if(this.storage.getItem(this.key+".backups")!==history)
+          throw Error("保存履歴を検証できません");
+        this.lastSnapshot=now;
+      }catch(e){
+        this.lastError="保存履歴の更新に失敗しましたが、進捗本体は保存済みです："+e.message;
       }
-      return true;
-    }catch(e){state.revision=previousRevision;this.lastError=e.message;throw e;}
+    }
+    return true;
   }
   backups(){
     try{
