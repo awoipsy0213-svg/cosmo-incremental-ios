@@ -196,7 +196,9 @@ body[data-cosmo-stage="4"] .matrix-hero-cube{
   box-shadow:0 0 34px #5ae3b1b0,inset 0 0 37px #a1ffe3a3
 }
 body[data-cosmo-stage="4"] .matrix-hero-cube span{color:#e8fff9;text-shadow:0 0 16px #4bdfac}
-body.sheet-open .world-bottom{visibility:visible!important;bottom:2px}
+/* Keep the interaction artwork in the space ABOVE the half-screen upgrade sheet. */
+body.sheet-open #touchField.cosmic-scene{inset:0 0 42dvh}
+body.sheet-open .world-bottom{visibility:visible!important;bottom:calc(42dvh + 3px)}
 body.sheet-open #convergeMain{display:none!important}
 body.sheet-open .world-hint{
   color:#eafcff;font:700 13px/1.25 -apple-system,sans-serif;
@@ -305,6 +307,8 @@ body.is-intro .active-stage-title{display:none!important}
   .scene-sidebar{padding:4px}
   .world-hint{font-size:10px!important}
   body.sheet-open .kw-sheet[data-state="half"]{height:40dvh}
+  body.sheet-open #touchField.cosmic-scene{inset:0 0 40dvh}
+  body.sheet-open .world-bottom{bottom:calc(40dvh + 2px)}
 }
 @media(min-width:560px){
   .common-info-bar{height:60px;grid-template-columns:repeat(6,minmax(0,1fr));grid-template-rows:1fr}
