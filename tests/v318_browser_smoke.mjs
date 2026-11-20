@@ -64,7 +64,7 @@ try {
     assert.ok(await page.locator('[data-stage="universe"]').count(),label+" fixture stage absent: "+JSON.stringify(diagnostics));
     await page.locator("#commonInfoBar").waitFor({state:"visible"});
     assert.equal(await page.locator("#commonInfoBar button").count(),3);
-    assert.match(await page.locator('[data-common-value="existence"]').textContent(),/^\\d+\\.\\d{2}e[+-]\\d+$/);
+    assert.match(await page.locator('[data-common-value="existence"]').textContent(),/^[0-9]+[.][0-9]{2}e[+-][0-9]+$/);
     await page.locator("#commonInfoBar button").first().click();
     assert.equal(await page.locator("#sheetHeading").textContent(),"共通情報");
     assert.match(await page.locator("#sheetBody").textContent(),/生成速度/);
