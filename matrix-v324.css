@@ -319,3 +319,66 @@ body.is-intro .active-stage-title{display:none!important}
 }
 body.reduced-motion .matrix-hero-cube,body.low-power .matrix-hero-cube{animation:none!important}
 @media(prefers-reduced-motion:reduce){.matrix-hero-cube{animation:none!important}}
+
+/* I-40: a confirmation must remain fully usable on very short/narrow phone screens.
+ * Only the middle text scrolls; the buttons stay visible at the bottom of the dialog.
+ * This is a UI constraint and changes neither purchase amounts nor save behavior. */
+.confirm-dialog{
+  position:fixed;
+  inset:0;
+  margin:auto;
+  box-sizing:border-box;
+  width:min(430px,calc(100vw - 20px));
+  max-width:calc(100vw - 20px);
+  max-height:calc(100vh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px) - 16px);
+  max-height:calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px) - 16px);
+  padding:clamp(10px,3.5vw,20px);
+  overflow:hidden;
+  overscroll-behavior:contain;
+}
+.confirm-dialog[open]{
+  display:flex;
+  flex-direction:column;
+}
+.confirm-dialog #confirmTitle{
+  min-width:0;
+  flex:0 0 auto;
+  margin:0 0 10px;
+  line-height:1.3;
+  overflow-wrap:anywhere;
+}
+.confirm-dialog #confirmText{
+  flex:1 1 auto;
+  min-height:0;
+  margin:0;
+  padding:0 6px 0 0;
+  overflow-x:hidden;
+  overflow-y:auto;
+  overflow-wrap:anywhere;
+  word-break:normal;
+  line-height:1.5;
+  scrollbar-width:thin;
+  overscroll-behavior:contain;
+}
+.confirm-dialog .dialog-actions{
+  flex:0 0 auto;
+  display:flex;
+  gap:8px;
+  margin:12px 0 0;
+  padding:12px 0 0;
+  border-top:1px solid rgba(126,195,243,.28);
+}
+.confirm-dialog .dialog-actions button{
+  min-width:0;
+  min-height:44px;
+  flex:1 1 0;
+  overflow-wrap:anywhere;
+  white-space:normal;
+  padding:7px 6px;
+}
+@media(max-height:450px){
+  .confirm-dialog{padding:9px 12px}
+  .confirm-dialog #confirmTitle{font-size:15px;margin-bottom:5px}
+  .confirm-dialog #confirmText{font-size:11px;line-height:1.3}
+  .confirm-dialog .dialog-actions{margin-top:7px;padding-top:7px}
+}
