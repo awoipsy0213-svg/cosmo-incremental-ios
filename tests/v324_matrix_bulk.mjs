@@ -7,9 +7,9 @@ import {CONFIG} from "../balance-config.mjs";
 const text=path=>readFileSync(new URL("../"+path,import.meta.url),"utf8");
 let count=0;
 function check(name,fn){fn();count++;console.log("PASS "+name);}
-check("Main/in-app data is still schema31 and the release is v3.25",()=>{
+check("Main/in-app data is still schema31 and the release is v3.26",()=>{
  const s=createState();
- assert.equal(CONFIG.version,"3.25.0");
+ assert.equal(CONFIG.version,"3.26.0");
  assert.equal(s.schemaVersion,31);
  assert.equal(KEYS.normal,"kotowari_v31_normal");
  assert.equal(KEYS.lab,"kotowari_v31_lab");
@@ -58,8 +58,8 @@ check("Quoted bulk and actual purchases preserve the same spend",()=>{
 check("Published SW and iOS copy include new CSS",()=>{
  const root=["app.mjs","index.html","balance-config.mjs","sw.js","stage-worlds.css","matrix-v324.css"];
  for(const name of root)assert.equal(text(name),text("www/"+name),name);
- assert.match(text("sw.js"),/3\.25\.0-boost-offline/);
+ assert.match(text("sw.js"),/3\.26\.0-confirmed-audit/);
  assert.match(text("sw.js"),/matrix-v324\.css/);
- assert.match(text("index.html"),/3\.25 · BOOST/);
+ assert.match(text("index.html"),/3\.26 · AUDIT/);
 });
-console.log("PASS "+count+" Ver3.25 matrix and bulk invariants");
+console.log("PASS "+count+" Ver3.26 matrix and bulk invariants");
