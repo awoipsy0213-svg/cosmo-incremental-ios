@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import {spawn} from "node:child_process";
 import {readFileSync} from "node:fs";
 import {chromium} from "@playwright/test";
+import {createState} from "../game.mjs";
+import {encode} from "../save.mjs";
 
 const port=process.env.KOTOWARI_RECOVERY_PORT||"8766";
 const publicRoot=process.env.KOTOWARI_SMOKE_BASE_URL||"";
@@ -18,9 +20,14 @@ try{
   assert.ok(alive,"test server unavailable");
   browser=await chromium.launch({headless:true});
   const recoveredContext=await browser.newContext({viewport:{width:375,height:812},acceptDownloads:true});
-  await recoveredContext.addInitScript(content=>{
-    localStorage.setItem("kotowari_v31_normal",content);
-  },raw);
+  const recoveredFixture=createState(1763600000000);recoveredFixture.intro.complete=true;
+  recoveredFixture.orbs="123";recoveredFixture.convergenceCount=5;
+  const good=encode(recoveredFixture,"recovery-browser-fixture");
+  await recoveredContext.addInitScript(payload=>{
+    localStorage.setItem("kotowari_v31_normal",payload.raw);
+    localStorage.setItem("kotowari_v31_normal.backups",
+      JSON.stringify([{at:1763600000000,raw:payload.good}]));
+  },{raw,good});
   const page=await recoveredContext.newPage(),errors=[];
   page.on("pageerror",e=>errors.push(String(e)));
   assert.equal((await page.goto(root,{waitUntil:"domcontentloaded"}))?.status(),200);
@@ -35,6 +42,17 @@ try{
   const dl=await ready;
   assert.equal(readFileSync(await dl.path(),"utf8"),raw);
   assert.equal(await page.evaluate(()=>localStorage.getItem("kotowari_v31_normal")),raw);
+  // I-34: compare history contents, choose explicitly, keep the corrupt raw.
+  assert.match(await page.locator(".backup-comparison").allTextContents().then(x=>x.join(" ")),/収束 5回/);
+  assert.equal(await page.locator('button[data-restore="0"]').isEnabled(),true);
+  await page.locator('button[data-restore="0"]').click();
+  assert.equal(await page.locator("#confirmDialog").evaluate(el=>el.open),true);
+  await page.locator("#confirmYes").click();
+  await page.waitForFunction(()=>{
+    try{return JSON.parse(localStorage.getItem("kotowari_v31_normal"))?.data?.convergenceCount===5;}
+    catch{return false;}
+  });
+  assert.equal(await page.evaluate(()=>localStorage.getItem("kotowari_v31_normal.before-import")),raw);
   assert.deepEqual(errors,[]);
   console.log("PASS browser broken-save: quarantined, raw export works, no blank backup, main untouched");
   await recoveredContext.close();
