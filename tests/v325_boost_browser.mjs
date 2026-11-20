@@ -29,6 +29,7 @@ try{
     return S.encode(s,"v325-boost-fixture");
   });
   await page.addInitScript(raw=>localStorage.setItem("kotowari_v31_normal",raw),fixture);
+  const reloadStartedAt=Date.now();
   await page.reload({waitUntil:"domcontentloaded"});
   await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
   const resumed=await page.evaluate(()=>{
@@ -39,11 +40,21 @@ try{
   assert.ok(resumed.boost.seconds>=999&&resumed.boost.seconds<1005,
     "expected 900s offline BOOST gained at startup: "+JSON.stringify(resumed.boost));
   assert.equal(resumed.boost.active,false);
-  assert.equal(resumed.orbs,"0");
-  assert.equal(resumed.totalOrbs,"0");
-  assert.equal(resumed.time.elapsed,0);
-  assert.equal(resumed.time.worldSeconds,0);
-  assert.equal(Number(resumed.universe.planets[0].stats.mass),10,"numeric mass must be frozen");
+  // The real page can tick online for a few milliseconds between resume and
+  // its save. Bound stage progress by that short foreground interval, not
+  // by the one-hour hidden period. The offline report itself must be exact 0.
+  const maxForegroundSeconds=(Date.now()-reloadStartedAt)/1000+0.5;
+  assert.ok(Number(resumed.orbs)>=0&&Number(resumed.orbs)<100*maxForegroundSeconds,
+    "stage currency grew during one-hour offline span: "+resumed.orbs);
+  assert.ok(Number(resumed.totalOrbs)>=0&&Number(resumed.totalOrbs)<100*maxForegroundSeconds,
+    "total currency grew during offline: "+resumed.totalOrbs);
+  assert.ok(resumed.time.elapsed<=maxForegroundSeconds,
+    "time stage grew beyond foreground-only duration");
+  assert.ok(resumed.time.worldSeconds<=maxForegroundSeconds/(24*3600)+1e-8,
+    "world clock advanced during offline");
+  const mass=Number(resumed.universe.planets[0].stats.mass);
+  assert.ok(mass>=10&&mass<10+maxForegroundSeconds/30,
+    "planet mass changed during offline: "+mass);
   assert.equal(resumed.telemetry.offlineReports.length,1);
   assert.equal(resumed.telemetry.offlineReports[0].orbs,"0");
   assert.equal(resumed.telemetry.offlineReports[0].effectiveSeconds,0);
