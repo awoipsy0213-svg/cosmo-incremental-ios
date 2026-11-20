@@ -36,7 +36,7 @@ check("Six global HUD values and stage-specific resource grid exist",()=>{
  assert.match(app,/stageRows=currentStage==="time"/);
  assert.match(app,/currentStage==="universe"/);
  assert.match(app,/currentStage==="life"/);
- assert.match(app,/state\.settings\.confirmBulkPurchase&&/);
+ assert.match(app,/if\(state\.settings\.confirmBulkPurchase\)\{/);
  assert.match(app,/state\.settings\.confirmMaxPurchase&&/);
 });
 check("Compact cards keep their name, level, current effect, next value and purchase cost",()=>{
