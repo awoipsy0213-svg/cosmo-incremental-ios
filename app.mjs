@@ -4,7 +4,7 @@ import {KNOWLEDGE_IDS,KNOWLEDGE_NAMES,knowledgeLevel,coreRequirements,autoPlanet
 import {engravingCatalogue,engravingSlots,engravingPurchaseQuote,ENGRAVING_AUTO_CONVERGE_ID} from "./engraving-rules-v317.mjs";
 import {TELEMETRY_LIMITS,consecutiveOrbGains} from "./telemetry-v319.mjs";
 import {compareMomentPrice,compareMomentPriceProfiles,exportPriceReport,PRICE_MODEL_VERSION} from "./price-lab.mjs";
-import {MOMENT_GROUP_NAMES,cleanMomentPrefs,toggleMomentFavorite,momentVisible} from "./moment-filter.mjs";
+import {MOMENT_GROUP_NAMES,cleanMomentPrefs,toggleMomentFavorite,moveMomentFavorite,momentVisible} from "./moment-filter.mjs";
 import {CONTENT} from "./content.mjs";
 import {PROPOSED,PLANET_EFFECT_PROPOSALS,resourcePrototype,trialPreview,boostTrialCost,proposedSourceSlots,FIRST_CONCEPT_PROPOSALS} from "./design-proposals.mjs";
 import {A,formatAmount} from "./numbers.mjs";
@@ -197,7 +197,11 @@ function momentControls(){
        <option value="favorites" ${prefs.momentFilter==="favorites"?"selected":""}>お気に入り</option>
      </select></label>
    </div>
-   <div class="moment-fav-pins">${prefs.momentFavorites.map(id=>{const x=CONTENT.moment.find(x=>x.id===id);return x?`<button type="button" data-moment-shortcut="${id}" title="${esc(x.name)}">★ ${esc(x.name)}</button>`:"";}).join("")}</div>
+   <div class="moment-fav-pins" aria-label="お気に入りの順番">${prefs.momentFavorites.map((id,i)=>{const x=CONTENT.moment.find(x=>x.id===id);return x?`<div class="favorite-pin">
+     <button type="button" data-moment-shortcut="${id}" title="${esc(x.name)}を表示">★ ${esc(x.name)}</button>
+     <button type="button" data-moment-move="${id}" data-direction="-1" aria-label="${esc(x.name)}を前に移動" title="前へ" ${i===0?"disabled":""}>‹</button>
+     <button type="button" data-moment-move="${id}" data-direction="1" aria-label="${esc(x.name)}を後ろに移動" title="後ろへ" ${i===prefs.momentFavorites.length-1?"disabled":""}>›</button>
+     </div>`:"";}).join("")}</div>
    <small data-moment-filter-count aria-live="polite"></small>
  </section>`;
 }
@@ -1034,6 +1038,15 @@ document.addEventListener("click",async e=>{
       const next=toggleMomentFavorite(state.settings.momentFavorites,b.dataset.momentFavorite,MOMENT_PREF_IDS);
       if(!next.changed)return toast(next.error==="limit"?"お気に入りは5項目までです":"対象が見つかりません");
       state.settings.momentFavorites=next.favorites;save();renderPanel(true);return;
+    }
+    if(b.dataset.momentMove){
+      if(readOnly||store.blocked)return toast("読み取り専用です");
+      const result=moveMomentFavorite(state.settings.momentFavorites,b.dataset.momentMove,Number(b.dataset.direction),MOMENT_PREF_IDS);
+      if(!result.changed)return toast("これ以上順番を移動できません");
+      state.settings.momentFavorites=result.favorites;
+      save();renderPanel(true);
+      $("sheetBody").querySelector(`[data-moment-move="${b.dataset.momentMove}"][data-direction="${b.dataset.direction}"]`)?.focus({preventScroll:true});
+      return;
     }
     if(b.dataset.momentShortcut){
       if(readOnly||store.blocked)return toast("読み取り専用です");
