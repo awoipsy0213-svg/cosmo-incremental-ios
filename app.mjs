@@ -931,7 +931,7 @@ async function dispatchAction(action){
     if(text)download(text,"kotowari-legacy-archive.json");else toast("退避した旧データはありません");return;
   }
   if(action==="export-corrupt"){
-    const text=storage.getItem(store.key+".corrupt")||storage.getItem(store.key)||storage.getItem(KEYS.legacy);
+    const text=storage.getItem(store.key)||storage.getItem(store.key+".corrupt")||storage.getItem(KEYS.legacy);
     if(text)download(text,"kotowari-recovery-original.txt","text/plain");return;
   }
   if(readOnly){toast("別のタブが編集中です。ほかのゲーム画面を閉じてから再読み込みしてください。");return;}
