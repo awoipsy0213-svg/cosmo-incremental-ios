@@ -4,7 +4,7 @@ import {KNOWLEDGE_IDS,KNOWLEDGE_NAMES,knowledgeLevel,coreRequirements,autoPlanet
 import {engravingCatalogue,engravingSlots,engravingPurchaseQuote,ENGRAVING_AUTO_CONVERGE_ID} from "./engraving-rules-v317.mjs";
 import {TELEMETRY_LIMITS,consecutiveOrbGains} from "./telemetry-v319.mjs";
 import {compareMomentPrice,compareMomentPriceProfiles,exportPriceReport,PRICE_MODEL_VERSION} from "./price-lab.mjs";
-import {MOMENT_GROUP_NAMES,cleanMomentPrefs,toggleMomentFavorite,momentVisible} from "./moment-filter.mjs";
+import {MOMENT_GROUP_NAMES,cleanMomentPrefs,toggleMomentFavorite,moveMomentFavorite,momentVisible} from "./moment-filter.mjs";
 import {CONTENT} from "./content.mjs";
 import {PROPOSED,PLANET_EFFECT_PROPOSALS,resourcePrototype,trialPreview,boostTrialCost,proposedSourceSlots,FIRST_CONCEPT_PROPOSALS} from "./design-proposals.mjs";
 import {A,formatAmount} from "./numbers.mjs";
@@ -104,6 +104,7 @@ function applySettings(){
   // Legacy affordableOnly setting is ignored; all upgrades remain visible.
 }
 function setSheet(which){
+  stopHoldPurchase(null,true);
   sheetState=which;$("sheet").dataset.state=which;$("sheet").hidden=which==="closed";
   document.body.classList.toggle("sheet-open",which!=="closed");
   $("expandButton").textContent=which==="full"?"↙":"↗";
@@ -112,6 +113,7 @@ function setSheet(which){
 }
 function setStage(id){
   if(!availableStages().some(x=>x.id===id))return;
+  stopHoldPurchase(null,true);
   if(currentStage===id&&sheetState!=="closed"){setSheet("closed");return;}
   currentStage=id;
   currentSub=CONTENT.stages.find(x=>x.id===id).children[0];
@@ -121,10 +123,12 @@ function availableStages(){
   return CONTENT.stages.filter(x=>x.id==="existence"?state.intro.complete:x.id==="time"?state.time.unlocked:x.id==="universe"?state.universe.unlocked:state.life.unlocked);
 }
 function openOrganizer(){
+  stopHoldPurchase(null,true);
   $("organizerLinks").innerHTML=organizerItems.map(id=>`<button data-organizer="${id}">${esc(childNames[id])}<span>›</span></button>`).join("");
   $("organizerDrawer").showModal();
 }
 function openOrganizerPage(id){
+  stopHoldPurchase(null,true);
   $("organizerDrawer").close();
   currentStage="organizer";currentSub=id;setSheet("half");render(true);
 }
@@ -197,7 +201,11 @@ function momentControls(){
        <option value="favorites" ${prefs.momentFilter==="favorites"?"selected":""}>お気に入り</option>
      </select></label>
    </div>
-   <div class="moment-fav-pins">${prefs.momentFavorites.map(id=>{const x=CONTENT.moment.find(x=>x.id===id);return x?`<button type="button" data-moment-shortcut="${id}" title="${esc(x.name)}">★ ${esc(x.name)}</button>`:"";}).join("")}</div>
+   <div class="moment-fav-pins" aria-label="お気に入りの順番">${prefs.momentFavorites.map((id,i)=>{const x=CONTENT.moment.find(x=>x.id===id);return x?`<div class="favorite-pin">
+     <button type="button" data-moment-shortcut="${id}" title="${esc(x.name)}を表示">★ ${esc(x.name)}</button>
+     <button type="button" data-moment-move="${id}" data-direction="-1" aria-label="${esc(x.name)}を前に移動" title="前へ" ${i===0?"disabled":""}>‹</button>
+     <button type="button" data-moment-move="${id}" data-direction="1" aria-label="${esc(x.name)}を後ろに移動" title="後ろへ" ${i===prefs.momentFavorites.length-1?"disabled":""}>›</button>
+     </div>`:"";}).join("")}</div>
    <small data-moment-filter-count aria-live="polite"></small>
  </section>`;
 }
@@ -799,17 +807,19 @@ document.addEventListener("pointerdown",()=>lastInteraction=Date.now(),{passive:
 $("sheetBody").addEventListener("scroll",()=>lastInteraction=Date.now(),{passive:true});
 // Manual press-and-hold: each purchase is individually quoted and deducted
 // through the normal G.buy transaction. No unattended or background macro.
-function stopHoldPurchase(evt=null){
+function stopHoldPurchase(evt=null,cancelClick=false){
   const h=holdPurchase;
   if(!h||evt&&evt.pointerId!==h.pointerId)return;
+  // End the transaction before redrawing the panel or changing stage. A delayed
+  // timer must never continue buying against a stale target after navigation.
+  holdPurchase=null;
   clearTimeout(h.timer);clearInterval(h.repeat);
   h.button?.classList.remove("holding-purchase");
-  if(h.started){
+  if(h.started||cancelClick)
     skipClickFor={key:h.kind+":"+h.id,until:Date.now()+650};
-    if(h.bought)save();
-    render(true);
-  }
-  holdPurchase=null;
+  if(h.bought)save();
+  // Navigation will render its destination once; don't redraw the old sheet.
+  if(h.started&&!cancelClick)render(true);
 }
 function buyWhileHeld(h){
   if(h!==holdPurchase||readOnly||store.blocked||document.hidden||!state?.settings.holdToBuy)return;
@@ -844,7 +854,9 @@ window.addEventListener("pointermove",e=>{
   const h=holdPurchase;
   if(h&&h.pointerId===e.pointerId&&Math.hypot(e.clientX-h.x,e.clientY-h.y)>13)stopHoldPurchase(e);
 },{passive:true});
-for(const ev of ["pointerup","pointercancel"]){window.addEventListener(ev,e=>stopHoldPurchase(e));}
+window.addEventListener("pointerup",e=>stopHoldPurchase(e));
+window.addEventListener("pointercancel",e=>stopHoldPurchase(e,true));
+window.addEventListener("blur",()=>stopHoldPurchase(null,true));
 function resultDone(res,successText=null){
   if(!res?.ok){toast(res?.reason||"この操作は実行できません");return false;}
   save();render(true);if(successText)toast(successText);return true;
@@ -876,6 +888,7 @@ async function dispatchAction(action){
   }
   if(action==="cycle-buy-mode"){
     if(readOnly)return toast("読み取り専用のため切り替えできません");
+    stopHoldPurchase(null,true);
     const modes=["1","10","NEXT","MAX"];
     G.setPurchaseMode(state,modes[(modes.indexOf(state.purchaseMode)+1)%modes.length]);
     save();renderPanel(true);return;
@@ -1022,7 +1035,7 @@ document.addEventListener("click",async e=>{
   const b=e.target.closest("button,a");if(!b)return;
   try{
     if(b.dataset.stage){setStage(b.dataset.stage);return;}
-    if(b.dataset.child){currentSub=b.dataset.child;renderPanel(true);return;}
+    if(b.dataset.child){stopHoldPurchase(null,true);currentSub=b.dataset.child;renderPanel(true);return;}
     if(b.dataset.organizer){openOrganizerPage(b.dataset.organizer);return;}
     if(b.dataset.momentGroupSelect!==undefined){
       if(readOnly||store.blocked)return toast("読み取り専用です");
@@ -1034,6 +1047,15 @@ document.addEventListener("click",async e=>{
       const next=toggleMomentFavorite(state.settings.momentFavorites,b.dataset.momentFavorite,MOMENT_PREF_IDS);
       if(!next.changed)return toast(next.error==="limit"?"お気に入りは5項目までです":"対象が見つかりません");
       state.settings.momentFavorites=next.favorites;save();renderPanel(true);return;
+    }
+    if(b.dataset.momentMove){
+      if(readOnly||store.blocked)return toast("読み取り専用です");
+      const result=moveMomentFavorite(state.settings.momentFavorites,b.dataset.momentMove,Number(b.dataset.direction),MOMENT_PREF_IDS);
+      if(!result.changed)return toast("これ以上順番を移動できません");
+      state.settings.momentFavorites=result.favorites;
+      save();renderPanel(true);
+      $("sheetBody").querySelector(`[data-moment-move="${b.dataset.momentMove}"][data-direction="${b.dataset.direction}"]`)?.focus({preventScroll:true});
+      return;
     }
     if(b.dataset.momentShortcut){
       if(readOnly||store.blocked)return toast("読み取り専用です");
@@ -1052,7 +1074,7 @@ document.addEventListener("click",async e=>{
     if(readOnly){toast("別タブの書き込みを保護中です");return;}
     if(store.blocked && b.dataset.restore===undefined){toast("元セーブを保護中です。「保存」から復元してください。");return;}
     checkpoint();
-    if(b.dataset.buyMode){G.setPurchaseMode(state,b.dataset.buyMode);save();renderPanel(true);return;}
+    if(b.dataset.buyMode){stopHoldPurchase(null,true);G.setPurchaseMode(state,b.dataset.buyMode);save();renderPanel(true);return;}
     if(b.dataset.purchase){
       if(skipClickFor&&skipClickFor.key===b.dataset.purchase+":"+b.dataset.id&&Date.now()<skipClickFor.until){skipClickFor=null;return;}
       if(readOnly||store.blocked)return toast("読み取り専用のため購入できません");
@@ -1165,7 +1187,7 @@ document.addEventListener("input",e=>{lastInteraction=Date.now();if(e.target.id=
   if(e.target.id==="momentSearch"){momentSearch=e.target.value.slice(0,60);refreshMomentVisibility();}
 });
 function hidePage(){
-  stopHoldPurchase();
+  stopHoldPurchase(null,true);
   if(!state||readOnly||store.blocked)return;
   const now=Date.now();G.advance(state,now,{offline:false});hiddenAt=now;state.boost.active=false;
   save();

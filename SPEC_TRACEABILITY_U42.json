@@ -1,0 +1,2968 @@
+{
+  "title": "《理》U-42：Ver3.20からの開発差分・確認可能な回答ID追跡",
+  "generatedAt": "2026-11-19",
+  "reportedAnswerTotal": 1440,
+  "sourceMatchedDecisionIds": 300,
+  "unreconciledAnswerCountAtLeast": 1140,
+  "note": "本台帳の300件はアクセスできる150件のGitHub原文要旨＋会話中のU18〜U20の各50問（グループ要旨）だけです。その他を未決定扱い・実装済み扱いしてはいけません。実装率の正確な分母・分子は回答原文照合前のため未算出。",
+  "statuses": "各行currentStatusはテスト完了認定ではない。statusがlogic-testedでもUI/実機/オフライン等の総合検証は別",
+  "records": [
+    {
+      "id": "U-01",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "正式仕様との競合は明示改訂のみ",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-02",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "基礎仕様との重複を照合",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-03",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "未回答の旧第13回案は保留",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-04",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "第1〜7回の原文未照合を表示",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-05",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "旧案と変更理由の履歴を維持",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-06",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "MAXは1操作3000Lv、明示的に再実行",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-07",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "購入レベルごとの費用を正しく合算",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-08",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "長押しは×1・×10限定",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-09",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "MAX消費90%以上は事前確認",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-10",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "一括購入は全件/表示中選択と金額確認",
+      "oldAssessment": null,
+      "currentStatus": "implemented; node+browser automated verification",
+      "testedEvidence": [
+        "tests/v319_bulk.mjs",
+        "tests/v318_browser_smoke.mjs"
+      ],
+      "v319SpecificationNote": "一括購入は全件または現在表示中の強化ID集合を指定し、実行前に件数・消費・残高を確認。確認後に再見積。",
+      "implementationEvidence": [
+        "game.mjs:quoteBuyAll/buyAll",
+        "app.mjs:buy-all",
+        "index.html:bulkScopeButton"
+      ],
+      "previousSourceSummaryRetained": true
+    },
+    {
+      "id": "U-11",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "旧6項目のIDとLvは保持し新24項目Lv0",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-12",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "バックアップ成功後のみセーブ移行",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": [],
+      "v320Status": "実装済み／Nodeテスト済み（復元前の原本バックアップをバイト一致検証）",
+      "v320Code": "save.mjs:SaveStore.import",
+      "v320Test": "tests/v320_recovery_pwa.mjs"
+    },
+    {
+      "id": "U-13",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "通常と検証モードの相互上書きを禁止",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-14",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "構造とチェックサムを検証",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": [],
+      "v320Status": "実装済み／Nodeテスト済み（構造・チェックサム検証、破損原本を未上書き保護）",
+      "v320Code": "save.mjs:decode/load",
+      "v320Test": "tests/v320_recovery_pwa.mjs"
+    },
+    {
+      "id": "U-15",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "複数タブは単一書き手",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-16",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "収束で未払い循環予約を消去",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-17",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "累積収束回数を保持し原初回帰再購入が必要",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-18",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "奇跡履歴10件は収束後も保持",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-19",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "覚醒Lv購入前のタップ節目は遡及しない",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-20",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "時の圧縮は有効ゲーム時間",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-21",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "オフライン1800秒上限・効率補正を維持",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-22",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "10秒未満も報酬精算・通知省略",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": [],
+      "v320Status": "実装済み／画面テスト結果確認待ち（10秒未満は報告抑制、獲得精算は維持）",
+      "v320Code": "app.mjs:checkpoint/reportOffline",
+      "v320Test": "tests/v319_telemetry.mjs"
+    },
+    {
+      "id": "U-23",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "復帰多重イベントで報酬二重加算禁止",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-24",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "オフライン自律連撃は独立コンボ最大300",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-25",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "一時効果は終了区間で分割精算",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-26",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "会心100%超過は線形実効倍率",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-27",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "通常会心成功時のみ連鎖会心開始",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-28",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "源30×21節目を実到達で集計",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-29",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "専用巨大数型を保持し表示値は計算に使わない",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-30",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "各効果の計算順と二重適用を検査",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-31",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "統計は実オーブ付与から記録",
+      "oldAssessment": null,
+      "currentStatus": "implemented; node verified",
+      "testedEvidence": [
+        "tests/v319_telemetry.mjs"
+      ],
+      "v319SpecificationNote": "統計値は実際に加算された累計オーブ値から取得。",
+      "implementationEvidence": [
+        "game.mjs:addOrbs/advance/tap",
+        "telemetry-v319.mjs:sampleActualOrbs"
+      ],
+      "previousSourceSummaryRetained": true
+    },
+    {
+      "id": "U-32",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "倍率効果の増分を非重複で集計",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-33",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "直近10分は5秒毎120点",
+      "oldAssessment": null,
+      "currentStatus": "implemented; node verified",
+      "testedEvidence": [
+        "tests/v319_telemetry.mjs"
+      ],
+      "v319SpecificationNote": "直近10分間・5秒刻み最大120計測点。未測定期間を補間しない。",
+      "implementationEvidence": [
+        "telemetry-v319.mjs:consecutiveOrbGains",
+        "app.mjs:statisticsHTML"
+      ],
+      "previousSourceSummaryRetained": true
+    },
+    {
+      "id": "U-34",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "通常150・奇跡10・オフライン10・周回20の履歴",
+      "oldAssessment": null,
+      "currentStatus": "implemented in recorded classes; native device verification pending",
+      "testedEvidence": [
+        "tests/v319_telemetry.mjs",
+        "tests/v39_setsuna_210.mjs"
+      ],
+      "v319SpecificationNote": "通常イベント150件・刹那奇跡10件（既存）・オフライン10件・収束20件の上限を区別。",
+      "implementationEvidence": [
+        "game.mjs:event/advance/converge",
+        "telemetry-v319.mjs:recordOfflineReport/recordConvergence"
+      ],
+      "previousSourceSummaryRetained": true
+    },
+    {
+      "id": "U-35",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "統計移行はデフォルト補完かバックアップ",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-36",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "価格試算は開始残高を除いた純増を比較",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-37",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "試算外要素を明示した参考値",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-38",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "候補価格は検証用・通常セーブから分離",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-39",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "24項目価格は価格表確認後の明示承認待ち",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-40",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "予測と実績の差を検証して決定",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-41",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "刹那6系統は前回選択を復元",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-42",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "お気に入り並び順を保存し収束後維持",
+      "oldAssessment": null,
+      "currentStatus": "implemented-and-tested-in-feature-branch; main-not-merged",
+      "testedEvidence": [
+        "tests/v321_favorite_order.mjs",
+        "tests/v318_browser_smoke.mjs"
+      ],
+      "implementationEvidence": [
+        "moment-filter.mjs:moveMomentFavorite",
+        "app.mjs:momentControls/momentMove",
+        "astral-observatory.css:favorite-pin"
+      ],
+      "scopeNote": "5件以内のお気に入りの移動操作、保存順表示、収束後保持。新しいゲーム効果・価格・セーブスキーマは変更しない。",
+      "ciRun": "https://github.com/awoipsy0213-svg/cosmo-incremental-ios/actions/runs/44648768639"
+    },
+    {
+      "id": "U-43",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "購入モードを保持し画面移動で長押し中断",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-44",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "描画演出だけ減らし獲得計算保持",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-45",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "多指タップは専用領域限定",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-46",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "WebルートとiOS wwwのハッシュ一致を確認",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": [],
+      "v320Status": "実装済み／CIハッシュ一致確認待ち（rootとwww同期、PWA必須依存）",
+      "v320Code": "sw.js:CORE_FILES",
+      "v320Test": "tests/v320_recovery_pwa.mjs"
+    },
+    {
+      "id": "U-47",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "テスト件数を仕様達成件数と同一視しない",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-48",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "iPhone実機未検証を区別",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-49",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "不具合修正・回帰検証後にGitHub統合",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U-50",
+      "source": "KOTOWARI_U01_U50_UNIFIED_DECISIONS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "500件で仕様・コード・テスト・未実装を照合",
+      "oldAssessment": null,
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-01",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "30源が各1回Lv100万到達すると＋循環解放",
+      "oldAssessment": "部分実装・要実機検証",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-02",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "一巡解放は収束後も永続",
+      "oldAssessment": "部分実装・要実機検証",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-03",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "各源の＋値は保持、通常Lvは収束リセット",
+      "oldAssessment": "部分実装・要実機検証",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-04",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "未解放時は残り源数を表示",
+      "oldAssessment": "部分実装・要実機検証",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-05",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "＋値の正式生産倍率は別途保留",
+      "oldAssessment": "数値保留（正しい動作）",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-06",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "21節目への7効果割当は個別設計",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-07",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "源5 Lv10旧例は未決定として隔離",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-08",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "源個別効果未設計は？？？で保留",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-09",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "＋循環で取得済み特殊効果を重複付与しない",
+      "oldAssessment": "部分実装・要実機検証",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-10",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "効果取得履歴と現在節目を分離",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-11",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "刻印価格未決定は通常購入停止",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-12",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "源＋値と刻印による保持を別状態",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-13",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "自動収束は刻印条件確定後に解放",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-14",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "刻印再編は費用・差分・復元を事前確認",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-15",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "刻印同時スロット数は未決定として保留",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-16",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "6方向の重み合計は100%以内",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-17",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "配分変更は変更後のみ有効",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-18",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "概念取得と残滓消費は原子的に実行",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-19",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "共通残滓・個別残滓は区別",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-20",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "世界時間1秒到達でも次ステージは任意選択",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-21",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "惑星15ステータスの未確定効果は？？？",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-22",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "42資源の内部IDを保持",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-23",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "崩壊報酬は方式比較後に確定",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-24",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "生命解放条件未決定なら保留",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-25",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "惑星IDで個別資源・状態を復元",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-26",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "BOOSTとオフライン効率の重複禁止",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-27",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "時刻逆戻りの負の経過は0",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-28",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "周期の端数時間を保存",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-29",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "オンライン経過を1800秒制限しない",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-30",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "精算済み位置から未確定部分のみ計算",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-31",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "未対応の旧形式は原本保護して拒否",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": [],
+      "v320Status": "実装済み／Nodeテスト済み（未知・破損形式の自動置換を禁止）",
+      "v320Code": "save.mjs:SaveStore.load",
+      "v320Test": "tests/v320_recovery_pwa.mjs"
+    },
+    {
+      "id": "I-32",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "容量不足時は進捗本体を優先",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": [],
+      "v320Status": "実装済み／Node回帰対象：履歴保存だけ容量不足なら進捗本体を保存済みとして維持し警告を提示",
+      "v320Code": "save.mjs:SaveStore.write;app.mjs:save/snapshot",
+      "v320Test": "tests/v320_recovery_pwa.mjs"
+    },
+    {
+      "id": "I-33",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "検証価格と通常セーブを分離",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-34",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "バックアップ候補を比較して選択",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": [],
+      "v320Status": "実装済み／Node・Chromium検証対象：各履歴の形式・余剰存在・オーブ・収束・源Lv・概念・惑星数を比較して明示復元",
+      "v320Code": "save.mjs:SaveStore.backups/restoreBackup;app.mjs:backupHTML",
+      "v320Test": "tests/v320_recovery_pwa.mjs;tests/v320_browser_recovery.mjs"
+    },
+    {
+      "id": "I-35",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "源＋値と解放履歴をIDに紐づけて保持",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-36",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "MAX3000Lv後は明示的な再操作",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-37",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "刹那NEXT節目未決定は停止・他モード有効",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-38",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "画面移動で長押しを停止",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-39",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "演出だけ集約し獲得は保持",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-40",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "小画面でも購入確認を隠さない",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-41",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "源一巡0/29/30達成と突破後の検査",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-42",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "MAX2999/3000/3001境界の検査",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-43",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "源特殊効果重複付与を検査",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-44",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "旧データ欠落・破損・モードの検査",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-45",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "分割更新と一括更新の獲得一致を検査",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-46",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "500件で仕様・コード・テスト・未実装を横断照合",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-47",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "回答件数と固有仕様件数を分離",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-48",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "進行停止・データ保護・確定効果を優先",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-49",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "1チャット内で工程状態を区別",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "I-50",
+      "source": "KOTOWARI_I01_I50_500_MILESTONE_AUDIT.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "実機とビルドの未検証を別管理",
+      "oldAssessment": "未実装または別途照合",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-01",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "＋倍率：対象源自身の基礎生産",
+      "oldAssessment": "実装済み（実機未検証）",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-02",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "＋倍率＝1＋0.5×＋値",
+      "oldAssessment": "実装済み（実機未検証）",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-03",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "突破後Lv1から生産再計算し＋倍率適用",
+      "oldAssessment": "実装済み（実機未検証）",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-04",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "突破後価格はLv1初期価格から",
+      "oldAssessment": "実装済み（実機未検証）",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-05",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "＋値上限以内で増加・巨大数型で計算",
+      "oldAssessment": "実装済み（実機未検証）",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-06",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "突破前にLv・＋値を表示し確認",
+      "oldAssessment": "実装済み（実機未検証）",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-07",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "源名・＋値・Lv・倍率を表示",
+      "oldAssessment": "実装済み（実機未検証）",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-08",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "30源の到達済み／未達を個別一覧",
+      "oldAssessment": "部分実装または未検証",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-09",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "毎回100万到達・手動突破必要",
+      "oldAssessment": "実装済み（実機未検証）",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-10",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "基礎生産と＋増分を分類集計",
+      "oldAssessment": "部分実装または未検証",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-11",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "7効果の取得節目を25/1000/10000/50000/100000/500000/1000000へ",
+      "oldAssessment": "実装済み（実機未検証）",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-12",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "独自節目は明示採用時のみ",
+      "oldAssessment": "部分実装または未検証",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-13",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "到達購入直後に1回解放して履歴保存",
+      "oldAssessment": "実装済み（実機未検証）",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-14",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "通常6効果は後半増幅・数値個別検証",
+      "oldAssessment": "部分実装または未検証",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-15",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "最終7番目は固有効果を1回だけ解放",
+      "oldAssessment": "実装済み（実機未検証）",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-16",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "SOURCE01：収束報酬×2",
+      "oldAssessment": "実装済み（実機未検証）",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-17",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "SOURCE02：収束必要量−50%",
+      "oldAssessment": "実装済み（実機未検証）",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-18",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "SOURCE03：タップ獲得×2",
+      "oldAssessment": "実装済み（実機未検証）",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-19",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "SOURCE04：全源生産×2",
+      "oldAssessment": "実装済み（実機未検証）",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-20",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "SOURCE05：Crit率＋5ポイント",
+      "oldAssessment": "実装済み（実機未検証）",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-21",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "SOURCE06：Crit倍率×2",
+      "oldAssessment": "実装済み（実機未検証）",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-22",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "SOURCE07：刹那の獲得量系効果×2（対象詳細要確認）",
+      "oldAssessment": "未実装・後続段階",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-23",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "SOURCE08：源・刹那購入価格−10%（下限要確認）",
+      "oldAssessment": "未実装・後続段階",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-24",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "SOURCE09：SOURCE09自身の生産×2",
+      "oldAssessment": "実装済み（実機未検証）",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-25",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "SOURCE10：解放済源効果数値＋20%（対象詳細要確認）",
+      "oldAssessment": "実装済み（実機未検証）",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-26",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "刻印価格は個別表と承認後",
+      "oldAssessment": "未実装・後続段階",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-27",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "刻印スロットは段階解放、初期数別途",
+      "oldAssessment": "未実装・後続段階",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-28",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "刻印再編差額・返還規則を明示",
+      "oldAssessment": "未実装・後続段階",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-29",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "自動収束はON/OFF・実行条件調整",
+      "oldAssessment": "未実装・後続段階",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-30",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "不可侵存在1は刻印費用に利用しない",
+      "oldAssessment": "未実装・後続段階",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-31",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "時6方向の配分合計100%",
+      "oldAssessment": "部分実装または未検証",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-32",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "方向の未決定解放は通常版停止",
+      "oldAssessment": "未実装・後続段階",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-33",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "概念ごとの残滓と数量を定義・不足表示",
+      "oldAssessment": "未実装・後続段階",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-34",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "取得済み概念は二度取得しない",
+      "oldAssessment": "未実装・後続段階",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-35",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "収束しても《時》の方向・概念保持",
+      "oldAssessment": "未実装・後続段階",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-36",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "惑星へ投入した資源種類・量を記録",
+      "oldAssessment": "未実装・後続段階",
+      "currentStatus": "implemented; node verified",
+      "testedEvidence": [
+        "tests/v319_telemetry.mjs"
+      ],
+      "v319SpecificationNote": "各惑星IDのevidenceに投資資源ID・累積数量を別保持し、所持資源と区別。",
+      "implementationEvidence": [
+        "game.mjs:invest/validateState",
+        "app.mjs:planetHTML"
+      ],
+      "previousSourceSummaryRetained": true
+    },
+    {
+      "id": "J-37",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "惑星15ステータスの上限・成長式は個別検証",
+      "oldAssessment": "未実装・後続段階",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-38",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "42資源は安定ID・R1〜R6を保持",
+      "oldAssessment": "未実装・後続段階",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-39",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "崩壊報酬は検証比較後に採用",
+      "oldAssessment": "未実装・後続段階",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-40",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "生命解放には個別条件確定が必要",
+      "oldAssessment": "未実装・後続段階",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-41",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "源効果を源ID・効果IDで一度のみ記録",
+      "oldAssessment": "実装済み（実機未検証）",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-42",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "旧＋値は保持し新倍率を再計算",
+      "oldAssessment": "実装済み（実機未検証）",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-43",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "購入済みLvは価格変更でも保持",
+      "oldAssessment": "未実装・後続段階",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-44",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "非互換変更は新形式＋バックアップ",
+      "oldAssessment": "未実装・後続段階",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-45",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "資源増分と計算報酬の自動テスト",
+      "oldAssessment": "未実装・後続段階",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-46",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "SOURCE01〜05から段階実装・検証",
+      "oldAssessment": "未実装・後続段階",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-47",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "刻印未決定値を通常本編へ強制適用しない",
+      "oldAssessment": "未実装・後続段階",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-48",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "仕様IDごと実装・検証・保留を管理",
+      "oldAssessment": "未実装・後続段階",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-49",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "PRで検証後にmainへ統合・Web/iOS一致",
+      "oldAssessment": "未実装・後続段階",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "J-50",
+      "source": "KOTOWARI_J01_J50_SOURCE_EFFECTS_STATUS.md",
+      "confirmedAnswer": "B",
+      "recordedSummary": "Web・Capacitorビルド・iPhone実機を別管理",
+      "oldAssessment": "未実装・後続段階",
+      "currentStatus": "requires-current-id-level-reconciliation",
+      "testedEvidence": []
+    },
+    {
+      "id": "U18-01",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：R2〜R6ランク重み",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-confirmed-v4.mjs"
+    },
+    {
+      "id": "U18-02",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：R2〜R6ランク重み",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-confirmed-v4.mjs"
+    },
+    {
+      "id": "U18-03",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：R2〜R6ランク重み",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-confirmed-v4.mjs"
+    },
+    {
+      "id": "U18-04",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：R2〜R6ランク重み",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-confirmed-v4.mjs"
+    },
+    {
+      "id": "U18-05",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：R2〜R6ランク重み",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-confirmed-v4.mjs"
+    },
+    {
+      "id": "U18-06",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：適格ランクとランク内選択",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-confirmed-v4.mjs"
+    },
+    {
+      "id": "U18-07",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：適格ランクとランク内選択",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-confirmed-v4.mjs"
+    },
+    {
+      "id": "U18-08",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：適格ランクとランク内選択",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-confirmed-v4.mjs"
+    },
+    {
+      "id": "U18-09",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：適格ランクとランク内選択",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-confirmed-v4.mjs"
+    },
+    {
+      "id": "U18-10",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：適格ランクとランク内選択",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-confirmed-v4.mjs"
+    },
+    {
+      "id": "U18-11",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：初期惑星と自然成長",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U18-12",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：初期惑星と自然成長",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U18-13",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：初期惑星と自然成長",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U18-14",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：初期惑星と自然成長",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U18-15",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：初期惑星と自然成長",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U18-16",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：自然崩壊率と報酬のバランス",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "requires-balance-validation",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-confirmed-v4.mjs"
+    },
+    {
+      "id": "U18-17",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：自然崩壊率と報酬のバランス",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "requires-balance-validation",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-confirmed-v4.mjs"
+    },
+    {
+      "id": "U18-18",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：自然崩壊率と報酬のバランス",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "requires-balance-validation",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-confirmed-v4.mjs"
+    },
+    {
+      "id": "U18-19",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：自然崩壊率と報酬のバランス",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "requires-balance-validation",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-confirmed-v4.mjs"
+    },
+    {
+      "id": "U18-20",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：自然崩壊率と報酬のバランス",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "requires-balance-validation",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-confirmed-v4.mjs"
+    },
+    {
+      "id": "U18-21",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：長期進行の資源ランク",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U18-22",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：長期進行の資源ランク",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U18-23",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：長期進行の資源ランク",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U18-24",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：長期進行の資源ランク",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U18-25",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：長期進行の資源ランク",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U18-26",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：未知ステータス観測のUI",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "app.mjs"
+    },
+    {
+      "id": "U18-27",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：未知ステータス観測のUI",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "app.mjs"
+    },
+    {
+      "id": "U18-28",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：未知ステータス観測のUI",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "app.mjs"
+    },
+    {
+      "id": "U18-29",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：未知ステータス観測のUI",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "app.mjs"
+    },
+    {
+      "id": "U18-30",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：未知ステータス観測のUI",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "app.mjs"
+    },
+    {
+      "id": "U18-31",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：15ステータスの名称認識",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U18-32",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：15ステータスの名称認識",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U18-33",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：15ステータスの名称認識",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U18-34",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：15ステータスの名称認識",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U18-35",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：15ステータスの名称認識",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U18-36",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：観測から理解度と干渉",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-progression-v316.mjs"
+    },
+    {
+      "id": "U18-37",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：観測から理解度と干渉",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-progression-v316.mjs"
+    },
+    {
+      "id": "U18-38",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：観測から理解度と干渉",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-progression-v316.mjs"
+    },
+    {
+      "id": "U18-39",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：観測から理解度と干渉",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-progression-v316.mjs"
+    },
+    {
+      "id": "U18-40",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：観測から理解度と干渉",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-progression-v316.mjs"
+    },
+    {
+      "id": "U18-41",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：4種類の干渉の方向性",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-interference-v318.mjs"
+    },
+    {
+      "id": "U18-42",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：4種類の干渉の方向性",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-interference-v318.mjs"
+    },
+    {
+      "id": "U18-43",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：4種類の干渉の方向性",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-interference-v318.mjs"
+    },
+    {
+      "id": "U18-44",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：4種類の干渉の方向性",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-interference-v318.mjs"
+    },
+    {
+      "id": "U18-45",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：4種類の干渉の方向性",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-interference-v318.mjs"
+    },
+    {
+      "id": "U18-46",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：資源消費の安全性・検証",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-verified",
+      "testedEvidence": [
+        "tests/v318_interference.mjs"
+      ],
+      "implementationEvidence": "tests/v318_interference.mjs"
+    },
+    {
+      "id": "U18-47",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：資源消費の安全性・検証",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-verified",
+      "testedEvidence": [
+        "tests/v318_interference.mjs"
+      ],
+      "implementationEvidence": "tests/v318_interference.mjs"
+    },
+    {
+      "id": "U18-48",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：資源消費の安全性・検証",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-verified",
+      "testedEvidence": [
+        "tests/v318_interference.mjs"
+      ],
+      "implementationEvidence": "tests/v318_interference.mjs"
+    },
+    {
+      "id": "U18-49",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：資源消費の安全性・検証",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-verified",
+      "testedEvidence": [
+        "tests/v318_interference.mjs"
+      ],
+      "implementationEvidence": "tests/v318_interference.mjs"
+    },
+    {
+      "id": "U18-50",
+      "source": "2026-11-19 conversation: integrated round U18",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：資源消費の安全性・検証",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-verified",
+      "testedEvidence": [
+        "tests/v318_interference.mjs"
+      ],
+      "implementationEvidence": "tests/v318_interference.mjs"
+    },
+    {
+      "id": "U19-01",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：温度〜加速度の認識条件",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U19-02",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：温度〜加速度の認識条件",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U19-03",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：温度〜加速度の認識条件",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U19-04",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：温度〜加速度の認識条件",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U19-05",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：温度〜加速度の認識条件",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U19-06",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：放射〜星齢の認識条件",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U19-07",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：放射〜星齢の認識条件",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U19-08",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：放射〜星齢の認識条件",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U19-09",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：放射〜星齢の認識条件",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U19-10",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：放射〜星齢の認識条件",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U19-11",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：関連概念と現象理解の対応",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "mapping-unverified",
+      "testedEvidence": [],
+      "implementationEvidence": "time-confirmed-v4.mjs"
+    },
+    {
+      "id": "U19-12",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：関連概念と現象理解の対応",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "mapping-unverified",
+      "testedEvidence": [],
+      "implementationEvidence": "time-confirmed-v4.mjs"
+    },
+    {
+      "id": "U19-13",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：関連概念と現象理解の対応",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "mapping-unverified",
+      "testedEvidence": [],
+      "implementationEvidence": "time-confirmed-v4.mjs"
+    },
+    {
+      "id": "U19-14",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：関連概念と現象理解の対応",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "mapping-unverified",
+      "testedEvidence": [],
+      "implementationEvidence": "time-confirmed-v4.mjs"
+    },
+    {
+      "id": "U19-15",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：関連概念と現象理解の対応",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "mapping-unverified",
+      "testedEvidence": [],
+      "implementationEvidence": "time-confirmed-v4.mjs"
+    },
+    {
+      "id": "U19-16",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：残りの関連概念の対応",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "mapping-unverified",
+      "testedEvidence": [],
+      "implementationEvidence": "time-confirmed-v4.mjs"
+    },
+    {
+      "id": "U19-17",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：残りの関連概念の対応",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "mapping-unverified",
+      "testedEvidence": [],
+      "implementationEvidence": "time-confirmed-v4.mjs"
+    },
+    {
+      "id": "U19-18",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：残りの関連概念の対応",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "mapping-unverified",
+      "testedEvidence": [],
+      "implementationEvidence": "time-confirmed-v4.mjs"
+    },
+    {
+      "id": "U19-19",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：残りの関連概念の対応",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "mapping-unverified",
+      "testedEvidence": [],
+      "implementationEvidence": "time-confirmed-v4.mjs"
+    },
+    {
+      "id": "U19-20",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：残りの関連概念の対応",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "mapping-unverified",
+      "testedEvidence": [],
+      "implementationEvidence": "time-confirmed-v4.mjs"
+    },
+    {
+      "id": "U19-21",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：現象理解度とイベント重複防止",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-progression-v316.mjs"
+    },
+    {
+      "id": "U19-22",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：現象理解度とイベント重複防止",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-progression-v316.mjs"
+    },
+    {
+      "id": "U19-23",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：現象理解度とイベント重複防止",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-progression-v316.mjs"
+    },
+    {
+      "id": "U19-24",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：現象理解度とイベント重複防止",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-progression-v316.mjs"
+    },
+    {
+      "id": "U19-25",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：現象理解度とイベント重複防止",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-progression-v316.mjs"
+    },
+    {
+      "id": "U19-26",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：惑星衝突の操作と安全処理",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "logic-tested-observation-incomplete",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U19-27",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：惑星衝突の操作と安全処理",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "logic-tested-observation-incomplete",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U19-28",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：惑星衝突の操作と安全処理",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "logic-tested-observation-incomplete",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U19-29",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：惑星衝突の操作と安全処理",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "logic-tested-observation-incomplete",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U19-30",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：惑星衝突の操作と安全処理",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "logic-tested-observation-incomplete",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U19-31",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：成長移転の操作と時間計算",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "logic-tested-observation-incomplete",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U19-32",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：成長移転の操作と時間計算",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "logic-tested-observation-incomplete",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U19-33",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：成長移転の操作と時間計算",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "logic-tested-observation-incomplete",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U19-34",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：成長移転の操作と時間計算",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "logic-tested-observation-incomplete",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U19-35",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：成長移転の操作と時間計算",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "logic-tested-observation-incomplete",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U19-36",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：誘発崩壊と待機時間",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "logic-tested",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U19-37",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：誘発崩壊と待機時間",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "logic-tested",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U19-38",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：誘発崩壊と待機時間",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "logic-tested",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U19-39",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：誘発崩壊と待機時間",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "logic-tested",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U19-40",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：誘発崩壊と待機時間",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "logic-tested",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U19-41",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：安定化と自然崩壊率",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "logic-tested-partial",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U19-42",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：安定化と自然崩壊率",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "logic-tested-partial",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U19-43",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：安定化と自然崩壊率",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "logic-tested-partial",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U19-44",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：安定化と自然崩壊率",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "logic-tested-partial",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U19-45",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：安定化と自然崩壊率",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "logic-tested-partial",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U19-46",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：データ整合・未決定事項の管理",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [
+        "tests/v318_interference.mjs"
+      ],
+      "implementationEvidence": "tests/v318_interference.mjs"
+    },
+    {
+      "id": "U19-47",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：データ整合・未決定事項の管理",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [
+        "tests/v318_interference.mjs"
+      ],
+      "implementationEvidence": "tests/v318_interference.mjs"
+    },
+    {
+      "id": "U19-48",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：データ整合・未決定事項の管理",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [
+        "tests/v318_interference.mjs"
+      ],
+      "implementationEvidence": "tests/v318_interference.mjs"
+    },
+    {
+      "id": "U19-49",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：データ整合・未決定事項の管理",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [
+        "tests/v318_interference.mjs"
+      ],
+      "implementationEvidence": "tests/v318_interference.mjs"
+    },
+    {
+      "id": "U19-50",
+      "source": "2026-11-19 conversation: integrated round U19",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：データ整合・未決定事項の管理",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [
+        "tests/v318_interference.mjs"
+      ],
+      "implementationEvidence": "tests/v318_interference.mjs"
+    },
+    {
+      "id": "U20-01",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：コア形成の条件と時間",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-progression-v316.mjs"
+    },
+    {
+      "id": "U20-02",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：コア形成の条件と時間",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-progression-v316.mjs"
+    },
+    {
+      "id": "U20-03",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：コア形成の条件と時間",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-progression-v316.mjs"
+    },
+    {
+      "id": "U20-04",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：コア形成の条件と時間",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-progression-v316.mjs"
+    },
+    {
+      "id": "U20-05",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：コア形成の条件と時間",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-progression-v316.mjs"
+    },
+    {
+      "id": "U20-06",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：脈動の持続と崩壊",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-progression-v316.mjs"
+    },
+    {
+      "id": "U20-07",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：脈動の持続と崩壊",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-progression-v316.mjs"
+    },
+    {
+      "id": "U20-08",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：脈動の持続と崩壊",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-progression-v316.mjs"
+    },
+    {
+      "id": "U20-09",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：脈動の持続と崩壊",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-progression-v316.mjs"
+    },
+    {
+      "id": "U20-10",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：脈動の持続と崩壊",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-progression-v316.mjs"
+    },
+    {
+      "id": "U20-11",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：内部から地表への伝播",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-progression-v316.mjs"
+    },
+    {
+      "id": "U20-12",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：内部から地表への伝播",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-progression-v316.mjs"
+    },
+    {
+      "id": "U20-13",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：内部から地表への伝播",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-progression-v316.mjs"
+    },
+    {
+      "id": "U20-14",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：内部から地表への伝播",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-progression-v316.mjs"
+    },
+    {
+      "id": "U20-15",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：内部から地表への伝播",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-progression-v316.mjs"
+    },
+    {
+      "id": "U20-16",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：生命前兆の出現",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-progression-v316.mjs"
+    },
+    {
+      "id": "U20-17",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：生命前兆の出現",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-progression-v316.mjs"
+    },
+    {
+      "id": "U20-18",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：生命前兆の出現",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-progression-v316.mjs"
+    },
+    {
+      "id": "U20-19",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：生命前兆の出現",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-progression-v316.mjs"
+    },
+    {
+      "id": "U20-20",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：生命前兆の出現",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "universe-progression-v316.mjs"
+    },
+    {
+      "id": "U20-21",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：生命の発見と次段階",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U20-22",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：生命の発見と次段階",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U20-23",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：生命の発見と次段階",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U20-24",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：生命の発見と次段階",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U20-25",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：生命の発見と次段階",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U20-26",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：自動惑星生成の解放と費用",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U20-27",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：自動惑星生成の解放と費用",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U20-28",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：自動惑星生成の解放と費用",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U20-29",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：自動惑星生成の解放と費用",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U20-30",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：自動惑星生成の解放と費用",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U20-31",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：自動生成の運用と枠数",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U20-32",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：自動生成の運用と枠数",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U20-33",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：自動生成の運用と枠数",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U20-34",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：自動生成の運用と枠数",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U20-35",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：自動生成の運用と枠数",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partial-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U20-36",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：オフライン処理と星団集約",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U20-37",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：オフライン処理と星団集約",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U20-38",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：オフライン処理と星団集約",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U20-39",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：オフライン処理と星団集約",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U20-40",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：オフライン処理と星団集約",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U20-41",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：通知と記録",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U20-42",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：通知と記録",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U20-43",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：通知と記録",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U20-44",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：通知と記録",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U20-45",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：通知と記録",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-implemented",
+      "testedEvidence": [],
+      "implementationEvidence": "game.mjs"
+    },
+    {
+      "id": "U20-46",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：保存・検証・次工程",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-verified",
+      "testedEvidence": [
+        "tests/v316_core.mjs"
+      ],
+      "implementationEvidence": "tests/v316_core.mjs"
+    },
+    {
+      "id": "U20-47",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：保存・検証・次工程",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-verified",
+      "testedEvidence": [
+        "tests/v316_core.mjs"
+      ],
+      "implementationEvidence": "tests/v316_core.mjs"
+    },
+    {
+      "id": "U20-48",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：保存・検証・次工程",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-verified",
+      "testedEvidence": [
+        "tests/v316_core.mjs"
+      ],
+      "implementationEvidence": "tests/v316_core.mjs"
+    },
+    {
+      "id": "U20-49",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：保存・検証・次工程",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-verified",
+      "testedEvidence": [
+        "tests/v316_core.mjs"
+      ],
+      "implementationEvidence": "tests/v316_core.mjs"
+    },
+    {
+      "id": "U20-50",
+      "source": "2026-11-19 conversation: integrated round U20",
+      "confirmedAnswer": "B",
+      "recordedSummary": "同グループの要旨：保存・検証・次工程",
+      "originalTextAvailableInGitHub": false,
+      "currentStatus": "partially-verified",
+      "testedEvidence": [
+        "tests/v316_core.mjs"
+      ],
+      "implementationEvidence": "tests/v316_core.mjs"
+    }
+  ],
+  "currentVersion": "3.20.0+u42-development",
+  "updatedAt": "2026-11-20",
+  "knownImplementationNotes": "U-42はNode回帰/Chromium PC・モバイルスモーク成功。PR #24の開発ブランチに実装済み、本番main未変更。残りの原文未照合/実装率未算出はVer3.20台帳のまま。"
+}

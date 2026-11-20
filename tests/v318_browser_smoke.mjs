@@ -25,7 +25,7 @@ try {
     assert.equal(res?.status(),200);
     await page.locator("#buildLabel").waitFor({state:"attached"});
     await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
-    assert.match(await page.locator("#buildLabel").textContent(),/3\.20/);
+    assert.match(await page.locator("#buildLabel").textContent(),/3\.21/);
     assert.ok((await page.locator("#appRoot").boundingBox())?.width>0);
     const width=await page.evaluate(()=>document.documentElement.scrollWidth);
     assert.ok(width<=viewport.width+2,label+" horizontal overflow: "+width);
@@ -86,6 +86,39 @@ try {
     // U-10: visible subset, preflight quote and explicit confirmation.
     await page.locator('[data-stage="existence"]').click();
     await page.locator('[data-child="moment"]').click();
+
+    // U-43: purchase mode survives tab changes; pending holds are canceled
+    // synchronously before timers can purchase against a detached card.
+    await page.locator("#purchaseCycle").click();
+    assert.equal(await page.locator("#purchaseCycle").textContent(),"×10");
+    await page.locator('[data-child="sources"]').click();
+    await page.locator('[data-child="moment"]').click();
+    assert.equal(await page.locator("#purchaseCycle").textContent(),"×10");
+    const beforePending=await page.evaluate(()=>JSON.parse(localStorage.getItem("kotowari_v31_normal")).data.moment.tap);
+    await page.locator('button[data-purchase="moment"][data-id="tap"]').evaluate(el=>
+      el.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,pointerId:713,pointerType:"touch",clientX:10,clientY:10})));
+    await page.locator('[data-child="sources"]').evaluate(el=>el.click());
+    await page.waitForTimeout(700);
+    assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem("kotowari_v31_normal")).data.moment.tap),
+      beforePending,label+" pending hold must not buy after changing tabs");
+    await page.locator('[data-child="moment"]').click();
+    assert.equal(await page.locator("#purchaseCycle").textContent(),"×10");
+    // Return to x1 and start an active hold. Navigation must stop later repeats.
+    for(let k=0;k<3;k++)await page.locator("#purchaseCycle").click();
+    assert.equal(await page.locator("#purchaseCycle").textContent(),"×1");
+    const beforeActive=await page.locator('[data-moment-level="tap"]').textContent();
+    await page.locator('button[data-purchase="moment"][data-id="tap"]').evaluate(el=>
+      el.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,pointerId:714,pointerType:"touch",clientX:10,clientY:10})));
+    await page.waitForTimeout(600);
+    assert.notEqual(await page.locator('[data-moment-level="tap"]').textContent(),beforeActive,
+      label+" active hold did not purchase");
+    await page.locator('[data-child="sources"]').evaluate(el=>el.click());
+    const afterStopped=await page.evaluate(()=>JSON.parse(localStorage.getItem("kotowari_v31_normal")).data.moment.tap);
+    await page.waitForTimeout(480);
+    assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem("kotowari_v31_normal")).data.moment.tap),
+      afterStopped,label+" active hold must stop on tab change");
+    assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem("kotowari_v31_normal")).data.purchaseMode),"1");
+    await page.locator('[data-child="moment"]').click();
     await page.locator('[data-moment-group-select="0"]').click();
     await page.locator("#bulkScopeButton").click();
     assert.match(await page.locator("#bulkScopeButton").textContent(),/表示中/);
@@ -99,6 +132,20 @@ try {
         return raw.data.moment.tap>0;
       }catch{return false;}
     });
+    // U-42: reorder two favorites and confirm the saved ID order.
+    await page.locator('button[data-moment-favorite="tap"]').click();
+    await page.locator('button[data-moment-favorite="tap2"]').click();
+    await page.locator('button[data-moment-move="tap2"][data-direction="-1"]').click();
+    assert.deepEqual(await page.locator('.moment-fav-pins [data-moment-shortcut]').evaluateAll(
+      nodes=>nodes.map(node=>node.dataset.momentShortcut)),["tap2","tap"]);
+    await page.waitForFunction(()=>{
+      try{
+        const raw=JSON.parse(localStorage.getItem("kotowari_v31_normal"));
+        return JSON.stringify(raw.data.settings.momentFavorites)==='["tap2","tap"]';
+      }catch{return false;}
+    });
+    assert.equal(await page.locator('button[data-moment-move="tap2"][data-direction="-1"]').isDisabled(),true);
+    assert.equal(await page.locator('button[data-moment-move="tap"][data-direction="1"]').isDisabled(),true);
     assert.equal(pageErrors.length,0,label+" JS errors: "+pageErrors.join("; "));
     console.log("PASS browser",label,viewport.width+"x"+viewport.height,"load, organizer, intervention, persisted save");
     await context.close();
