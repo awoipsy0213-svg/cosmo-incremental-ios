@@ -69,10 +69,10 @@ async function acquireLock(){
   });
 }
 function checkpoint(){
-  if(!state||readOnly||document.hidden)return;
+  if(!state||readOnly||store.blocked||document.hidden)return;
   const now=Date.now(),gap=now-state.lastWall;
-  const report=G.advance(state,now,{offline:gap>15000});
-  if(gap>15000&&report.elapsed>0)reportOffline(report);
+  const report=G.advance(state,now,{offline:gap>=10000});
+  if(gap>=10000&&report.elapsed>0)reportOffline(report);
 }
 function save(forceSnapshot=false){
   if(!state||readOnly)return false;
@@ -89,7 +89,7 @@ function save(forceSnapshot=false){
   }
 }
 function reportOffline(report){
-  if(report.elapsed<15)return;
+  if(report.elapsed<10)return;
   offlineReport=report;
   if(state.settings.showOffline)showNotice(`復帰：オーブ +${f(report.orbs)} / BOOST +${duration(Math.max(0,report.boost))}。本編は30分上限×30%、BOOST蓄積は別計算です。`);
 }
@@ -496,7 +496,7 @@ function backupHTML(){
   <button class="wide-button" data-action="import-save">内容を検証して読み込む</button>
   <h3>保存履歴</h3>${bs.length?bs.map((x,i)=>`<div class="kw-row"><span>${new Date(x.at).toLocaleString("ja-JP")}</span><button data-restore="${i}">復元</button></div>`).join(""):'<p>まだ履歴はありません。</p>'}
   <button class="wide-button" data-action="export-legacy">退避した旧データを書き出す</button>
-  ${store.blocked?'<button class="wide-button" data-action="export-corrupt">読めなかった元データを救出</button>':""}
+  ${store.blocked?'<div class="status-note">主セーブは保護中です。空の状態を通常のバックアップとして出力しません。復元を選択する前に、元データをファイルに保存してください。</div><button class="wide-button" data-action="export-corrupt">保護中の主セーブをそのまま救出（復旧用）</button>':""}
   <p class="tiny">旧セーブキーは削除しません。別URL・別ドメインへはJSONによる移行が必要です。</p>`;
 }
 function specHTML(){
@@ -913,9 +913,16 @@ async function dispatchAction(action){
   if(action==="expand"){setSheet(sheetState==="full"?"half":"full");return;}
   if(action==="collapse-sheet"){setSheet("closed");return;}
   if(action==="dismiss-notice"){showNotice("");return;}
-  if(action==="export-save"){save();download(store.export(state),`kotowari-v31-${mode}-${new Date().toISOString().slice(0,10)}.json`);return;}
+  if(action==="export-save"){
+    if(store.blocked)return toast("主セーブ保護中です。下の「保護中の主セーブを救出」を利用してください");
+    if(!save())return toast("保存を確認できないためバックアップを中止しました");
+    download(store.export(state),`kotowari-v31-${mode}-${new Date().toISOString().slice(0,10)}.json`);
+    return;
+  }
   if(action==="copy-save"){
-    save();const text=store.export(state);
+    if(store.blocked)return toast("主セーブ保護中です。下の「保護中の主セーブを救出」を利用してください");
+    if(!save())return toast("保存を確認できないためコピーを中止しました");
+    const text=store.export(state);
     try{await navigator.clipboard.writeText(text);toast("バックアップをコピーしました");}
     catch(e){importDraft=text;renderPanel(true);$("importText")?.focus();$("importText")?.select();toast("表示した文字列を選択してコピーしてください");}return;
   }
@@ -1140,19 +1147,19 @@ document.addEventListener("input",e=>{lastInteraction=Date.now();if(e.target.id=
 });
 function hidePage(){
   stopHoldPurchase();
-  if(!state||readOnly)return;
+  if(!state||readOnly||store.blocked)return;
   const now=Date.now();G.advance(state,now,{offline:false});hiddenAt=now;state.boost.active=false;
   save();
 }
 document.addEventListener("visibilitychange",()=>{
   if(document.hidden)hidePage();
-  else if(state&&!readOnly){
+  else if(state&&!readOnly&&!store.blocked){
     const now=Date.now();const r=G.advance(state,now,{offline:true});hiddenAt=null;lastFrame=now;reportOffline(r);save();render(true);
   }
 });
 window.addEventListener("pagehide",()=>{hidePage();lockRelease?.();lockRelease=null;});
 window.addEventListener("pageshow",async e=>{
-  if(e.persisted){await acquireLock();if(!readOnly){const loaded=store.load();state=loaded.state;reportOffline(G.advance(state,Date.now(),{offline:true}));save();render(true);}}
+  if(e.persisted){await acquireLock();if(!readOnly){const loaded=store.load();state=loaded.state;if(!store.blocked){reportOffline(G.advance(state,Date.now(),{offline:true}));save();}render(true);}}
 });
 window.addEventListener("online",()=>renderPanel(true));window.addEventListener("offline",()=>renderPanel(true));
 window.addEventListener("storage",e=>{
