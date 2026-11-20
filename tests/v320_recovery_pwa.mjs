@@ -26,6 +26,7 @@ test("broken primary is not replaced with an old snapshot automatically",()=>{
   assert.equal(st.getItem(KEYS.normal+".corrupt"),broken);
   assert.equal(A(decode(good,"normal").orbs).cmp(123456),0);
   assert.throws(()=>store.write(result.state),/保護中/);
+  assert.throws(()=>store.export(result.state),/保護中/);
 });
 test("user-selected backup restores saved progress and retains original broken bytes",()=>{
   const good=valid(),st=storageFrom([[KEYS.normal,broken],
