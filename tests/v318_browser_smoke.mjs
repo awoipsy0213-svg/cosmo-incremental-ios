@@ -99,6 +99,20 @@ try {
         return raw.data.moment.tap>0;
       }catch{return false;}
     });
+    // U-42: reorder two favorites and confirm the saved ID order.
+    await page.locator('button[data-moment-favorite="tap"]').click();
+    await page.locator('button[data-moment-favorite="tap2"]').click();
+    await page.locator('button[data-moment-move="tap2"][data-direction="-1"]').click();
+    assert.deepEqual(await page.locator('.moment-fav-pins [data-moment-shortcut]').evaluateAll(
+      nodes=>nodes.map(node=>node.dataset.momentShortcut)),["tap2","tap"]);
+    await page.waitForFunction(()=>{
+      try{
+        const raw=JSON.parse(localStorage.getItem("kotowari_v31_normal"));
+        return JSON.stringify(raw.data.settings.momentFavorites)==='["tap2","tap"]';
+      }catch{return false;}
+    });
+    assert.equal(await page.locator('button[data-moment-move="tap2"][data-direction="-1"]').isDisabled(),true);
+    assert.equal(await page.locator('button[data-moment-move="tap"][data-direction="1"]').isDisabled(),true);
     assert.equal(pageErrors.length,0,label+" JS errors: "+pageErrors.join("; "));
     console.log("PASS browser",label,viewport.width+"x"+viewport.height,"load, organizer, intervention, persisted save");
     await context.close();
