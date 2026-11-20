@@ -815,9 +815,9 @@
       "oldAssessment": "未実装または別途照合",
       "currentStatus": "requires-current-id-level-reconciliation",
       "testedEvidence": [],
-      "v320Status": "一部実装／原本と復元候補の一覧・明示選択を実装、履歴間の数値差比較は未実装",
+      "v320Status": "実装済み／Node・Chromium検証対象：各履歴の形式・余剰存在・オーブ・収束・源Lv・概念・惑星数を比較して明示復元",
       "v320Code": "save.mjs:SaveStore.backups/restoreBackup;app.mjs:backupHTML",
-      "v320Test": "tests/v320_recovery_pwa.mjs"
+      "v320Test": "tests/v320_recovery_pwa.mjs;tests/v320_browser_recovery.mjs"
     },
     {
       "id": "I-35",
