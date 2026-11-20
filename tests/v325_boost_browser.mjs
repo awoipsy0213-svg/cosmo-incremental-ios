@@ -11,7 +11,7 @@ let browser;
 try{
  let ready=false;
  for(let i=0;i<40;i++){try{if((await fetch(base)).ok){ready=true;break;}}catch{}await sleep(250);}
- assert.ok(ready,"Ver3.25 test host unavailable");
+ assert.ok(ready,"Ver3.26 test host unavailable");
  browser=await chromium.launch({headless:true});
  for(const [label,width,height] of [["phone-narrow",320,700],["phone",375,812],["desktop",1000,900]]){
   const ctx=await browser.newContext({viewport:{width,height}});
@@ -59,7 +59,7 @@ try{
   assert.equal(resumed.telemetry.offlineReports[0].orbs,"0");
   assert.equal(resumed.telemetry.offlineReports[0].effectiveSeconds,0);
   assert.ok(resumed.telemetry.offlineReports[0].boostEarned>=899);
-  assert.match(await page.locator("#buildLabel").textContent(),/3\.25/);
+  assert.match(await page.locator("#buildLabel").textContent(),/3\.26/);
   await page.locator('.app-top [data-action="organizer"]').click();
   await page.locator('[data-organizer="boost"]').click();
   const panel=await page.locator("#sheetBody").textContent();
