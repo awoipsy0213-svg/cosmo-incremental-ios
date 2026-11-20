@@ -29,3 +29,15 @@ export function momentVisible(item,{group="0",filter="all",search="",favorites=[
   filter==="affordable"?!!item.affordable:true;
  return found&&inGroup&&passed;
 }
+
+export function moveMomentFavorite(favorites,id,direction,validIds){
+ const clean=cleanMomentPrefs({momentFavorites:favorites},validIds).momentFavorites;
+ if(![-1,1].includes(direction))return {favorites:clean,changed:false,error:"direction"};
+ const index=clean.indexOf(id);
+ if(index<0)return {favorites:clean,changed:false,error:"not-favorite"};
+ const target=index+direction;
+ if(target<0||target>=clean.length)return {favorites:clean,changed:false,error:"boundary"};
+ const reordered=[...clean];
+ [reordered[index],reordered[target]]=[reordered[target],reordered[index]];
+ return {favorites:reordered,changed:true};
+}
