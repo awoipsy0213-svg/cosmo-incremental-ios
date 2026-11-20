@@ -69,4 +69,5 @@ jobs:
           node tests/v323_ui_browser.mjs
           node tests/v324_matrix_browser.mjs
           node tests/v324_r2_confirm_browser.mjs
+          node tests/v325_boost_browser.mjs
           node tests/v320_browser_recovery.mjs

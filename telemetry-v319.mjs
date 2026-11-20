@@ -30,13 +30,14 @@ export function sampleActualOrbs(t,now,totalOrbs){
     .slice(-TELEMETRY_LIMITS.onlineSamples);
   return true;
 }
-export function recordOfflineReport(t,{at,seconds,effectiveSeconds,orbs,boostEarned}){
+export function recordOfflineReport(t,{at,seconds,effectiveSeconds,orbs,boostEarned,boostDiscarded=0}){
   if(!assertTime(at)||!Number.isFinite(seconds)||seconds<0||
      !Number.isFinite(effectiveSeconds)||effectiveSeconds<0||
-     !Number.isFinite(boostEarned)||boostEarned<0)
+     !Number.isFinite(boostEarned)||boostEarned<0||
+     !Number.isFinite(boostDiscarded)||boostDiscarded<0)
     throw new Error("オフラインの測定値が不正");
   t.offlineReports.push({
-    at,seconds,effectiveSeconds,orbs:str(orbs),boostEarned
+    at,seconds,effectiveSeconds,orbs:str(orbs),boostEarned,boostDiscarded
   });
   t.offlineReports=t.offlineReports.slice(-TELEMETRY_LIMITS.offlineReports);
 }
@@ -79,11 +80,12 @@ export function validateTelemetry(value){
   for(const entry of value.offlineReports){
     if(!entry||!assertTime(entry.at)||!Number.isFinite(entry.seconds)||entry.seconds<0||
        !Number.isFinite(entry.effectiveSeconds)||entry.effectiveSeconds<0||
-       !Number.isFinite(entry.boostEarned)||entry.boostEarned<0)
+       !Number.isFinite(entry.boostEarned)||entry.boostEarned<0||
+       (entry.boostDiscarded!==undefined&&(!Number.isFinite(entry.boostDiscarded)||entry.boostDiscarded<0)))
       throw new Error("オフライン履歴が不正");
     clean.offlineReports.push({at:entry.at,seconds:entry.seconds,
       effectiveSeconds:entry.effectiveSeconds,orbs:str(entry.orbs),
-      boostEarned:entry.boostEarned});
+      boostEarned:entry.boostEarned,boostDiscarded:entry.boostDiscarded||0});
   }
   for(const entry of value.convergences){
     if(!entry||!assertTime(entry.at)||!Number.isSafeInteger(entry.steps)||entry.steps<1)
