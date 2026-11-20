@@ -43,7 +43,7 @@ try{
   assert.equal(resumed.totalOrbs,"0");
   assert.equal(resumed.time.elapsed,0);
   assert.equal(resumed.time.worldSeconds,0);
-  assert.equal(resumed.universe.planets[0].stats.mass,"10");
+  assert.equal(Number(resumed.universe.planets[0].stats.mass),10,"numeric mass must be frozen");
   assert.equal(resumed.telemetry.offlineReports.length,1);
   assert.equal(resumed.telemetry.offlineReports[0].orbs,"0");
   assert.equal(resumed.telemetry.offlineReports[0].effectiveSeconds,0);
