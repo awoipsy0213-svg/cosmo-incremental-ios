@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="理">
-<title>《理》— Worlds UI Ver.3.23</title>
+<title>《理》— Matrix UI Ver.3.24</title>
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./neon-icon-192.png">
 <link rel="icon" href="./neon-icon-192.png">
@@ -17,11 +17,13 @@
 <link rel="stylesheet" href="./live-ui.css">
 <link rel="stylesheet" href="./astral-observatory.css">
 <link rel="stylesheet" href="./stage-worlds.css">
+<link rel="stylesheet" href="./matrix-v324.css">
 </head>
 <body class="kw-app">
 <div id="appRoot">
   <div class="app-top">
-    <div class="brand"><span class="brand-mark">理</span><span class="brand-caption">KOTOWARI<br><span id="buildLabel">3.23 · WORLDS</span></span></div>
+    <div class="brand"><span class="brand-mark">理</span><span class="brand-caption">KOTOWARI<br><span id="buildLabel">3.24 · MATRIX</span></span></div>
+    <div id="activeStageTitle" class="active-stage-title">ステージ · 存在</div>
     <div class="run-indicator" aria-label="収束した回数"><span>収束</span><strong id="hudRunCount">0</strong></div>
     <div class="top-actions"><span id="saveIndicator" role="status" aria-label="保存状態">準備中</span><button class="icon-button" data-action="organizer" aria-label="設定と保存を開く">≡</button></div>
   </div>
@@ -44,11 +46,27 @@
         <div id="stageResourceList" class="stage-resource-list" aria-label="このステージの主要な数値"></div>
       </div>
     </header>
+    <section class="world-matrix" aria-label="現在のステージ進行">
+      <strong id="matrixCaption">理のマトリクス</strong>
+      <small id="matrixSummary">強化した種類 0 / 60</small>
+      <span class="matrix-meter" aria-hidden="true"><i id="matrixFill"></i></span>
+    </section>
+    <div class="world-sideboards" aria-hidden="true">
+      <section class="scene-sidebar"><h3>観測ログ</h3><div id="worldObserve" class="scene-side-content"></div></section>
+      <section class="scene-sidebar scene-sidebar-right"><h3>理の状態</h3><div id="worldStatus" class="scene-side-content"></div></section>
+    </div>
     <div id="touchField" class="cosmic-scene" role="button" tabindex="0" aria-label="浮遊する光に干渉する">
       <div class="starfield" aria-hidden="true"></div>
       <div class="cosmic-halo" aria-hidden="true"></div>
       <div class="cosmic-motes" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
       <div class="stage-backdrop" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="matrix-hero" aria-hidden="true">
+        <div class="matrix-hero-orbit"></div>
+        <div class="matrix-hero-orbit second"></div>
+        <div class="matrix-hero-cube"><span id="heroSigil">理</span></div>
+        <div class="matrix-hero-base"></div>
+        <div class="matrix-spark spark-a"></div><div class="matrix-spark spark-b"></div><div class="matrix-spark spark-c"></div>
+      </div>
       <svg class="flow-art" viewBox="0 0 360 390" aria-hidden="true"><defs><radialGradient id="aura"><stop offset="0" stop-color="#f9faff" stop-opacity=".95"/><stop offset=".12" stop-color="#dceeff" stop-opacity=".75"/><stop offset=".45" stop-color="#906dff" stop-opacity=".18"/><stop offset="1" stop-color="#48cfff" stop-opacity="0"/></radialGradient><linearGradient id="silk" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#65baff" stop-opacity="0"/><stop offset=".45" stop-color="#c6d9ff" stop-opacity=".8"/><stop offset="1" stop-color="#a47aff" stop-opacity="0"/></linearGradient><filter id="soft"><feGaussianBlur stdDeviation="5"/></filter></defs><g class="flow-rotate"><ellipse cx="180" cy="195" rx="124" ry="124" fill="none" stroke="#8dbbff" stroke-width=".5" opacity=".17"/><ellipse cx="180" cy="195" rx="82" ry="82" fill="none" stroke="#8dbbff" stroke-width=".5" opacity=".22"/><path d="M-35 278 C95 300 95 40 225 80 S380 245 410 130" fill="none" stroke="url(#silk)" stroke-width="25" opacity=".26" filter="url(#soft)"/><path d="M-30 278 C95 300 95 40 225 80 S380 245 410 130" fill="none" stroke="url(#silk)" stroke-width="1.4" opacity=".8"/><path d="M-35 125 C125 40 230 360 390 250" fill="none" stroke="url(#silk)" stroke-width="34" opacity=".18" filter="url(#soft)"/><path d="M-35 125 C125 40 230 360 390 250" fill="none" stroke="url(#silk)" stroke-width="1.2" opacity=".65"/><path d="M-20 195 C115 380 250 -30 400 190" fill="none" stroke="url(#silk)" stroke-width="13" opacity=".21" filter="url(#soft)"/><path d="M-20 195 C115 380 250 -30 400 190" fill="none" stroke="url(#silk)" stroke-width=".9" opacity=".65"/></g><circle cx="180" cy="195" r="100" fill="url(#aura)"/><circle cx="180" cy="195" r="18" fill="#ecf9ff" opacity=".9" filter="url(#soft)"/><circle cx="180" cy="195" r="9" fill="#fafdff"/></svg>
       <div id="waves" aria-hidden="true"></div>
     </div>
@@ -61,7 +79,7 @@
     <div id="sheetBody" class="kw-sheet-body" tabindex="-1"></div>
   </aside>
   <nav id="stageNav" class="stage-nav" aria-label="ステージ切り替え" hidden></nav>
-  <dialog id="organizerDrawer" class="organizer-drawer"><div class="drawer-head"><div><small>WORLD ORGANIZER</small><h2>管理</h2></div><button class="icon-button" data-action="close-drawer" aria-label="管理メニューを閉じる">×</button></div><div id="organizerLinks"></div><div class="drawer-foot">VERSION 3.23<br>星環の観測者 · 刹那30 · 概念77 · 資源42</div></dialog>
+  <dialog id="organizerDrawer" class="organizer-drawer"><div class="drawer-head"><div><small>WORLD ORGANIZER</small><h2>管理</h2></div><button class="icon-button" data-action="close-drawer" aria-label="管理メニューを閉じる">×</button></div><div id="organizerLinks"></div><div class="drawer-foot">VERSION 3.24<br>星環の観測者 · 刹那30 · 概念77 · 資源42</div></dialog>
   <dialog id="confirmDialog" class="confirm-dialog"><h2 id="confirmTitle"></h2><p id="confirmText"></p><div class="dialog-actions"><button id="confirmNo">戻る</button><button id="confirmYes">実行する</button></div></dialog>
   <div id="birthOverlay" class="birth-overlay" aria-hidden="true"><span>存在 <b>1</b></span></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
