@@ -344,3 +344,43 @@ body.reduced-motion #touchField.cosmic-scene::before{animation:none;filter:none;
   .kw-sheet-body .moment-fav-pins .favorite-pin button[data-moment-shortcut]{max-width:136px;}
   .kw-sheet-body .moment-fav-pins .favorite-pin button[data-moment-move]{min-width:30px;padding:5px;}
 }
+
+/* Ver.3.22: stage-agnostic third information row; all stage-local resources stay in main UI. */
+.common-info-bar[hidden],.child-tabs[hidden]{display:none!important}
+.common-info-bar{
+  position:absolute;z-index:21;top:calc(var(--safe-top) + 54px);left:0;right:0;
+  height:61px;box-sizing:border-box;padding:6px 10px;display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;
+  background:linear-gradient(180deg,rgba(11,14,42,.96),rgba(14,17,46,.9));
+  border-bottom:1px solid rgba(176,155,255,.32)
+}
+.common-info-item{
+  min-width:0;display:flex;align-items:center;justify-content:center;gap:5px;
+  min-height:44px;padding:4px 5px;border-radius:10px;cursor:pointer;
+  border:1px solid rgba(133,148,237,.42);
+  background:rgba(49,43,105,.38);color:#f5f8ff;text-align:left;
+  touch-action:manipulation
+}
+.common-info-item:focus-visible{outline:2px solid var(--astral-gold);outline-offset:1px}
+.common-info-icon{width:25px;height:25px;flex:0 0 25px;filter:drop-shadow(0 0 5px rgba(124,175,255,.45))}
+.common-info-copy{min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+.common-info-copy small{font:9px/1.2 -apple-system,BlinkMacSystemFont,sans-serif;color:#c9d4f4;white-space:nowrap}
+.common-info-copy strong{font:600 12px/1.2 -apple-system,BlinkMacSystemFont,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:-.3px;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body.has-common-info .world{top:calc(var(--safe-top) + 115px)}
+/* Stage labels are already present in the fixed tab bar. Preserve headings for screen readers. */
+body.has-common-info .world-header .stage-kicker,body.has-common-info .world-header h1{
+  position:absolute!important;width:1px!important;height:1px!important;padding:0!important;
+  margin:-1px!important;border:0!important;overflow:hidden!important;
+  clip-path:inset(50%)!important;white-space:nowrap!important
+}
+.common-info-detail .kw-card{margin:7px 0;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.common-info-detail .kw-card span{font-size:12px;color:#cfdef5;min-width:0}
+.common-info-detail .kw-card strong{font-variant-numeric:tabular-nums;overflow-wrap:anywhere;text-align:right}
+@media(max-width:360px){
+  .common-info-bar{padding-left:5px;padding-right:5px;gap:3px}
+  .common-info-item{gap:3px;padding:3px}
+  .common-info-icon{width:21px;height:21px;flex-basis:21px}
+  .common-info-copy strong{font-size:11px}
+  .common-info-copy small{font-size:8px}
+}
+@media(max-height:670px){body.has-common-info .world-header{top:7px}}
