@@ -232,7 +232,17 @@ export class SaveStore {
     // Never grant offline progress on import/repeated re-import.
     state.lastWall=now;state.boost.active=false;state.engraving.draft=null;
     const before=this.read(this.key);
-    if(before)this.storage.setItem(this.key+".before-import",before);
+    if(before){
+      // Never overwrite the only pre-import copy. A second import keeps the
+      // first snapshot and creates an additional timestamped recovery point.
+      let key=this.key+".before-import";
+      const prior=this.read(key);
+      if(prior&&prior!==before)key=this.key+".before-import-"+now;
+      const existing=this.read(key);
+      if(existing&&existing!==before)throw Error("復元前バックアップの保存先が既に使用されています");
+      if(existing!==before)this.storage.setItem(key,before);
+      if(this.read(key)!==before)throw Error("復元前の元データを検証できません。復元を中止しました");
+    }
     if(legacy)this.storage.setItem(KEYS.legacyArchive,JSON.stringify(legacy));
     let revision=0;
     try{revision=JSON.parse(before||"{}").data?.revision||0;}catch(e){}
