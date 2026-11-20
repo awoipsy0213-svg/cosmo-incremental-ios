@@ -2,37 +2,42 @@ name: Verify published Kotowari Web
 on:
   push:
     branches: [main]
-    paths: ['index.html', 'game.mjs', 'app.mjs', 'sw.js', 'astral-observatory.css', 'universe-interference-v318.mjs', 'telemetry-v319.mjs']
   workflow_dispatch:
 jobs:
   published-site:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      actions: read
     steps:
       - uses: actions/checkout@v4
-      - name: Verify GitHub Pages HTML, PWA and intervention module
+      - name: Wait for Pages deployment of this exact main commit
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          BASE="https://awoipsy0213-svg.github.io/cosmo-incremental-ios/"
-          echo "Checking $BASE"
-          ok=0
-          for n in $(seq 1 30); do
-            html="$(curl -fsSL --connect-timeout 10 --max-time 30 "${BASE}?check=${GITHUB_SHA}-${n}" 2>/dev/null || true)"
-            sw="$(curl -fsSL --connect-timeout 10 --max-time 30 "${BASE}sw.js?check=${GITHUB_SHA}-${n}" 2>/dev/null || true)"
-            module="$(curl -fsSL --connect-timeout 10 --max-time 30 "${BASE}universe-interference-v318.mjs?check=${GITHUB_SHA}-${n}" 2>/dev/null || true)"
-            if grep -qF '3.23 · WORLDS' <<< "$html" &&
-               grep -qF '3.23.0-stage-worlds' <<< "$sw" &&
-               grep -qF 'INTERFERENCE_RULES' <<< "$module"; then
-              echo "Live HTML, PWA cache version and module match Ver.3.23."
-              ok=1
-              break
-            fi
-            echo "Not yet on CDN, attempt $n"
+          echo "Waiting for Pages deployment of ${GITHUB_SHA}"
+          for n in $(seq 1 60); do
+            runs="$(curl -fsSL --retry 3 --connect-timeout 10 --max-time 30 \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${GITHUB_SHA}&per_page=100")"
+            result="$(jq -r --arg sha "${GITHUB_SHA}" \
+              '[.workflow_runs[] | select(.name=="pages build and deployment" and .head_sha==$sha)] | sort_by(.id) | last | .conclusion // "pending"' <<< "${runs}")"
+            case "${result}" in
+              success) echo "PASS Pages deployed ${GITHUB_SHA}"; break ;;
+              failure|cancelled|timed_out|action_required|skipped|stale)
+                echo "FAIL Pages deployment status: ${result}" >&2; exit 1 ;;
+              *) echo "Pages deployment not finished: ${result}, attempt ${n}/60" ;;
+            esac
+            if [ "${n}" -eq 60 ]; then echo 'FAIL Pages deployment did not finish' >&2; exit 1; fi
             sleep 10
           done
-          test "$ok" -eq 1
+      - name: Compare published files with this exact main checkout
+        env:
+          KOTOWARI_SMOKE_BASE_URL: https://awoipsy0213-svg.github.io/cosmo-incremental-ios/
+        run: node scripts/verify-published.mjs
       - name: Verify live stage graphics are accessible
         run: |
           curl -fsSL --retry 4 --retry-delay 3 https://awoipsy0213-svg.github.io/cosmo-incremental-ios/stage-worlds.css | grep -q "kw-time-turn"
