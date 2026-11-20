@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
+import {A} from "../numbers.mjs";
 import {createState,validateState} from "../game.mjs";
 import {SaveStore,KEYS,encode,decode,checksum} from "../save.mjs";
 
@@ -23,7 +24,7 @@ test("broken primary is not replaced with an old snapshot automatically",()=>{
   assert.equal(store.blocked,true);
   assert.equal(st.getItem(KEYS.normal),broken);
   assert.equal(st.getItem(KEYS.normal+".corrupt"),broken);
-  assert.equal(decode(st.getItem(KEYS.normal+".backups")&&good,"normal").orbs,"123456");
+  assert.equal(A(decode(good,"normal").orbs).cmp(123456),0);
   assert.throws(()=>store.write(result.state),/保護中/);
 });
 test("user-selected backup restores saved progress and retains original broken bytes",()=>{
@@ -32,11 +33,11 @@ test("user-selected backup restores saved progress and retains original broken b
   const store=new SaveStore(st,"normal","explicit-recovery");
   store.load(NOW);
   const restored=store.restoreBackup(0,NOW+1000);
-  assert.equal(restored.orbs,"123456");
+  assert.equal(A(restored.orbs).cmp(123456),0);
   assert.equal(store.blocked,false);
   assert.equal(st.getItem(KEYS.normal+".before-import"),broken);
   assert.equal(st.getItem(KEYS.normal+".corrupt"),broken);
-  assert.equal(decode(st.getItem(KEYS.normal),"normal").orbs,"123456");
+  assert.equal(A(decode(st.getItem(KEYS.normal),"normal").orbs).cmp(123456),0);
   assert.doesNotThrow(()=>validateState(restored,"normal"));
 });
 test("subsequent re-import never overwrites a previously protected raw snapshot",()=>{
@@ -50,8 +51,8 @@ test("subsequent re-import never overwrites a previously protected raw snapshot"
   store.import(encode(latest,"new-writer"),NOW+200);
   assert.equal(st.getItem(KEYS.normal+".before-import"),broken);
   assert.equal(st.getItem(KEYS.normal+".before-import-"+(NOW+200)),beforeSecond);
-  assert.equal(decode(st.getItem(KEYS.normal),"normal").orbs,"777");
-  assert.equal(previous.orbs,"123456");
+  assert.equal(A(decode(st.getItem(KEYS.normal),"normal").orbs).cmp(777),0);
+  assert.equal(A(previous.orbs).cmp(123456),0);
 });
 test("cannot recover until the original was saved byte-for-byte",()=>{
   const good=valid(),st=storageFrom([[KEYS.normal,broken]]);
