@@ -48,7 +48,8 @@ export function createState(now=Date.now(),mode="normal") {
     trial:{enabled:false},
     engraving:{active:[],draft:null,observationUnlocked:false,owned:[],equipped:[],
       autoConverge:{enabled:false,minReward:AUTO_CONVERGE_DEFAULT_MIN_REWARD,lastAt:0}},
-    boost:{seconds:0,active:false,upgrades:[0,0,0,0,0],accounting:freshBoostAccounting()},
+    boost:{seconds:0,active:false,upgrades:[0,0,0,0,0],accounting:freshBoostAccounting(),
+      timeOnlyMigration:{version:1,at:now,previousActive:null,source:"new"}},
     counters:{taps:0,orbsSpent:"0",sourcePurchases:0,conversions:0,onlineSeconds:0,offlineSeconds:0},
     achievements:[],events:[],telemetry:freshTelemetry(),settings:{compact:true,showPurchaseHints:true,affordableOnly:false,bulkOrder:"cheap",holdToBuy:true,hapticTap:false,reducedMotion:false,highContrast:false,
       lowPower:false,confirmConvergence:true,confirmBulkPurchase:false,confirmMaxPurchase:true,showOffline:true,notation:"auto",
@@ -67,11 +68,12 @@ const BOOST_AUDIT_LIMIT=100;
 export function freshBoostAccounting(){
   return {earned:0,spent:0,upgrade:0,discarded:0,pending:0,entries:[]};
 }
-function recordBoostAccounting(s,kind,seconds,at,note=""){
+function recordBoostAccounting(s,kind,seconds,at,note="",interval=null){
   if(!BOOST_ACCOUNT_KINDS.includes(kind)||!Number.isFinite(seconds)||seconds<=0)return;
   const ledger=s.boost.accounting??(s.boost.accounting=freshBoostAccounting());
   ledger[kind]+=seconds;
-  ledger.entries.push({at,kind,seconds,note:String(note).slice(0,80)});
+  ledger.entries.push({...{at,kind,seconds,note:String(note).slice(0,80)},
+    ...(interval?{interval}:{} )});
   if(ledger.entries.length>BOOST_AUDIT_LIMIT)ledger.entries.splice(0,ledger.entries.length-BOOST_AUDIT_LIMIT);
 }
 function achievement(s,id,text) {
@@ -907,8 +909,9 @@ export function boostValues(s) {
   // BOOST-Q121/Q217: no new BOOST earned online, including isolated lab mode.
   // The offline base is an independent confirmed 15min per real hour, not a
   // multiplier derived from the obsolete 10min-per-hour online mechanism.
-  // Legacy five-upgrade candidates remain isolated in lab saves; the new
-  // six-path prices and coefficients are not yet formally decided.
+  // The official time-only system has FIVE upgrade paths (BOOST-CORE-004).
+  // The obsolete five lab-test path levels stay isolated for archival QA,
+  // not reinterpreted as newly decided production upgrade costs or values.
   const u=s.mode==="lab"?s.boost.upgrades:[0,0,0,0,0],c=CONFIG.confirmed;
   const b=PROPOSED.boost;
   return {capacity:Math.min(b.maxCapacitySeconds,c.boostCapacitySeconds+u[4]*b.capacityStepSeconds),
@@ -947,7 +950,11 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
     // BOOST-CORE-001, BOOST-Q253/257: elapsed real-world time is credited to
     // BOOST only. No stage ticks, orbs, concepts, planets, draws, or purchases.
     const rawEarned=dt*b.offlineRate;
-    s.boost.seconds=Math.min(b.capacity,boostBefore+rawEarned);
+    // BOOST-Q469/499/500: previously saved over-cap balances remain usable.
+    // Only NEW accrual is capped, never the verified saved balance.
+    const space=Math.max(0,b.capacity-boostBefore);
+    const credit=Math.min(space,rawEarned);
+    s.boost.seconds=boostBefore+credit;
     s.boost.active=false;
     s.counters.offlineSeconds+=dt;
     // Stage time is paused: preserve remaining combo/buff, planetary age,
@@ -973,12 +980,20 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
   // BOOST accumulation is offline-only; live active consumption is unchanged.
   let gameSeconds=dt;
   if(s.boost.active){
+    // BOOST-CORE-004: exactly one game-time multiplier, no direct resource
+    // multiplier or instant-tap surcharge. m-1 is a trial-only cost formula.
     const m=CONFIG.provisional.boost.multiplier;
-    const extra=Math.min(s.boost.seconds,dt*(m-1));
-    s.boost.seconds-=extra;gameSeconds+=extra;
-    if(s.boost.seconds<=0)s.boost.active=false;
+    if(m>1){
+      const extra=Math.min(s.boost.seconds,dt*(m-1));
+      s.boost.seconds=Math.max(0,s.boost.seconds-extra);
+      gameSeconds+=extra;
+      if(extra>0)recordBoostAccounting(s,"spent",extra,now,"時間倍率（暫定）",{
+        from:now-dt*1000,to:now,realSeconds:dt,
+        effectiveBoostSeconds:extra/(m-1),gameSeconds,multiplier:m
+      });
+      if(s.boost.seconds<=0)s.boost.active=false;
+    }else s.boost.active=false; // BOOST-Q219: time x1 is OFF, consumes nothing
   }
-  recordBoostAccounting(s,"spent",Math.max(0,boostBefore-s.boost.seconds),now,"時間加速（暫定）");
   s.counters.onlineSeconds+=dt;
   let gained=A(0);
   if(s.intro.complete){
@@ -1163,7 +1178,13 @@ export function migrateLegacy(raw,now=Date.now(),boostRaw=null) {
   }
   if(s.intro.complete)s.achievements.push("foundation");
   const boost=boostRaw||raw.boost;
-  if(boost&&Number.isFinite(boost.seconds))s.boost.seconds=Math.max(0,Math.min(3600,boost.seconds));
+  if(boost&&Number.isFinite(boost.seconds)){
+    // Legacy raw bytes stay archived by SaveStore; no 60m confiscation.
+    s.boost.seconds=Math.max(0,boost.seconds);
+    s.boost.timeOnlyMigration={version:1,at:now,
+      previousActive:typeof boost.active==="boolean"?boost.active:null,source:"legacy-v01-v30"};
+    s.boost.active=false;
+  }
   s.settings={...s.settings,...Object.fromEntries(Object.entries(raw.settings||{}).filter(([k,v])=>k in s.settings && typeof v===typeof s.settings[k]))};
   s.migration={from:"legacy-v01-v30",at:now,legacyStage:stage,
     preserved:["オーブ","累計オーブ","タップ効率レベル","源レベル","残滓・概念","宇宙資源","既知ステージ"],
@@ -1342,6 +1363,19 @@ export function validateState(input,expectedMode=null) {
       !e.equipped.includes(ENGRAVING_AUTO_CONVERGE_ID)))fail("自動収束の未装備設定");
   const b=s.boost;if(!b||!Number.isFinite(b.seconds)||b.seconds<0||!Array.isArray(b.upgrades)||b.upgrades.length!==5||b.upgrades.some(x=>!Number.isInteger(x)||x<0||x>10000))fail("BOOST");
   if(typeof b.active!=="boolean")fail("BOOST状態");
+  if(b.timeOnlyMigration===undefined){
+    // BOOST-Q501: the old ON bit must never become an automatically active
+    // time multiplier. Preserve that bit without guessing old mode semantics.
+    b.timeOnlyMigration={version:1,at:s.lastWall,
+      previousActive:b.active,source:"pre-v327"};
+    b.active=false;
+  }
+  if(!b.timeOnlyMigration||typeof b.timeOnlyMigration!=="object"||
+     b.timeOnlyMigration.version!==1||
+     !Number.isFinite(b.timeOnlyMigration.at)||b.timeOnlyMigration.at<0||b.timeOnlyMigration.at>1e15||
+     ![null,true,false].includes(b.timeOnlyMigration.previousActive)||
+     !["new","pre-v327","legacy-v01-v30"].includes(b.timeOnlyMigration.source))
+    fail("BOOST旧状態の保護");
   if(b.accounting===undefined)b.accounting=freshBoostAccounting();
   const ledger=b.accounting;
   if(!ledger||typeof ledger!=="object"||Array.isArray(ledger)||
@@ -1349,7 +1383,11 @@ export function validateState(input,expectedMode=null) {
      !Array.isArray(ledger.entries)||ledger.entries.length>BOOST_AUDIT_LIMIT||
      ledger.entries.some(x=>!x||!Number.isFinite(x.at)||x.at<0||x.at>1e15||
        !BOOST_ACCOUNT_KINDS.includes(x.kind)||!Number.isFinite(x.seconds)||x.seconds<=0||
-       typeof x.note!=="string"||x.note.length>80))fail("BOOST計算履歴");
+       typeof x.note!=="string"||x.note.length>80||
+       (x.interval!==undefined&&(!x.interval||typeof x.interval!=="object"||
+         ["from","to","realSeconds","effectiveBoostSeconds","gameSeconds","multiplier"].some(k=>
+           !Number.isFinite(x.interval[k])||x.interval[k]<0)||
+         x.interval.to<x.interval.from||x.interval.multiplier<1))))fail("BOOST計算履歴");
   if(s.trial===undefined)s.trial={enabled:false};
   if(!s.trial||typeof s.trial!=="object"||Array.isArray(s.trial)||typeof s.trial.enabled!=="boolean")fail("検証設定");
   if(s.mode==="normal"&&s.trial.enabled)fail("試案設定が通常データへ混入しています");
@@ -1366,7 +1404,8 @@ export function validateState(input,expectedMode=null) {
   if(!["auto","scientific","exponent","zeros"].includes(s.settings.notation))s.settings.notation="auto";
   if(!["cheap","expensive"].includes(s.settings.bulkOrder))s.settings.bulkOrder="cheap";
   Object.assign(s.settings,cleanMomentPrefs(s.settings,MOMENT_IDS));
-  s.boost.seconds=Math.min(s.boost.seconds,boostValues(s).capacity);
+  // BOOST-Q469/499/500: verified legacy seconds may exceed the new cap.
+  // Do not trim on decode, encode, save, restore or offline settlement.
   normalizeWeights(s);
   return s;
 }
