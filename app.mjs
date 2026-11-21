@@ -521,8 +521,9 @@ function boostHTML(){
   const extraStored=Math.max(0,s.seconds-v.capacity);
   const overCap=extraStored>0?`<p class="status-note">旧BOOST残高を容量外で保護中：超過 ${duration(extraStored)}。この残高は使用できますが、容量を下回るまで新規蓄積はありません。</p>`:"";
   const legacyBit=s.timeOnlyMigration?.previousActive;
+  const legacyLevels=s.timeOnlyMigration?.legacyUpgradeLevels;
   const migrationNote=s.timeOnlyMigration?.source!=="new"?
-    `旧版の加速設定（${legacyBit===null?"状態不明":legacyBit?"ON":"OFF"}）は履歴として保持し、新時間加速はOFFから開始しました。`:"";
+    `旧版の加速設定（${legacyBit===null?"状態不明":legacyBit?"ON":"OFF"}）は履歴として保持し、新時間加速はOFFから開始しました。${Array.isArray(legacyLevels)?" 旧強化Lv："+legacyLevels.join(" / ")+"（購入履歴保護・新5系統へ転用しない）":""}`:"";
   const auditNames={earned:"獲得",spent:"使用",upgrade:"強化購入",discarded:"容量超過",pending:"保留"};
   const items=ledger.entries.slice(-20).reverse().map(e=>`<li>${esc(new Date(e.at).toLocaleString("ja-JP"))} · ${auditNames[e.kind]||"保留"} ${e.seconds.toFixed(3)}秒${e.note?" · "+esc(e.note):""}</li>`).join("");
   const auditHTML=`<details class="kw-card boost-audit"><summary>BOOST取引記録（直近20件を表示）</summary>
