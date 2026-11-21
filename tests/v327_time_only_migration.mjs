@@ -43,6 +43,11 @@ test("BOOST-Q312: depleted trial time is split exactly from ordinary speed",()=>
  assert.equal(s.boost.active,false);
  assert.equal(s.boost.accounting.spent,2);
  assert.equal(s.boost.accounting.entries.at(-1).interval.effectiveBoostSeconds,2);
+ const spentInterval=s.boost.accounting.entries.at(-1).interval;
+ assert.equal(spentInterval.from,T);
+ assert.equal(spentInterval.to,T+2000);
+ assert.equal(spentInterval.realSeconds,2);
+ assert.equal(spentInterval.gameSeconds,4);
  const later=G.advance(s,T+20000,{offline:false,rng:()=>.999});
  assert.equal(later.gameSeconds,10);
  assert.equal(s.time.elapsed,22);
