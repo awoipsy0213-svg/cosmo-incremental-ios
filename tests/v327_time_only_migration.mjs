@@ -11,8 +11,9 @@ function storage(entries=[]){
   const data=new Map(entries);
   return {data,getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,String(v)),removeItem:k=>data.delete(k)};
 }
-function oldSave(seconds=5000,active=true){
+function oldSave(seconds=5000,active=true,legacyLevels=null){
   const s=fresh();s.boost.seconds=seconds;s.boost.active=active;
+  if(legacyLevels)s.boost.upgrades=[...legacyLevels];
   delete s.boost.timeOnlyMigration;
   const body=JSON.stringify(s);
   return JSON.stringify({kind:"kotowari-save",version:31,writer:"legacy-writer",checksum:checksum(body),data:s});
@@ -60,13 +61,15 @@ test("BOOST-Q219/497: disabled time multiplier costs no BOOST",()=>{
  assert.equal(s.boost.accounting.entries.length,0);
 });
 test("BOOST-Q499: verified prior over-cap seconds are not clipped when loading",()=>{
- const raw=oldSave(5400,true),st=storage([[KEYS.normal,raw]]);
+ const raw=oldSave(5400,true,[3,2,1,0,0]),st=storage([[KEYS.normal,raw]]);
  const store=new SaveStore(st,"normal","new-writer"),loaded=store.load(T+3600000);
  assert.equal(loaded.blocked,undefined);
  assert.equal(loaded.state.boost.seconds,5400);
  assert.equal(loaded.state.boost.active,false);
+ assert.deepEqual(loaded.state.boost.upgrades,[0,0,0,0,0]);
  assert.deepEqual(loaded.state.boost.timeOnlyMigration,{
-   version:1,at:T,previousActive:true,source:"pre-v327"
+   version:1,at:T,previousActive:true,source:"pre-v327",
+   legacyUpgradeLevels:[3,2,1,0,0]
  });
  const backup=st.getItem(KEYS.normal+".before-v327-time-only");
  assert.equal(backup,raw);
@@ -77,6 +80,7 @@ test("BOOST-Q499: verified prior over-cap seconds are not clipped when loading",
  assert.equal(final.boost.seconds,5400);
  assert.equal(final.boost.active,false);
  assert.equal(final.boost.timeOnlyMigration.previousActive,true);
+ assert.deepEqual(final.boost.timeOnlyMigration.legacyUpgradeLevels,[3,2,1,0,0]);
  assert.equal(st.getItem(KEYS.normal+".before-v327-time-only"),raw);
 });
 test("BOOST-Q500: above-cap balance remains usable but never accrues new BOOST",()=>{
@@ -139,10 +143,19 @@ test("old legacy BOOST migration retains spendable excess with raw archive intac
  assert.equal(result.state.boost.seconds,4400);
  assert.equal(result.state.boost.active,false);
  assert.equal(result.state.boost.timeOnlyMigration.previousActive,true);
+ assert.deepEqual(result.state.boost.timeOnlyMigration.legacyUpgradeLevels,[3,2,1,0,0]);
  assert.equal(st.getItem(KEYS.legacy),a);
  const archived=JSON.parse(st.getItem(KEYS.legacyArchive));
  assert.equal(archived.raw,a);assert.equal(archived.boost,rawBoost);
  assert.equal(result.state.boost.upgrades.every(x=>x===0),true);
+});
+test("official new normal saves reject unapproved active old BOOST investments",()=>{
+ const s=fresh();s.boost.upgrades[1]=4;
+ assert.throws(()=>G.validateState(s,"normal"),/検証専用値/);
+ const old=oldSave(100,false,[0,4,0,0,0]);
+ const migrated=decode(old,"normal");
+ assert.deepEqual(migrated.boost.upgrades,[0,0,0,0,0]);
+ assert.deepEqual(migrated.boost.timeOnlyMigration.legacyUpgradeLevels,[0,4,0,0,0]);
 });
 test("new interval metadata validates and survives saved schema31",()=>{
  const s=fresh();s.boost.seconds=30;s.boost.active=true;
