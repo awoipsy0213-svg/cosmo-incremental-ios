@@ -10,7 +10,7 @@ let browser;
 try{
  let ready=false;
  for(let i=0;i<40;i++){try{if((await fetch(base)).ok){ready=true;break;}}catch{}await sleep(250);}
- assert.ok(ready,"Ver3.26 test server not available");
+ assert.ok(ready,"Ver3.27 test server not available");
  browser=await chromium.launch({headless:true});
  for(const [name,width,height] of [["phone",375,812],["desktop",1024,900]]){
   const context=await browser.newContext({viewport:{width,height}});
@@ -35,7 +35,7 @@ try{
   await page.addInitScript(raw=>localStorage.setItem("kotowari_v31_normal",raw),fixture);
   await page.reload({waitUntil:"domcontentloaded"});
   await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
-  assert.match(await page.locator("#buildLabel").textContent(),/3\.26/);
+  assert.match(await page.locator("#buildLabel").textContent(),/3\.27/);
   assert.match(await page.locator("#worldDetails").textContent(),/次10まで1回/);
   await page.locator('[data-stage="existence"]').click();
   await page.locator('[data-child="sources"]').click();
