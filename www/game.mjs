@@ -987,10 +987,15 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
       const extra=Math.min(s.boost.seconds,dt*(m-1));
       s.boost.seconds=Math.max(0,s.boost.seconds-extra);
       gameSeconds+=extra;
-      if(extra>0)recordBoostAccounting(s,"spent",extra,now,"時間倍率（暫定）",{
-        from:now-dt*1000,to:now,realSeconds:dt,
-        effectiveBoostSeconds:extra/(m-1),gameSeconds,multiplier:m
-      });
+      if(extra>0){
+        const activeWall=extra/(m-1),startAt=now-dt*1000;
+        // BOOST-Q419/Q312: if BOOST runs out mid-frame, log only the
+        // accelerated interval, not the rest that continues at normal speed.
+        recordBoostAccounting(s,"spent",extra,now,"時間倍率（暫定）",{
+          from:startAt,to:startAt+activeWall*1000,realSeconds:activeWall,
+          effectiveBoostSeconds:activeWall,gameSeconds:activeWall*m,multiplier:m
+        });
+      }
       if(s.boost.seconds<=0)s.boost.active=false;
     }else s.boost.active=false; // BOOST-Q219: time x1 is OFF, consumes nothing
   }
