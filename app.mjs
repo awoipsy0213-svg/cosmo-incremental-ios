@@ -57,7 +57,8 @@ async function ask(title,text,yes="実行する"){
 }
 function finishConfirm(ok){
   const r=confirmedAction;
-  if(!r)return;
+  // Older details/test dialogs can open without a promise; allow them to close.
+  if(!r){$("confirmDialog").close();return;}
   // Discard only the elapsed *dialog* interval, never elapsed time before it.
   if(state&&!document.hidden){const now=Date.now();state.lastWall=now;lastFrame=now;}
   confirmedAction=null;$("confirmDialog").close();r(ok);
