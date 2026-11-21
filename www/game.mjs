@@ -1187,7 +1187,11 @@ export function migrateLegacy(raw,now=Date.now(),boostRaw=null) {
     // Legacy raw bytes stay archived by SaveStore; no 60m confiscation.
     s.boost.seconds=Math.max(0,boost.seconds);
     s.boost.timeOnlyMigration={version:1,at:now,
-      previousActive:typeof boost.active==="boolean"?boost.active:null,source:"legacy-v01-v30"};
+      previousActive:typeof boost.active==="boolean"?boost.active:null,
+      source:"legacy-v01-v30",
+      ...(Array.isArray(boost.upgrades)&&boost.upgrades.length===5&&
+        boost.upgrades.every(x=>Number.isInteger(x)&&x>=0&&x<=10000)?
+        {legacyUpgradeLevels:[...boost.upgrades]}:{})};
     s.boost.active=false;
   }
   s.settings={...s.settings,...Object.fromEntries(Object.entries(raw.settings||{}).filter(([k,v])=>k in s.settings && typeof v===typeof s.settings[k]))};
@@ -1381,6 +1385,19 @@ export function validateState(input,expectedMode=null) {
      ![null,true,false].includes(b.timeOnlyMigration.previousActive)||
      !["new","pre-v327","legacy-v01-v30"].includes(b.timeOnlyMigration.source))
     fail("BOOST旧状態の保護");
+  if(b.timeOnlyMigration.legacyUpgradeLevels!==undefined &&
+     (!Array.isArray(b.timeOnlyMigration.legacyUpgradeLevels)||
+      b.timeOnlyMigration.legacyUpgradeLevels.length!==5||
+      b.timeOnlyMigration.legacyUpgradeLevels.some(x=>!Number.isInteger(x)||x<0||x>10000)))
+    fail("BOOST旧強化Lvの保護");
+  // Q470/502: historical normal-save booster investments are data, not active
+  // test upgrades nor new official five-path levels. Only convert the raw
+  // PRE-v327 shape; never silently accept invalid upgrades in new saves.
+  if(s.mode==="normal"&&b.timeOnlyMigration.source==="pre-v327"&&
+     b.timeOnlyMigration.legacyUpgradeLevels===undefined&&b.upgrades.some(x=>x!==0)){
+    b.timeOnlyMigration.legacyUpgradeLevels=[...b.upgrades];
+    b.upgrades=[0,0,0,0,0];
+  }
   if(b.accounting===undefined)b.accounting=freshBoostAccounting();
   const ledger=b.accounting;
   if(!ledger||typeof ledger!=="object"||Array.isArray(ledger)||
