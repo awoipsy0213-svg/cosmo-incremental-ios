@@ -49,11 +49,19 @@ function showNotice(message){
 async function ask(title,text,yes="実行する"){
   if(confirmedAction)return false;
   $("confirmTitle").textContent=title;$("confirmText").textContent=text;$("confirmYes").textContent=yes;
+  // BOOST-Q408/412: important decision dialogs freeze stage time and BOOST
+  // spending together, but do not mint offline BOOST while the app is active.
+  checkpoint();
   $("confirmDialog").showModal();
   return new Promise(resolve=>confirmedAction=resolve);
 }
 function finishConfirm(ok){
-  const r=confirmedAction;confirmedAction=null;$("confirmDialog").close();r?.(ok);
+  const r=confirmedAction;
+  // Older details/test dialogs can open without a promise; allow them to close.
+  if(!r){$("confirmDialog").close();return;}
+  // Discard only the elapsed *dialog* interval, never elapsed time before it.
+  if(state&&!document.hidden){const now=Date.now();state.lastWall=now;lastFrame=now;}
+  confirmedAction=null;$("confirmDialog").close();r(ok);
 }
 $("confirmYes").onclick=()=>finishConfirm(true);
 $("confirmNo").onclick=()=>finishConfirm(false);
@@ -73,6 +81,10 @@ function checkpoint(){
   const now=Date.now(),gap=now-state.lastWall;
   // OS visibility is the offline boundary. A throttled visible frame
   // stays online and must not mint offline-only BOOST.
+  if($("confirmDialog").open){
+    state.lastWall=now; // decision-pause: no stage progress or BOOST spend
+    return;
+  }
   G.advance(state,now,{offline:false});
 }
 function save(forceSnapshot=false){
@@ -95,6 +107,16 @@ function reportOffline(report){
   offlineReport=report;
   if(state.settings.showOffline)showNotice(`復帰：ステージ進行・資源獲得なし / BOOST +${duration(Math.max(0,report.boost))}`+
     (report.boostDiscarded>0?` / 容量超過破棄 ${duration(report.boostDiscarded)}`:"")+"。オンライン中のBOOST新規獲得はありません。");
+}
+// BOOST-Q625: offline BOOST credit must be durably saved and read-back
+// verified before success is visible. Failed primary saves never claim a grant.
+function settleOfflineAndPersist(now,{snapshot=false}={}){
+  const report=G.advance(state,now,{offline:true});
+  const persisted=save(snapshot)&&!storageUnavailable;
+  if(persisted)reportOffline(report);
+  else if(report.elapsed>=10)
+    showNotice("復帰BOOSTの保存を確認できません。獲得を確定表示せず、保存とバックアップを確認してください。");
+  return {report,persisted};
 }
 function applySettings(){
   document.body.classList.toggle("lab-mode",mode==="lab");
@@ -506,6 +528,12 @@ function observationsHTML(){
 function boostHTML(){
   const v=G.boostValues(state),s=state.boost;
   const ledger=s.accounting||G.freshBoostAccounting();
+  const extraStored=Math.max(0,s.seconds-v.capacity);
+  const overCap=extraStored>0?`<p class="status-note">旧BOOST残高を容量外で保護中：超過 ${duration(extraStored)}。この残高は使用できますが、容量を下回るまで新規蓄積はありません。</p>`:"";
+  const legacyBit=s.timeOnlyMigration?.previousActive;
+  const legacyLevels=s.timeOnlyMigration?.legacyUpgradeLevels;
+  const migrationNote=s.timeOnlyMigration?.source!=="new"?
+    `旧版の加速設定（${legacyBit===null?"状態不明":legacyBit?"ON":"OFF"}）は履歴として保持し、新時間加速はOFFから開始しました。${Array.isArray(legacyLevels)?" 旧強化Lv："+legacyLevels.join(" / ")+"（購入履歴保護・新5系統へ転用しない）":""}`:"";
   const auditNames={earned:"獲得",spent:"使用",upgrade:"強化購入",discarded:"容量超過",pending:"保留"};
   const items=ledger.entries.slice(-20).reverse().map(e=>`<li>${esc(new Date(e.at).toLocaleString("ja-JP"))} · ${auditNames[e.kind]||"保留"} ${e.seconds.toFixed(3)}秒${e.note?" · "+esc(e.note):""}</li>`).join("");
   const auditHTML=`<details class="kw-card boost-audit"><summary>BOOST取引記録（直近20件を表示）</summary>
@@ -513,18 +541,19 @@ function boostHTML(){
     <p class="tiny">旧版の取得・購入は遡及推計しません。未受取補償は金額未決定で自動計上・返還しません。詳細は直近記録のみ表示し、累積値は保存します。</p>
     ${items?`<ol>${items}</ol>`:"<p>まだ記録がありません。</p>"}</details>`;
   if(mode!=="lab"){
-    const labels=["BOOST獲得速度","BOOST獲得倍率","BOOST容量","時間加速倍率","最終資源獲得倍率","BOOST消費効率"];
+    const labels=["BOOST基礎獲得速度","オフラインBOOST獲得倍率","BOOST容量","ゲーム内時間倍率","時間加速の消費効率"];
     return `<div class="kw-card boost-status-card"><div class="card-top"><strong data-boost-remaining>${duration(s.seconds)} / ${duration(v.capacity)}</strong><span class="badge" data-boost-state>${s.active?"加速中":"待機中"}</span></div>
       <div class="slim-progress"><i data-boost-progress style="width:${Math.min(100,100*s.seconds/v.capacity)}%"></i></div>
       <p>現実のオフライン1時間につきBOOST15分を蓄積。オンライン新規獲得なし。</p>
-      <small data-boost-fill>満タンまで ${duration(v.offlineRate>0?(v.capacity-s.seconds)/v.offlineRate:0)}（現実の離席時間）</small>
-      <button class="wide-button" data-action="toggle-boost" ${s.seconds<1&&!s.active?"disabled":""}>${s.active?"加速を停止":"加速を開始 ×2（旧試験値）"}</button>
-      <p class="tiny">オフライン中は各ステージ停止・資源報酬なし。BOOSTの既存残高は保持します。時間加速×2は現行の暫定動作であり、正式消費係数は未決定です。</p></div>
-      <h3>新BOOST・6強化系統（費用・係数未決定）</h3>
+      <small data-boost-fill>${extraStored>0?"容量超過旧残高を保護中":`満タンまで ${duration(v.offlineRate>0?(v.capacity-s.seconds)/v.offlineRate:0)}（現実の離席時間）`}</small>
+      <button class="wide-button" data-action="toggle-boost" ${s.seconds<1&&!s.active?"disabled":""}>${s.active?"時間加速を停止":"時間×2をON（暫定）"}</button>
+      <p>現実1秒 → ゲーム内${CONFIG.provisional.boost.multiplier}秒（暫定の時間倍率）。オーブ・タップ・収束・資源への最終倍率はありません。</p>
+      <p class="tiny">オフラインは全ステージ停止・BOOSTだけ蓄積。オンライン中の新規獲得なし。現行×2と消費(m−1)は試験値であり正式な上限・料金・消費式ではありません。</p>${overCap}</div>
+      <h3>BOOST・正式5強化系統（費用・係数は未決定）</h3>
       <div class="kw-list">${labels.map((label,i)=>`<div class="kw-card"><div class="card-top"><strong>${esc(label)}</strong><span class="badge pending">要確認</span></div>
-        <small>現在 ${i===0?duration(v.offlineRate*3600)+"/実時間":i===2?duration(v.capacity):"？？？"} · 強化費用 ？？？</small>
+        <small>現在 ${i===0?duration(v.offlineRate*3600)+"/実時間1時間":i===1?"×1（初期）":i===2?duration(v.capacity):i===3?"×2（暫定）":"未確定"} · 強化費用 未確定</small>
         <button class="wide-button" disabled>仕様確定後に解放</button></div>`).join("")}</div>
-      <p class="status-note">以前の5強化系統の購入履歴・補償は保留。既存投資の返還額やBOOST消費式を未確定のまま適用しません。</p>${auditHTML}`;
+      <p class="status-note">補償判定待ち：旧最終資源倍率強化や旧試験5系統の投資履歴を保存。金額・移行先は未決定なので補償は未付与です。${esc(migrationNote)}</p>${auditHTML}`;
   }
   const labels=["旧試験：オフライン効率","旧試験：進行対象時間","旧試験：BOOST基礎獲得","旧試験：オフライン獲得倍率","旧試験：容量"];
   return `<div class="kw-card boost-status-card"><div class="card-top"><strong data-boost-remaining>${duration(s.seconds)} / ${duration(v.capacity)}</strong><span class="badge" data-boost-state>${s.active?"加速中":"蓄積中"}</span></div><div class="slim-progress"><i data-boost-progress style="width:${Math.min(100,100*s.seconds/v.capacity)}%"></i></div>
@@ -532,7 +561,7 @@ function boostHTML(){
     <small data-boost-fill>オフラインで満タンまで ${duration((v.capacity-s.seconds)/v.offlineRate)}</small>
     <button class="wide-button" data-action="toggle-boost" ${s.seconds<1&&!s.active?"disabled":""}>${s.active?"加速を停止":"加速を開始 ×2（仮設定）"}</button>
     <p class="tiny">暫定式：m倍で実時間1秒につきBOOST(m−1)秒消費。タップ威力は直接増えません。アプリを閉じている間は消費しません。</p></div>
-    <h3>BOOSTだけで育てる5系統</h3><p class="panel-intro">各ステージ・源・刻印からBOOSTを強化しません。価格と増加幅は未決定です。</p>
+    <h3>旧検証用5系統（正式BOOST5系統とは別）</h3><p class="panel-intro">旧来の試験効果・購入履歴をlabセーブに隔離しています。新しい正式5強化系統の価格・増加幅は未決定であり、ここでは研究以外に適用されません。</p>
     <div class="kw-list">${labels.map((x,i)=>{
       const current=[`${Math.round(v.efficiency*100)}%`,duration(v.offlineCap),`${duration(v.onlineRate*3600)}/時`,`${(v.offlineRate/(CONFIG.confirmed.boostOfflineSecondsPerHour/3600)).toFixed(2)}倍`,duration(v.capacity)][i];
       const trial=JSON.parse(JSON.stringify(state));trial.mode="lab";trial.boost.upgrades[i]++;
@@ -580,7 +609,7 @@ function settingsHTML(){
   return `<p class="panel-intro">背景は既存のORGANIC FLOWを維持。安全な保存・表示設定は序章から利用できます。</p>
   ${labels.map(([id,name,desc])=>`<label class="kw-row"><span>${name}<small>${desc}</small></span><input type="checkbox" data-pref="${id}" ${state.settings[id]?"checked":""}></label>`).join("")}
   <label class="kw-row">数値表記<select class="input-select" data-pref="notation"><option value="auto" ${state.settings.notation==="auto"?"selected":""}>標準（100万以降e）</option><option value="scientific" ${state.settings.notation==="scientific"?"selected":""}>指数 e（1.23e12）</option><option value="exponent" ${state.settings.notation==="exponent"?"selected":""}>指数 E（1.23E+12）</option><option value="zeros" ${state.settings.notation==="zeros"?"selected":""}>0の個数（10^12）</option></select></label>
-  <div class="kw-row"><span>バージョン<small>Ver.3.26 仕様同期・BOOST取引履歴</small></span><strong>${CONFIG.version}</strong></div>
+  <div class="kw-row"><span>バージョン<small>Ver.3.27 BOOST時間単一化・旧資産保護</small></span><strong>${CONFIG.version}</strong></div>
   <div class="kw-row"><span>通信<small>クラウド・課金は未接続</small></span><strong>${navigator.onLine?"オンライン":"オフライン"}</strong></div>
   <button class="wide-button" data-organizer="backup">保存とバックアップ</button>
   <a class="link-button" href="./legacy/" data-legacy-link>保管した旧版Ver.3.0で続ける</a><br>
@@ -864,11 +893,11 @@ function refreshBoostShortcut(){
   const fill=panel.querySelector("[data-boost-progress]");
   if(fill)fill.style.width=`${(100*Math.min(1,seconds/capacity)).toFixed(2)}%`;
   const offline=panel.querySelector("[data-boost-fill]");
-  if(offline)offline.textContent=`満タンまで ${duration((capacity-seconds)/G.boostValues(state).offlineRate)}（現実の離席時間）`;
+  if(offline)offline.textContent=seconds>capacity?"容量超過旧残高を保護中":`満タンまで ${duration(Math.max(0,(capacity-seconds)/G.boostValues(state).offlineRate))}（現実の離席時間）`;
   const button=panel.querySelector('button[data-action="toggle-boost"]');
   if(button){
     button.disabled=readOnly||store.blocked||(!active&&seconds<1);
-    button.textContent=active?"加速を停止":"加速を開始 ×2（旧試験値）";
+    button.textContent=active?"時間加速を停止":"時間×2をON（暫定）";
   }
 }
 function render(force=false){
@@ -1164,7 +1193,7 @@ async function dispatchAction(action){
     }
     state.boost.active=!state.boost.active;
     save();render(true);
-    toast(state.boost.active?"BOOST加速を開始しました（×2・旧試験値）":"BOOST加速を停止しました");
+    toast(state.boost.active?"時間加速×2をONにしました（暫定消費式）":"時間加速をOFFにしました");
     return;
   }
   if(action==="toggle-trial"){
@@ -1350,18 +1379,22 @@ document.addEventListener("input",e=>{lastInteraction=Date.now();if(e.target.id=
 function hidePage(){
   stopHoldPurchase(null,true);
   if(!state||readOnly||store.blocked)return;
-  const now=Date.now();G.advance(state,now,{offline:false});hiddenAt=now;state.boost.active=false;
+  const now=Date.now();
+  if($("confirmDialog").open)state.lastWall=now;else G.advance(state,now,{offline:false});
+  hiddenAt=now;state.boost.active=false;
   save();
 }
 document.addEventListener("visibilitychange",()=>{
   if(document.hidden)hidePage();
   else if(state&&!readOnly&&!store.blocked){
-    const now=Date.now();const r=G.advance(state,now,{offline:true});hiddenAt=null;lastFrame=now;reportOffline(r);save();render(true);
+    const now=Date.now();hiddenAt=null;lastFrame=now;
+    settleOfflineAndPersist(now);
+    render(true);
   }
 });
 window.addEventListener("pagehide",()=>{hidePage();lockRelease?.();lockRelease=null;});
 window.addEventListener("pageshow",async e=>{
-  if(e.persisted){await acquireLock();if(!readOnly){const loaded=store.load();state=loaded.state;if(!store.blocked){reportOffline(G.advance(state,Date.now(),{offline:true}));save();}render(true);}}
+  if(e.persisted){await acquireLock();if(!readOnly){const loaded=store.load();state=loaded.state;if(!store.blocked)settleOfflineAndPersist(Date.now());render(true);}}
 });
 window.addEventListener("online",()=>renderPanel(true));window.addEventListener("offline",()=>renderPanel(true));
 window.addEventListener("storage",e=>{
@@ -1391,8 +1424,7 @@ state=loaded.state;storageUnavailable=!!loaded.storageUnavailable;
 if(loaded.warning)showNotice(loaded.warning);
 if(readOnly)showNotice("ほかのタブがプレイ中のため閲覧専用です。そのタブを閉じてから再読み込みしてください。");
 if(!readOnly&&!store.blocked){
-  reportOffline(G.advance(state,Date.now(),{offline:true}));
-  save(true);
+  settleOfflineAndPersist(Date.now(),{snapshot:true});
 }
 applySettings();render(true);
 setInterval(()=>{

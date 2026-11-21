@@ -60,11 +60,11 @@ check("Visual stage patterns cover time, universe and life without new gameplay 
 check("Web and Capacitor payloads match and the PWA caches the new visuals",()=>{
  for(const name of ["app.mjs","game.mjs","index.html","balance-config.mjs","sw.js","stage-worlds.css","matrix-v324.css"])
    assert.equal(root(name),root("www/"+name),name+" mirror mismatch");
- assert.equal(CONFIG.version,"3.26.0");
+ assert.equal(CONFIG.version,"3.27.0");
  assert.equal(CONFIG.schemaVersion,31);
- assert.match(root("sw.js"),/3\.26\.0-confirmed-audit/);
+ assert.match(root("sw.js"),/3\.27\.0-time-only/);
  assert.match(root("sw.js"),/stage-worlds\.css/);
  assert.match(root("sw.js"),/matrix-v324\.css/);
- assert.match(root("index.html"),/3\.26 · AUDIT/);
+ assert.match(root("index.html"),/3\.27 · TIME/);
 });
 console.log("PASS "+passed+" Ver.3.23 HUD, settings and save compatibility checks");

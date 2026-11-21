@@ -137,7 +137,7 @@ check("BOOST-Q326: old BOOST investments and over-cap balances remain archived, 
  const store=new SaveStore(st,"normal","boost-migration-test");
  const load=store.load(T);
  assert.equal(load.migrated,true);
- assert.equal(load.state.boost.seconds,3600);
+ assert.equal(load.state.boost.seconds,4400);
  assert.equal(st.getItem(KEYS.legacy),legacyRaw);
  assert.equal(st.getItem("kotowari_boost_v1"),oldBoost);
  const archived=JSON.parse(st.getItem(KEYS.legacyArchive));
@@ -145,5 +145,7 @@ check("BOOST-Q326: old BOOST investments and over-cap balances remain archived, 
  assert.equal(archived.boost,oldBoost);
  assert.equal(load.state.mode,"normal");
  assert.equal(load.state.boost.upgrades.every(v=>v===0),true);
+ assert.equal(load.state.boost.active,false);
+ assert.equal(load.state.boost.timeOnlyMigration.source,"legacy-v01-v30");
 });
 console.log("PASS "+tested+" current-spec offline BOOST-only and save regression checks");

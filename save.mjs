@@ -46,6 +46,20 @@ export class SaveStore {
         // Preserve an untouched pre-v3.8 snapshot before first migration to 30 slots.
         // If backup cannot be verified, block writes rather than risking the sole save.
         const oldShape=JSON.parse(raw).data??JSON.parse(raw);
+        // BOOST-CORE-004/Q469/499/501: save a byte-for-byte backup BEFORE
+        // normalizing old active flags and preserving balances above capacity.
+        // A failed backup blocks all writes to the only original save.
+        if(oldShape.boost&&oldShape.boost.timeOnlyMigration===undefined){
+          const key=this.key+".before-v327-time-only";
+          try{
+            if(!this.read(key))this.storage.setItem(key,raw);
+            if(!this.read(key))throw Error("original v327 backup not persisted");
+            // Never overwrite a previous archived source with a newer version.
+          }catch(e){
+            this.blocked=true;
+            return {state:s,blocked:true,warning:"BOOST時間倍率への移行前バックアップに失敗しました。旧残高・旧設定を上書きせず保護しています。"};
+          }
+        }
         if(this.mode==="normal" && !oldShape.momentRuntime){
           const key=this.key+".before-setsuna38";
           try {

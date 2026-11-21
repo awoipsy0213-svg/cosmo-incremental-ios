@@ -11,7 +11,7 @@ let browser;
 try{
  let ready=false;
  for(let i=0;i<40;i++){try{if((await fetch(base)).ok){ready=true;break;}}catch{}await sleep(250);}
- assert.ok(ready,"Ver3.26 test host unavailable");
+ assert.ok(ready,"Ver3.27 test host unavailable");
  browser=await chromium.launch({headless:true});
  for(const [label,width,height] of [["phone-narrow",320,700],["phone",375,812],["desktop",1000,900]]){
   const ctx=await browser.newContext({viewport:{width,height}});
@@ -59,16 +59,16 @@ try{
   assert.equal(resumed.telemetry.offlineReports[0].orbs,"0");
   assert.equal(resumed.telemetry.offlineReports[0].effectiveSeconds,0);
   assert.ok(resumed.telemetry.offlineReports[0].boostEarned>=899);
-  assert.match(await page.locator("#buildLabel").textContent(),/3\.26/);
+  assert.match(await page.locator("#buildLabel").textContent(),/3\.27/);
   await page.locator('.app-top [data-action="organizer"]').click();
   await page.locator('[data-organizer="boost"]').click();
   const panel=await page.locator("#sheetBody").textContent();
-  for(const phrase of ["オンライン新規獲得なし","新BOOST・6強化系統","最終資源獲得倍率","BOOST消費効率","費用・係数未決定"]){
+  for(const phrase of ["オンライン新規獲得なし","BOOST・正式5強化系統","ゲーム内時間倍率","時間加速の消費効率","費用・係数は未決定"]){
     assert.ok(panel.includes(phrase),label+" BOOST panel missing "+phrase);
   }
   assert.equal(await page.locator('#sheetBody button[data-boost-upgrade]').count(),0,
     "normal gameplay must not expose provisional five-path purchases");
-  assert.equal(await page.locator("#sheetBody .kw-card button[disabled]").count()>=6,true);
+  assert.equal(await page.locator("#sheetBody .kw-card button[disabled]").count(),5);
   assert.deepEqual(errors,[]);
   console.log("PASS v325",label,"offline BOOST accrual, frozen stage state, six-path UI and schema31");
   await ctx.close();
