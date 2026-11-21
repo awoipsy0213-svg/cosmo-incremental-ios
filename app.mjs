@@ -108,6 +108,16 @@ function reportOffline(report){
   if(state.settings.showOffline)showNotice(`復帰：ステージ進行・資源獲得なし / BOOST +${duration(Math.max(0,report.boost))}`+
     (report.boostDiscarded>0?` / 容量超過破棄 ${duration(report.boostDiscarded)}`:"")+"。オンライン中のBOOST新規獲得はありません。");
 }
+// BOOST-Q625: offline BOOST credit must be durably saved and read-back
+// verified before success is visible. Failed primary saves never claim a grant.
+function settleOfflineAndPersist(now,{snapshot=false}={}){
+  const report=G.advance(state,now,{offline:true});
+  const persisted=save(snapshot)&&!storageUnavailable;
+  if(persisted)reportOffline(report);
+  else if(report.elapsed>=10)
+    showNotice("復帰BOOSTの保存を確認できません。獲得を確定表示せず、保存とバックアップを確認してください。");
+  return {report,persisted};
+}
 function applySettings(){
   document.body.classList.toggle("lab-mode",mode==="lab");
   document.body.classList.toggle("not-compact",!state.settings.compact);
@@ -1377,12 +1387,14 @@ function hidePage(){
 document.addEventListener("visibilitychange",()=>{
   if(document.hidden)hidePage();
   else if(state&&!readOnly&&!store.blocked){
-    const now=Date.now();const r=G.advance(state,now,{offline:true});hiddenAt=null;lastFrame=now;reportOffline(r);save();render(true);
+    const now=Date.now();hiddenAt=null;lastFrame=now;
+    settleOfflineAndPersist(now);
+    render(true);
   }
 });
 window.addEventListener("pagehide",()=>{hidePage();lockRelease?.();lockRelease=null;});
 window.addEventListener("pageshow",async e=>{
-  if(e.persisted){await acquireLock();if(!readOnly){const loaded=store.load();state=loaded.state;if(!store.blocked){reportOffline(G.advance(state,Date.now(),{offline:true}));save();}render(true);}}
+  if(e.persisted){await acquireLock();if(!readOnly){const loaded=store.load();state=loaded.state;if(!store.blocked)settleOfflineAndPersist(Date.now());render(true);}}
 });
 window.addEventListener("online",()=>renderPanel(true));window.addEventListener("offline",()=>renderPanel(true));
 window.addEventListener("storage",e=>{
@@ -1412,8 +1424,7 @@ state=loaded.state;storageUnavailable=!!loaded.storageUnavailable;
 if(loaded.warning)showNotice(loaded.warning);
 if(readOnly)showNotice("ほかのタブがプレイ中のため閲覧専用です。そのタブを閉じてから再読み込みしてください。");
 if(!readOnly&&!store.blocked){
-  reportOffline(G.advance(state,Date.now(),{offline:true}));
-  save(true);
+  settleOfflineAndPersist(Date.now(),{snapshot:true});
 }
 applySettings();render(true);
 setInterval(()=>{

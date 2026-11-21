@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
 import {A} from "../numbers.mjs";
 import {CONFIG} from "../balance-config.mjs";
 import {SaveStore,KEYS,encode,decode,checksum} from "../save.mjs";
@@ -167,5 +168,16 @@ test("new interval metadata validates and survives saved schema31",()=>{
  assert.throws(()=>G.validateState(clone,"normal"),/BOOST計算履歴/);
  assert.equal(d.schemaVersion,31);
  assert.equal(KEYS.normal,"kotowari_v31_normal");
+});
+test("BOOST-Q625: all offline entrypoints persist before any success report",()=>{
+ const ui=readFileSync(new URL("../app.mjs",import.meta.url),"utf8");
+ const body=ui.slice(ui.indexOf("function settleOfflineAndPersist("),ui.indexOf("function applySettings("));
+ assert.ok(body.includes("const persisted=save(snapshot)&&!storageUnavailable;"));
+ assert.ok(body.indexOf("const persisted=save(snapshot)")<body.indexOf("if(persisted)reportOffline(report)"));
+ assert.match(body,/else if\(report\.elapsed>=10\)/);
+ assert.ok(!ui.includes("reportOffline(G.advance("));
+ assert.ok(ui.includes("settleOfflineAndPersist(now);"));
+ assert.ok(ui.includes("settleOfflineAndPersist(Date.now());"));
+ assert.ok(ui.includes("settleOfflineAndPersist(Date.now(),{snapshot:true});"));
 });
 console.log("PASS "+count+" v327 time-only and protected migration tests");
