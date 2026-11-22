@@ -63,7 +63,7 @@ try{
   await page.locator('.app-top [data-action="organizer"]').click();
   await page.locator('[data-organizer="boost"]').click();
   const panel=await page.locator("#sheetBody").textContent();
-  for(const phrase of ["オンライン獲得なし","BOOST・正式5強化系統","ゲーム内時間倍率","時間加速の消費効率","試験値"]){
+  for(const phrase of ["オンライン獲得なし","BOOST強化","ゲーム内時間倍率","時間加速の消費効率","Lv.0 /"]){
     assert.ok(panel.includes(phrase),label+" BOOST panel missing "+phrase);
   }
   assert.equal(await page.locator('#sheetBody button[data-boost-upgrade]').count(),0,
