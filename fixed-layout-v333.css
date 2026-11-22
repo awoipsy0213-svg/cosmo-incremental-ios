@@ -667,3 +667,30 @@ body.low-power .kw-sheet-body .purchase-card{transition:none!important}
 
 /* Status toasts are overlays, never invisible click shields. */
 .toast,.toast.show{pointer-events:none!important}
+
+
+/* Player-facing engraving identity: title + a fixed, legible current level.
+ * The numeric badge never changes column width when acquiring/upgrading. */
+.kw-sheet-body .engraving-card .card-top .badge.engraving-level{
+  box-sizing:border-box;
+  flex:0 0 57px;
+  width:57px;
+  min-width:57px;
+  max-width:57px;
+  height:18px;
+  font-size:12px;
+  font-weight:800;
+  line-height:16px;
+  padding:0 2px;
+  text-align:center;
+  font-variant-numeric:tabular-nums;
+  color:#253059!important;
+  border:1px solid #b5b0d7;
+  background:rgba(240,237,255,.96);
+  border-radius:5px;
+}
+.kw-sheet-body .engraving-card .card-top .badge.engraving-level.confirmed{
+  background:rgba(220,210,255,.96);
+  border-color:#a394da;
+}
+.brand #buildLabel{display:none!important}
