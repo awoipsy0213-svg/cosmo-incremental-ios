@@ -10,7 +10,7 @@ import {PROPOSED,PLANET_EFFECT_PROPOSALS,resourcePrototype,trialPreview,boostTri
 import {A,formatAmount,formatScientific3,formatOrbAmount} from "./numbers.mjs";
 import * as G from "./game.mjs";
 import {SaveStore,KEYS,decode,encode} from "./save.mjs";
-import {purchaseInsight,shortDuration,formatTaps} from "./purchase-insights.mjs";
+import {shortDuration} from "./purchase-insights.mjs";
 
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -283,9 +283,16 @@ function quoteText(q){
   if(q.reason==="資源不足"&&A(q.cost).cmp(0)>0) return `次の1Lv · ${o(q.cost,"ceil")}`;
   return q.reason||"購入不可";
 }
+function costLabel(q){
+  // Keep price visible separately; never resize or rename the purchase button.
+  return q.count===0&&q.reason==="上限到達"?"MAX":q.count===0&&q.cost==="0"?"—":q.cost!==undefined&&q.cost!==null?o(q.cost,"ceil"):"—";
+}
 function cardQuote(kind,id){
-  const q=G.purchaseQuote(state,kind,id),name=kind==="source"?CONTENT.sources.find(x=>x.id===id).name:CONTENT.moment.find(x=>x.id===id).name;
-  return `<button class="buy-button" data-purchase="${kind}" data-id="${id}" ${!q.enabled||readOnly?"disabled":""} aria-label="${esc(name+"を購入")}" title="${esc(name+": "+quoteText(q)+" オーブ")}"><span class="buy-amount" data-quote-label>${esc(quoteText(q))}</span><small>オーブ</small></button><div class="live-buy-hint" data-live-hint aria-live="off"></div>`;
+  const q=G.purchaseQuote(state,kind,id);
+  const name=(kind==="source"?CONTENT.sources:CONTENT.moment).find(x=>x.id===id).name;
+  const full=name+"："+quoteText(q)+" オーブ";
+  return `<span class="purchase-cost" title="${esc(full)}"><small>費用</small> <strong class="purchase-cost-value" data-quote-label>${esc(costLabel(q))}</strong> <small>オーブ</small></span>
+    <button class="buy-button" data-purchase="${kind}" data-id="${id}" ${!q.enabled||readOnly||store.blocked?"disabled":""} aria-label="${esc(full+"を購入")}" title="${esc(full)}">購入</button>`;
 }
 const MOMENT_PREF_IDS=CONTENT.moment.map(x=>x.id);
 let momentSearch="",lastMomentFilterRefresh=0;
@@ -335,70 +342,80 @@ function refreshMomentVisibility(){
 
 function momentHTML(){
   const q=G.convergenceQuote(state),effects=G.momentEffects(state);
-  const runNote=!q.historyVerified?'<small class="status-note">旧周回：過去の獲得履歴が未確認です。所持オーブでは代用せず、確認できた獲得分から累計します。</small>':"";
   const gauge=G.convergenceProgress(state);
-  return `${runNote}
-  <div class="row-grid compact-upgrades">${CONTENT.moment.map((x,i)=>{
+  return `<div class="row-grid compact-upgrades">${CONTENT.moment.map((x,i)=>{
     const heading=i%5===0?`<div class="moment-group-title" data-moment-heading="${Math.floor(i/5)}">${esc(["基礎干渉","連続干渉","確率干渉","自律干渉","源泉共鳴","超越干渉"][Math.floor(i/5)])}</div>`:"";
-    const e=effects[i],offer=G.purchaseQuote(state,"moment",x.id);
-    const after=offer.enabled&&offer.count>0?`<p><b>${state.purchaseMode}購入後 · Lv.${(state.moment[x.id]+offer.count).toLocaleString("ja-JP")}</b> ${esc(G.momentAfterQuote(state,i,offer.count))}</p>`:"";
-    const events=i===14?(state.momentRuntime?.miracleHistory||[]):[];
-    const miracle=events.length?`<p>直近の奇跡：${events.slice().reverse().map(y=>esc(new Date(y.at).toLocaleString("ja-JP")+" +"+o(y.amount))).join(" / ")}</p>`:"";
-    return `${heading}<article class="kw-card purchase-card moment-card" data-purchase-card data-moment-card="${x.id}" data-moment-entry="${x.id}"><div class="card-top"><strong>${esc(x.name)}</strong><button type="button" class="moment-favorite" data-moment-favorite="${x.id}" aria-pressed="${state.settings.momentFavorites?.includes(x.id)?"true":"false"}" aria-label="${esc(x.name)}のお気に入り切り替え">${state.settings.momentFavorites?.includes(x.id)?"★":"☆"}</button><small data-moment-level="${x.id}">Lv.${state.moment[x.id].toLocaleString("ja-JP")}</small></div>
-      <div class="compact-stat"><span>現在合計</span><strong class="moment-live-effect">${esc(e.current)}</strong></div>
-      <div class="compact-stat"><span>次Lvの値</span><strong class="moment-next-effect">${esc(e.next)}</strong></div>
+    const e=effects[i];
+    return `${heading}<article class="kw-card purchase-card moment-card" data-purchase-card data-moment-card="${x.id}" data-moment-entry="${x.id}">
+      <div class="card-top"><strong title="${esc(x.name)}">${esc(x.name)}</strong><small data-moment-level="${x.id}">Lv.${state.moment[x.id].toLocaleString("ja-JP")}</small></div>
+      <button type="button" class="moment-detail-button" data-moment-detail="${x.id}" aria-label="${esc(x.name)}の詳細" title="効果の詳細">⋯</button>
+      <div class="compact-stat"><span>現在</span><strong class="moment-live-effect" title="${esc(e.current)}">${esc(e.current)}</strong></div>
+      <div class="compact-stat"><span>次Lv</span><strong class="moment-next-effect" title="${esc(e.next)}">${esc(e.next)}</strong></div>
       ${cardQuote("moment",x.id)}
-      <details class="moment-effect-detail" data-preserve="${x.id}"><summary>詳細</summary><p>${esc(x.description)}</p><p><b>現在</b> ${esc(e.current)}</p><p><b>次Lv</b> ${esc(e.next)}</p>${after}${miracle}<small>固有効果は確定／購入価格と未指定節目は検証値</small></details></article>`;
+      </article>`;
   }).join("")}</div>
-  <div class="kw-card converge-compact"><div class="card-top"><strong>収束 · 永続補正</strong><small data-existence-rate>×${f(G.existenceMultiplier(state),3)}</small></div><small data-convergence-reward>獲得予定 +${f(q.reward,3)} 存在</small><button class="wide-button converge-with-gauge" data-action="converge" ${!q.steps||readOnly?"disabled":""}><span data-converge-text>収束する · 次まで ${o(q.nextRemaining,"ceil")} オーブ</span><span class="converge-gauge"><i data-converge-fill style="width:${gauge.percent.toFixed(2)}%"></i></span></button></div>`;
+  <div class="kw-card converge-compact" title="${q.historyVerified?"":"旧周回の獲得履歴は未確認です。現在の確認済み獲得分から累計しています。"}">
+    <div class="card-top"><strong>収束 · 永続補正</strong><small data-existence-rate>×${f(G.existenceMultiplier(state),3)}</small></div>
+    <small data-convergence-reward>獲得予定 +${f(q.reward,3)} 存在</small>
+    <button class="wide-button converge-with-gauge" data-action="converge" ${!q.steps||readOnly?"disabled":""}>
+      <span data-converge-text>収束する · 次まで ${o(q.nextRemaining,"ceil")} オーブ</span>
+      <span class="converge-gauge"><i data-converge-fill style="width:${gauge.percent.toFixed(2)}%"></i></span>
+    </button>
+  </div>`;
 }
 function sourcesHTML(){
-  const ms=CONFIG.confirmed.sourceMilestones,cycle=G.sourceCycleStatus(state);
-  const resonance=G.sourceResonanceProgress(state);
-  const resonanceValue=state.moment.setsuna23>0?G.momentEffects(state)[22].current:"未購入";
-  const next= resonance.next?`${resonance.next.id} Lv.${resonance.next.level}（残り${resonance.next.remaining}Lv）`:"全節目到達";
-  return `<details class="source-summary"><summary>源の共振 ${resonance.completed}/${resonance.total} · 一巡 ${cycle.reached}/${cycle.total}</summary><small>次の節目：${esc(next)} · ${esc(resonanceValue)} · ＋循環${cycle.unlocked?"解放":"未解放"}</small></details><div class="row-grid compact-upgrades">${CONTENT.sources.map((x,i)=>{
-    const v=state.sources[x.id],done=ms.filter(m=>m<=v.level).length,next=ms.find(m=>m>v.level);
-    return `<article class="kw-card source-card purchase-card" data-source-entry="${x.id}" data-purchase-card><div class="card-top"><strong>${String(i+1).padStart(2,"0")} ${esc(x.name)} ＋${v.plus.toLocaleString("ja-JP")}</strong><small data-source-level="${x.id}">Lv.${v.level.toLocaleString("ja-JP")}</small></div>
-    <button class="more-button source-detail-button" data-source-detail="${x.id}" aria-label="${esc(x.name)}の詳細">⋯</button>
-    <div class="source-rates" title="1Lv増加量 / この源の合計秒間生産量"><span data-source-next="${x.id}">次+${o(G.sourceNextGain(state,x.id))}/秒</span><span data-source-total="${x.id}">計 ${o(G.sourceProduction(state,x.id))}/秒</span></div>
-    ${cardQuote("source",x.id)}
-    ${v.level===1000000?`<button class="wide-button" data-breakthrough="${x.id}" ${!cycle.unlocked?"disabled":""}>＋循環 ${cycle.unlocked?"・Lv1から再開":"・全30源一巡まで残り"+cycle.remaining+"種"}</button>`:""}</article>`;
+  const cycle=G.sourceCycleStatus(state),resonance=G.sourceResonanceProgress(state);
+  return `<button type="button" class="source-summary" data-source-summary aria-label="源の共振と一巡の詳細" title="源の共振と一巡の詳細">源の共振 ${resonance.completed}/${resonance.total} · 一巡 ${cycle.reached}/${cycle.total} · ⋯</button>
+  <div class="row-grid compact-upgrades">${CONTENT.sources.map((x,i)=>{
+    const v=state.sources[x.id];
+    const cycleReady=v.level===1000000&&cycle.unlocked&&!readOnly&&!store.blocked;
+    return `<article class="kw-card source-card purchase-card" data-source-entry="${x.id}" data-purchase-card>
+      <div class="card-top"><strong title="${esc(x.name)}">${String(i+1).padStart(2,"0")} ${esc(x.name)} ＋${v.plus.toLocaleString("ja-JP")}</strong><small data-source-level="${x.id}">Lv.${v.level.toLocaleString("ja-JP")}</small></div>
+      <button type="button" class="more-button source-detail-button" data-source-detail="${x.id}" aria-label="${esc(x.name)}の詳細" title="効果の詳細">⋯</button>
+      <button type="button" class="source-cycle-button" data-breakthrough="${x.id}" ${!cycleReady?"disabled":""} aria-label="${esc(x.name)}の＋循環" title="${cycleReady?"＋循環を実行":v.level===1000000?"全30源一巡まで未解放":"Lv.1,000,000で＋循環が解放"}">↻</button>
+      <div class="source-rates" title="1Lv増加量 / この源の合計秒間生産量"><span data-source-next="${x.id}">次+${o(G.sourceNextGain(state,x.id))}/秒</span><span data-source-total="${x.id}">計 ${o(G.sourceProduction(state,x.id))}/秒</span></div>
+      ${cardQuote("source",x.id)}
+    </article>`;
   }).join("")}</div>`;
 }
 function engravingHTML(){
   const e=state.engraving,catalogue=engravingCatalogue();
   const count=tier=>catalogue.filter(x=>x.tier===tier&&e.owned.includes(x.id)).length;
   const options=["0.025","0.05","0.1","0.5","1"];
+  const autoControls=e.owned.includes(ENGRAVING_AUTO_CONVERGE_ID)?`<div class="kw-card engraving-auto">
+    <div class="card-top"><strong>ENG-24 自動収束</strong><span class="badge ${e.autoConverge.enabled?"confirmed":""}">${e.autoConverge.enabled?"ON":"OFF"}</span></div>
+    <small>取得済みかつONのとき動作。最短60秒間隔・オフライン実行なし。</small>
+    <label class="kw-row">最低獲得存在
+      <select id="autoConvergeThreshold" class="input-select" aria-label="自動収束の最低報酬">
+        ${[...new Set([...options,e.autoConverge.minReward])].map(v=>`<option value="${v}" ${A(v).cmp(e.autoConverge.minReward)===0?"selected":""}>${v}</option>`).join("")}
+      </select>
+    </label>
+    <button class="wide-button" data-action="toggle-auto-converge">${e.autoConverge.enabled?"自動収束を停止":"自動収束を開始"}</button>
+  </div>`:"";
   return `<div class="kw-card engraving-overview">
-      <div class="card-top"><strong>余剰存在 ${f(state.surplusExistence,3)}</strong><span class="badge confirmed">最初の存在1を保護</span></div>
-      <small>取得済み ${e.owned.length} / 30 · 収束 ${state.convergenceCount} 回 · 取得済みの刻印は収束後も保持</small>
-
-    </div>
-    ${e.owned.includes(ENGRAVING_AUTO_CONVERGE_ID)?`<div class="kw-card engraving-auto">
-      <div class="card-top"><strong>ENG-24 自動収束</strong><span class="badge ${e.autoConverge.enabled?"confirmed":""}">${e.autoConverge.enabled?"ON":"OFF"}</span></div>
-      <small>取得済みかつONのとき動作。最短60秒間隔・オフライン実行なし。</small>
-      <label class="kw-row">最低獲得存在
-        <select id="autoConvergeThreshold" class="input-select" aria-label="自動収束の最低報酬">
-          ${[...new Set([...options,e.autoConverge.minReward])].map(v=>`<option value="${v}" ${A(v).cmp(e.autoConverge.minReward)===0?"selected":""}>${v}</option>`).join("")}
-        </select>
-      </label>
-      <button class="wide-button" data-action="toggle-auto-converge">${e.autoConverge.enabled?"自動収束を停止":"自動収束を開始"}</button>
-    </div>`:""}
-    ${[1,2,3].map(tier=>`<h3>刻印 ${["初級","中級","上級"][tier-1]} · 初回費用 ${["0.005","0.025","0.125"][tier-1]} 存在 / 取得 ${count(tier)}/10</h3>
-      <div class="row-grid engraving-list">
-      ${catalogue.filter(x=>x.tier===tier).map(item=>{
-        const owned=e.owned.includes(item.id),level=e.levels?.[item.id],q=engravingPurchaseQuote(state,item.id),upgrade=G.engravingTrialUpgradeQuote(state,item.id),extra=e.trialLevels?.[item.id]||0;
-        const levelText=!owned?"未取得":level===undefined?"旧取得済・Lv換算保留":"Lv."+level.toLocaleString("ja-JP");
-        return `<article class="kw-card engraving-card">
-          <div class="card-top"><strong>${esc(item.id)}</strong><span class="badge ${owned?"confirmed":""}">${esc(levelText)}</span></div>
-          <details class="tiny"><summary>効果詳細</summary><small>${esc(item.description)}</small></details>
-          <small>${owned?"追加強化 +"+extra+"（共通補正は試験値）":"初回費用 "+item.cost+" 存在"} · ${item.status==="implemented"?"固有効果利用可能":"固有効果は照合待ち"}</small>
-          ${owned?`<button class="wide-button" data-engraving-trial-upgrade="${item.id}" ${!upgrade.ok||readOnly||store.blocked?"disabled":""}>${upgrade.ok?"追加Lv+"+(extra+1)+" · "+f(upgrade.price,3)+" 存在（試験）":esc(upgrade.reason)}</button>`:`<button class="wide-button" data-engraving-buy="${item.id}" ${!q.ok||readOnly||store.blocked?"disabled":""}>${q.ok?"初回購入":q.reason}</button>`}
-        </article>`;
-      }).join("")}</div>`).join("")}
-    ${mode==="lab"&&e.active.length?'<p class="tiny muted">旧検証版の刻印実験データは独立したlabデータのまま保護しています。</p>':""}
-    <details class="tiny muted"><summary>試験値と旧セーブについて</summary><p>未確定の刻印固有効果・旧Lv換算と旧装備履歴は別管理し、バックアップに保護します。</p></details>`;
+    <div class="card-top"><strong>余剰存在 ${f(state.surplusExistence,3)}</strong><span class="badge confirmed">最初の存在1を保護</span></div>
+    <small>取得済み ${e.owned.length} / 30 · 収束 ${state.convergenceCount} 回 · 取得済みの刻印は収束後も保持</small>
+  </div>
+  ${[1,2,3].map(tier=>`<h3 class="engraving-tier-title">刻印 ${["初級","中級","上級"][tier-1]} · 初回費用 ${["0.005","0.025","0.125"][tier-1]} 存在 / 取得 ${count(tier)}/10</h3>
+    <div class="row-grid engraving-list">
+    ${catalogue.filter(x=>x.tier===tier).map(item=>{
+      const owned=e.owned.includes(item.id),level=e.levels?.[item.id],q=engravingPurchaseQuote(state,item.id),upgrade=G.engravingTrialUpgradeQuote(state,item.id);
+      const levelText=!owned?"未取得":level===undefined?"旧取得済・Lv換算保留":"Lv."+level.toLocaleString("ja-JP");
+      const price=owned?upgrade.price:q.price??item.cost;
+      const shownPrice=price===undefined||price===null?"—":f(price,3);
+      const button=owned?`<button class="wide-button engraving-purchase-button" data-engraving-trial-upgrade="${item.id}" ${!upgrade.ok||readOnly||store.blocked?"disabled":""} aria-label="${esc(item.id+"を追加強化")}" title="${esc(upgrade.reason||"追加強化 "+shownPrice+" 存在")}">購入</button>`:
+        `<button class="wide-button engraving-purchase-button" data-engraving-buy="${item.id}" ${!q.ok||readOnly||store.blocked?"disabled":""} aria-label="${esc(item.id+"を初回購入")}" title="${esc(q.reason||"初回購入 "+shownPrice+" 存在")}">購入</button>`;
+      return `<article class="kw-card engraving-card" data-engraving-entry="${item.id}">
+        <div class="card-top"><strong title="${esc(item.name)}">${esc(item.id)}</strong><span class="badge ${owned?"confirmed":""}" title="${esc(levelText)}">${esc(levelText)}</span></div>
+        <button type="button" class="engraving-detail-button" data-engraving-detail="${item.id}" aria-label="${esc(item.id)}の効果詳細" title="効果の詳細">⋯</button>
+        <small class="engraving-effect" title="${esc(item.description)}">${esc(item.description)}</small>
+        <span class="engraving-cost" title="${esc("費用 "+shownPrice+" 存在")}">費用 <strong>${esc(shownPrice)}</strong> 存在</span>
+        ${button}
+      </article>`;
+    }).join("")}</div>`).join("")}
+  ${autoControls}
+  ${mode==="lab"&&e.active.length?'<p class="tiny muted">旧検証版の刻印実験データは独立したlabデータのまま保護しています。</p>':""}
+  <details class="tiny muted"><summary>試験値と旧セーブについて</summary><p>未確定の刻印固有効果・旧Lv換算と旧装備履歴は別管理し、バックアップに保護します。</p></details>`;
 }
 function flowHTML(){
   const t=state.time;
@@ -631,7 +648,7 @@ function guideHTML(){
   <div class="kw-card"><strong>この版の範囲</strong><p>設定データに「確定」「暫定」「要確認」「未決定」を保持しています。価格・速度など動作確認用の値と、正式仕様は別です。</p><button class="wide-button" data-organizer="spec">反映済みと未決定を確認</button></div></div>`;
 }
 function settingsHTML(){
-  const labels=[["confirmEngravingPurchase","刻印の初回購入を確認","OFFならワンタップで取得"],["confirmEngravingUpgrade","刻印の追加強化を確認","OFFならワンタップで強化"],["confirmBoostUpgrade","BOOST強化を確認","OFFならワンタップで強化（試験値）"],["confirmSourceBreakthrough","源の＋循環を確認","最大レベルから再開始する操作"],["confirmInterference","惑星への干渉を確認","衝突・移転・崩壊・安定化"],["confirmCoreFormation","コア形成を確認","資源消費を伴う操作"],["confirmSaveImport","セーブ読込前に確認","現在の進行を入れ替えるため初期ON推奨"],["confirmSaveRestore","履歴復元前に確認","過去の保存状態へ戻るため初期ON推奨"],["confirmBulkPurchase","一括購入前に確認","OFF：タップですぐ購入。ON：数量・費用を確認してから購入します"],["confirmMaxPurchase","MAX購入前に確認","ON：所持資源の90%以上を使うMAX購入を確認します"],["compact","コンパクト表示","2列で多くの項目を表示"],["showPurchaseHints","購入見込みを表示","足りない額・自動生成での目安・獲得量（仮）を表示"],["holdToBuy","長押しで連続購入","押している間だけ通常購入を繰り返します"],["hapticTap","タップ時の振動","対応端末のみ。初期設定はOFFです"],["reducedMotion","動きを減らす","発光・波紋・開閉演出を抑える"],["highContrast","読みやすい境界線","文字と境界のコントラストを調整"],["lowPower","省電力","背景アニメーションを停止"],["confirmConvergence","収束前に確認","仮のリセット範囲を確認する"],["showOffline","復帰時に報告","オフラインの進行とBOOSTを表示"]];
+  const labels=[["confirmEngravingPurchase","刻印の初回購入を確認","OFFならワンタップで取得"],["confirmEngravingUpgrade","刻印の追加強化を確認","OFFならワンタップで強化"],["confirmBoostUpgrade","BOOST強化を確認","OFFならワンタップで強化（試験値）"],["confirmSourceBreakthrough","源の＋循環を確認","最大レベルから再開始する操作"],["confirmInterference","惑星への干渉を確認","衝突・移転・崩壊・安定化"],["confirmCoreFormation","コア形成を確認","資源消費を伴う操作"],["confirmSaveImport","セーブ読込前に確認","現在の進行を入れ替えるため初期ON推奨"],["confirmSaveRestore","履歴復元前に確認","過去の保存状態へ戻るため初期ON推奨"],["confirmBulkPurchase","一括購入前に確認","OFF：タップですぐ購入。ON：数量・費用を確認してから購入します"],["confirmMaxPurchase","MAX購入前に確認","ON：所持資源の90%以上を使うMAX購入を確認します"],["compact","コンパクト表示","ほかの一覧の密度を調整"],["holdToBuy","長押しで連続購入","押している間だけ通常購入を繰り返します"],["hapticTap","タップ時の振動","対応端末のみ。初期設定はOFFです"],["reducedMotion","動きを減らす","発光・波紋・開閉演出を抑える"],["highContrast","読みやすい境界線","文字と境界のコントラストを調整"],["lowPower","省電力","背景アニメーションを停止"],["confirmConvergence","収束前に確認","仮のリセット範囲を確認する"],["showOffline","復帰時に報告","オフラインの進行とBOOSTを表示"]];
   return `<p class="panel-intro">背景は既存のORGANIC FLOWを維持。安全な保存・表示設定は序章から利用できます。</p>
   ${labels.map(([id,name,desc])=>`<label class="kw-row"><span>${name}<small>${desc}</small></span><input type="checkbox" data-pref="${id}" ${state.settings[id]?"checked":""}></label>`).join("")}
   <label class="kw-row">数値表記<select class="input-select" data-pref="notation"><option value="auto" ${state.settings.notation==="auto"?"selected":""}>標準（100万以降e）</option><option value="scientific" ${state.settings.notation==="scientific"?"selected":""}>指数 e（1.23e12）</option><option value="exponent" ${state.settings.notation==="exponent"?"selected":""}>指数 E（1.23E+12）</option><option value="zeros" ${state.settings.notation==="zeros"?"selected":""}>0の個数（10^12）</option></select></label>
@@ -763,6 +780,7 @@ function renderPanel(force=false){
   if(infoPanelOpen){
     if(!force&&(now-lastPanelRender<1700||now-lastInteraction<700))return;
     lastPanelRender=now;
+    $("childTabStrip").hidden=true;
     $("childTabs").hidden=true;
     $("sheetHeading").textContent="共通情報";
     $("purchaseToolbar").hidden=true;
@@ -772,6 +790,8 @@ function renderPanel(force=false){
     body.dataset.sub="commonInfo";
     return;
   }
+  $("childTabStrip").hidden=false;
+  $("childTabStrip").classList.toggle("is-existence",currentStage==="existence");
   $("childTabs").hidden=false;
   // Currency/affordability is patched on the existing buttons every UI tick.
   // Do not rebuild the purchase cards while earning resources or holding a finger.
@@ -788,8 +808,8 @@ function renderPanel(force=false){
   cycle.hidden=!buyTabs;
   cycle.textContent=({"1":"×1","10":"×10","NEXT":"NEXT","MAX":"MAX"})[state.purchaseMode];
   cycle.setAttribute("aria-label",`購入数 ${cycle.textContent}。タップで切替`);
-  const order=$("bulkOrderButton");order.textContent=state.settings.bulkOrder==="expensive"?"高い順 ▾":"安い順 ▾";
-  const scope=$("bulkScopeButton");if(scope)scope.textContent=bulkScope==="all"?"全件 ▾":"表示中 ▾";
+  const order=$("bulkOrderButton");order.textContent=state.settings.bulkOrder==="expensive"?"高い順":"安い順";order.title=state.settings.bulkOrder==="expensive"?"高い順で一括購入":"安い順で一括購入";order.setAttribute("aria-label",order.title);
+  const scope=$("bulkScopeButton");if(scope){scope.textContent=bulkScope==="all"?"全件":"表示中";scope.title=bulkScope==="all"?"全件を対象に一括購入":"表示中を対象に一括購入";scope.setAttribute("aria-label",scope.title);}
   const body=$("sheetBody"),top=body.scrollTop,details=[...body.querySelectorAll("details[open][data-preserve]")].map(x=>x.dataset.preserve);
   const map={moment:momentHTML,sources:sourcesHTML,engraving:engravingHTML,flow:flowHTML,concepts:conceptHTML,
     planets:planetHTML,resources:resourcesHTML,observations:observationsHTML,
@@ -805,46 +825,26 @@ function renderPanel(force=false){
 }
 function refreshPurchaseButtons(){
   if(!state||sheetState==="closed"||currentStage!=="existence"||!["moment","sources"].includes(currentSub))return;
-  const wallet=state.orbs,rate=G.production(state),tap=G.tapPower(state);
-  const buttons=[...$("sheetBody").querySelectorAll("button[data-purchase]")];
-  let ready=0,nearest=null;
+  const buttons=$("sheetBody").querySelectorAll("button[data-purchase]");
+  let ready=0;
   for(const b of buttons){
     const kind=b.dataset.purchase,id=b.dataset.id,q=G.purchaseQuote(state,kind,id);
-    const info=purchaseInsight(q,wallet,rate,tap),card=b.closest("[data-purchase-card]");
+    const card=b.closest("[data-purchase-card]");
     const enabled=q.enabled&&!readOnly&&!store.blocked;
     b.disabled=!enabled;
     b.classList.toggle("is-buyable",enabled);
     if(card)card.classList.toggle("is-buyable",enabled);
-    const label=quoteText(q);
-    // No wholesale DOM rebuild, even as the wallet grows or MAX quantity changes.
-    const labelNode=b.querySelector("[data-quote-label]");
-    // Update just the number, never recreate the button or its icon/label.
-    if(labelNode&&labelNode.textContent!==label)labelNode.textContent=label;
+    // The button always reads "購入"; price updates in its fixed-size cell.
+    const price=costLabel(q),priceNode=card?.querySelector("[data-quote-label]");
+    if(priceNode&&priceNode.textContent!==price)priceNode.textContent=price;
+    const name=(kind==="source"?CONTENT.sources:CONTENT.moment).find(x=>x.id===id)?.name||id;
+    const full=name+"："+quoteText(q)+" オーブ";
+    if(b.title!==full)b.title=full;
+    const aria=full+"を購入";
+    if(b.getAttribute("aria-label")!==aria)b.setAttribute("aria-label",aria);
+    const cost=card?.querySelector(".purchase-cost");
+    if(cost&&cost.title!==full)cost.title=full;
     if(enabled)ready++;
-    const hint=card?.querySelector("[data-live-hint]");
-    if(hint){
-      let value="";
-      if(state.settings.showPurchaseHints&&info.hasTarget){
-        if(enabled)value="購入可能 · タップして強化";
-        else {
-          value=`不足 ${o(info.missing,"ceil")}`;
-          if(info.seconds!==null&&Number.isFinite(info.seconds))value+=` · 自動で約${shortDuration(info.seconds)}`;
-          else if(info.taps!==null)value+=` · あと約${formatTaps(info.taps)}タップ`;
-        }
-        if(kind==="source"&&q.count>0){
-          const plus=state.sources[id].plus;
-          const trialMult=mode==="lab"?A(2).pow(plus):A(1);
-          const increment=G.sourceProductionPerLevel(id)
-            .mul(A(CONFIG.provisional.source.productionGrowth).pow(state.sources[id].level))
-            .mul(A(CONFIG.provisional.source.productionGrowth).pow(q.count).sub(1))
-            .div(CONFIG.provisional.source.productionGrowth-1)
-            .mul(trialMult).mul(G.existenceMultiplier(state));
-          if(increment.cmp(0)>0)value+=` · 生成 +${o(increment)}/秒（仮）`;
-        }
-      }
-      if(hint.textContent!==value)hint.textContent=value;
-      hint.hidden=!state.settings.showPurchaseHints||!value;
-    }
     if(kind==="source"){
       const total=card?.querySelector(`[data-source-total="${id}"]`);
       const sum=`計 ${o(G.sourceProduction(state,id))}/秒`;
@@ -852,18 +852,12 @@ function refreshPurchaseButtons(){
       const next=card?.querySelector(`[data-source-next="${id}"]`);
       const nextText=`次+${o(G.sourceNextGain(state,id))}/秒`;
       if(next&&next.textContent!==nextText)next.textContent=nextText;
-    }
-    if(!enabled&&info.hasTarget){
-      // The shortest wait is a UI suggestion, not an automatic purchase queue.
-      const score=A(info.missing).div(rate.cmp(0)>0?rate:tap).toNumber();
-      if(Number.isFinite(score)&&(!nearest||score<nearest.score))nearest={id,kind,score,info};
+      const cycle=card?.querySelector("[data-breakthrough]");
+      if(cycle)cycle.disabled=state.sources[id].level!==1000000||!G.sourceCycleStatus(state).unlocked||readOnly||store.blocked;
     }
   }
-  const summary=`購入可能 ${ready} / ${buttons.length} · 所持 ${o(wallet)} オーブ${nearest?` · 次は ${(nearest.kind==="source"?CONTENT.sources:CONTENT.moment).find(x=>x.id===nearest.id)?.name||""}（${nearest.info.seconds!==null?shortDuration(nearest.info.seconds):"タップで獲得"}）`:""}`;
-  if($("purchaseLiveSummary").textContent!==summary){
-    $("purchaseLiveSummary").textContent=summary;
-    $("purchaseLiveSummary").title=summary;
-  }
+  const summary=`購入可能 ${ready} / ${buttons.length} · 所持 ${o(state.orbs)} オーブ`;
+  if($("purchaseLiveSummary").textContent!==summary)$("purchaseLiveSummary").textContent=summary;
   if(currentSub==="moment"){
     const q=G.convergenceQuote(state),b=$("sheetBody").querySelector('button[data-action="converge"]');
     if(b){
@@ -1286,6 +1280,36 @@ document.addEventListener("click",async e=>{
     }
     if(b.dataset.action){await dispatchAction(b.dataset.action);return;}
     if(b.matches("[data-legacy-link]")){save(true);return;}
+    if(b.dataset.momentDetail){
+      const id=b.dataset.momentDetail,i=CONTENT.moment.findIndex(x=>x.id===id);
+      if(i<0)return;
+      const x=CONTENT.moment[i],e=G.momentEffects(state)[i],q=G.purchaseQuote(state,"moment",id);
+      const level=state.moment[id];
+      await ask(x.name+" · Lv."+level.toLocaleString("ja-JP"),
+        x.description+"\n\n現在："+e.current+"\n次Lv："+e.next+
+        "\n購入費用："+costLabel(q)+" オーブ"+
+        (q.enabled&&q.count>0?"\n購入後："+G.momentAfterQuote(state,i,q.count):"")+
+        "\n\n価格・未指定節目は検証値。","閉じる");
+      return;
+    }
+    if(b.dataset.engravingDetail){
+      const id=b.dataset.engravingDetail,item=engravingCatalogue().find(x=>x.id===id);
+      if(!item)return;
+      const owned=state.engraving.owned.includes(id),q=owned?G.engravingTrialUpgradeQuote(state,id):engravingPurchaseQuote(state,id);
+      const price=q.price??item.cost;
+      await ask(item.name,"状態："+(owned?"取得済み":"未取得")+"\n"+item.description+
+        "\n費用："+(price===null||price===undefined?"—":f(price,3))+" 存在"+
+        "\n追加強化は検証値、未確認効果は未適用です。","閉じる");
+      return;
+    }
+    if(b.dataset.sourceSummary!==undefined){
+      const cycle=G.sourceCycleStatus(state),resonance=G.sourceResonanceProgress(state);
+      const next=resonance.next?resonance.next.id+" Lv."+resonance.next.level+"（残り"+resonance.next.remaining+"Lv）":"全節目到達";
+      await ask("源の共振・一巡","共振 "+resonance.completed+"/"+resonance.total+
+        "\n次の節目："+next+"\n一巡 "+cycle.reached+"/"+cycle.total+
+        "\n＋循環："+(cycle.unlocked?"解放":"未解放"),"閉じる");
+      return;
+    }
     if(b.dataset.sourceDetail){
       const x=CONTENT.sources.find(x=>x.id===b.dataset.sourceDetail);
       const status=G.sourceFinalEffectStatus(state,x.id);

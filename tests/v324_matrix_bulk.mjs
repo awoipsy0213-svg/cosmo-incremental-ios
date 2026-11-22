@@ -58,8 +58,8 @@ check("Quoted bulk and actual purchases preserve the same spend",()=>{
 check("Published SW and iOS copy include new CSS",()=>{
  const root=["app.mjs","index.html","balance-config.mjs","sw.js","stage-worlds.css","matrix-v324.css"];
  for(const name of root)assert.equal(text(name),text("www/"+name),name);
- assert.match(text("sw.js"),/3\.32\.0-luminous-glass/);
+ assert.match(text("sw.js"),/3\.33\.0-fixed-geometry/);
  assert.match(text("sw.js"),/matrix-v324\.css/);
- assert.match(text("index.html"),/3\.32 · GLASS/);
+ assert.match(text("index.html"),/3\.33 · FIXED/);
 });
 console.log("PASS "+count+" Ver3.28 matrix and bulk invariants");

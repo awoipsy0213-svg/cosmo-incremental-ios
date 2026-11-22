@@ -35,13 +35,16 @@ try{
   await page.addInitScript(raw=>localStorage.setItem("kotowari_v31_normal",raw),fixture);
   await page.reload({waitUntil:"domcontentloaded"});
   await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
-  assert.match(await page.locator("#buildLabel").textContent(),/3\.32/);
+  assert.match(await page.locator("#buildLabel").textContent(),/3\.33/);
   assert.match(await page.locator("#worldDetails").textContent(),/次10まで1回/);
   await page.locator('[data-stage="existence"]').click();
   await page.locator('[data-child="sources"]').click();
   const sourceText=await page.locator("#sheetBody").textContent();
   assert.ok(sourceText.includes("源の共振 3/630"),"source progress missing");
-  assert.ok(sourceText.includes("SOURCE_01 Lv.50"),"next milestone missing");
+  // Full source milestones are now available through the fixed-row detail modal.
+  await page.locator('[data-source-summary]').click();
+  assert.ok((await page.locator("#confirmText").textContent()).includes("SOURCE_01 Lv.50"),"next milestone missing from detail");
+  await page.locator("#confirmYes").click();
   await page.locator('.app-top [data-action="organizer"]').click();
   await page.locator('[data-organizer="boost"]').click();
   const boostText=await page.locator("#sheetBody").textContent();
