@@ -1,0 +1,83 @@
+/*
+ * 《理》v3.38 dense purchase rows: cost, purchasable levels, projected effect.
+ * Presentation only; every row retains fixed dimensions on numeric updates.
+ */
+:root{--fixed-card-h:66px;--fixed-buy-w:clamp(98px,31vw,142px)}
+.kw-sheet-body .compact-upgrades .purchase-card{
+  grid-template-rows:18px 15px 15px;grid-auto-rows:0;gap:0 6px;padding:5px 6px!important
+}
+.kw-sheet-body .compact-upgrades .purchase-card .card-top{height:18px;min-height:18px;max-height:18px}
+.kw-sheet-body .compact-upgrades .moment-card .compact-stat{height:15px;min-height:15px;max-height:15px}
+.kw-sheet-body .compact-upgrades .source-card .source-rates{height:30px;min-height:30px;max-height:30px}
+.kw-sheet-body .compact-upgrades .source-card .source-rates span{height:15px;min-height:15px;max-height:15px;line-height:15px}
+.kw-sheet-body .compact-upgrades .purchase-card>.dense-purchase-button,
+.kw-sheet-body .engraving-card>.dense-purchase-button{
+  box-sizing:border-box;display:flex;flex-direction:column;align-items:stretch;
+  justify-content:space-between;grid-column:2;grid-row:1/span 3;
+  width:100%;min-width:0;height:56px!important;min-height:56px!important;max-height:56px!important;
+  margin:0!important;padding:3px 5px!important;gap:0;border-radius:7px;
+  border:1px solid #b4a0e6;background:linear-gradient(180deg,#f2eaff,#e4dcff);
+  color:#38317c;box-shadow:inset 0 1px rgba(255,255,255,.9);
+  white-space:normal;overflow:hidden;font-variant-numeric:tabular-nums
+}
+.kw-sheet-body .compact-upgrades .purchase-card>.dense-purchase-button .purchase-cost,
+.kw-sheet-body .engraving-card>.dense-purchase-button .engraving-cost{
+  box-sizing:border-box;display:flex!important;grid-column:auto;grid-row:auto;
+  flex:0 0 16px;align-items:center;justify-content:center;gap:3px;
+  min-width:0;width:100%;height:16px!important;min-height:16px!important;max-height:16px!important;
+  margin:0!important;padding:0!important;color:#524091;font-size:10px;
+  line-height:16px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+.kw-sheet-body .dense-purchase-button .purchase-symbol{
+  flex:0 0 auto;display:inline-block;color:#8a65c8;font-size:13px;line-height:16px
+}
+.kw-sheet-body .compact-upgrades .purchase-card>.dense-purchase-button .purchase-cost strong,
+.kw-sheet-body .engraving-card>.dense-purchase-button .engraving-cost strong{
+  box-sizing:border-box;display:block;flex:0 1 auto;min-width:0;max-width:100%;
+  height:16px!important;font-size:11px!important;font-weight:800;line-height:16px!important;
+  color:inherit!important;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+.kw-sheet-body .dense-purchase-button .purchase-cost small{
+  flex:0 0 auto;height:16px;line-height:16px!important;font-size:8px;color:inherit
+}
+.kw-sheet-body .dense-purchase-button .purchase-action{
+  display:block;flex:0 0 19px;width:100%;min-width:0;height:19px;
+  font-size:12px;line-height:19px;font-weight:800;text-align:center;color:#342276;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+.kw-sheet-body .dense-purchase-button .purchase-action strong{
+  font-size:inherit;font-weight:850;color:inherit
+}
+.kw-sheet-body .dense-purchase-button .purchase-delta{
+  display:block;flex:0 0 14px;width:100%;min-width:0;height:14px;
+  font-size:9px;font-weight:700;line-height:14px;text-align:center;color:#605195;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+.kw-sheet-body .compact-upgrades .purchase-card>.dense-purchase-button.is-buyable,
+.kw-sheet-body .compact-upgrades .purchase-card.is-buyable>.dense-purchase-button{
+  border-color:#9381dc;background:linear-gradient(180deg,#ebe8ff,#d5caff)
+}
+.kw-sheet-body .compact-upgrades .purchase-card>.dense-purchase-button:disabled,
+.kw-sheet-body .engraving-card>.dense-purchase-button:disabled{
+  border-color:#d4d6e7!important;background:#eaecf6!important;color:#72758f!important;opacity:.85
+}
+.kw-sheet-body .dense-purchase-button:disabled .purchase-action,
+.kw-sheet-body .dense-purchase-button:disabled .purchase-delta,
+.kw-sheet-body .dense-purchase-button:disabled .purchase-cost{color:#72758f!important}
+.kw-sheet-body .engraving-card{
+  grid-template-rows:19px 31px;grid-auto-rows:0;gap:0 6px;padding:5px 6px!important
+}
+.kw-sheet-body .engraving-card>.engraving-effect{
+  grid-column:1;grid-row:2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+  height:30px;min-height:30px;max-height:30px;font-size:10px;line-height:15px;
+  white-space:normal;overflow:hidden;text-overflow:ellipsis
+}
+.kw-sheet-body .engraving-card>.dense-purchase-button{grid-row:1/span 2}
+@media(max-width:350px){
+  :root{--fixed-buy-w:98px}
+  /* The currency icon and accessible label retain the unit; show the price in full. */
+  .kw-sheet-body .dense-purchase-button .purchase-cost small{display:none}
+  .kw-sheet-body .compact-upgrades .purchase-card .card-top strong{font-size:10px}
+  .kw-sheet-body .dense-purchase-button .purchase-cost strong{font-size:10px!important}
+}
+@media(min-width:560px){:root{--fixed-buy-w:154px}}

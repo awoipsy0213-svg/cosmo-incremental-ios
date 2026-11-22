@@ -48,6 +48,9 @@ jobs:
       - name: Verify Automation Center stylesheet is available
         run: |
           curl -fsSL --retry 4 --retry-delay 3 https://awoipsy0213-svg.github.io/cosmo-incremental-ios/automation-center-v336.css | grep -q "automation-quick"
+      - name: Verify dense purchase stylesheet is available
+        run: |
+          curl -fsSL --retry 4 --retry-delay 3 https://awoipsy0213-svg.github.io/cosmo-incremental-ios/purchase-row-v338.css | grep -q "dense-purchase-button"
       - name: Verify Luminous Glass stylesheet is available
         run: |
           curl -fsSL --retry 4 --retry-delay 3 https://awoipsy0213-svg.github.io/cosmo-incremental-ios/luminous-glass-v332.css | grep -q "Luminous Glass"
@@ -74,6 +77,7 @@ jobs:
         env:
           KOTOWARI_SMOKE_BASE_URL: https://awoipsy0213-svg.github.io/cosmo-incremental-ios/
         run: |
+          node tests/v338_compact_purchase_browser.mjs
           node tests/v337_automation_master_browser.mjs
           node tests/v336_automation_browser.mjs
           node tests/v335_player_copy_browser.mjs

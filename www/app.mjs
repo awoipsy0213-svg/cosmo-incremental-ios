@@ -12,6 +12,7 @@ import {A,formatAmount,formatScientific3,formatOrbAmount} from "./numbers.mjs";
 import * as G from "./game.mjs";
 import {SaveStore,KEYS,decode,encode} from "./save.mjs";
 import {shortDuration} from "./purchase-insights.mjs";
+import {purchasePreview} from "./purchase-preview-v338.mjs";
 
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -315,12 +316,22 @@ function costLabel(q){
   // Keep price visible separately; never resize or rename the purchase button.
   return q.count===0&&q.reason==="上限到達"?"MAX":q.count===0&&q.cost==="0"?"—":q.cost!==undefined&&q.cost!==null?o(q.cost,"ceil"):"—";
 }
+function purchaseGainLabel(kind,id,preview){
+  if(!preview.count)return "上昇 —";
+  return kind==="source"?"+"+f(preview.sourceGain,3)+"/秒":"→ "+preview.afterEffect;
+}
 function cardQuote(kind,id){
-  const q=G.purchaseQuote(state,kind,id);
+  const preview=purchasePreview(state,kind,id),q=preview.quote;
   const name=(kind==="source"?CONTENT.sources:CONTENT.moment).find(x=>x.id===id).name;
-  const full=name+"："+quoteText(q)+" オーブ";
-  return `<span class="purchase-cost" title="${esc(full)}"><small>費用</small> <strong class="purchase-cost-value" data-quote-label>${esc(costLabel(q))}</strong> <small>オーブ</small></span>
-    <button class="buy-button" data-purchase="${kind}" data-id="${id}" ${!q.enabled||readOnly||store.blocked?"disabled":""} aria-label="${esc(full+"を購入")}" title="${esc(full)}">購入</button>`;
+  const count=preview.count.toLocaleString("ja-JP"),gain=purchaseGainLabel(kind,id,preview);
+  const full=name+"：費用 "+costLabel(q)+" オーブ / 購入 ×"+count+" / "+gain;
+  const aria=name+"、購入可能 "+count+" レベル。費用 "+costLabel(q)+" オーブ。"+gain+"。購入";
+  return '<button type="button" class="buy-button dense-purchase-button" data-purchase="'+kind+'" data-id="'+esc(id)+'" '+
+    (!q.enabled||readOnly||store.blocked?"disabled":"")+' aria-label="'+esc(aria)+'" title="'+esc(full)+'">'+
+    '<span class="purchase-cost" title="'+esc(full)+'"><span class="purchase-symbol" aria-hidden="true">◉</span>'+
+    '<strong class="purchase-cost-value" data-quote-label>'+esc(costLabel(q))+'</strong><small>オーブ</small></span>'+
+    '<span class="purchase-action">購入 ×<strong data-quote-count>'+esc(count)+'</strong></span>'+
+    '<span class="purchase-delta" data-quote-gain title="'+esc(gain)+'">'+esc(gain)+'</span></button>';
 }
 const MOMENT_PREF_IDS=CONTENT.moment.map(x=>x.id);
 let momentSearch="",lastMomentFilterRefresh=0;
@@ -549,13 +560,21 @@ function engravingHTML(){
       const levelHint=!owned?"未取得":Number.isSafeInteger(level)?"現在のレベル："+level.toLocaleString("ja-JP"):"取得済み・レベルの記録なし";
       const price=owned?upgrade.price:q.price??item.cost;
       const shownPrice=price===undefined||price===null?"—":f(price,3);
-      const button=owned?`<button class="wide-button engraving-purchase-button" data-engraving-trial-upgrade="${item.id}" ${!upgrade.ok||readOnly||store.blocked?"disabled":""} aria-label="${esc(item.name+"を強化する")}" title="${esc(upgrade.reason||"追加強化 "+shownPrice+" 存在")}">購入</button>`:
-        `<button class="wide-button engraving-purchase-button" data-engraving-buy="${item.id}" ${!q.ok||readOnly||store.blocked?"disabled":""} aria-label="${esc(item.name+"を取得する")}" title="${esc(q.reason||"初回購入 "+shownPrice+" 存在")}">購入</button>`;
+      const purchasable=owned?upgrade.ok:q.ok;
+      const verb=owned?"強化":"取得",action=owned?"data-engraving-trial-upgrade":"data-engraving-buy";
+      const gain=purchasable?"Lv. +1":"上昇 —",costInfo="費用 "+shownPrice+" 存在";
+      const full=item.name+"："+costInfo+" / 購入 ×"+(purchasable?1:0)+" / "+gain;
+      const button='<button type="button" class="wide-button engraving-purchase-button dense-purchase-button" '+
+        action+'="'+esc(item.id)+'" '+(!purchasable||readOnly||store.blocked?"disabled":"")+
+        ' aria-label="'+esc(item.name+"を"+verb+"。"+full)+'" title="'+esc(full)+'">'+
+        '<span class="purchase-cost engraving-cost" title="'+esc(costInfo)+'"><span class="purchase-symbol" aria-hidden="true">✧</span>'+
+        '<strong>'+esc(shownPrice)+'</strong><small>存在</small></span>'+
+        '<span class="purchase-action">購入 ×<strong>'+(purchasable?"1":"0")+'</strong></span>'+
+        '<span class="purchase-delta">'+esc(gain)+'</span></button>';
       return `<article class="kw-card engraving-card" data-engraving-entry="${item.id}">
         <div class="card-top"><strong title="${esc(item.name)}">${esc(item.name)}</strong><span class="badge engraving-level ${owned?"confirmed":""}" title="${esc(levelHint)}" aria-label="${esc(levelHint)}">${esc(levelText)}</span></div>
         <button type="button" class="engraving-detail-button" data-engraving-detail="${item.id}" aria-label="${esc(item.name)}の効果詳細" title="効果の詳細">⋯</button>
         <small class="engraving-effect" title="${esc(item.description)}">${esc(item.description)}</small>
-        <span class="engraving-cost" title="${esc("費用 "+shownPrice+" 存在")}">費用 <strong>${esc(shownPrice)}</strong> 存在</span>
         ${button}
       </article>`;
     }).join("")}</div>`).join("")}
@@ -982,7 +1001,7 @@ function refreshPurchaseButtons(){
   const buttons=$("sheetBody").querySelectorAll("button[data-purchase]");
   let ready=0;
   for(const b of buttons){
-    const kind=b.dataset.purchase,id=b.dataset.id,q=G.purchaseQuote(state,kind,id);
+    const kind=b.dataset.purchase,id=b.dataset.id,preview=purchasePreview(state,kind,id),q=preview.quote;
     const card=b.closest("[data-purchase-card]");
     const enabled=q.enabled&&!readOnly&&!store.blocked;
     b.disabled=!enabled;
@@ -991,10 +1010,18 @@ function refreshPurchaseButtons(){
     // The button always reads "購入"; price updates in its fixed-size cell.
     const price=costLabel(q),priceNode=card?.querySelector("[data-quote-label]");
     if(priceNode&&priceNode.textContent!==price)priceNode.textContent=price;
+    const count=preview.count.toLocaleString("ja-JP"),countNode=card?.querySelector("[data-quote-count]");
+    if(countNode&&countNode.textContent!==count)countNode.textContent=count;
+    const gain=purchaseGainLabel(kind,id,preview),gainNode=card?.querySelector("[data-quote-gain]");
+    if(gainNode&&gainNode.textContent!==gain){gainNode.textContent=gain;gainNode.title=gain;}
+    const levelNode=card?.querySelector(kind==="source"?"[data-source-level]":"[data-moment-level]");
+    const level=kind==="source"?state.sources[id].level:state.moment[id];
+    const levelText="Lv."+level.toLocaleString("ja-JP");
+    if(levelNode&&levelNode.textContent!==levelText)levelNode.textContent=levelText;
     const name=(kind==="source"?CONTENT.sources:CONTENT.moment).find(x=>x.id===id)?.name||id;
-    const full=name+"："+quoteText(q)+" オーブ";
+    const full=name+"：費用 "+price+" オーブ / 購入 ×"+count+" / "+gain;
     if(b.title!==full)b.title=full;
-    const aria=full+"を購入";
+    const aria=name+"、購入可能 "+count+" レベル。費用 "+price+" オーブ。"+gain+"。購入";
     if(b.getAttribute("aria-label")!==aria)b.setAttribute("aria-label",aria);
     const cost=card?.querySelector(".purchase-cost");
     if(cost&&cost.title!==full)cost.title=full;
