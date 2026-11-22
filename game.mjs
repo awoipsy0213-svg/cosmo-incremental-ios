@@ -984,6 +984,65 @@ export function labBoostUpgrade(s,index){
   recordBoostAccounting(s,"upgrade",cost,Date.now(),"旧5系統・lab "+index);
   return {ok:true,cost};
 }
+
+/**
+ * Online-only engraving automation: bounded operations and persistent
+ * fractional credits make the result independent of display refresh rate.
+ * No BOOST balance, offline stage, or saved legacy equipment is changed.
+ */
+function autoEngravingBuy(s,kind,quantity,efficient){
+  const ids=kind==="source"?SOURCE_IDS:MOMENT_IDS,previousMode=s.purchaseMode;
+  let count=0;
+  try{
+    s.purchaseMode="1";
+    for(let i=0;i<Math.min(quantity,ENGRAVING_AUTO_BATCH_LIMIT);i++){
+      const offers=[];
+      for(const id of ids){
+        const quote=purchaseQuote(s,kind,id,"1");
+        if(quote.enabled)offers.push({id,cost:A(quote.cost)});
+      }
+      if(!offers.length)break;
+      if(efficient){
+        if(kind==="source"){
+          for(const o of offers)o.score=sourceNextGain(s,o.id).div(o.cost);
+        }else{
+          const before=tapPower(s).add(production(s));
+          for(const o of offers){
+            s.moment[o.id]++;
+            try{
+              const after=tapPower(s).add(production(s));
+              o.score=after.cmp(before)>0?after.sub(before).div(o.cost):A(0);
+            }finally{s.moment[o.id]--;}
+          }
+        }
+        offers.sort((a,b)=>b.score.cmp(a.score)||a.cost.cmp(b.cost));
+      }else offers.sort((a,b)=>a.cost.cmp(b.cost));
+      if(!buy(s,kind,offers[0].id).ok)break;
+      count++;
+    }
+  }finally{s.purchaseMode=previousMode;}
+  return count;
+}
+function runEngravingAutomation(s,seconds,now,rng){
+  if(seconds<=0)return;
+  const runtime=s.engraving.runtime??(s.engraving.runtime=freshEngravingRuntime());
+  const tapRate=engravingAutoTapRate(s);
+  if(tapRate>0){
+    const earned=engravingOrbAward(s,tapPower(s,now).mul(seconds*tapRate),rng);
+    addOrbs(s,earned);
+  }
+  const efficient=engravingAutoEfficient(s);
+  for(const [key,kind,rate] of [
+    ["autoMomentCredit","moment",engravingAutoMomentRate(s)],
+    ["autoSourceCredit","source",engravingAutoSourceRate(s)]
+  ]){
+    if(rate<=0)continue;
+    const total=Math.min(1000,runtime[key]+seconds*rate);
+    const due=Math.min(ENGRAVING_AUTO_BATCH_LIMIT,Math.floor(total));
+    runtime[key]=total-due;
+    if(due>0)autoEngravingBuy(s,kind,due,efficient);
+  }
+}
 export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
   const dt=Math.max(0,(now-s.lastWall)/1000);
   if(!Number.isFinite(dt)||dt<=0){
