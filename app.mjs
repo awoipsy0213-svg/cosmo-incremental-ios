@@ -808,8 +808,8 @@ function renderPanel(force=false){
   cycle.hidden=!buyTabs;
   cycle.textContent=({"1":"×1","10":"×10","NEXT":"NEXT","MAX":"MAX"})[state.purchaseMode];
   cycle.setAttribute("aria-label",`購入数 ${cycle.textContent}。タップで切替`);
-  const order=$("bulkOrderButton");order.textContent=state.settings.bulkOrder==="expensive"?"高順":"安順";order.title=state.settings.bulkOrder==="expensive"?"高い順で一括購入":"安い順で一括購入";order.setAttribute("aria-label",order.title);
-  const scope=$("bulkScopeButton");if(scope){scope.textContent=bulkScope==="all"?"全件":"表示";scope.title=bulkScope==="all"?"全件を対象に一括購入":"表示中を対象に一括購入";scope.setAttribute("aria-label",scope.title);}
+  const order=$("bulkOrderButton");order.textContent=state.settings.bulkOrder==="expensive"?"高い順":"安い順";order.title=state.settings.bulkOrder==="expensive"?"高い順で一括購入":"安い順で一括購入";order.setAttribute("aria-label",order.title);
+  const scope=$("bulkScopeButton");if(scope){scope.textContent=bulkScope==="all"?"全件":"表示中";scope.title=bulkScope==="all"?"全件を対象に一括購入":"表示中を対象に一括購入";scope.setAttribute("aria-label",scope.title);}
   const body=$("sheetBody"),top=body.scrollTop,details=[...body.querySelectorAll("details[open][data-preserve]")].map(x=>x.dataset.preserve);
   const map={moment:momentHTML,sources:sourcesHTML,engraving:engravingHTML,flow:flowHTML,concepts:conceptHTML,
     planets:planetHTML,resources:resourcesHTML,observations:observationsHTML,
