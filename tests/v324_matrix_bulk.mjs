@@ -9,7 +9,7 @@ let count=0;
 function check(name,fn){fn();count++;console.log("PASS "+name);}
 check("Main/in-app data is still schema31 and the release is v3.27",()=>{
  const s=createState();
- assert.equal(CONFIG.version,"3.30.0");
+ assert.equal(CONFIG.version,"3.30.1");
  assert.equal(s.schemaVersion,31);
  assert.equal(KEYS.normal,"kotowari_v31_normal");
  assert.equal(KEYS.lab,"kotowari_v31_lab");
