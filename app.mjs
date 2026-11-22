@@ -392,13 +392,13 @@ function engravingHTML(){
     ${[1,2,3].map(tier=>`<h3>刻印 ${["初級","中級","上級"][tier-1]} · 初回費用 ${["0.005","0.025","0.125"][tier-1]} 存在 / 取得 ${count(tier)}/10</h3>
       <div class="row-grid engraving-list">
       ${catalogue.filter(x=>x.tier===tier).map(item=>{
-        const owned=e.owned.includes(item.id),level=e.levels?.[item.id],q=engravingPurchaseQuote(state,item.id);
+        const owned=e.owned.includes(item.id),level=e.levels?.[item.id],q=engravingPurchaseQuote(state,item.id),upgrade=G.engravingTrialUpgradeQuote(state,item.id),extra=e.trialLevels?.[item.id]||0;
         const levelText=!owned?"未取得":level===undefined?"旧取得済・Lv換算保留":"Lv."+level.toLocaleString("ja-JP");
         return `<article class="kw-card engraving-card">
           <div class="card-top"><strong>${esc(item.id)}</strong><span class="badge ${owned?"confirmed":""}">${esc(levelText)}</span></div>
-          <small>${esc(item.description)}</small>
-          <small>${owned?"購入済み・常時有効":"初回費用 "+item.cost+" 存在"} · ${item.status==="implemented"?"効果利用可能":"効果は仕様照合待ち"}</small>
-          ${owned?'<button class="wide-button" disabled>次Lvの仕様確定待ち</button>':`<button class="wide-button" data-engraving-buy="${item.id}" ${!q.ok||readOnly||store.blocked?"disabled":""}>${q.ok?"初回購入":q.reason}</button>`}
+          <details class="tiny"><summary>効果詳細</summary><small>${esc(item.description)}</small></details>
+          <small>${owned?"追加強化 +"+extra+"（共通補正は試験値）":"初回費用 "+item.cost+" 存在"} · ${item.status==="implemented"?"固有効果利用可能":"固有効果は照合待ち"}</small>
+          ${owned?`<button class="wide-button" data-engraving-trial-upgrade="${item.id}" ${!upgrade.ok||readOnly||store.blocked?"disabled":""}>${upgrade.ok?"追加Lv+"+(extra+1)+" · "+f(upgrade.price,3)+" 存在（試験）":esc(upgrade.reason)}</button>`:`<button class="wide-button" data-engraving-buy="${item.id}" ${!q.ok||readOnly||store.blocked?"disabled":""}>${q.ok?"初回購入":q.reason}</button>`}
         </article>`;
       }).join("")}</div>`).join("")}
     ${mode==="lab"&&e.active.length?'<p class="tiny muted">旧検証版の刻印実験データは独立したlabデータのまま保護しています。</p>':""}
@@ -1353,10 +1353,22 @@ document.addEventListener("click",async e=>{
       checkpoint();
       return resultDone(G.buyEngraving(state,id),id+"を購入しました");
     }
+    if(b.dataset.engravingTrialUpgrade){
+      const id=b.dataset.engravingTrialUpgrade,q=G.engravingTrialUpgradeQuote(state,id);
+      if(!q.ok)return toast(q.reason);
+      if(!await ask("刻印の試験強化",`${id} の追加強化Lv.+${q.next}。費用 ${f(q.price,3)} 余剰存在。タップ・源が追加Lvあたり+0.5%（試験値）。旧取得履歴は保護します。`,"購入する"))return;
+      checkpoint();return resultDone(G.buyEngravingTrialUpgrade(state,id),"刻印を追加強化しました");
+    }
     if(b.dataset.draft){resultDone(G.toggleDraft(state,b.dataset.draft));return;}
     if(b.dataset.form){resultDone(G.formConcept(state,b.dataset.form),"概念を認識しました");return;}
     if(b.dataset.formMax){resultDone(G.formConceptMax(state,b.dataset.formMax),"概念を一括強化しました");return;}
     if(b.dataset.invest){const r=G.invest(state,b.dataset.invest,Number(b.dataset.count||1));resultDone(r,"資源を投入し、質量と固有ステータスを強化しました");return;}
+    if(b.dataset.boostTrialBuy!==undefined){
+      const id=Number(b.dataset.boostTrialBuy),q=G.boostTrialPurchaseQuote(state,id);
+      if(!q.ok)return toast(q.reason);
+      if(!await ask("BOOSTの試験強化",`5系統の${id+1}番をLv.${q.next}へ。費用：${duration(q.cost)} BOOST。正式採用前の試験値です。`,"BOOSTで購入"))return;
+      checkpoint();return resultDone(G.buyBoostTrialUpgrade(state,id),"BOOSTを試験強化しました");
+    }
     if(b.dataset.boostUpgrade!==undefined){resultDone(G.labBoostUpgrade(state,Number(b.dataset.boostUpgrade)));return;}
     if(b.dataset.restore!==undefined){
       if(!await ask("保存履歴から復元","現在のデータを退避して、この履歴へ戻します。","復元する"))return;
