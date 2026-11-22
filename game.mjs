@@ -889,11 +889,18 @@ export function toggleDraft(){return {ok:false,reason:"刻印の装備切替は�
 export function engravingQuote(){return {added:[],removed:[],slots:0,cost:"0",legacyOnly:true};}
 export function confirmEngraving(){return {ok:false,reason:"刻印の装備切替は廃止されました"};}
 export function cancelEngraving(){return {ok:false,reason:"刻印の装備切替は廃止されました"};}
-export function configureAutoConvergence(s,{enabled,minReward}={},now=Date.now()) {
+export function configureAutoConvergence(s,{enabled,minReward,minSteps}={},now=Date.now()) {
   const a=s.engraving.autoConverge;
   if(minReward!==undefined){
     if(!validRewardThreshold(minReward))return {ok:false,reason:"報酬閾値は0.025以上で指定してください"};
     a.minReward=str(minReward);
+  }
+  if(minSteps!==undefined){
+    if(!Number.isSafeInteger(minSteps)||minSteps<1||minSteps>100)
+      return {ok:false,reason:"自動収束の必要段階は1〜100です"};
+    if(minSteps>1&&!engravingConvergenceControl(s))
+      return {ok:false,reason:"循環制御の刻印Lvが必要です"};
+    a.minSteps=minSteps;
   }
   if(enabled!==undefined){
     if(typeof enabled!=="boolean")return {ok:false,reason:"設定が不正です"};
@@ -902,7 +909,7 @@ export function configureAutoConvergence(s,{enabled,minReward}={},now=Date.now()
     if(enabled&&!a.enabled)a.lastAt=now; // 60s safety interval after ON
     a.enabled=enabled;
   }
-  return {ok:true,enabled:a.enabled,minReward:a.minReward};
+  return {ok:true,enabled:a.enabled,minReward:a.minReward,minSteps:a.minSteps||1};
 }
 export function autoConvergenceTick(s,now=Date.now(),offline=false) {
   if(offline||!s.intro.complete||!s.engraving.autoConverge.enabled ||
@@ -911,7 +918,7 @@ export function autoConvergenceTick(s,now=Date.now(),offline=false) {
   if(!Number.isFinite(now)||now<0||now-s.engraving.autoConverge.lastAt<AUTO_CONVERGE_MIN_INTERVAL_MS)
     return {ok:false,reason:"自動収束の待機中です"};
   const q=convergenceQuote(s);
-  if(!q.steps||A(q.reward).cmp(s.engraving.autoConverge.minReward)<0)
+  if(q.steps<(s.engraving.autoConverge.minSteps||1)||A(q.reward).cmp(s.engraving.autoConverge.minReward)<0)
     return {ok:false,reason:"報酬閾値または必要オーブが不足しています"};
   const result=converge(s);
   if(result.ok){
@@ -1055,6 +1062,7 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
     const report=SETSUNA.advance(proj,now,{seconds:elapsedSeconds,offline:false,rng});
     rememberSetsuna(s,proj);
     gained=A(report.source).mul(factor).add(base.mul(Math.max(0,gameSeconds-elapsedSeconds)));
+    gained=engravingOrbAward(s,gained,rng);
     addOrbs(s,gained);
   }
   if(s.time.unlocked){
@@ -1141,6 +1149,7 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
       for(let i=0;i<ticks;i++)autoPlanetOnce(s,now);
     }
   }
+  if(s.intro.complete)runEngravingAutomation(s,gameSeconds,now,rng);
   autoConvergenceTick(s,now,false);
   if(s.mode==="lab"){
     if(s.engraving.active.includes("autoTap"))addOrbs(s,tapPower(s).mul(gameSeconds));
@@ -1404,6 +1413,11 @@ export function validateState(input,expectedMode=null) {
       Object.entries(e.levels).some(([id,level])=>!ENGRAVING_IDS.includes(id)||
         !Number.isSafeInteger(level)||level<1||level>1000000||!e.owned.includes(id)))fail("刻印Lv");
   if(e.autoConverge===undefined)e.autoConverge={enabled:false,minReward:AUTO_CONVERGE_DEFAULT_MIN_REWARD,lastAt:0};
+  if(e.autoConverge.minSteps===undefined)e.autoConverge.minSteps=1;
+  if(e.runtime===undefined)e.runtime=freshEngravingRuntime();
+  if(!e.runtime||typeof e.runtime!=="object"||Array.isArray(e.runtime))fail("刻印自動化状態");
+  for(const k of ["autoTapCredit","autoMomentCredit","autoSourceCredit"])
+    if(!Number.isFinite(e.runtime[k])||e.runtime[k]<0||e.runtime[k]>1000)fail("刻印自動化残高");
   if(!Array.isArray(e.active)||e.active.some(x=>!CONTENT.engravings.some(y=>y.id===x)))fail("旧刻印");
   const checkIds=(list,label)=>{
     if(!Array.isArray(list)||list.length>30||new Set(list).size!==list.length||
@@ -1424,11 +1438,13 @@ export function validateState(input,expectedMode=null) {
   }
   if(!e.autoConverge||typeof e.autoConverge!=="object"||
       typeof e.autoConverge.enabled!=="boolean"||
+      !Number.isSafeInteger(e.autoConverge.minSteps)||e.autoConverge.minSteps<1||e.autoConverge.minSteps>100||
       !validRewardThreshold(e.autoConverge.minReward)||
       !Number.isFinite(e.autoConverge.lastAt)||e.autoConverge.lastAt<0||e.autoConverge.lastAt>1e15)
     fail("自動収束設定");
   e.autoConverge.minReward=str(e.autoConverge.minReward);
   if(e.autoConverge.enabled&&!e.owned.includes(ENGRAVING_AUTO_CONVERGE_ID))fail("自動収束の未購入設定");
+  if(e.autoConverge.minSteps>1&&!engravingConvergenceControl(s))fail("循環制御の取得状態");
   const b=s.boost;if(!b||!Number.isFinite(b.seconds)||b.seconds<0||!Array.isArray(b.upgrades)||b.upgrades.length!==5||b.upgrades.some(x=>!Number.isInteger(x)||x<0||x>10000))fail("BOOST");
   if(b.trialLevels===undefined)b.trialLevels=[0,0,0,0,0];
   if(!Array.isArray(b.trialLevels)||b.trialLevels.length!==5||
