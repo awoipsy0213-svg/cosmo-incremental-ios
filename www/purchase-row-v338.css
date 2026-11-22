@@ -2,7 +2,7 @@
  * 《理》v3.38 dense purchase rows: cost, purchasable levels, projected effect.
  * Presentation only; every row retains fixed dimensions on numeric updates.
  */
-:root{--fixed-card-h:66px;--fixed-buy-w:clamp(127px,38vw,160px)}
+:root{--fixed-card-h:66px;--fixed-buy-w:clamp(98px,31vw,142px)}
 .kw-sheet-body .compact-upgrades .purchase-card{
   grid-template-rows:18px 15px 15px;grid-auto-rows:0;gap:0 6px;padding:5px 6px!important
 }
@@ -74,7 +74,7 @@
 }
 .kw-sheet-body .engraving-card>.dense-purchase-button{grid-row:1/span 2}
 @media(max-width:350px){
-  :root{--fixed-buy-w:127px}
+  :root{--fixed-buy-w:98px}
   .kw-sheet-body .compact-upgrades .purchase-card .card-top strong{font-size:10px}
   .kw-sheet-body .dense-purchase-button .purchase-cost strong{font-size:10px!important}
 }
