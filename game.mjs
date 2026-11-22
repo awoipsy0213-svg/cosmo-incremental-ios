@@ -955,7 +955,7 @@ export function configureAutoConvergence(s,{enabled,minReward,minSteps,mode,inte
   }
   if(targetRunOrbs!==undefined){
     try{
-      if(typeof targetRunOrbs!=="string"||!/^\\d+(?:\\.\\d+)?(?:e\\+?\\d+)?$/i.test(targetRunOrbs)||
+      if(typeof targetRunOrbs!=="string"||!/^\d+(?:\.\d+)?(?:e\+?\d+)?$/i.test(targetRunOrbs)||
          A(targetRunOrbs).cmp(0)<=0||A(targetRunOrbs).e>999)
         return {ok:false,reason:"累計獲得オーブは正の数字で指定してください"};
       next.targetRunOrbs=str(targetRunOrbs);
@@ -1599,7 +1599,7 @@ export function validateState(input,expectedMode=null) {
       !Number.isSafeInteger(e.autoConverge.intervalMinutes)||
         e.autoConverge.intervalMinutes<1||e.autoConverge.intervalMinutes>240||
       typeof e.autoConverge.targetRunOrbs!=="string"||
-      !/^\\d+(?:\\.\\d+)?(?:e\\+?\\d+)?$/i.test(e.autoConverge.targetRunOrbs)||
+      !/^\d+(?:\.\d+)?(?:e\+?\d+)?$/i.test(e.autoConverge.targetRunOrbs)||
       A(e.autoConverge.targetRunOrbs).cmp(0)<=0||
       A(e.autoConverge.targetRunOrbs).e>999||
       !Number.isFinite(e.autoConverge.lastAt)||e.autoConverge.lastAt<0||e.autoConverge.lastAt>1e15)
