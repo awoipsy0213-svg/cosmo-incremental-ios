@@ -382,6 +382,17 @@ export function convergenceQuote(s) {
     nextRequired:next.toString(),nextRemaining:next.sub(earned).toString(),spent:spent.toString(),
     basis:legacy?"legacy-balance":"run-earned",runOrbsEarned:s.runOrbsEarned??"0"};
 }
+// NEXT is measured within the current earned-orb step, never against the wallet
+// for a verified run. Legacy saves keep an explicitly marked compatibility basis.
+export function convergenceProgress(s){
+  const q=convergenceQuote(s);
+  const basis=A(q.basis==="run-earned"?s.runOrbsEarned:s.orbs);
+  const from=A(q.spent),until=A(q.nextRequired);
+  const size=until.sub(from);
+  const advanced=basis.sub(from);
+  const raw=size.cmp(0)>0?advanced.mul(100).div(size).toNumber():100;
+  return {...q,percent:Number.isFinite(raw)?Math.max(0,Math.min(100,raw)):0};
+}
 export function converge(s) {
   if(!s.intro.complete)return {ok:false,reason:"最初の存在は失えません"};
   const q=convergenceQuote(s);

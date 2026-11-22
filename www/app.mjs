@@ -225,10 +225,11 @@ function renderWorld(){
   if(["existence","organizer"].includes(currentStage)){
     $("primaryValue").textContent=orbDisplay(state.orbs);
     $("worldDetails").innerHTML=`<span class="wallet">オーブ <b>${orbDisplay(state.orbs)}</b></span><span>${state.runOrbsEvidence==="verified"?"周回獲得 "+orbDisplay(state.runOrbsEarned)+" オーブ":"旧周回・獲得累計未確認"}</span><span>干渉 +${f(tap)} / 源 +${f(rate)} 毎秒</span>${comboHtml}${storedHtml}`;
-    $("worldHint").textContent="タップして理を観測";
+    $("worldHint").textContent="";
     const q=G.convergenceQuote(state);
     $("convergeMain").disabled=!q.steps||readOnly;
-    $("convergeMain").innerHTML=`<strong>収束 <span>+${f(q.reward,3)}</span></strong><span><small>${q.basis==="run-earned"?"周回累計・次の報酬まで":"旧周回・次の報酬まで"}</small>${f(q.nextRemaining)} オーブ</span>`;
+    const gauge=G.convergenceProgress(state);
+    $("convergeMain").innerHTML=`<strong>収束 <span>+${f(q.reward,3)}</span></strong><span><small>${q.basis==="run-earned"?"次の報酬まで":"旧周回・次の報酬まで"}</small>${f(q.nextRemaining)} オーブ</span><span class="converge-gauge" aria-hidden="true"><i style="width:${gauge.percent.toFixed(2)}%"></i></span>`;
   }else if(currentStage==="time"){
     $("primaryValue").textContent=Math.floor(state.time.elapsed).toLocaleString("ja-JP");
     $("worldDetails").innerHTML=`<span class="wallet">TIME · 継続する流れ</span><span>世界時間 ${Math.min(1,state.time.worldSeconds).toFixed(6)} / 1 秒 · 自動生成 +${f(rate)} オーブ / 秒</span>`;
@@ -244,6 +245,7 @@ function renderWorld(){
   }
   const stageLabels={existence:"オーブ",time:"経過時間 · 秒",universe:"惑星数",life:"生命の兆し",organizer:"オーブ"};
   $("stageResourceLabel").textContent=stageLabels[currentStage]||"進行";
+  $("worldHint").hidden=["existence","organizer"].includes(currentStage);
   const selected=state.universe.planets.find(p=>p.id===state.universe.selectedPlanetId);
   const stageRows=currentStage==="time"?[
     ["世界秒",Math.min(1,state.time.worldSeconds).toFixed(6)],
@@ -260,7 +262,6 @@ function renderWorld(){
   ]:[
     ["源の生成",f(rate)+"/秒"],
     ["干渉",f(tap)+"/回"],
-    ["累計オーブ",orbDisplay(state.totalOrbs)],
     ["コンボ",combo.combo.toLocaleString("ja-JP")]
   ];
   $("stageResourceList").innerHTML=stageRows.map(([label,value])=>`<div class="stage-stat"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`).join("");
@@ -275,12 +276,9 @@ function renderWorld(){
   $("matrixCaption").textContent=`${stage.name} のマトリクス`;
   $("matrixSummary").textContent=progress.total?`${progress.title} ${progress.done} / ${progress.total}`:"詳細システムは設計中";
   $("matrixFill").style.width=progress.total?`${Math.min(100,100*progress.done/progress.total).toFixed(1)}%`:"0%";
-  $("worldObserve").innerHTML=stageRows.slice(0,3).map(([name,value])=>`<div class="scene-stat"><span>${esc(name)}</span><strong>${esc(value)}</strong></div>`).join("");
-  const extra=currentStage==="time"?[["経過",Math.floor(state.time.elapsed).toLocaleString("ja-JP")+"秒"],["概念",`${conceptsCount} / 77`]]:
-    currentStage==="universe"?[["惑星",`${state.universe.planets.length} / ${state.universe.maxPlanets}`],["資源",`${state.universe.discoveredResources.length} / 42`]]:
-    currentStage==="life"?[["進行状況","設計中"]]:
-    [["存在倍率",`×${f(G.existenceMultiplier(state),2)}`],["収束回数",`${state.convergenceCount.toLocaleString("ja-JP")}回`]];
-  $("worldStatus").innerHTML=extra.map(([name,value])=>`<div class="scene-stat"><span>${esc(name)}</span><strong>${esc(value)}</strong></div>`).join("");
+  $("worldObserve").innerHTML=stageRows.slice(0,currentStage==="existence"||currentStage==="organizer"?2:3).map(([name,value])=>`<div class="scene-stat"><span>${esc(name)}</span><strong>${esc(value)}</strong></div>`).join("");
+  // DEC-20261122-005: the permanent “理の状態” sidebar is removed.
+  // Game state and history remain intact; only redundant on-screen copy is hidden.
   $("heroSigil").textContent=currentStage==="time"?"時":currentStage==="universe"?"宇":currentStage==="life"?"生":"理";
 }
 function quoteText(q){
@@ -341,8 +339,9 @@ function refreshMomentVisibility(){
 
 function momentHTML(){
   const q=G.convergenceQuote(state),effects=G.momentEffects(state);
-  const runNote=q.basis==="legacy-balance"?'旧周回の獲得累計は不明です。旧資産を推測せず、初回収束後から新方式へ移行します。':`周回累計獲得 ${orbDisplay(state.runOrbsEarned)} オーブ（購入による減少なし）`;
-  return `<p class="tiny muted">刹那30項目・全件一覧。新24項目の価格・節目倍率は検証値です。${esc(runNote)}</p>
+  const runNote=q.basis==="legacy-balance"?'<small class="status-note">旧周回：獲得履歴が不明なため初回収束までは旧判定を保護します。</small>':"";
+  const gauge=G.convergenceProgress(state);
+  return `${runNote}
   <div class="row-grid compact-upgrades">${CONTENT.moment.map((x,i)=>{
     const heading=i%5===0?`<div class="moment-group-title" data-moment-heading="${Math.floor(i/5)}">${esc(["基礎干渉","連続干渉","確率干渉","自律干渉","源泉共鳴","超越干渉"][Math.floor(i/5)])}</div>`:"";
     const e=effects[i],offer=G.purchaseQuote(state,"moment",x.id);
@@ -355,14 +354,14 @@ function momentHTML(){
       ${cardQuote("moment",x.id)}
       <details class="moment-effect-detail" data-preserve="${x.id}"><summary>詳細</summary><p>${esc(x.description)}</p><p><b>現在</b> ${esc(e.current)}</p><p><b>次Lv</b> ${esc(e.next)}</p>${after}${miracle}<small>固有効果は確定／購入価格と未指定節目は検証値</small></details></article>`;
   }).join("")}</div>
-  <div class="kw-card converge-compact"><div class="card-top"><strong>収束 · 永続補正</strong><small data-existence-rate>×${f(G.existenceMultiplier(state),3)}</small></div><small data-convergence-reward>獲得予定 +${f(q.reward,3)} 存在</small><button class="wide-button" data-action="converge" ${!q.steps||readOnly?"disabled":""}>収束する · 次まで ${f(q.nextRemaining)} オーブ</button><small>余剰存在0.02 → 獲得量×1.02 / 1 → ×2（試験値）</small></div>`;
+  <div class="kw-card converge-compact"><div class="card-top"><strong>収束 · 永続補正</strong><small data-existence-rate>×${f(G.existenceMultiplier(state),3)}</small></div><small data-convergence-reward>獲得予定 +${f(q.reward,3)} 存在</small><button class="wide-button converge-with-gauge" data-action="converge" ${!q.steps||readOnly?"disabled":""}><span data-converge-text>収束する · 次まで ${f(q.nextRemaining)} オーブ</span><span class="converge-gauge"><i data-converge-fill style="width:${gauge.percent.toFixed(2)}%"></i></span></button></div>`;
 }
 function sourcesHTML(){
   const ms=CONFIG.confirmed.sourceMilestones,cycle=G.sourceCycleStatus(state);
   const resonance=G.sourceResonanceProgress(state);
   const resonanceValue=state.moment.setsuna23>0?G.momentEffects(state)[22].current:"未購入";
   const next= resonance.next?`${resonance.next.id} Lv.${resonance.next.level}（残り${resonance.next.remaining}Lv）`:"全節目到達";
-  return `<div class="status-note">源の共振：${resonance.completed} / ${resonance.total}節目 · ${esc(resonanceValue)} · 次 ${esc(next)}</div><div class="status-note">源の一巡：${cycle.reached} / ${cycle.total}種到達 ${cycle.unlocked?"・＋循環解放済み":"・解放まで残り"+cycle.remaining+"種"}。＋値倍率は「1＋0.5×＋値」で、Lv1から再成長します。</div><div class="row-grid compact-upgrades">${CONTENT.sources.map((x,i)=>{
+  return `<details class="source-summary"><summary>源の共振 ${resonance.completed}/${resonance.total} · 一巡 ${cycle.reached}/${cycle.total}</summary><small>次の節目：${esc(next)} · ${esc(resonanceValue)} · ＋循環${cycle.unlocked?"解放":"未解放"}</small></details><div class="row-grid compact-upgrades">${CONTENT.sources.map((x,i)=>{
     const v=state.sources[x.id],done=ms.filter(m=>m<=v.level).length,next=ms.find(m=>m>v.level);
     return `<article class="kw-card source-card purchase-card" data-source-entry="${x.id}" data-purchase-card><div class="card-top"><strong>${String(i+1).padStart(2,"0")} ${esc(x.name)} ＋${v.plus.toLocaleString("ja-JP")}</strong><small data-source-level="${x.id}">Lv.${v.level.toLocaleString("ja-JP")}</small></div>
     <button class="more-button source-detail-button" data-source-detail="${x.id}" aria-label="${esc(x.name)}の詳細">⋯</button>
@@ -375,11 +374,10 @@ function engravingHTML(){
   const e=state.engraving,catalogue=engravingCatalogue();
   const count=tier=>catalogue.filter(x=>x.tier===tier&&e.owned.includes(x.id)).length;
   const options=["0.025","0.05","0.1","0.5","1"];
-  return `<p class="panel-intro">刻印は装備枠なしの永続強化です。購入済みの刻印は常時有効。2Lv以降の価格・成長・上限は仕様確定待ちです。</p>
-    <div class="kw-card engraving-overview">
+  return `<div class="kw-card engraving-overview">
       <div class="card-top"><strong>余剰存在 ${f(state.surplusExistence,3)}</strong><span class="badge confirmed">最初の存在1を保護</span></div>
       <small>取得済み ${e.owned.length} / 30 · 収束 ${state.convergenceCount} 回 · 取得済みの刻印は収束後も保持</small>
-      <small>旧装備・選択履歴はセーブに保護し、発動条件には使用しません。</small>
+
     </div>
     ${e.owned.includes(ENGRAVING_AUTO_CONVERGE_ID)?`<div class="kw-card engraving-auto">
       <div class="card-top"><strong>ENG-24 自動収束</strong><span class="badge ${e.autoConverge.enabled?"confirmed":""}">${e.autoConverge.enabled?"ON":"OFF"}</span></div>
@@ -404,7 +402,7 @@ function engravingHTML(){
         </article>`;
       }).join("")}</div>`).join("")}
     ${mode==="lab"&&e.active.length?'<p class="tiny muted">旧検証版の刻印実験データは独立したlabデータのまま保護しています。</p>':""}
-    <p class="tiny muted">未確定の固有効果、源Lv保持、2Lv以降の価格・効果は推測で追加しません。</p>`;
+    <details class="tiny muted"><summary>試験値と旧セーブについて</summary><p>未確定の刻印固有効果・旧Lv換算と旧装備履歴は別管理し、バックアップに保護します。</p></details>`;
 }
 function flowHTML(){
   const t=state.time;
@@ -856,7 +854,8 @@ function refreshPurchaseButtons(){
     if(b){
       b.disabled=!q.steps||readOnly||store.blocked;
       const label=`収束する · 次まで ${f(q.nextRemaining)} オーブ`;
-      if(b.textContent!==label)b.textContent=label;
+      const t=b.querySelector("[data-converge-text]");if(t&&t.textContent!==label)t.textContent=label;
+      const fill=b.querySelector("[data-converge-fill]");if(fill)fill.style.width=G.convergenceProgress(state).percent.toFixed(2)+"%";
     }
     const reward=$("sheetBody").querySelector('[data-convergence-reward]');
     if(reward){const label=`獲得予定 +${f(q.reward,3)} 存在`;if(reward.textContent!==label)reward.textContent=label;}
