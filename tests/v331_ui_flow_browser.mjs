@@ -21,7 +21,7 @@ try{
     const fixture=await page.evaluate(async()=>{
       const G=await import("./game.mjs"),S=await import("./save.mjs");
       const s=G.createState(Date.now(),"normal");
-      s.intro.complete=true;s.surplusExistence="10";
+      s.intro.complete=true;s.surplusExistence="1";
       s.sources.SOURCE_01.level=1;
       G.addOrbs(s,"2500");
       return S.encode(s,"v331-fixture");
