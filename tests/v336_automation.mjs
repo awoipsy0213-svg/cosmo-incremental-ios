@@ -22,7 +22,7 @@ check("old schema 31 saves get defaults without changing verified balances or en
   delete old.settings.automationStage;
   const s=G.validateState(old,"normal");
   assert.equal(s.schemaVersion,31);
-  assert.equal(s.orbs,"123.75");
+  assert.equal(A(s.orbs).cmp("123.75"),0,"preserve exact wallet value");
   assert.deepEqual(s.engraving.owned,["ENG-23"]);
   assert.equal(s.engraving.runtime.autoMomentCredit,.75);
   assert.equal(s.engraving.autoBuy.moment.enabled,true);
