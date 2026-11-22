@@ -781,7 +781,7 @@ function chronicleHTML(){
   const entries=[...state.events].reverse().map(e=>{
     const raw=String(e.text??"");
     if(mode!=="lab" && /【検証】|試験強化|暫定バランス|実装状態|未実装|原文照合|仕様が未決定/.test(raw))return null;
-    const text=raw.replace(/ENG-\d{2}/g,id=>names[id]||"刻印");
+    const text=raw.startsWith("Ver.3.1へ安全に移行")?"以前の進行データを引き継ぎました。":raw.replace(/ENG-\d{2}/g,id=>names[id]||"刻印");
     return {...e,text};
   }).filter(Boolean);
   if(!entries.length)return '<div class="empty-state"><p>まだ出来事は記録されていません。</p></div>';
