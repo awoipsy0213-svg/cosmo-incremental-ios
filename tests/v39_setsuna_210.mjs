@@ -10,7 +10,7 @@ const time=1800000000000;let checks=0;
 function yes(x,message){assert.ok(x,message);checks++;}
 function same(actual,expected,message){assert.deepEqual(actual,expected,message);checks++;}
 function state(){const s=G.createState(time);s.intro.complete=true;return s;}
-yes(['3.9.0','3.10.0','3.11.0','3.12.0','3.13.0','3.14.0', '3.15.0','3.16.0','3.17.0','3.18.0','3.19.0','3.20.0','3.21.0','3.22.0','3.23.0','3.24.0','3.25.0','3.26.0','3.27.0','3.28.0'].includes(CONFIG.version),'v3.9 core rules retained in current release');
+yes(['3.9.0','3.10.0','3.11.0','3.12.0','3.13.0','3.14.0', '3.15.0','3.16.0','3.17.0','3.18.0','3.19.0','3.20.0','3.21.0','3.22.0','3.23.0','3.24.0','3.25.0','3.26.0','3.27.0','3.29.0'].includes(CONFIG.version),'v3.9 core rules retained in current release');
 same(CONFIG.schemaVersion,31,'save schema');
 same(KEYS.normal,'kotowari_v31_normal','original normal save key');
 same(CONTENT.moment.length,30,'30 effects');
