@@ -22,7 +22,7 @@ const childNames={moment:"刹那",sources:"源",engraving:"刻印",flow:"流れ"
   planets:"惑星",resources:"資源",observations:"観測",life:"生命",
   boost:"BOOST",achievements:"実績",chronicle:"記録",statistics:"統計",collection:"コレクション",
   guide:"遊び方",settings:"設定",backup:"保存",spec:"設計状況",proposals:"研究・試案",lab:"開発テスト",priceLab:"価格試算"};
-const organizerItems=["boost","achievements","chronicle","statistics","collection","guide","settings","backup","spec","proposals",...(dev?["priceLab","lab"]:[])];
+const organizerItems=["boost","achievements","chronicle","statistics","collection","guide","settings","backup",...(mode==="lab"?["spec","proposals","priceLab","lab"]:[])];
 let memory={};let storage;
 try{storage=window.localStorage;}catch(e){storage={getItem:k=>memory[k]||null,setItem:(k,v)=>memory[k]=String(v),removeItem:k=>delete memory[k]};}
 const store=new SaveStore(storage,mode,globalThis.crypto?.randomUUID?.()||"tab-"+Date.now());
@@ -201,7 +201,7 @@ function renderWorld(){
     const timeSpeed=state.boost.active&&state.boost.seconds>0?G.boostTimeMultiplier(state):1;
     const metrics=[
       ["existence",formatScientific3(G.existence(state)),"存在",""],
-      ["timeSpeed","×"+timeSpeed,"時間の経過速度","（現行の時間倍率は試験値）"]
+      ["timeSpeed","×"+timeSpeed,"時間の経過速度",""]
     ];
     for(const [id,formatted,label,unit] of metrics){
       const node=document.querySelector('[data-common-value="'+id+'"]');
@@ -238,7 +238,7 @@ function renderWorld(){
     $("worldHint").textContent="観測し、理解し、干渉する。";
   }else{
     $("primaryValue").textContent="—";$("worldDetails").textContent="未知の変化が、自己を維持し始める。";
-    $("worldHint").textContent="《生命》の詳細システムは設計中です。";
+    $("worldHint").textContent="未知の生命を観測する。";
   }
   const stageLabels={existence:"オーブ",time:"経過時間 · 秒",universe:"惑星数",life:"生命の兆し",organizer:"オーブ"};
   $("stageResourceLabel").textContent=stageLabels[currentStage]||"進行";
@@ -255,7 +255,7 @@ function renderWorld(){
     ["崩壊",String(state.universe.collapseCount)],
     ["選択",selected?selected.id.replace("PLANET_","惑星 "):"未選択"]
   ]:currentStage==="life"?[
-    ["段階","観測準備"],["状態","設計中"]
+    ["段階","観測準備"],["状態","未知"]
   ]:[
     ["源の生成",o(rate)+" オーブ/秒"],
     ["干渉1タップ",o(tap)+" オーブ/タップ"],
@@ -268,10 +268,10 @@ function renderWorld(){
   const conceptsCount=Object.keys(state.time.concepts).length;
   const progress=currentStage==="time"?{done:conceptsCount,total:77,title:"認識した概念"}:
     currentStage==="universe"?{done:state.universe.discoveredResources.length,total:42,title:"発見した資源"}:
-    currentStage==="life"?{done:0,total:0,title:"設計中"}:
+    currentStage==="life"?{done:0,total:0,title:"未知"}:
     {done:unlockedSourceCount+unlockedMomentCount,total:60,title:"強化した種類"};
   $("matrixCaption").textContent=`${stage.name} のマトリクス`;
-  $("matrixSummary").textContent=progress.total?`${progress.title} ${progress.done} / ${progress.total}`:"詳細システムは設計中";
+  $("matrixSummary").textContent=progress.total?`${progress.title} ${progress.done} / ${progress.total}`:"まだ観測できません";
   $("matrixFill").style.width=progress.total?`${Math.min(100,100*progress.done/progress.total).toFixed(1)}%`:"0%";
   $("worldObserve").innerHTML=stageRows.slice(0,currentStage==="existence"||currentStage==="organizer"?2:3).map(([name,value])=>`<div class="scene-stat"><span>${esc(name)}</span><strong>${esc(value)}</strong></div>`).join("");
   // DEC-20261122-005: the permanent “理の状態” sidebar is removed.
@@ -384,7 +384,7 @@ function engravingHTML(){
   const count=tier=>catalogue.filter(x=>x.tier===tier&&e.owned.includes(x.id)).length;
   const options=["0.025","0.05","0.1","0.5","1"];
   const autoControls=e.owned.includes(ENGRAVING_AUTO_CONVERGE_ID)?`<div class="kw-card engraving-auto">
-    <div class="card-top"><strong>ENG-24 自動収束</strong><span class="badge ${e.autoConverge.enabled?"confirmed":""}">${e.autoConverge.enabled?"ON":"OFF"}</span></div>
+    <div class="card-top"><strong>自動収束</strong><span class="badge ${e.autoConverge.enabled?"confirmed":""}">${e.autoConverge.enabled?"ON":"OFF"}</span></div>
     <small>取得済みかつONのとき動作。最短60秒間隔・オフライン実行なし。</small>
     <label class="kw-row">最低獲得存在
       <select id="autoConvergeThreshold" class="input-select" aria-label="自動収束の最低報酬">
@@ -405,22 +405,22 @@ function engravingHTML(){
     <div class="row-grid engraving-list">
     ${catalogue.filter(x=>x.tier===tier).map(item=>{
       const owned=e.owned.includes(item.id),level=e.levels?.[item.id],q=engravingPurchaseQuote(state,item.id),upgrade=G.engravingTrialUpgradeQuote(state,item.id);
-      const levelText=!owned?"未取得":level===undefined?"旧取得済・Lv換算保留":"Lv."+level.toLocaleString("ja-JP");
+      const levelText=!owned?"Lv.0":Number.isSafeInteger(level)?"Lv."+level.toLocaleString("ja-JP"):"Lv.―";
+      const levelHint=!owned?"未取得":Number.isSafeInteger(level)?"現在のレベル："+level.toLocaleString("ja-JP"):"取得済み・レベルの記録なし";
       const price=owned?upgrade.price:q.price??item.cost;
       const shownPrice=price===undefined||price===null?"—":f(price,3);
-      const button=owned?`<button class="wide-button engraving-purchase-button" data-engraving-trial-upgrade="${item.id}" ${!upgrade.ok||readOnly||store.blocked?"disabled":""} aria-label="${esc(item.id+"を追加強化")}" title="${esc(upgrade.reason||"追加強化 "+shownPrice+" 存在")}">購入</button>`:
-        `<button class="wide-button engraving-purchase-button" data-engraving-buy="${item.id}" ${!q.ok||readOnly||store.blocked?"disabled":""} aria-label="${esc(item.id+"を初回購入")}" title="${esc(q.reason||"初回購入 "+shownPrice+" 存在")}">購入</button>`;
+      const button=owned?`<button class="wide-button engraving-purchase-button" data-engraving-trial-upgrade="${item.id}" ${!upgrade.ok||readOnly||store.blocked?"disabled":""} aria-label="${esc(item.name+"を強化する")}" title="${esc(upgrade.reason||"追加強化 "+shownPrice+" 存在")}">購入</button>`:
+        `<button class="wide-button engraving-purchase-button" data-engraving-buy="${item.id}" ${!q.ok||readOnly||store.blocked?"disabled":""} aria-label="${esc(item.name+"を取得する")}" title="${esc(q.reason||"初回購入 "+shownPrice+" 存在")}">購入</button>`;
       return `<article class="kw-card engraving-card" data-engraving-entry="${item.id}">
-        <div class="card-top"><strong title="${esc(item.name)}">${esc(item.id+" "+item.name)}</strong><span class="badge ${owned?"confirmed":""}" title="${esc(levelText)}">${esc(levelText)}</span></div>
-        <button type="button" class="engraving-detail-button" data-engraving-detail="${item.id}" aria-label="${esc(item.id)}の効果詳細" title="効果の詳細">⋯</button>
+        <div class="card-top"><strong title="${esc(item.name)}">${esc(item.name)}</strong><span class="badge engraving-level ${owned?"confirmed":""}" title="${esc(levelHint)}" aria-label="${esc(levelHint)}">${esc(levelText)}</span></div>
+        <button type="button" class="engraving-detail-button" data-engraving-detail="${item.id}" aria-label="${esc(item.name)}の効果詳細" title="効果の詳細">⋯</button>
         <small class="engraving-effect" title="${esc(item.description)}">${esc(item.description)}</small>
         <span class="engraving-cost" title="${esc("費用 "+shownPrice+" 存在")}">費用 <strong>${esc(shownPrice)}</strong> 存在</span>
         ${button}
       </article>`;
     }).join("")}</div>`).join("")}
   ${autoControls}
-  ${mode==="lab"&&e.active.length?'<p class="tiny muted">旧検証版の刻印実験データは独立したlabデータのまま保護しています。</p>':""}
-  <details class="tiny muted"><summary>暫定効果と旧セーブ保護</summary><p>A〜Dの25効果は推奨数値で適用。Lv未確認の旧刻印は推測換算せず、旧装備履歴とセーブ原本を保護します。その他の5刻印は固有効果を未適用。</p></details>`;
+  ${e.owned.some(id=>e.levels?.[id]===undefined)?'<p class="tiny muted">一部の刻印は以前の記録からレベルを確認できません。取得済みの状態は保持されています。</p>':""}`;
 }
 function flowHTML(){
   const t=state.time;
@@ -1302,9 +1302,10 @@ document.addEventListener("click",async e=>{
       if(!item)return;
       const owned=state.engraving.owned.includes(id),q=owned?G.engravingTrialUpgradeQuote(state,id):engravingPurchaseQuote(state,id);
       const price=q.price??item.cost;
-      await ask(item.name,"状態："+(owned?"取得済み":"未取得")+"\n"+item.description+
-        "\n費用："+(price===null||price===undefined?"—":f(price,3))+" 存在"+
-        "\nA〜Dの25効果は暫定数値です。旧Lv・未確認効果を推測しません。","閉じる");
+      const level=state.engraving.levels?.[id];
+      const status=!owned?"Lv.0（未取得）":Number.isSafeInteger(level)?"Lv."+level.toLocaleString("ja-JP"):"Lv.―（以前のレベル情報がありません）";
+      await ask(item.name,"現在 "+status+"\n"+item.description+
+        "\n必要存在："+(price===null||price===undefined?"—":f(price,3)),"閉じる");
       return;
     }
     if(b.dataset.sourceSummary!==undefined){
@@ -1378,14 +1379,14 @@ document.addEventListener("click",async e=>{
     if(b.dataset.engravingBuy){
       const id=b.dataset.engravingBuy,quote=engravingPurchaseQuote(state,id);
       if(!quote.ok)return toast(quote.reason||"購入できません");
-      if(state.settings.confirmEngravingPurchase&&!await ask("刻印の初回購入",`${id} を余剰存在 ${quote.price} で初回購入します。残り存在：${f(A(state.surplusExistence).sub(quote.price),3)}。有効な固有効果は購入後から常時適用します。`,"購入する"))return;
+      if(state.settings.confirmEngravingPurchase&&!await ask("刻印の初回購入",`${engravingCatalogue().find(x=>x.id===id)?.name||"刻印"} を余剰存在 ${quote.price} で初回購入します。残り存在：${f(A(state.surplusExistence).sub(quote.price),3)}。有効な固有効果は購入後から常時適用します。`,"購入する"))return;
       checkpoint();
       return resultDone(G.buyEngraving(state,id));
     }
     if(b.dataset.engravingTrialUpgrade){
       const id=b.dataset.engravingTrialUpgrade,q=G.engravingTrialUpgradeQuote(state,id);
       if(!q.ok)return toast(q.reason);
-      if(state.settings.confirmEngravingUpgrade&&!await ask("刻印の試験強化",`${id} の追加強化Lv.+${q.next}。費用 ${f(q.price,3)} 余剰存在。個別の刻印効果を強化します。旧取得履歴は保護します。`,"購入する"))return;
+      if(state.settings.confirmEngravingUpgrade&&!await ask("刻印の強化",`${engravingCatalogue().find(x=>x.id===id)?.name||"刻印"} のLvを上げます。費用 ${f(q.price,3)} 余剰存在。`,"購入する"))return;
       checkpoint();return resultDone(G.buyEngravingTrialUpgrade(state,id));
     }
     if(b.dataset.draft){resultDone(G.toggleDraft(state,b.dataset.draft));return;}
