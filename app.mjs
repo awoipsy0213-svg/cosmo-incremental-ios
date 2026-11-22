@@ -10,7 +10,7 @@ import {PROPOSED,PLANET_EFFECT_PROPOSALS,resourcePrototype,trialPreview,boostTri
 import {A,formatAmount,formatScientific3,formatOrbAmount} from "./numbers.mjs";
 import * as G from "./game.mjs";
 import {SaveStore,KEYS,decode,encode} from "./save.mjs";
-import {purchaseInsight,shortDuration,formatTaps} from "./purchase-insights.mjs";
+import {shortDuration} from "./purchase-insights.mjs";
 
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -283,9 +283,16 @@ function quoteText(q){
   if(q.reason==="資源不足"&&A(q.cost).cmp(0)>0) return `次の1Lv · ${o(q.cost,"ceil")}`;
   return q.reason||"購入不可";
 }
+function costLabel(q){
+  // Keep price visible separately; never resize or rename the purchase button.
+  return q.cost!==undefined&&q.cost!==null?o(q.cost,"ceil"):"—";
+}
 function cardQuote(kind,id){
-  const q=G.purchaseQuote(state,kind,id),name=kind==="source"?CONTENT.sources.find(x=>x.id===id).name:CONTENT.moment.find(x=>x.id===id).name;
-  return `<button class="buy-button" data-purchase="${kind}" data-id="${id}" ${!q.enabled||readOnly?"disabled":""} aria-label="${esc(name+"を購入")}" title="${esc(name+": "+quoteText(q)+" オーブ")}"><span class="buy-amount" data-quote-label>${esc(quoteText(q))}</span><small>オーブ</small></button><div class="live-buy-hint" data-live-hint aria-live="off"></div>`;
+  const q=G.purchaseQuote(state,kind,id);
+  const name=(kind==="source"?CONTENT.sources:CONTENT.moment).find(x=>x.id===id).name;
+  const full=name+"："+quoteText(q)+" オーブ";
+  return `<span class="purchase-cost" title="${esc(full)}"><small>費用</small> <strong class="purchase-cost-value" data-quote-label>${esc(costLabel(q))}</strong> <small>オーブ</small></span>
+    <button class="buy-button" data-purchase="${kind}" data-id="${id}" ${!q.enabled||readOnly||store.blocked?"disabled":""} aria-label="${esc(full+"を購入")}" title="${esc(full)}">購入</button>`;
 }
 const MOMENT_PREF_IDS=CONTENT.moment.map(x=>x.id);
 let momentSearch="",lastMomentFilterRefresh=0;
@@ -335,22 +342,26 @@ function refreshMomentVisibility(){
 
 function momentHTML(){
   const q=G.convergenceQuote(state),effects=G.momentEffects(state);
-  const runNote=!q.historyVerified?'<small class="status-note">旧周回：過去の獲得履歴が未確認です。所持オーブでは代用せず、確認できた獲得分から累計します。</small>':"";
   const gauge=G.convergenceProgress(state);
-  return `${runNote}
-  <div class="row-grid compact-upgrades">${CONTENT.moment.map((x,i)=>{
+  return `<div class="row-grid compact-upgrades">${CONTENT.moment.map((x,i)=>{
     const heading=i%5===0?`<div class="moment-group-title" data-moment-heading="${Math.floor(i/5)}">${esc(["基礎干渉","連続干渉","確率干渉","自律干渉","源泉共鳴","超越干渉"][Math.floor(i/5)])}</div>`:"";
-    const e=effects[i],offer=G.purchaseQuote(state,"moment",x.id);
-    const after=offer.enabled&&offer.count>0?`<p><b>${state.purchaseMode}購入後 · Lv.${(state.moment[x.id]+offer.count).toLocaleString("ja-JP")}</b> ${esc(G.momentAfterQuote(state,i,offer.count))}</p>`:"";
-    const events=i===14?(state.momentRuntime?.miracleHistory||[]):[];
-    const miracle=events.length?`<p>直近の奇跡：${events.slice().reverse().map(y=>esc(new Date(y.at).toLocaleString("ja-JP")+" +"+o(y.amount))).join(" / ")}</p>`:"";
-    return `${heading}<article class="kw-card purchase-card moment-card" data-purchase-card data-moment-card="${x.id}" data-moment-entry="${x.id}"><div class="card-top"><strong>${esc(x.name)}</strong><button type="button" class="moment-favorite" data-moment-favorite="${x.id}" aria-pressed="${state.settings.momentFavorites?.includes(x.id)?"true":"false"}" aria-label="${esc(x.name)}のお気に入り切り替え">${state.settings.momentFavorites?.includes(x.id)?"★":"☆"}</button><small data-moment-level="${x.id}">Lv.${state.moment[x.id].toLocaleString("ja-JP")}</small></div>
-      <div class="compact-stat"><span>現在合計</span><strong class="moment-live-effect">${esc(e.current)}</strong></div>
-      <div class="compact-stat"><span>次Lvの値</span><strong class="moment-next-effect">${esc(e.next)}</strong></div>
+    const e=effects[i];
+    return `${heading}<article class="kw-card purchase-card moment-card" data-purchase-card data-moment-card="${x.id}" data-moment-entry="${x.id}">
+      <div class="card-top"><strong title="${esc(x.name)}">${esc(x.name)}</strong><small data-moment-level="${x.id}">Lv.${state.moment[x.id].toLocaleString("ja-JP")}</small></div>
+      <button type="button" class="moment-detail-button" data-moment-detail="${x.id}" aria-label="${esc(x.name)}の詳細" title="効果の詳細">⋯</button>
+      <div class="compact-stat"><span>現在</span><strong class="moment-live-effect" title="${esc(e.current)}">${esc(e.current)}</strong></div>
+      <div class="compact-stat"><span>次Lv</span><strong class="moment-next-effect" title="${esc(e.next)}">${esc(e.next)}</strong></div>
       ${cardQuote("moment",x.id)}
-      <details class="moment-effect-detail" data-preserve="${x.id}"><summary>詳細</summary><p>${esc(x.description)}</p><p><b>現在</b> ${esc(e.current)}</p><p><b>次Lv</b> ${esc(e.next)}</p>${after}${miracle}<small>固有効果は確定／購入価格と未指定節目は検証値</small></details></article>`;
+      </article>`;
   }).join("")}</div>
-  <div class="kw-card converge-compact"><div class="card-top"><strong>収束 · 永続補正</strong><small data-existence-rate>×${f(G.existenceMultiplier(state),3)}</small></div><small data-convergence-reward>獲得予定 +${f(q.reward,3)} 存在</small><button class="wide-button converge-with-gauge" data-action="converge" ${!q.steps||readOnly?"disabled":""}><span data-converge-text>収束する · 次まで ${o(q.nextRemaining,"ceil")} オーブ</span><span class="converge-gauge"><i data-converge-fill style="width:${gauge.percent.toFixed(2)}%"></i></span></button></div>`;
+  <div class="kw-card converge-compact" title="${q.historyVerified?"":"旧周回の獲得履歴は未確認です。現在の確認済み獲得分から累計しています。"}">
+    <div class="card-top"><strong>収束 · 永続補正</strong><small data-existence-rate>×${f(G.existenceMultiplier(state),3)}</small></div>
+    <small data-convergence-reward>獲得予定 +${f(q.reward,3)} 存在</small>
+    <button class="wide-button converge-with-gauge" data-action="converge" ${!q.steps||readOnly?"disabled":""}>
+      <span data-converge-text>収束する · 次まで ${o(q.nextRemaining,"ceil")} オーブ</span>
+      <span class="converge-gauge"><i data-converge-fill style="width:${gauge.percent.toFixed(2)}%"></i></span>
+    </button>
+  </div>`;
 }
 function sourcesHTML(){
   const ms=CONFIG.confirmed.sourceMilestones,cycle=G.sourceCycleStatus(state);
