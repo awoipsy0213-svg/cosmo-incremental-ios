@@ -9,7 +9,7 @@ let count=0;
 function check(name,fn){fn();count++;console.log("PASS "+name);}
 check("Main/in-app data is still schema31 and the release is v3.27",()=>{
  const s=createState();
- assert.equal(CONFIG.version,"3.27.0");
+ assert.equal(CONFIG.version,"3.28.0");
  assert.equal(s.schemaVersion,31);
  assert.equal(KEYS.normal,"kotowari_v31_normal");
  assert.equal(KEYS.lab,"kotowari_v31_lab");
@@ -62,4 +62,4 @@ check("Published SW and iOS copy include new CSS",()=>{
  assert.match(text("sw.js"),/matrix-v324\.css/);
  assert.match(text("index.html"),/3\.27 · TIME/);
 });
-console.log("PASS "+count+" Ver3.27 matrix and bulk invariants");
+console.log("PASS "+count+" Ver3.28 matrix and bulk invariants");
