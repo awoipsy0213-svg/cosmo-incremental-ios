@@ -2,7 +2,7 @@ name: Kotowari v3.9 regression
 on:
   push:
     branches: [main]
-    paths: ['game.mjs', 'setsuna-rules-v39.mjs', 'content.mjs', 'save.mjs', 'balance-config.mjs', 'tests/**', 'www/**', 'package.json', '.github/workflows/kotowari-v39.yml']
+    paths: ['game.mjs', 'setsuna-rules-v39.mjs', 'content.mjs', 'save.mjs', 'balance-config.mjs', 'tests/**', 'www/**', 'luminous-glass-v332.css', 'index.html', 'sw.js', 'package.json', '.github/workflows/kotowari-v39.yml']
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -22,7 +22,7 @@ jobs:
             node --check "$f" || exit 1
           done
       - run: |
-          for f in game.mjs app.mjs content.mjs moment-filter.mjs balance-config.mjs setsuna-rules-v39.mjs save.mjs time-confirmed-v4.mjs universe-confirmed-v4.mjs universe-progression-v316.mjs engraving-rules-v317.mjs universe-interference-v318.mjs telemetry-v319.mjs astral-observatory.css stage-worlds.css matrix-v324.css; do
+          for f in game.mjs app.mjs content.mjs moment-filter.mjs balance-config.mjs setsuna-rules-v39.mjs save.mjs time-confirmed-v4.mjs universe-confirmed-v4.mjs universe-progression-v316.mjs engraving-rules-v317.mjs universe-interference-v318.mjs telemetry-v319.mjs astral-observatory.css stage-worlds.css matrix-v324.css luminous-glass-v332.css; do
             cmp "$f" "www/$f" || exit 1
           done
           cmp index.html www/index.html
@@ -43,6 +43,7 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Smoke-test Web UI in desktop and mobile Chromium
         run: |
+          node tests/v332_luminous_browser.mjs
           node tests/v318_browser_smoke.mjs
           node tests/v323_ui_browser.mjs
           node tests/v324_matrix_browser.mjs
@@ -55,3 +56,11 @@ jobs:
           node tests/v328_confirmed_browser.mjs
           node tests/v327_time_only_browser.mjs
           node tests/v320_browser_recovery.mjs
+      - name: Upload luminous UI phone/tablet screenshots and density metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v332-luminous-ui-pr
+          path: artifacts/ui-v332/
+          if-no-files-found: ignore
+          retention-days: 14

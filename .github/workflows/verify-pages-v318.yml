@@ -42,6 +42,9 @@ jobs:
       - name: Verify live stage graphics are accessible
         run: |
           curl -fsSL --retry 4 --retry-delay 3 https://awoipsy0213-svg.github.io/cosmo-incremental-ios/stage-worlds.css | grep -q "kw-time-turn"
+      - name: Verify Luminous Glass stylesheet is available
+        run: |
+          curl -fsSL --retry 4 --retry-delay 3 https://awoipsy0213-svg.github.io/cosmo-incremental-ios/luminous-glass-v332.css | grep -q "Luminous Glass"
       - name: Verify Matrix UI stylesheet is available
         run: |
           curl -fsSL --retry 4 --retry-delay 3 https://awoipsy0213-svg.github.io/cosmo-incremental-ios/matrix-v324.css | grep -q "matrix-hero-cube"
@@ -65,6 +68,7 @@ jobs:
         env:
           KOTOWARI_SMOKE_BASE_URL: https://awoipsy0213-svg.github.io/cosmo-incremental-ios/
         run: |
+          node tests/v332_luminous_browser.mjs
           node tests/v318_browser_smoke.mjs
           node tests/v323_ui_browser.mjs
           node tests/v324_matrix_browser.mjs
@@ -77,3 +81,11 @@ jobs:
           node tests/v328_confirmed_browser.mjs
           node tests/v327_time_only_browser.mjs
           node tests/v320_browser_recovery.mjs
+      - name: Upload published luminous UI screenshots and density metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v332-luminous-ui-published
+          path: artifacts/ui-v332/
+          if-no-files-found: ignore
+          retention-days: 14
