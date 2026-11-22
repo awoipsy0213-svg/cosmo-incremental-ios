@@ -42,6 +42,7 @@ try{
     const navRect=await page.locator("#automationQuick").boundingBox();
     assert.ok(navRect.width<=47&&navRect.width>=39,"compact automation icon width");
     await page.locator("#automationQuick").click();
+    await page.locator('[data-action="toggle-auto-details"]').click();
     assert.equal(await page.locator("#childTabs [data-child^='auto-']").count(),4);
     assert.match(await page.locator("#sheetHeading").textContent(),/自動化/);
     assert.equal(await page.locator("#childTabs [data-child='auto-existence']").getAttribute("aria-pressed"),"true");
@@ -57,9 +58,9 @@ try{
     await page.locator('[data-auto-buy-kind="moment"][data-auto-field="intervalSeconds"]').selectOption("5");
     assert.equal(await page.evaluate(()=>window.KOTOWARI_DEBUG.state().engraving.autoBuy.moment.priority),"expensive");
     assert.equal(await page.evaluate(()=>window.KOTOWARI_DEBUG.state().engraving.autoBuy.moment.intervalSeconds),5);
-    await page.locator('[data-auto-converge="mode"]').selectOption("seconds");
+    await page.locator('[data-auto-mode="seconds"]').click();
     const input=page.locator('[data-auto-converge="intervalSeconds"]');
-    await input.fill("180");await input.press("Tab");
+    await input.selectOption("180");
     await page.locator('[data-auto-converge="enabled"]').check();
     await page.locator('[data-auto-converge="minSteps"]').selectOption("3");
     const saved=await page.evaluate(()=>window.KOTOWARI_DEBUG.state());
