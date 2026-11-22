@@ -1,5 +1,5 @@
 /* Versioned, scope-specific cache. Does not delete saves or another app's cache. */
-const VERSION = "3.37.1-automation-switch";
+const VERSION = "3.38.0-dense-purchase";
 const PREFIX = "kotowari-handoff:" + new URL(self.registration.scope).pathname + ":";
 const CACHE = PREFIX + VERSION;
 const RELATIVE = [
@@ -14,6 +14,8 @@ const RELATIVE = [
   "luminous-glass-v332.css",
   "fixed-layout-v333.css",
   "automation-center-v336.css",
+  "purchase-row-v338.css",
+  "purchase-preview-v338.mjs",
   "time-confirmed-v4.mjs",
   "universe-confirmed-v4.mjs",
   "universe-progression-v316.mjs",
@@ -64,6 +66,8 @@ const CORE_FILES = [
   "luminous-glass-v332.css",
   "fixed-layout-v333.css",
   "automation-center-v336.css",
+  "purchase-row-v338.css",
+  "purchase-preview-v338.mjs",
   "time-confirmed-v4.mjs", "universe-confirmed-v4.mjs",
   "universe-progression-v316.mjs",
   "universe-interference-v318.mjs",
