@@ -25,7 +25,7 @@ try {
     assert.equal(res?.status(),200);
     await page.locator("#buildLabel").waitFor({state:"attached"});
     await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
-    assert.match(await page.locator("#buildLabel").textContent(),/3\.28/);
+    assert.match(await page.locator("#buildLabel").textContent(),/3\.29/);
     assert.ok((await page.locator("#appRoot").boundingBox())?.width>0);
     const width=await page.evaluate(()=>document.documentElement.scrollWidth);
     assert.ok(width<=viewport.width+2,label+" horizontal overflow: "+width);
@@ -128,7 +128,7 @@ try {
       afterStopped,label+" active hold must stop on tab change");
     assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem("kotowari_v31_normal")).data.purchaseMode),"1");
     await page.locator('[data-child="moment"]').click();
-    await page.locator('[data-moment-group-select="0"]').click();
+    assert.equal(await page.locator(".moment-tools").count(),0,"legacy filter UI must be absent");
     await page.locator("#bulkScopeButton").click();
     assert.match(await page.locator("#bulkScopeButton").textContent(),/表示中/);
     const beforeBulk=await page.evaluate(()=>JSON.parse(localStorage.getItem("kotowari_v31_normal")).data.counters.orbsSpent);
@@ -141,20 +141,17 @@ try {
         return raw.data.moment.tap>0;
       }catch{return false;}
     });
-    // U-42: reorder two favorites and confirm the saved ID order.
+    // Keep unobtrusive card-level favorites while retiring the pin/reorder toolbar.
     await page.locator('button[data-moment-favorite="tap"]').click();
     await page.locator('button[data-moment-favorite="tap2"]').click();
-    await page.locator('button[data-moment-move="tap2"][data-direction="-1"]').click();
-    assert.deepEqual(await page.locator('.moment-fav-pins [data-moment-shortcut]').evaluateAll(
-      nodes=>nodes.map(node=>node.dataset.momentShortcut)),["tap2","tap"]);
+    assert.equal(await page.locator(".moment-fav-pins").count(),0);
     await page.waitForFunction(()=>{
       try{
         const raw=JSON.parse(localStorage.getItem("kotowari_v31_normal"));
-        return JSON.stringify(raw.data.settings.momentFavorites)==='["tap2","tap"]';
+        return JSON.stringify(raw.data.settings.momentFavorites)==='["tap","tap2"]';
       }catch{return false;}
     });
-    assert.equal(await page.locator('button[data-moment-move="tap2"][data-direction="-1"]').isDisabled(),true);
-    assert.equal(await page.locator('button[data-moment-move="tap"][data-direction="1"]').isDisabled(),true);
+    assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem("kotowari_v31_normal")).data.settings.momentFavorites),["tap","tap2"]);
     assert.equal(pageErrors.length,0,label+" JS errors: "+pageErrors.join("; "));
     console.log("PASS browser",label,viewport.width+"x"+viewport.height,"load, organizer, intervention, persisted save");
     await context.close();

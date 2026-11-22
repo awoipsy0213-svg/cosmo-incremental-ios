@@ -68,7 +68,7 @@ const retention=G.createState(time,"normal");retention.intro.complete=true;
 retention.sourceCycle={reached:[...sources],unlocked:true};
 retention.sources[sources[0]].plus=3;retention.sources[sources[0]].effects=["old-effect"];
 retention.sources[sources[0]].level=100;
-retention.orbs="1e100";
+G.addOrbs(retention,"1e100");
 const cv=G.converge(retention);
 yes(cv.ok,"convergence succeeds");
 eq(retention.sources[sources[0]].level,0,"ordinary source level reset on convergence");

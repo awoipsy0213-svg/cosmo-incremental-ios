@@ -224,11 +224,11 @@ function renderWorld(){
   $("convergeMain").hidden=!state.intro.complete||!["existence","organizer"].includes(currentStage);
   if(["existence","organizer"].includes(currentStage)){
     $("primaryValue").textContent=orbDisplay(state.orbs);
-    $("worldDetails").innerHTML=`<span class="wallet">オーブ <b>${orbDisplay(state.orbs)}</b></span><span>干渉 +${f(tap)} / 源 +${f(rate)} 毎秒</span>${comboHtml}${storedHtml}`;
+    $("worldDetails").innerHTML=`<span class="wallet">オーブ <b>${orbDisplay(state.orbs)}</b></span><span>${state.runOrbsEvidence==="verified"?"周回獲得 "+orbDisplay(state.runOrbsEarned)+" オーブ":"旧周回・獲得累計未確認"}</span><span>干渉 +${f(tap)} / 源 +${f(rate)} 毎秒</span>${comboHtml}${storedHtml}`;
     $("worldHint").textContent="タップして理を観測";
     const q=G.convergenceQuote(state);
     $("convergeMain").disabled=!q.steps||readOnly;
-    $("convergeMain").innerHTML=`<strong>収束 <span>+${f(q.reward,3)}</span></strong><span><small>次の報酬まで</small>${f(q.nextRemaining)} オーブ</span>`;
+    $("convergeMain").innerHTML=`<strong>収束 <span>+${f(q.reward,3)}</span></strong><span><small>${q.basis==="run-earned"?"周回累計・次の報酬まで":"旧周回・次の報酬まで"}</small>${f(q.nextRemaining)} オーブ</span>`;
   }else if(currentStage==="time"){
     $("primaryValue").textContent=Math.floor(state.time.elapsed).toLocaleString("ja-JP");
     $("worldDetails").innerHTML=`<span class="wallet">TIME · 継続する流れ</span><span>世界時間 ${Math.min(1,state.time.worldSeconds).toFixed(6)} / 1 秒 · 自動生成 +${f(rate)} オーブ / 秒</span>`;
@@ -317,6 +317,12 @@ function momentControls(){
  </section>`;
 }
 function refreshMomentVisibility(){
+  // Later UI decision: all thirty upgrades remain visible without filters.
+  if(state&&currentStage==="existence"&&currentSub==="moment"){
+    for(const el of $("sheetBody").querySelectorAll("[data-moment-entry], [data-moment-heading]"))el.hidden=false;
+    return;
+  }
+
  if(!state||currentStage!=="existence"||currentSub!=="moment")return;
  const body=$("sheetBody"),prefs=cleanMomentPrefs(state.settings,MOMENT_PREF_IDS);
  const groups=new Set();let visible=0;
@@ -335,8 +341,9 @@ function refreshMomentVisibility(){
 
 function momentHTML(){
   const q=G.convergenceQuote(state),effects=G.momentEffects(state);
-  return `<p class="tiny muted">刹那30項目・6系統。第1〜7回の確定効果を反映。新24項目の価格・節目倍率は検証値です。</p>
-  ${momentControls()}<div class="row-grid compact-upgrades">${CONTENT.moment.map((x,i)=>{
+  const runNote=q.basis==="legacy-balance"?'旧周回の獲得累計は不明です。旧資産を推測せず、初回収束後から新方式へ移行します。':`周回累計獲得 ${orbDisplay(state.runOrbsEarned)} オーブ（購入による減少なし）`;
+  return `<p class="tiny muted">刹那30項目・全件一覧。新24項目の価格・節目倍率は検証値です。${esc(runNote)}</p>
+  <div class="row-grid compact-upgrades">${CONTENT.moment.map((x,i)=>{
     const heading=i%5===0?`<div class="moment-group-title" data-moment-heading="${Math.floor(i/5)}">${esc(["基礎干渉","連続干渉","確率干渉","自律干渉","源泉共鳴","超越干渉"][Math.floor(i/5)])}</div>`:"";
     const e=effects[i],offer=G.purchaseQuote(state,"moment",x.id);
     const after=offer.enabled&&offer.count>0?`<p><b>${state.purchaseMode}購入後 · Lv.${(state.moment[x.id]+offer.count).toLocaleString("ja-JP")}</b> ${esc(G.momentAfterQuote(state,i,offer.count))}</p>`:"";
@@ -365,47 +372,39 @@ function sourcesHTML(){
   }).join("")}</div>`;
 }
 function engravingHTML(){
-  const e=state.engraving,editing=e.draft!==null,slots=engravingSlots(state.convergenceCount),quote=G.engravingQuote(state);
-  const catalogue=engravingCatalogue();
-  const count=(tier)=>catalogue.filter(x=>x.tier===tier&&e.owned.includes(x.id)).length;
+  const e=state.engraving,catalogue=engravingCatalogue();
+  const count=tier=>catalogue.filter(x=>x.tier===tier&&e.owned.includes(x.id)).length;
   const options=["0.025","0.05","0.1","0.5","1"];
-  return `<p class="panel-intro">刻印30種・3価格帯。取得は一度きり、所有と装備は別管理です。装備していない刻印の効果は発動しません。</p>
+  return `<p class="panel-intro">刻印は装備枠なしの永続強化です。購入済みの刻印は常時有効。2Lv以降の価格・成長・上限は仕様確定待ちです。</p>
     <div class="kw-card engraving-overview">
-      <div class="card-top"><strong>余剰存在 ${f(state.surplusExistence,3)}</strong><span class="badge confirmed">不可侵の存在1は保護</span></div>
-      <small>所有 ${e.owned.length}/30 · 装備 ${e.equipped.length}/${slots}枠 · 収束 ${state.convergenceCount}回</small>
-      <small>装備枠は収束1・5・20・100回で各1枠追加。装備変更・取り外しに費用はかかりません。</small>
-      ${!editing?'<button class="wide-button" data-action="edit-engraving">装備を編集</button>':`<div class="status-note">編集中：${e.draft.length}/${slots}枠 · 追加 ${quote.added.length} / 解除 ${quote.removed.length} · 費用なし</div>
-      <div class="invest-choices"><button class="wide-button" data-action="cancel-engraving">変更を破棄</button>
-      <button class="wide-button" data-action="confirm-engraving">この装備で確定</button></div>`}
+      <div class="card-top"><strong>余剰存在 ${f(state.surplusExistence,3)}</strong><span class="badge confirmed">最初の存在1を保護</span></div>
+      <small>取得済み ${e.owned.length} / 30 · 収束 ${state.convergenceCount} 回 · 取得済みの刻印は収束後も保持</small>
+      <small>旧装備・選択履歴はセーブに保護し、発動条件には使用しません。</small>
     </div>
     ${e.owned.includes(ENGRAVING_AUTO_CONVERGE_ID)?`<div class="kw-card engraving-auto">
       <div class="card-top"><strong>ENG-24 自動収束</strong><span class="badge ${e.autoConverge.enabled?"confirmed":""}">${e.autoConverge.enabled?"ON":"OFF"}</span></div>
-      <small>装備中＋ONの場合のみ実行。最短60秒間隔・オフライン実行なし。手動収束はいつでも可能です。</small>
+      <small>取得済みかつONのとき動作。最短60秒間隔・オフライン実行なし。</small>
       <label class="kw-row">最低獲得存在
         <select id="autoConvergeThreshold" class="input-select" aria-label="自動収束の最低報酬">
           ${[...new Set([...options,e.autoConverge.minReward])].map(v=>`<option value="${v}" ${A(v).cmp(e.autoConverge.minReward)===0?"selected":""}>${v}</option>`).join("")}
         </select>
       </label>
-      <button class="wide-button" data-action="toggle-auto-converge" ${!e.equipped.includes(ENGRAVING_AUTO_CONVERGE_ID)?"disabled":""}>${e.autoConverge.enabled?"自動収束を停止":"自動収束を開始"}</button>
+      <button class="wide-button" data-action="toggle-auto-converge">${e.autoConverge.enabled?"自動収束を停止":"自動収束を開始"}</button>
     </div>`:""}
-    ${[1,2,3].map(tier=>`<h3>刻印 ${["初級","中級","上級"][tier-1]} · ${["0.005","0.025","0.125"][tier-1]} 存在 / 所有 ${count(tier)}/10</h3>
-      ${tier>1?`<p class="tiny muted">購入条件：直前の価格帯の刻印を3種所有。現在 ${count(tier-1)}/3種。</p>`:""}
+    ${[1,2,3].map(tier=>`<h3>刻印 ${["初級","中級","上級"][tier-1]} · 初回費用 ${["0.005","0.025","0.125"][tier-1]} 存在 / 取得 ${count(tier)}/10</h3>
       <div class="row-grid engraving-list">
       ${catalogue.filter(x=>x.tier===tier).map(item=>{
-        const owned=e.owned.includes(item.id),equipped=e.equipped.includes(item.id),selected=(editing?e.draft:e.equipped).includes(item.id);
-        const q=engravingPurchaseQuote(state,item.id);
+        const owned=e.owned.includes(item.id),level=e.levels?.[item.id],q=engravingPurchaseQuote(state,item.id);
+        const levelText=!owned?"未取得":level===undefined?"旧取得済・Lv換算保留":"Lv."+level.toLocaleString("ja-JP");
         return `<article class="kw-card engraving-card">
-          <div class="card-top"><strong>${esc(item.id)}</strong><span class="badge ${equipped?"confirmed":""}">${equipped?"装備中":owned?"取得済":"未取得"}</span></div>
+          <div class="card-top"><strong>${esc(item.id)}</strong><span class="badge ${owned?"confirmed":""}">${esc(levelText)}</span></div>
           <small>${esc(item.description)}</small>
-          <small>費用 ${item.cost} 存在 · ${item.status==="implemented"?"効果が利用可能":"効果は照合待ち"}</small>
-          ${owned?
-            (editing?`<button class="wide-button" data-draft="${item.id}">${selected?"装備を外す":"装備する"}</button>`:
-              '<small>装備を変更する場合は「装備を編集」を選択</small>'):
-            `<button class="wide-button" data-engraving-buy="${item.id}" ${!q.ok||readOnly||store.blocked?"disabled":""}>${q.ok?"取得する":q.reason}</button>`}
+          <small>${owned?"購入済み・常時有効":"初回費用 "+item.cost+" 存在"} · ${item.status==="implemented"?"効果利用可能":"効果は仕様照合待ち"}</small>
+          ${owned?'<button class="wide-button" disabled>次Lvの仕様確定待ち</button>':`<button class="wide-button" data-engraving-buy="${item.id}" ${!q.ok||readOnly||store.blocked?"disabled":""}>${q.ok?"初回購入":q.reason}</button>`}
         </article>`;
       }).join("")}</div>`).join("")}
-    ${mode==="lab"&&e.active.length?'<p class="tiny muted">旧検証版の4ノード効果はlabデータにのみ保持されています。通常版の刻印所有・装備とは混在しません。</p>':""}
-    <p class="tiny muted">刻印番号は安定した保存IDです。ENG-24以外の固有効果は、対象・数式の原文が照合できるまで誤った補正を与えません。</p>`;
+    ${mode==="lab"&&e.active.length?'<p class="tiny muted">旧検証版の刻印実験データは独立したlabデータのまま保護しています。</p>':""}
+    <p class="tiny muted">未確定の固有効果、源Lv保持、2Lv以降の価格・効果は推測で追加しません。</p>`;
 }
 function flowHTML(){
   const t=state.time;
@@ -1332,9 +1331,9 @@ document.addEventListener("click",async e=>{
     if(b.dataset.engravingBuy){
       const id=b.dataset.engravingBuy,quote=engravingPurchaseQuote(state,id);
       if(!quote.ok)return toast(quote.reason||"購入できません");
-      if(!await ask("刻印の取得を確認",`${id}を余剰存在 ${quote.price} で一度だけ取得します。取得後の存在は ${f(A(state.surplusExistence).sub(quote.price),3)} です。所有だけでは効果は発動しません。`,"取得する"))return;
+      if(!await ask("刻印の初回購入",`${id} を余剰存在 ${quote.price} で初回購入します。残り存在：${f(A(state.surplusExistence).sub(quote.price),3)}。取得後は常時有効ですが、未確定効果は適用しません。`,"購入する"))return;
       checkpoint();
-      return resultDone(G.buyEngraving(state,id),id+"を取得しました");
+      return resultDone(G.buyEngraving(state,id),id+"を購入しました");
     }
     if(b.dataset.draft){resultDone(G.toggleDraft(state,b.dataset.draft));return;}
     if(b.dataset.form){resultDone(G.formConcept(state,b.dataset.form),"概念を認識しました");return;}

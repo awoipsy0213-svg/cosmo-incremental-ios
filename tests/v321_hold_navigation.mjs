@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {createState,setPurchaseMode,converge,validateState,purchaseQuote} from "../game.mjs";
+import {createState,addOrbs,setPurchaseMode,converge,validateState,purchaseQuote} from "../game.mjs";
 import {encode,decode,KEYS} from "../save.mjs";
 import {CONFIG} from "../balance-config.mjs";
 
@@ -21,7 +21,7 @@ testCase("U-43 purchase mode remains unchanged across state writes and normal v3
 });
 testCase("U-43 convergence preserves chosen purchase mode and existing strong types",()=>{
  const s=sample();
- s.orbs="1e20";
+ addOrbs(s,"1e20");
  assert.equal(setPurchaseMode(s,"MAX"),true);
  const quote=purchaseQuote(s,"moment","tap");
  assert.equal(quote.enabled,true);

@@ -25,7 +25,7 @@ eq(old.sources[id(9)].effects.includes(S.sourceFinalMarker(id(9))),true,"legacy 
 const one=G.sourceProduction(old,id(9));
 eq(one.div(base).cmp(4),0,"source 09 own x2 and plus x2");
 eq(G.sourceProduction(old,id(8)).cmp(0),0,"non-source unaffected");
-const c=G.createState(now,"normal");c.intro.complete=true;c.orbs="1e10";
+const c=G.createState(now,"normal");c.intro.complete=true;G.addOrbs(c,"1e10");
 const normalQ=G.convergenceQuote(c);
 c.sources[id(1)].level=1e6;
 c.sources[id(2)].level=1e6;
@@ -34,7 +34,7 @@ eq(S.ownsSourceFinal(migrate,id(1)),true,"source01 unlocked at max");
 eq(S.ownsSourceFinal(migrate,id(2)),true,"source02 unlocked at max");
 const gained=G.convergenceQuote(migrate);
 yes(A(gained.reward).cmp(A(normalQ.reward))>0,"source01 yields doubled reward with source02 cheaper costs");
-const source2Only=G.createState(now,"normal");source2Only.intro.complete=true;source2Only.orbs="1e10";
+const source2Only=G.createState(now,"normal");source2Only.intro.complete=true;G.addOrbs(source2Only,"1e10");
 source2Only.sources[id(2)].level=1e6;
 const q2=G.convergenceQuote(G.validateState(source2Only,"normal"));
 eq(A(q2.reward).cmp(A(normalQ.reward))>=0,true,"cheaper convergence never yields less reward");

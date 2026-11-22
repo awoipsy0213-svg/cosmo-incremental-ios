@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {A} from "../numbers.mjs";
-import {createState,createPlanet,planet,invest,tap,converge,advance,validateState} from "../game.mjs";
+import {createState,addOrbs,createPlanet,planet,invest,tap,converge,advance,validateState} from "../game.mjs";
 import {freshTelemetry,sampleActualOrbs,recordOfflineReport,recordConvergence,
   consecutiveOrbGains,validateTelemetry,TELEMETRY_LIMITS} from "../telemetry-v319.mjs";
 import {SaveStore,KEYS,checksum,encode,decode} from "../save.mjs";
@@ -86,7 +86,7 @@ test("manual tap and convergence add only observed history, once",()=>{
   const tapResult=tap(s,NOW);
   assert.equal(tapResult.ok,true);
   assert.equal(s.telemetry.onlineSamples.length,1);
-  s.orbs="1e20";
+  addOrbs(s,"1e20");
   assert.equal(converge(s).ok,true);
   assert.equal(s.telemetry.convergences.length,1);
   const recorded=s.telemetry.convergences[0];
