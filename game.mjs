@@ -1175,6 +1175,8 @@ export function migrateLegacy(raw,now=Date.now(),boostRaw=null) {
   // 旧版には演出型の序章がないため、操作済みデータは導入を省略して保護する。
   s.intro.complete=hadProgress;s.intro.touches=s.intro.complete?CONFIG.provisional.introTouches:0;
   s.orbs=str(Math.max(0,g.particles));s.totalOrbs=str(Math.max(0,finite(g.total)));
+  // Previous total earnings do not establish the active run total.
+  s.runOrbsEvidence="legacy-unverified";
   s.moment.tap=integer(g.clickLevel,1000000);
   // The old multLevel affected both tap and auto; retain it only in archive, not a guessed equivalent.
   const k=g.kotowari||{};
