@@ -7,7 +7,7 @@ import {compareMomentPrice,compareMomentPriceProfiles,exportPriceReport,PRICE_MO
 import {MOMENT_GROUP_NAMES,cleanMomentPrefs,toggleMomentFavorite,moveMomentFavorite,momentVisible} from "./moment-filter.mjs";
 import {CONTENT} from "./content.mjs";
 import {PROPOSED,PLANET_EFFECT_PROPOSALS,resourcePrototype,trialPreview,boostTrialCost,proposedSourceSlots,FIRST_CONCEPT_PROPOSALS} from "./design-proposals.mjs";
-import {A,formatAmount,formatScientific3} from "./numbers.mjs";
+import {A,formatAmount,formatScientific3,formatOrbAmount} from "./numbers.mjs";
 import * as G from "./game.mjs";
 import {SaveStore,KEYS,decode,encode} from "./save.mjs";
 import {purchaseInsight,shortDuration,formatTaps} from "./purchase-insights.mjs";
@@ -35,15 +35,11 @@ const BOOST_QUICK_ICON=`<svg class="boost-quick-symbol" viewBox="0 0 24 24" aria
 const HOLD_LEVEL_LIMIT=3000; // BOOST-Q673/674: one continuous long press, total acquired Lv
 let holdPurchase=null,skipClickFor=null;
 const f=(n,p=2)=>formatAmount(n,p,state?.settings.notation);
+// Orb quantities have no decimal portion in the UI. Engine values remain untouched.
+const o=(n,rounding="floor")=>formatOrbAmount(n,rounding,state?.settings.notation);
 // Display-only orb integer formatting. Fractional balance and purchase prices never change.
 // Specific UI rounding policy remains unresolved: truncation is provisional.
-const orbDisplay=value=>{
-  const n=A(value);
-  if(n.m===0||n.e<0)return "0";
-  if(n.e<6)return Math.trunc(n.toNumber()).toLocaleString("ja-JP");
-  const significant=Math.trunc(n.m*100);
-  return String(significant)+"e"+(n.e-2>=0?"+":"")+(n.e-2);
-};
+const orbDisplay=value=>o(value);
 const duration=seconds=>{
   seconds=Math.max(0,Math.floor(seconds));
   const h=Math.floor(seconds/3600),m=Math.floor(seconds%3600/60),s=seconds%60;
@@ -160,7 +156,7 @@ function setStage(id){
   infoPanelOpen=false;
   if(currentStage===id&&sheetState!=="closed"){setSheet("closed");return;}
   currentStage=id;
-  currentSub=CONTENT.stages.find(x=>x.id===id).children[0];
+  currentSub=id==="existence"?state.settings.existenceLastTab:CONTENT.stages.find(x=>x.id===id).children[0];
   setSheet("half");render(true);
 }
 function availableStages(){
@@ -224,12 +220,12 @@ function renderWorld(){
   $("convergeMain").hidden=!state.intro.complete||!["existence","organizer"].includes(currentStage);
   if(["existence","organizer"].includes(currentStage)){
     $("primaryValue").textContent=orbDisplay(state.orbs);
-    $("worldDetails").innerHTML=`<span class="wallet">オーブ <b>${orbDisplay(state.orbs)}</b></span><span>${state.runOrbsEvidence==="verified"?"周回獲得 "+orbDisplay(state.runOrbsEarned)+" オーブ":"旧周回・獲得累計未確認"}</span><span>干渉 +${f(tap)} / 源 +${f(rate)} 毎秒</span>${comboHtml}${storedHtml}`;
+    $("worldDetails").innerHTML=`<span class="wallet">オーブ <b>${orbDisplay(state.orbs)}</b></span><span>${state.runOrbsEvidence==="verified"?"周回獲得 "+orbDisplay(state.runOrbsEarned)+" オーブ":"旧周回・確認済獲得 "+orbDisplay(state.runOrbsEarned)+" オーブ"}</span><span>干渉 +${f(tap)} / 源 +${f(rate)} 毎秒</span>${comboHtml}${storedHtml}`;
     $("worldHint").textContent="";
     const q=G.convergenceQuote(state);
     $("convergeMain").disabled=!q.steps||readOnly;
     const gauge=G.convergenceProgress(state);
-    $("convergeMain").innerHTML=`<strong>収束 <span>+${f(q.reward,3)}</span></strong><span><small>${q.basis==="run-earned"?"次の報酬まで":"旧周回・次の報酬まで"}</small>${f(q.nextRemaining)} オーブ</span><span class="converge-gauge" aria-hidden="true"><i style="width:${gauge.percent.toFixed(2)}%"></i></span>`;
+    $("convergeMain").innerHTML=`<strong>収束 <span>+${f(q.reward,3)}</span></strong><span><small>${q.historyVerified?"次の報酬まで":"確認済の獲得で次まで"}</small>${f(q.nextRemaining)} オーブ</span><span class="converge-gauge" aria-hidden="true"><i style="width:${gauge.percent.toFixed(2)}%"></i></span>`;
   }else if(currentStage==="time"){
     $("primaryValue").textContent=Math.floor(state.time.elapsed).toLocaleString("ja-JP");
     $("worldDetails").innerHTML=`<span class="wallet">TIME · 継続する流れ</span><span>世界時間 ${Math.min(1,state.time.worldSeconds).toFixed(6)} / 1 秒 · 自動生成 +${f(rate)} オーブ / 秒</span>`;
@@ -339,7 +335,7 @@ function refreshMomentVisibility(){
 
 function momentHTML(){
   const q=G.convergenceQuote(state),effects=G.momentEffects(state);
-  const runNote=q.basis==="legacy-balance"?'<small class="status-note">旧周回：獲得履歴が不明なため初回収束までは旧判定を保護します。</small>':"";
+  const runNote=!q.historyVerified?'<small class="status-note">旧周回：過去の獲得履歴が未確認です。所持オーブでは代用せず、確認できた獲得分から累計します。</small>':"";
   const gauge=G.convergenceProgress(state);
   return `${runNote}
   <div class="row-grid compact-upgrades">${CONTENT.moment.map((x,i)=>{
@@ -635,7 +631,7 @@ function guideHTML(){
   <div class="kw-card"><strong>この版の範囲</strong><p>設定データに「確定」「暫定」「要確認」「未決定」を保持しています。価格・速度など動作確認用の値と、正式仕様は別です。</p><button class="wide-button" data-organizer="spec">反映済みと未決定を確認</button></div></div>`;
 }
 function settingsHTML(){
-  const labels=[["confirmBulkPurchase","一括購入前に確認","OFF：タップですぐ購入。ON：数量・費用を確認してから購入します"],["confirmMaxPurchase","MAX購入前に確認","ON：所持資源の90%以上を使うMAX購入を確認します"],["compact","コンパクト表示","2列で多くの項目を表示"],["showPurchaseHints","購入見込みを表示","足りない額・自動生成での目安・獲得量（仮）を表示"],["holdToBuy","長押しで連続購入","押している間だけ通常購入を繰り返します"],["hapticTap","タップ時の振動","対応端末のみ。初期設定はOFFです"],["reducedMotion","動きを減らす","発光・波紋・開閉演出を抑える"],["highContrast","読みやすい境界線","文字と境界のコントラストを調整"],["lowPower","省電力","背景アニメーションを停止"],["confirmConvergence","収束前に確認","仮のリセット範囲を確認する"],["showOffline","復帰時に報告","オフラインの進行とBOOSTを表示"]];
+  const labels=[["confirmEngravingPurchase","刻印の初回購入を確認","OFFならワンタップで取得"],["confirmEngravingUpgrade","刻印の追加強化を確認","OFFならワンタップで強化"],["confirmBoostUpgrade","BOOST強化を確認","OFFならワンタップで強化（試験値）"],["confirmSourceBreakthrough","源の＋循環を確認","最大レベルから再開始する操作"],["confirmInterference","惑星への干渉を確認","衝突・移転・崩壊・安定化"],["confirmCoreFormation","コア形成を確認","資源消費を伴う操作"],["confirmSaveImport","セーブ読込前に確認","現在の進行を入れ替えるため初期ON推奨"],["confirmSaveRestore","履歴復元前に確認","過去の保存状態へ戻るため初期ON推奨"],["confirmBulkPurchase","一括購入前に確認","OFF：タップですぐ購入。ON：数量・費用を確認してから購入します"],["confirmMaxPurchase","MAX購入前に確認","ON：所持資源の90%以上を使うMAX購入を確認します"],["compact","コンパクト表示","2列で多くの項目を表示"],["showPurchaseHints","購入見込みを表示","足りない額・自動生成での目安・獲得量（仮）を表示"],["holdToBuy","長押しで連続購入","押している間だけ通常購入を繰り返します"],["hapticTap","タップ時の振動","対応端末のみ。初期設定はOFFです"],["reducedMotion","動きを減らす","発光・波紋・開閉演出を抑える"],["highContrast","読みやすい境界線","文字と境界のコントラストを調整"],["lowPower","省電力","背景アニメーションを停止"],["confirmConvergence","収束前に確認","仮のリセット範囲を確認する"],["showOffline","復帰時に報告","オフラインの進行とBOOSTを表示"]];
   return `<p class="panel-intro">背景は既存のORGANIC FLOWを維持。安全な保存・表示設定は序章から利用できます。</p>
   ${labels.map(([id,name,desc])=>`<label class="kw-row"><span>${name}<small>${desc}</small></span><input type="checkbox" data-pref="${id}" ${state.settings[id]?"checked":""}></label>`).join("")}
   <label class="kw-row">数値表記<select class="input-select" data-pref="notation"><option value="auto" ${state.settings.notation==="auto"?"selected":""}>標準（100万以降e）</option><option value="scientific" ${state.settings.notation==="scientific"?"selected":""}>指数 e（1.23e12）</option><option value="exponent" ${state.settings.notation==="exponent"?"selected":""}>指数 E（1.23E+12）</option><option value="zeros" ${state.settings.notation==="zeros"?"selected":""}>0の個数（10^12）</option></select></label>
@@ -1152,8 +1148,7 @@ async function dispatchAction(action){
       const persisted=save();
       render(true);
       if(!persisted)return toast("購入を実行しましたが保存できません。保存状況を確認してください");
-      toast(result.count.toLocaleString("ja-JP")+"Lv 購入しました"+
-        (result.limitReached?"（3,000Lv上限。続きは再タップ）":""));
+      // Purchase feedback is shown by the new Lv and resources on the card.
     }finally{
       bulkPurchasePending=false;
       bulkButton.disabled=false;
@@ -1210,7 +1205,7 @@ async function dispatchAction(action){
   if(action==="start-core"){
     const p=G.planet(state);
     if(!p)return toast("先に惑星を生成してください");
-    if(!await ask("コア形成を開始",`${p.id}の内部にコアを形成します。R6資源を1個消費します。形成には必要な惑星状態と現象理解が必要です。`,"開始する"))return;
+    if(state.settings.confirmCoreFormation&&!await ask("コア形成を開始",`${p.id}の内部にコアを形成します。R6資源を1個消費します。形成には必要な惑星状態と現象理解が必要です。`,"開始する"))return;
     return resultDone(G.startCore(state),"コア形成を開始しました");
   }
   if(action==="toggle-auto-planet"){
@@ -1240,7 +1235,7 @@ async function dispatchAction(action){
       const p=JSON.parse(text);
       if(p.kind==="kotowari-backup-v31"||p.kind==="kotowari-save"||p.schemaVersion===31)decode(text,mode);
       else G.migrateLegacy(p);
-      if(!await ask("バックアップを読み込む","現在のデータを退避して、指定した進行へ切り替えます。検証データを通常データへは読み込めません。","読み込む"))return;
+      if(state.settings.confirmSaveImport&&!await ask("バックアップを読み込む","現在のデータを退避して、指定した進行へ切り替えます。検証データを通常データへは読み込めません。","読み込む"))return;
       state=store.import(text);applySettings();importDraft="";offlineReport=null;
       render(true);showNotice("バックアップを読み込みました。読み込み時の経過時間の報酬は重複付与しません。");
     }catch(e){toast("読込中止："+e.message);}return;
@@ -1254,7 +1249,13 @@ document.addEventListener("click",async e=>{
   const b=e.target.closest("button,a");if(!b)return;
   try{
     if(b.dataset.stage){setStage(b.dataset.stage);return;}
-    if(b.dataset.child){stopHoldPurchase(null,true);currentSub=b.dataset.child;renderPanel(true);return;}
+    if(b.dataset.child){
+      stopHoldPurchase(null,true);currentSub=b.dataset.child;
+      if(currentStage==="existence"&&["moment","sources","engraving"].includes(currentSub)&&!readOnly&&!store.blocked){
+        state.settings.existenceLastTab=currentSub;save();
+      }
+      renderPanel(true);return;
+    }
     if(b.dataset.organizer){openOrganizerPage(b.dataset.organizer);return;}
     if(b.dataset.momentGroupSelect!==undefined){
       if(readOnly||store.blocked)return toast("読み取り専用です");
@@ -1313,15 +1314,14 @@ document.addEventListener("click",async e=>{
       }
       const result=G.buy(state,kind,id);
       if(!resultDone(result))return;
-      if(modeBefore==="MAX"&&result.limitReached)
-        toast(result.count.toLocaleString("ja-JP")+"Lv購入しました。残りは「続けてMAX」で購入できます");
+      // A MAX purchase does not open a success popup.
       return;
     }
     if(b.dataset.breakthrough){
       const id=b.dataset.breakthrough,x=CONTENT.sources.find(item=>item.id===id);
       if(!x)return toast("源を確認できません");
       const source=state.sources[id];
-      if(!await ask("＋循環の確認",x.name+"：Lv."+source.level.toLocaleString("ja-JP")+" / ＋"+source.plus+" → ＋"+(source.plus+1)+"・Lv1から再開始します。","＋循環する"))return;
+      if(state.settings.confirmSourceBreakthrough&&!await ask("＋循環の確認",x.name+"：Lv."+source.level.toLocaleString("ja-JP")+" / ＋"+source.plus+" → ＋"+(source.plus+1)+"・Lv1から再開始します。","＋循環する"))return;
       resultDone(G.breakthrough(state,id));return;
     }
     if(b.dataset.interference){
@@ -1334,7 +1334,7 @@ document.addEventListener("click",async e=>{
       if(!quote.ok)return toast(quote.reason||"操作できません");
       const names={collision:"衝突",transfer:"成長移転",induce:"崩壊誘発",stabilize:"安定化"};
       const details=type==="collision"||type==="transfer"?" / 相手："+other:"";
-      if(!await ask(names[type]+"の確認",
+      if(state.settings.confirmInterference&&!await ask(names[type]+"の確認",
         "対象："+p.id+details+"\n必要資源：R1合計 "+f(quote.price)+
         "\n実行後の消費は取り消せません。","実行する"))return;
       checkpoint();
@@ -1349,29 +1349,29 @@ document.addEventListener("click",async e=>{
     if(b.dataset.engravingBuy){
       const id=b.dataset.engravingBuy,quote=engravingPurchaseQuote(state,id);
       if(!quote.ok)return toast(quote.reason||"購入できません");
-      if(!await ask("刻印の初回購入",`${id} を余剰存在 ${quote.price} で初回購入します。残り存在：${f(A(state.surplusExistence).sub(quote.price),3)}。取得後は常時有効ですが、未確定効果は適用しません。`,"購入する"))return;
+      if(state.settings.confirmEngravingPurchase&&!await ask("刻印の初回購入",`${id} を余剰存在 ${quote.price} で初回購入します。残り存在：${f(A(state.surplusExistence).sub(quote.price),3)}。取得後は常時有効ですが、未確定効果は適用しません。`,"購入する"))return;
       checkpoint();
-      return resultDone(G.buyEngraving(state,id),id+"を購入しました");
+      return resultDone(G.buyEngraving(state,id));
     }
     if(b.dataset.engravingTrialUpgrade){
       const id=b.dataset.engravingTrialUpgrade,q=G.engravingTrialUpgradeQuote(state,id);
       if(!q.ok)return toast(q.reason);
-      if(!await ask("刻印の試験強化",`${id} の追加強化Lv.+${q.next}。費用 ${f(q.price,3)} 余剰存在。タップ・源が追加Lvあたり+0.5%（試験値）。旧取得履歴は保護します。`,"購入する"))return;
-      checkpoint();return resultDone(G.buyEngravingTrialUpgrade(state,id),"刻印を追加強化しました");
+      if(state.settings.confirmEngravingUpgrade&&!await ask("刻印の試験強化",`${id} の追加強化Lv.+${q.next}。費用 ${f(q.price,3)} 余剰存在。タップ・源が追加Lvあたり+0.5%（試験値）。旧取得履歴は保護します。`,"購入する"))return;
+      checkpoint();return resultDone(G.buyEngravingTrialUpgrade(state,id));
     }
     if(b.dataset.draft){resultDone(G.toggleDraft(state,b.dataset.draft));return;}
-    if(b.dataset.form){resultDone(G.formConcept(state,b.dataset.form),"概念を認識しました");return;}
-    if(b.dataset.formMax){resultDone(G.formConceptMax(state,b.dataset.formMax),"概念を一括強化しました");return;}
-    if(b.dataset.invest){const r=G.invest(state,b.dataset.invest,Number(b.dataset.count||1));resultDone(r,"資源を投入し、質量と固有ステータスを強化しました");return;}
+    if(b.dataset.form){resultDone(G.formConcept(state,b.dataset.form));return;}
+    if(b.dataset.formMax){resultDone(G.formConceptMax(state,b.dataset.formMax));return;}
+    if(b.dataset.invest){const r=G.invest(state,b.dataset.invest,Number(b.dataset.count||1));resultDone(r);return;}
     if(b.dataset.boostTrialBuy!==undefined){
       const id=Number(b.dataset.boostTrialBuy),q=G.boostTrialPurchaseQuote(state,id);
       if(!q.ok)return toast(q.reason);
-      if(!await ask("BOOSTの試験強化",`5系統の${id+1}番をLv.${q.next}へ。費用：${duration(q.cost)} BOOST。正式採用前の試験値です。`,"BOOSTで購入"))return;
-      checkpoint();return resultDone(G.buyBoostTrialUpgrade(state,id),"BOOSTを試験強化しました");
+      if(state.settings.confirmBoostUpgrade&&!await ask("BOOSTの試験強化",`5系統の${id+1}番をLv.${q.next}へ。費用：${duration(q.cost)} BOOST。正式採用前の試験値です。`,"BOOSTで購入"))return;
+      checkpoint();return resultDone(G.buyBoostTrialUpgrade(state,id));
     }
     if(b.dataset.boostUpgrade!==undefined){resultDone(G.labBoostUpgrade(state,Number(b.dataset.boostUpgrade)));return;}
     if(b.dataset.restore!==undefined){
-      if(!await ask("保存履歴から復元","現在のデータを退避して、この履歴へ戻します。","復元する"))return;
+      if(state.settings.confirmSaveRestore&&!await ask("保存履歴から復元","現在のデータを退避して、この履歴へ戻します。","復元する"))return;
       state=store.restoreBackup(Number(b.dataset.restore));applySettings();render(true);toast("履歴から復元しました");return;
     }
     if(b.dataset.lab){
@@ -1463,6 +1463,7 @@ async function setupPWA(){
 await acquireLock();
 const loaded=store.load();
 state=loaded.state;storageUnavailable=!!loaded.storageUnavailable;
+currentSub=state.settings.existenceLastTab||"moment";
 if(loaded.warning)showNotice(loaded.warning,{autoDismiss:!loaded.blocked&&!loaded.storageUnavailable});
 if(readOnly)showNotice("ほかのタブがプレイ中のため閲覧専用です。そのタブを閉じてから再読み込みしてください。");
 if(!readOnly&&!store.blocked){
