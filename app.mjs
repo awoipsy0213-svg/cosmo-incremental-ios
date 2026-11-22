@@ -285,7 +285,7 @@ function quoteText(q){
 }
 function costLabel(q){
   // Keep price visible separately; never resize or rename the purchase button.
-  return q.cost!==undefined&&q.cost!==null?o(q.cost,"ceil"):"—";
+  return q.count===0&&q.reason==="上限到達"?"MAX":q.count===0&&q.cost==="0"?"—":q.cost!==undefined&&q.cost!==null?o(q.cost,"ceil"):"—";
 }
 function cardQuote(kind,id){
   const q=G.purchaseQuote(state,kind,id);
@@ -1279,6 +1279,36 @@ document.addEventListener("click",async e=>{
     }
     if(b.dataset.action){await dispatchAction(b.dataset.action);return;}
     if(b.matches("[data-legacy-link]")){save(true);return;}
+    if(b.dataset.momentDetail){
+      const id=b.dataset.momentDetail,i=CONTENT.moment.findIndex(x=>x.id===id);
+      if(i<0)return;
+      const x=CONTENT.moment[i],e=G.momentEffects(state)[i],q=G.purchaseQuote(state,"moment",id);
+      const level=state.moment[id];
+      await ask(x.name+" · Lv."+level.toLocaleString("ja-JP"),
+        x.description+"\n\n現在："+e.current+"\n次Lv："+e.next+
+        "\n購入費用："+costLabel(q)+" オーブ"+
+        (q.enabled&&q.count>0?"\n購入後："+G.momentAfterQuote(state,i,q.count):"")+
+        "\n\n価格・未指定節目は検証値。","閉じる");
+      return;
+    }
+    if(b.dataset.engravingDetail){
+      const id=b.dataset.engravingDetail,item=engravingCatalogue().find(x=>x.id===id);
+      if(!item)return;
+      const owned=state.engraving.owned.includes(id),q=owned?G.engravingTrialUpgradeQuote(state,id):engravingPurchaseQuote(state,id);
+      const price=q.price??item.cost;
+      await ask(item.name,"状態："+(owned?"取得済み":"未取得")+"\n"+item.description+
+        "\n費用："+(price===null||price===undefined?"—":f(price,3))+" 存在"+
+        "\n追加強化は検証値、未確認効果は未適用です。","閉じる");
+      return;
+    }
+    if(b.dataset.sourceSummary!==undefined){
+      const cycle=G.sourceCycleStatus(state),resonance=G.sourceResonanceProgress(state);
+      const next=resonance.next?resonance.next.id+" Lv."+resonance.next.level+"（残り"+resonance.next.remaining+"Lv）":"全節目到達";
+      await ask("源の共振・一巡","共振 "+resonance.completed+"/"+resonance.total+
+        "\n次の節目："+next+"\n一巡 "+cycle.reached+"/"+cycle.total+
+        "\n＋循環："+(cycle.unlocked?"解放":"未解放"),"閉じる");
+      return;
+    }
     if(b.dataset.sourceDetail){
       const x=CONTENT.sources.find(x=>x.id===b.dataset.sourceDetail);
       const status=G.sourceFinalEffectStatus(state,x.id);
