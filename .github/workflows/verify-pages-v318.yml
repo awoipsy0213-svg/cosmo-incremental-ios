@@ -42,6 +42,9 @@ jobs:
       - name: Verify live stage graphics are accessible
         run: |
           curl -fsSL --retry 4 --retry-delay 3 https://awoipsy0213-svg.github.io/cosmo-incremental-ios/stage-worlds.css | grep -q "kw-time-turn"
+      - name: Verify Fixed Geometry stylesheet is available
+        run: |
+          curl -fsSL --retry 4 --retry-delay 3 https://awoipsy0213-svg.github.io/cosmo-incremental-ios/fixed-layout-v333.css | grep -q "fixed-geometry mobile UI"
       - name: Verify Luminous Glass stylesheet is available
         run: |
           curl -fsSL --retry 4 --retry-delay 3 https://awoipsy0213-svg.github.io/cosmo-incremental-ios/luminous-glass-v332.css | grep -q "Luminous Glass"
@@ -69,6 +72,7 @@ jobs:
           KOTOWARI_SMOKE_BASE_URL: https://awoipsy0213-svg.github.io/cosmo-incremental-ios/
         run: |
           node tests/v333_engraving_browser.mjs
+          node tests/v333_fixed_browser.mjs
           node tests/v332_luminous_browser.mjs
           node tests/v318_browser_smoke.mjs
           node tests/v323_ui_browser.mjs
@@ -86,7 +90,9 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: v332-luminous-ui-published
-          path: artifacts/ui-v332/
+          name: v333-fixed-ui-published
+          path: |
+            artifacts/ui-v332/
+            artifacts/ui-v333/
           if-no-files-found: ignore
           retention-days: 14

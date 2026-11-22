@@ -878,7 +878,11 @@ export function buyEngravingTrialUpgrade(s,id){
   s.surplusExistence=sub(s.surplusExistence,q.price);
   s.engraving.trialLevels??={};
   s.engraving.trialLevels[id]=q.next;
-  if(s.engraving.levels[id]!==undefined)s.engraving.levels[id]++;
+  // New successful payments prove only new investment; they do NOT infer old
+  // pre-migration levels from ownership or historical trial purchase counts.
+  // An older unverified engraving first gains a verified Lv.1 here.
+  if(s.engraving.levels[id]===undefined)s.engraving.levels[id]=1;
+  else s.engraving.levels[id]++;
   event(s,`${id} の追加強化＋${q.next}（暫定バランス）。`);
   return {ok:true,id,price:q.price,extraLevel:q.next};
 }

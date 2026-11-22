@@ -25,7 +25,7 @@ try {
     assert.equal(res?.status(),200);
     await page.locator("#buildLabel").waitFor({state:"attached"});
     await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
-    assert.match(await page.locator("#buildLabel").textContent(),/3\.(32|33)/);
+    assert.match(await page.locator("#buildLabel").textContent(),/3\.34/);
     assert.ok((await page.locator("#appRoot").boundingBox())?.width>0);
     const width=await page.evaluate(()=>document.documentElement.scrollWidth);
     assert.ok(width<=viewport.width+2,label+" horizontal overflow: "+width);
@@ -130,7 +130,7 @@ try {
     await page.locator('[data-child="moment"]').click();
     assert.equal(await page.locator(".moment-tools").count(),0,"legacy filter UI must be absent");
     await page.locator("#bulkScopeButton").click();
-    assert.match(await page.locator("#bulkScopeButton").textContent(),/表示中/);
+    assert.match(await page.locator("#bulkScopeButton").textContent(),/表示/);
     const beforeBulk=await page.evaluate(()=>JSON.parse(localStorage.getItem("kotowari_v31_normal")).data.counters.orbsSpent);
     await page.locator("#bulkBuyButton").click();
     assert.equal(await page.locator("#confirmDialog").evaluate(el=>el.open),false, "default bulk purchase is one tap");
@@ -141,17 +141,14 @@ try {
         return raw.data.moment.tap>0;
       }catch{return false;}
     });
-    // Keep unobtrusive card-level favorites while retiring the pin/reorder toolbar.
-    await page.locator('button[data-moment-favorite="tap"]').click();
-    await page.locator('button[data-moment-favorite="tap2"]').click();
-    assert.equal(await page.locator(".moment-fav-pins").count(),0);
-    await page.waitForFunction(()=>{
-      try{
-        const raw=JSON.parse(localStorage.getItem("kotowari_v31_normal"));
-        return JSON.stringify(raw.data.settings.momentFavorites)==='["tap","tap2"]';
-      }catch{return false;}
-    });
-    assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem("kotowari_v31_normal")).data.settings.momentFavorites),["tap","tap2"]);
+    // The 2026-11-22 fixed layout replaces each card's favorite with an overlay detail action.
+    assert.equal(await page.locator('button[data-moment-favorite]').count(),0);
+    assert.equal(await page.locator('button[data-moment-detail]').count(),30);
+    assert.equal(await page.locator('.moment-fav-pins').count(),0);
+    await page.locator('button[data-moment-detail="tap"]').click();
+    assert.equal(await page.locator("#confirmDialog").evaluate(el=>el.open),true);
+    await page.locator("#confirmYes").click();
+    assert.equal(await page.locator("#confirmDialog").evaluate(el=>el.open),false);
     assert.equal(pageErrors.length,0,label+" JS errors: "+pageErrors.join("; "));
     console.log("PASS browser",label,viewport.width+"x"+viewport.height,"load, organizer, intervention, persisted save");
     await context.close();

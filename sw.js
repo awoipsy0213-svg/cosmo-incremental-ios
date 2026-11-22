@@ -1,5 +1,5 @@
 /* Versioned, scope-specific cache. Does not delete saves or another app's cache. */
-const VERSION = "3.33.0-engraving-abcd";
+const VERSION = "3.34.0-engraving-abcd";
 const PREFIX = "kotowari-handoff:" + new URL(self.registration.scope).pathname + ":";
 const CACHE = PREFIX + VERSION;
 const RELATIVE = [
@@ -12,6 +12,7 @@ const RELATIVE = [
   "stage-worlds.css",
   "matrix-v324.css",
   "luminous-glass-v332.css",
+  "fixed-layout-v333.css",
   "time-confirmed-v4.mjs",
   "universe-confirmed-v4.mjs",
   "universe-progression-v316.mjs",
@@ -60,6 +61,7 @@ const URLS = RELATIVE.map(path => new URL(path, self.registration.scope).href);
 const CORE_FILES = [
   "index.html", "organic-original.css", "mobile.css", "neon-theme.css", "live-ui.css", "astral-observatory.css", "stage-worlds.css", "matrix-v324.css",
   "luminous-glass-v332.css",
+  "fixed-layout-v333.css",
   "time-confirmed-v4.mjs", "universe-confirmed-v4.mjs",
   "universe-progression-v316.mjs",
   "universe-interference-v318.mjs",

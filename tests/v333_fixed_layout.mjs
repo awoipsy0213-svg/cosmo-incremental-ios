@@ -1,0 +1,40 @@
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+import {CONFIG} from "../balance-config.mjs";
+const read=p=>readFileSync(new URL("../"+p,import.meta.url),"utf8");
+const html=read("index.html"),sw=read("sw.js"),app=read("app.mjs"),css=read("fixed-layout-v333.css");
+assert.equal(CONFIG.schemaVersion,31,"must not migrate saves for UI");
+assert.equal(CONFIG.version,"3.30.1","game balance version must remain unchanged");
+for(const path of ["app.mjs","index.html","sw.js","fixed-layout-v333.css","game.mjs","save.mjs","balance-config.mjs"]){
+  assert.equal(read(path),read("www/"+path),path+" Web/Capacitor mismatch");
+}
+assert.ok(html.indexOf('luminous-glass-v332.css')<html.indexOf('fixed-layout-v333.css'),"cascade final");
+assert.match(html,/3\.34 · ENGRAVING/);
+assert.match(html,/id="childTabStrip"/);
+assert.match(html,/data-action="buy-all"/);
+assert.match(html,/id="bulkOrderButton"/);
+assert.match(sw,/const VERSION = "3\.34\.0-engraving-abcd"/);
+assert.equal((sw.match(/"fixed-layout-v333\.css"/g)||[]).length,2,"PWA core cache");
+assert.match(css,/--fixed-card-h:76px/);
+assert.match(css,/height:var\(--fixed-card-h\)!important/);
+assert.match(css,/\.purchase-cost-value/);
+assert.match(css,/\.toast,\.toast\.show\{pointer-events:none!important\}/);
+assert.match(css,/\.child-tab-strip\.is-existence/);
+assert.match(css,/\.engraving-card \.card-top strong/);
+assert.match(css,/color:#2b3554!important/);
+assert.match(app,/class="moment-detail-button" data-moment-detail/);
+assert.match(app,/class="engraving-detail-button" data-engraving-detail/);
+assert.match(app,/data-source-detail/);
+assert.match(app,/data-breakthrough/);
+assert.match(app,/function costLabel\(q\)/);
+assert.match(app,/data-quote-label/);
+assert.match(app,/const price=costLabel\(q\)/);
+assert.ok(!app.slice(app.indexOf("function momentHTML(){"),app.indexOf("function sourcesHTML(){")).includes("moment-favorite"),"favorite removed from moment markup");
+assert.ok(!app.slice(app.indexOf("function cardQuote("),app.indexOf("const MOMENT_PREF_IDS")).includes("live-buy-hint"),"no shortage hints in card markup");
+const refresh=app.slice(app.indexOf("function refreshPurchaseButtons(){"),app.indexOf("function refreshBoostShortcut(){"));
+for(const banned of ["purchaseInsight(","不足 ","あと約","自動で約","live-buy-hint","nearest.info"])
+  assert.ok(!refresh.includes(banned),"no prediction display: "+banned);
+assert.match(refresh,/b\.disabled=!enabled/);
+assert.match(refresh,/const price=costLabel\(q\)/);
+assert.ok(!read("game.mjs").includes("v333"),"game engine must not be modified for layout");
+console.log("PASS v333 fixed UI, prior saves and balance unchanged, app/www parity and no dynamic hints");
