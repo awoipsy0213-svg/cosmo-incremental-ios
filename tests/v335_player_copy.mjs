@@ -32,7 +32,7 @@ check("normal menu hides development workspace without removing research source 
   assert.ok(app.includes('title="${esc(item.name)}">${esc(item.name)}</strong>'));
   assert.ok(app.includes('function chronicleHTML()'));
   assert.ok(!app.includes('item.id+" "+item.name'));
-  assert.ok(read("docs/implementation.html").length>500);
+  assert.ok(read("design-proposals.mjs").length>500);
 });
 check("PWA cache refreshed and Web/Capacitor parity preserved",()=>{
   assert.match(read("sw.js"),/3\.34\.1-player-copy/);
