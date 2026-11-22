@@ -15,11 +15,11 @@ test("Compact scientific format: zero, 3 significant digits and exponent carry",
   assert.equal(formatScientific3("3.14159e9999999"),"3.14e+9999999");
   assert.equal(formatScientific3("0.00123456"),"1.23e-3");
 });
-test("Six shared entries are visible after intro without creating saved fields",()=>{
+test("Two confirmed shared entries are visible after intro without creating saved fields",()=>{
   const html=source("index.html"),app=source("app.mjs");
   assert.match(html,/id="commonInfoBar"/);
-  assert.equal((html.match(/data-common-value="/g)||[]).length,6);
-  for(const metric of ["existence","orbs","speed","tap","convergences","boost"])assert.ok(html.includes('data-common-value="'+metric+'"'));
+  assert.equal((html.match(/data-common-value="/g)||[]).length,2);
+  for(const metric of ["existence","timeSpeed"])assert.ok(html.includes('data-common-value="'+metric+'"'));
   assert.match(app,/function commonInfoHTML\(\)/);
   assert.match(app,/function renderWorld\(\)/);
   assert.match(app,/const showShared=state\.intro\.complete/);
@@ -38,9 +38,9 @@ test("Web and Capacitor copies are exactly synchronized",()=>{
     assert.equal(source(f),source("www/"+f),f+" not in sync");
 });
 test("A coherent version is used by HTML, SW and game config",()=>{
-  assert.equal(CONFIG.version,"3.27.0");
-  assert.match(source("index.html"),/3\.27 · TIME/);
-  assert.match(source("sw.js"),/3\.27\.0-time-only/);
+  assert.equal(CONFIG.version,"3.28.0");
+  assert.match(source("index.html"),/3\.28 · HUD/);
+  assert.match(source("sw.js"),/3\.28\.0-hud/);
   assert.match(source("sw.js"),/CORE_FILES/);
   assert.match(source("sw.js"),/stage-worlds\.css/);
 });

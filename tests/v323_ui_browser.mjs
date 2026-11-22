@@ -32,8 +32,8 @@ try{
    await page.addInitScript(raw=>localStorage.setItem("kotowari_v31_normal",raw),fixture);
    await page.reload({waitUntil:"domcontentloaded"});
    await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
-   assert.match(await page.locator("#buildLabel").textContent(),/3\.27/);
-   assert.equal(await page.locator(".common-info-item").count(),6);
+   assert.match(await page.locator("#buildLabel").textContent(),/3\.28/);
+   assert.equal(await page.locator(".common-info-item").count(),2);
    const layout=await page.evaluate(()=>({
      scroll:document.documentElement.scrollWidth,
      width:document.documentElement.clientWidth,
@@ -92,7 +92,7 @@ try{
      if(id!=="existence")assert.equal(await page.locator(".stage-backdrop").evaluate(el=>getComputedStyle(el).display),"block");
    }
    assert.equal(errors.length,0,label+" JS errors: "+errors.join("; "));
-   console.log("PASS v323",label,width+"x"+height,"6-metric HUD, unique scenes, flexible text, bulk setting + save");
+   console.log("PASS v323",label,width+"x"+height,"2-metric HUD, unique scenes, flexible text, bulk setting + save");
    await context.close();
  }
 } finally{if(browser)await browser.close();server?.kill("SIGTERM");}
