@@ -24,10 +24,10 @@ check("Both optional confirmations have safe backwards compatible defaults",()=>
  assert.equal(KEYS.normal,"kotowari_v31_normal");
  assert.equal(KEYS.lab,"kotowari_v31_lab");
 });
-check("Six global HUD values and stage-specific resource grid exist",()=>{
+check("Two confirmed global HUD values and stage-specific resource grid exist",()=>{
  const html=root("index.html"),app=root("app.mjs");
- assert.equal((html.match(/data-common-value="/g)||[]).length,6);
- for(const id of ["existence","orbs","speed","tap","convergences","boost"])
+ assert.equal((html.match(/data-common-value="/g)||[]).length,2);
+ for(const id of ["existence","timeSpeed"])
    assert.ok(html.includes('data-common-value="'+id+'"'),id);
  assert.match(html,/id="stageResourceLabel"/);
  assert.match(html,/id="stageResourceList"/);
@@ -60,11 +60,11 @@ check("Visual stage patterns cover time, universe and life without new gameplay 
 check("Web and Capacitor payloads match and the PWA caches the new visuals",()=>{
  for(const name of ["app.mjs","game.mjs","index.html","balance-config.mjs","sw.js","stage-worlds.css","matrix-v324.css"])
    assert.equal(root(name),root("www/"+name),name+" mirror mismatch");
- assert.equal(CONFIG.version,"3.27.0");
+ assert.equal(CONFIG.version,"3.28.0");
  assert.equal(CONFIG.schemaVersion,31);
- assert.match(root("sw.js"),/3\.27\.0-time-only/);
+ assert.match(root("sw.js"),/3\.28\.0-hud/);
  assert.match(root("sw.js"),/stage-worlds\.css/);
  assert.match(root("sw.js"),/matrix-v324\.css/);
- assert.match(root("index.html"),/3\.27 · TIME/);
+ assert.match(root("index.html"),/3\.28 · HUD/);
 });
 console.log("PASS "+passed+" Ver.3.23 HUD, settings and save compatibility checks");
