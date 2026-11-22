@@ -260,8 +260,8 @@ function renderWorld(){
   ]:currentStage==="life"?[
     ["段階","観測準備"],["状態","設計中"]
   ]:[
-    ["源の生成",f(rate)+"/秒"],
-    ["干渉",f(tap)+"/回"],
+    ["源の生成",f(rate)+" オーブ/秒"],
+    ["干渉1タップ",f(tap)+" オーブ/タップ"],
     ["コンボ",combo.combo.toLocaleString("ja-JP")]
   ];
   $("stageResourceList").innerHTML=stageRows.map(([label,value])=>`<div class="stage-stat"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`).join("");
