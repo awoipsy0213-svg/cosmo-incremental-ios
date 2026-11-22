@@ -45,6 +45,9 @@ jobs:
       - name: Verify Fixed Geometry stylesheet is available
         run: |
           curl -fsSL --retry 4 --retry-delay 3 https://awoipsy0213-svg.github.io/cosmo-incremental-ios/fixed-layout-v333.css | grep -q "fixed-geometry mobile UI"
+      - name: Verify Automation Center stylesheet is available
+        run: |
+          curl -fsSL --retry 4 --retry-delay 3 https://awoipsy0213-svg.github.io/cosmo-incremental-ios/automation-center-v336.css | grep -q "automation-quick"
       - name: Verify Luminous Glass stylesheet is available
         run: |
           curl -fsSL --retry 4 --retry-delay 3 https://awoipsy0213-svg.github.io/cosmo-incremental-ios/luminous-glass-v332.css | grep -q "Luminous Glass"
@@ -71,6 +74,7 @@ jobs:
         env:
           KOTOWARI_SMOKE_BASE_URL: https://awoipsy0213-svg.github.io/cosmo-incremental-ios/
         run: |
+          node tests/v336_automation_browser.mjs
           node tests/v335_player_copy_browser.mjs
           node tests/v333_engraving_browser.mjs
           node tests/v333_fixed_browser.mjs
