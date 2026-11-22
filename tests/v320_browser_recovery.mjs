@@ -66,7 +66,7 @@ try{
   await online.waitForFunction(()=>!!navigator.serviceWorker.controller,{timeout:30000});
   const cached=await online.evaluate(async()=>{
     const registration=await navigator.serviceWorker.ready;
-    const cache=await caches.open("kotowari-handoff:"+new URL(registration.scope).pathname+":3.35.0-ui-stability");
+    const cache=await caches.open("kotowari-handoff:"+new URL(registration.scope).pathname+":3.36.0-automation-center");
     return !!(await cache.match(new URL("./source-effects-v315.mjs",registration.scope).href));
   });
   assert.equal(cached,true,"a required transitive module missing from offline app cache");
