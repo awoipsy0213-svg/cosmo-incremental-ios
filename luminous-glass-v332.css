@@ -16,7 +16,7 @@
   --lg-primary-dark:#4a3097;
   --lg-focus:#4938ac;
   --lg-shadow:0 6px 22px rgba(85,74,160,.09);
-  --sheet-half-height:min(48dvh,452px);
+  --sheet-half-height:min(51dvh,452px);
   --kw-ink:var(--lg-ink);
   --kw-sub:var(--lg-muted);
   --kw-line:var(--lg-stroke);
