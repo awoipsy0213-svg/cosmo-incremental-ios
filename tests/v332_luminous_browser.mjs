@@ -22,7 +22,7 @@ const evaluateLayout=()=> {
     purchaseWidth:+hit.width.toFixed(1),
     sheetHeight:+sheet.getBoundingClientRect().height.toFixed(1),
     touchHeight:+touch.getBoundingClientRect().height.toFixed(1),
-    columns:style.gridTemplateColumns,background:getComputedStyle(first).backgroundImage,
+    columns:style.gridTemplateColumns,background:getComputedStyle(first).backgroundImage,cardColor:getComputedStyle(first).backgroundColor,
     colorScheme:getComputedStyle(document.body).colorScheme,
     horizontalOverflow:document.documentElement.scrollWidth-document.documentElement.clientWidth
   };
@@ -68,7 +68,7 @@ try{
    const moment=await page.evaluate(evaluateLayout);
    assert.equal(moment.cards,30);
    assert.equal(moment.colorScheme,"light");
-   assert.ok(moment.background.includes("255"),name+" card must be light glass "+moment.background);
+   assert.equal(moment.cardColor,"rgb(255, 255, 255)",name+" v339 cards use an opaque high-contrast white surface");
    assert.ok(moment.horizontalOverflow<=1,name+" document overflow "+moment.horizontalOverflow);
    assert.ok(moment.purchaseHeight>=44,name+" purchase target too short "+moment.purchaseHeight);
    assert.ok(moment.purchaseWidth>=92,name+" purchase target too narrow "+moment.purchaseWidth);
