@@ -22,7 +22,7 @@ jobs:
             node --check "$f" || exit 1
           done
       - run: |
-          for f in game.mjs app.mjs content.mjs moment-filter.mjs balance-config.mjs setsuna-rules-v39.mjs save.mjs time-confirmed-v4.mjs universe-confirmed-v4.mjs universe-progression-v316.mjs engraving-rules-v317.mjs engraving-effects-v333.mjs universe-interference-v318.mjs telemetry-v319.mjs astral-observatory.css stage-worlds.css matrix-v324.css luminous-glass-v332.css fixed-layout-v333.css; do
+          for f in game.mjs app.mjs content.mjs moment-filter.mjs balance-config.mjs setsuna-rules-v39.mjs save.mjs time-confirmed-v4.mjs universe-confirmed-v4.mjs universe-progression-v316.mjs engraving-rules-v317.mjs engraving-effects-v333.mjs universe-interference-v318.mjs telemetry-v319.mjs astral-observatory.css stage-worlds.css matrix-v324.css luminous-glass-v332.css fixed-layout-v333.css automation-center-v336.css; do
             cmp "$f" "www/$f" || exit 1
           done
           cmp index.html www/index.html
@@ -43,6 +43,7 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Smoke-test Web UI in desktop and mobile Chromium
         run: |
+          node tests/v336_automation_browser.mjs
           node tests/v335_player_copy_browser.mjs
           node tests/v333_engraving_browser.mjs
           node tests/v333_fixed_browser.mjs

@@ -52,14 +52,17 @@ export function createState(now=Date.now(),mode="normal") {
     // Separate experiment flag; never active in normal saves.
     trial:{enabled:false},
     engraving:{active:[],draft:null,observationUnlocked:false,owned:[],equipped:[],levels:{},trialLevels:{},
-      autoConverge:{enabled:false,minReward:AUTO_CONVERGE_DEFAULT_MIN_REWARD,minSteps:1,lastAt:0},
+      autoConverge:{enabled:false,minReward:AUTO_CONVERGE_DEFAULT_MIN_REWARD,minSteps:1,lastAt:0,
+        mode:"ready",intervalSeconds:60,intervalMinutes:1,targetRunOrbs:"1000"},
+      autoBuy:{moment:{enabled:true,priority:"auto",intervalSeconds:1},
+        source:{enabled:true,priority:"auto",intervalSeconds:1}},
       runtime:freshEngravingRuntime()},
     boost:{seconds:0,active:false,upgrades:[0,0,0,0,0],trialLevels:[0,0,0,0,0],accounting:freshBoostAccounting(),
       timeOnlyMigration:{version:1,at:now,previousActive:null,source:"new"}},
     counters:{taps:0,orbsSpent:"0",sourcePurchases:0,conversions:0,onlineSeconds:0,offlineSeconds:0},
     achievements:[],events:[],telemetry:freshTelemetry(),settings:{compact:true,showPurchaseHints:true,affordableOnly:false,bulkOrder:"cheap",holdToBuy:true,hapticTap:false,reducedMotion:false,highContrast:false,
       lowPower:false,confirmConvergence:true,confirmBulkPurchase:false,confirmMaxPurchase:true,showOffline:true,notation:"auto",
-      existenceLastTab:"moment",confirmEngravingPurchase:false,confirmEngravingUpgrade:false,
+      existenceLastTab:"moment",automationStage:"existence",confirmEngravingPurchase:false,confirmEngravingUpgrade:false,
       confirmBoostUpgrade:false,confirmSourceBreakthrough:true,confirmInterference:true,
       confirmCoreFormation:true,confirmSaveImport:true,confirmSaveRestore:true,
       momentFavorites:[],momentGroup:"0",momentFilter:"all"},
@@ -893,34 +896,94 @@ export function toggleDraft(){return {ok:false,reason:"刻印の装備切替は�
 export function engravingQuote(){return {added:[],removed:[],slots:0,cost:"0",legacyOnly:true};}
 export function confirmEngraving(){return {ok:false,reason:"刻印の装備切替は廃止されました"};}
 export function cancelEngraving(){return {ok:false,reason:"刻印の装備切替は廃止されました"};}
-export function configureAutoConvergence(s,{enabled,minReward,minSteps}={},now=Date.now()) {
-  const a=s.engraving.autoConverge;
+export function configureAutoPurchase(s,kind,{enabled,priority,intervalSeconds}={}){
+  if(!["moment","source"].includes(kind))return {ok:false,reason:"購入対象が不正です"};
+  const a=s.engraving.autoBuy?.[kind];if(!a)return {ok:false,reason:"自動購入設定がありません"};
+  const next={...a};
+  if(enabled!==undefined){
+    if(typeof enabled!=="boolean")return {ok:false,reason:"ON/OFFが不正です"};
+    if(enabled && (kind==="moment"?engravingAutoMomentRate(s):engravingAutoSourceRate(s))<=0)
+      return {ok:false,reason:"対応する刻印が必要です"};
+    next.enabled=enabled;
+  }
+  if(priority!==undefined){
+    if(!["auto","cheap","expensive","efficient"].includes(priority))
+      return {ok:false,reason:"優先順が不正です"};
+    if(priority==="efficient"&&!engravingAutoEfficient(s))
+      return {ok:false,reason:"自律最適化の刻印が必要です"};
+    next.priority=priority;
+  }
+  if(intervalSeconds!==undefined){
+    if(!Number.isSafeInteger(intervalSeconds)||intervalSeconds<1||intervalSeconds>60)
+      return {ok:false,reason:"購入間隔はゲーム内1〜60秒です"};
+    next.intervalSeconds=intervalSeconds;
+  }
+  Object.assign(a,next);
+  if(enabled===false){
+    const key=kind==="moment"?"autoMomentWait":"autoSourceWait";
+    s.engraving.runtime[key]=0;
+  }
+  return {ok:true,...next};
+}
+export function configureAutoConvergence(s,{enabled,minReward,minSteps,mode,intervalSeconds,intervalMinutes,targetRunOrbs}={},now=Date.now()) {
+  const a=s.engraving.autoConverge,next={...a};
   if(minReward!==undefined){
     if(!validRewardThreshold(minReward))return {ok:false,reason:"報酬閾値は0.025以上で指定してください"};
-    a.minReward=str(minReward);
+    next.minReward=str(minReward);
   }
   if(minSteps!==undefined){
     if(!Number.isSafeInteger(minSteps)||minSteps<1||minSteps>100)
-      return {ok:false,reason:"自動収束の必要段階は1〜100です"};
+      return {ok:false,reason:"必要段階は1〜100です"};
     if(minSteps>1&&!engravingConvergenceControl(s))
-      return {ok:false,reason:"循環制御の刻印Lvが必要です"};
-    a.minSteps=minSteps;
+      return {ok:false,reason:"循環制御の刻印が必要です"};
+    next.minSteps=minSteps;
+  }
+  if(mode!==undefined){
+    if(!["ready","seconds","minutes","earned"].includes(mode))
+      return {ok:false,reason:"自動収束の方式が不正です"};
+    next.mode=mode;
+  }
+  if(intervalSeconds!==undefined){
+    if(!Number.isSafeInteger(intervalSeconds)||intervalSeconds<60||intervalSeconds>3600)
+      return {ok:false,reason:"自動収束の秒間隔は60〜3,600秒です"};
+    next.intervalSeconds=intervalSeconds;
+  }
+  if(intervalMinutes!==undefined){
+    if(!Number.isSafeInteger(intervalMinutes)||intervalMinutes<1||intervalMinutes>240)
+      return {ok:false,reason:"自動収束の分間隔は1〜240分です"};
+    next.intervalMinutes=intervalMinutes;
+  }
+  if(targetRunOrbs!==undefined){
+    try{
+      if(typeof targetRunOrbs!=="string"||!/^\d+(?:\.\d+)?(?:e\+?\d+)?$/i.test(targetRunOrbs)||
+         A(targetRunOrbs).cmp(0)<=0||A(targetRunOrbs).e>999)
+        return {ok:false,reason:"累計獲得オーブは正の数字で指定してください"};
+      next.targetRunOrbs=str(targetRunOrbs);
+    }catch{return {ok:false,reason:"累計獲得オーブの入力が不正です"};}
   }
   if(enabled!==undefined){
-    if(typeof enabled!=="boolean")return {ok:false,reason:"設定が不正です"};
-    if(enabled&&(!s.engraving.owned.includes(ENGRAVING_AUTO_CONVERGE_ID)))
+    if(typeof enabled!=="boolean")return {ok:false,reason:"ON/OFFが不正です"};
+    if(enabled&&!s.engraving.owned.includes(ENGRAVING_AUTO_CONVERGE_ID))
       return {ok:false,reason:"自動収束の刻印が必要です"};
-    if(enabled&&!a.enabled)a.lastAt=now; // 60s safety interval after ON
-    a.enabled=enabled;
+    if(enabled&&!a.enabled)next.lastAt=now; // Keep the existing 60s real-time guard.
+    next.enabled=enabled;
   }
-  return {ok:true,enabled:a.enabled,minReward:a.minReward,minSteps:a.minSteps||1};
+  Object.assign(a,next);
+  return {ok:true,enabled:a.enabled,minReward:a.minReward,minSteps:a.minSteps,mode:a.mode,
+    intervalSeconds:a.intervalSeconds,intervalMinutes:a.intervalMinutes,targetRunOrbs:a.targetRunOrbs};
 }
 export function autoConvergenceTick(s,now=Date.now(),offline=false) {
   if(offline||!s.intro.complete||!s.engraving.autoConverge.enabled ||
     !s.engraving.owned.includes(ENGRAVING_AUTO_CONVERGE_ID))
     return {ok:false,reason:"自動収束の条件を満たしていません"};
-  if(!Number.isFinite(now)||now<0||now-s.engraving.autoConverge.lastAt<AUTO_CONVERGE_MIN_INTERVAL_MS)
+  const a=s.engraving.autoConverge;
+  const elapsed=now-a.lastAt;
+  const extra=a.mode==="seconds"?a.intervalSeconds*1000:
+    a.mode==="minutes"?a.intervalMinutes*60000:0;
+  if(!Number.isFinite(now)||now<0||elapsed<Math.max(AUTO_CONVERGE_MIN_INTERVAL_MS,extra))
     return {ok:false,reason:"自動収束の待機中です"};
+  if(a.mode==="earned"&&A(s.runOrbsEarned??"0").cmp(a.targetRunOrbs)<0)
+    return {ok:false,reason:"周回累計オーブが指定値に達していません"};
   const q=convergenceQuote(s);
   if(q.steps<(s.engraving.autoConverge.minSteps||1)||A(q.reward).cmp(s.engraving.autoConverge.minReward)<0)
     return {ok:false,reason:"報酬閾値または必要オーブが不足しています"};
@@ -994,8 +1057,9 @@ export function labBoostUpgrade(s,index){
  * fractional credits make the result independent of display refresh rate.
  * No BOOST balance, offline stage, or saved legacy equipment is changed.
  */
-function autoEngravingBuy(s,kind,quantity,efficient){
+function autoEngravingBuy(s,kind,quantity,priority){
   const ids=kind==="source"?SOURCE_IDS:MOMENT_IDS,previousMode=s.purchaseMode;
+  const efficient=priority==="efficient";
   let count=0;
   try{
     s.purchaseMode="1";
@@ -1020,7 +1084,7 @@ function autoEngravingBuy(s,kind,quantity,efficient){
           }
         }
         offers.sort((a,b)=>b.score.cmp(a.score)||a.cost.cmp(b.cost));
-      }else offers.sort((a,b)=>a.cost.cmp(b.cost));
+      }else offers.sort((a,b)=>priority==="expensive"?b.cost.cmp(a.cost):a.cost.cmp(b.cost));
       if(!buy(s,kind,offers[0].id).ok)break;
       count++;
     }
@@ -1035,16 +1099,23 @@ function runEngravingAutomation(s,seconds,now,rng){
     const earned=engravingOrbAward(s,tapPower(s,now).mul(seconds*tapRate),rng);
     addOrbs(s,earned);
   }
-  const efficient=engravingAutoEfficient(s);
-  for(const [key,kind,rate] of [
-    ["autoMomentCredit","moment",engravingAutoMomentRate(s)],
-    ["autoSourceCredit","source",engravingAutoSourceRate(s)]
+  for(const [key,waitKey,kind,rate] of [
+    ["autoMomentCredit","autoMomentWait","moment",engravingAutoMomentRate(s)],
+    ["autoSourceCredit","autoSourceWait","source",engravingAutoSourceRate(s)]
   ]){
-    if(rate<=0)continue;
+    const config=s.engraving.autoBuy[kind];
+    // Automation never bypasses engraved unlocks and never runs while disabled.
+    if(rate<=0||!config.enabled)continue;
     const total=Math.min(1000,runtime[key]+seconds*rate);
-    const due=Math.min(ENGRAVING_AUTO_BATCH_LIMIT,Math.floor(total));
-    runtime[key]=total-due;
-    if(due>0)autoEngravingBuy(s,kind,due,efficient);
+    runtime[key]=total;
+    runtime[waitKey]=Math.min(config.intervalSeconds,(runtime[waitKey]||0)+seconds);
+    if(runtime[waitKey]<config.intervalSeconds)continue;
+    runtime[waitKey]=0;
+    const due=Math.min(ENGRAVING_AUTO_BATCH_LIMIT,Math.floor(runtime[key]));
+    runtime[key]-=due;
+    const priority=config.priority==="auto"?
+      (engravingAutoEfficient(s)?"efficient":"cheap"):config.priority;
+    if(due>0)autoEngravingBuy(s,kind,due,priority);
   }
 }
 export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
@@ -1477,10 +1548,29 @@ export function validateState(input,expectedMode=null) {
         !Number.isSafeInteger(level)||level<1||level>1000000||!e.owned.includes(id)))fail("刻印Lv");
   if(e.autoConverge===undefined)e.autoConverge={enabled:false,minReward:AUTO_CONVERGE_DEFAULT_MIN_REWARD,lastAt:0};
   if(e.autoConverge.minSteps===undefined)e.autoConverge.minSteps=1;
+  const defaultAuto=createState().engraving;
+  // Upgrade old saves without altering verified ownership, purchased levels or saved credits.
+  if(e.autoBuy===undefined)e.autoBuy=structuredClone(defaultAuto.autoBuy);
+  if(e.autoConverge.mode===undefined)e.autoConverge.mode="ready";
+  if(e.autoConverge.intervalSeconds===undefined)e.autoConverge.intervalSeconds=60;
+  if(e.autoConverge.intervalMinutes===undefined)e.autoConverge.intervalMinutes=1;
+  if(e.autoConverge.targetRunOrbs===undefined)e.autoConverge.targetRunOrbs="1000";
   if(e.runtime===undefined)e.runtime=freshEngravingRuntime();
   if(!e.runtime||typeof e.runtime!=="object"||Array.isArray(e.runtime))fail("刻印自動化状態");
+  for(const k of ["autoMomentWait","autoSourceWait"])
+    if(e.runtime[k]===undefined)e.runtime[k]=0;
   for(const k of ["autoTapCredit","autoMomentCredit","autoSourceCredit"])
     if(!Number.isFinite(e.runtime[k])||e.runtime[k]<0||e.runtime[k]>1000)fail("刻印自動化残高");
+  for(const k of ["autoMomentWait","autoSourceWait"])
+    if(!Number.isFinite(e.runtime[k])||e.runtime[k]<0||e.runtime[k]>60)fail("刻印自動化待機時間");
+  if(!e.autoBuy||typeof e.autoBuy!=="object"||Array.isArray(e.autoBuy))fail("自動購入設定");
+  for(const k of ["moment","source"]){
+    const a=e.autoBuy[k];
+    if(!a||typeof a!=="object"||typeof a.enabled!=="boolean"||
+       !["auto","cheap","expensive","efficient"].includes(a.priority)||
+       !Number.isSafeInteger(a.intervalSeconds)||a.intervalSeconds<1||a.intervalSeconds>60)
+      fail("自動購入の設定");
+  }
   if(!Array.isArray(e.active)||e.active.some(x=>!CONTENT.engravings.some(y=>y.id===x)))fail("旧刻印");
   const checkIds=(list,label)=>{
     if(!Array.isArray(list)||list.length>30||new Set(list).size!==list.length||
@@ -1503,9 +1593,19 @@ export function validateState(input,expectedMode=null) {
       typeof e.autoConverge.enabled!=="boolean"||
       !Number.isSafeInteger(e.autoConverge.minSteps)||e.autoConverge.minSteps<1||e.autoConverge.minSteps>100||
       !validRewardThreshold(e.autoConverge.minReward)||
+      !["ready","seconds","minutes","earned"].includes(e.autoConverge.mode)||
+      !Number.isSafeInteger(e.autoConverge.intervalSeconds)||
+        e.autoConverge.intervalSeconds<60||e.autoConverge.intervalSeconds>3600||
+      !Number.isSafeInteger(e.autoConverge.intervalMinutes)||
+        e.autoConverge.intervalMinutes<1||e.autoConverge.intervalMinutes>240||
+      typeof e.autoConverge.targetRunOrbs!=="string"||
+      !/^\d+(?:\.\d+)?(?:e\+?\d+)?$/i.test(e.autoConverge.targetRunOrbs)||
+      A(e.autoConverge.targetRunOrbs).cmp(0)<=0||
+      A(e.autoConverge.targetRunOrbs).e>999||
       !Number.isFinite(e.autoConverge.lastAt)||e.autoConverge.lastAt<0||e.autoConverge.lastAt>1e15)
     fail("自動収束設定");
   e.autoConverge.minReward=str(e.autoConverge.minReward);
+  e.autoConverge.targetRunOrbs=str(e.autoConverge.targetRunOrbs);
   if(e.autoConverge.enabled&&!e.owned.includes(ENGRAVING_AUTO_CONVERGE_ID))fail("自動収束の未購入設定");
   if(e.autoConverge.minSteps>1&&!engravingConvergenceControl(s))fail("循環制御の取得状態");
   const b=s.boost;if(!b||!Number.isFinite(b.seconds)||b.seconds<0||!Array.isArray(b.upgrades)||b.upgrades.length!==5||b.upgrades.some(x=>!Number.isInteger(x)||x<0||x>10000))fail("BOOST");
@@ -1568,6 +1668,7 @@ export function validateState(input,expectedMode=null) {
   if(!["auto","scientific","exponent","zeros"].includes(s.settings.notation))s.settings.notation="auto";
   if(!["cheap","expensive"].includes(s.settings.bulkOrder))s.settings.bulkOrder="cheap";
   if(!["moment","sources","engraving"].includes(s.settings.existenceLastTab))s.settings.existenceLastTab="moment";
+  if(!["existence","time","universe","life"].includes(s.settings.automationStage))s.settings.automationStage="existence";
   Object.assign(s.settings,cleanMomentPrefs(s.settings,MOMENT_IDS));
   // BOOST-Q469/499/500: verified legacy seconds may exceed the new cap.
   // Do not trim on decode, encode, save, restore or offline settlement.

@@ -2,7 +2,7 @@ import {CONFIG} from "./balance-config.mjs";
 import {UNIVERSE_RESOURCE_RULES,resourceEligible} from "./universe-confirmed-v4.mjs";
 import {KNOWLEDGE_IDS,KNOWLEDGE_NAMES,knowledgeLevel,coreRequirements,autoPlanetAvailable} from "./universe-progression-v316.mjs";
 import {engravingCatalogue,engravingSlots,engravingPurchaseQuote,ENGRAVING_AUTO_CONVERGE_ID} from "./engraving-rules-v317.mjs";
-import {engravingConvergenceControl} from "./engraving-effects-v333.mjs";
+import {engravingConvergenceControl,engravingAutoMomentRate,engravingAutoSourceRate,engravingAutoEfficient} from "./engraving-effects-v333.mjs";
 import {TELEMETRY_LIMITS,consecutiveOrbGains} from "./telemetry-v319.mjs";
 import {compareMomentPrice,compareMomentPriceProfiles,exportPriceReport,PRICE_MODEL_VERSION} from "./price-lab.mjs";
 import {MOMENT_GROUP_NAMES,cleanMomentPrefs,toggleMomentFavorite,moveMomentFavorite,momentVisible} from "./moment-filter.mjs";
@@ -21,7 +21,7 @@ const dev=params.get("dev")==="1"||mode==="lab";
 const childNames={moment:"刹那",sources:"源",engraving:"刻印",flow:"流れ",concepts:"概念",
   planets:"惑星",resources:"資源",observations:"観測",life:"生命",
   boost:"BOOST",achievements:"実績",chronicle:"記録",statistics:"統計",collection:"コレクション",
-  guide:"遊び方",settings:"設定",backup:"保存",spec:"設計状況",proposals:"研究・試案",lab:"開発テスト",priceLab:"価格試算"};
+  guide:"遊び方",settings:"設定",backup:"保存", "auto-existence":"存在","auto-time":"時","auto-universe":"宇宙","auto-life":"生命",spec:"設計状況",proposals:"研究・試案",lab:"開発テスト",priceLab:"価格試算"};
 const organizerItems=["boost","achievements","chronicle","statistics","collection","guide","settings","backup",...(mode==="lab"?["spec","proposals","priceLab","lab"]:[])];
 let memory={};let storage;
 try{storage=window.localStorage;}catch(e){storage={getItem:k=>memory[k]||null,setItem:(k,v)=>memory[k]=String(v),removeItem:k=>delete memory[k]};}
@@ -160,6 +160,16 @@ function setStage(id){
   currentSub=id==="existence"?state.settings.existenceLastTab:CONTENT.stages.find(x=>x.id===id).children[0];
   setSheet("half");render(true);
 }
+function openAutomation(){
+  if(!state.intro.complete)return;
+  stopHoldPurchase(null,true);infoPanelOpen=false;
+  if(currentStage==="automation"){
+    setSheet(sheetState==="closed"?"half":"closed");return;
+  }
+  currentStage="automation";
+  currentSub="auto-"+(state.settings.automationStage||"existence");
+  setSheet("half");render(true);
+}
 function availableStages(){
   return CONTENT.stages.filter(x=>x.id==="existence"?state.intro.complete:x.id==="time"?state.time.unlocked:x.id==="universe"?state.universe.unlocked:state.life.unlocked);
 }
@@ -182,7 +192,8 @@ function renderNav(){
   // Keep BOOST in its own fixed-size slot at the left of the stage bar.
   // It is accessible even when the stage sheet is fully expanded.
   const shortcut=`<button id="boostQuick" type="button" class="boost-quick" data-action="toggle-boost" aria-pressed="false" aria-label="BOOSTを操作する" title="BOOST：タップで加速を切り替える">${BOOST_QUICK_ICON}<span id="boostQuickTime" class="boost-quick-time" aria-hidden="true">--</span><span id="boostQuickFill" class="boost-quick-fill" aria-hidden="true"></span></button>`;
-  $("stageNav").innerHTML=shortcut+a.map(x=>`<button data-stage="${x.id}" class="${currentStage===x.id?"active":""}" aria-pressed="${currentStage===x.id}">${x.name}</button>`).join("");
+  const automation='<button id="automationQuick" type="button" class="automation-quick'+(currentStage==="automation"?' active':'')+'" data-action="open-automation" aria-pressed="'+(currentStage==="automation")+'" aria-label="全ステージのオートメーションを開く" title="オートメーション">⟳</button>';
+  $("stageNav").innerHTML=shortcut+a.map(x=>`<button data-stage="${x.id}" class="${currentStage===x.id?"active":""}" aria-pressed="${currentStage===x.id}">${x.name}</button>`).join("")+automation;
 }
 function renderWorld(){
   document.body.classList.toggle("is-intro",!state.intro.complete);
@@ -218,8 +229,8 @@ function renderWorld(){
   const milestone=combo.nextMark===null?" · 最終節目到達":` · 次${combo.nextMark}まで${combo.untilNext}回`;
   const comboHtml=combo.combo>0?`<span class="kw-combo">コンボ ${combo.combo.toLocaleString("ja-JP")} · ×${combo.multiplier.toFixed(2)}${milestone}<i class="kw-combo-track"><i style="width:${ratio}%"></i></i></span>`:"";
   const storedHtml=A(combo.stored).cmp(0)>0?`<span class="kw-stored">蓄積 ${o(combo.stored)}</span>`:"";
-  $("convergeMain").hidden=!state.intro.complete||!["existence","organizer"].includes(currentStage);
-  if(["existence","organizer"].includes(currentStage)){
+  $("convergeMain").hidden=!state.intro.complete||!["existence","organizer","automation"].includes(currentStage);
+  if(["existence","organizer","automation"].includes(currentStage)){
     $("primaryValue").textContent=orbDisplay(state.orbs);
     $("worldDetails").innerHTML=`<span class="wallet">オーブ <b>${orbDisplay(state.orbs)}</b></span><span>${state.runOrbsEvidence==="verified"?"周回獲得 "+orbDisplay(state.runOrbsEarned)+" オーブ":"旧周回・確認済獲得 "+orbDisplay(state.runOrbsEarned)+" オーブ"}</span><span>干渉 +${o(tap)} / 源 +${o(rate)} 毎秒</span>${comboHtml}${storedHtml}`;
     $("worldHint").textContent="";
@@ -252,9 +263,9 @@ function renderWorld(){
     $("primaryValue").textContent="—";$("worldDetails").textContent="未知の変化が、自己を維持し始める。";
     $("worldHint").textContent="未知の生命を観測する。";
   }
-  const stageLabels={existence:"オーブ",time:"経過時間 · 秒",universe:"惑星数",life:"生命の兆し",organizer:"オーブ"};
+  const stageLabels={existence:"オーブ",time:"経過時間 · 秒",universe:"惑星数",life:"生命の兆し",organizer:"オーブ",automation:"オーブ"};
   $("stageResourceLabel").textContent=stageLabels[currentStage]||"進行";
-  $("worldHint").hidden=["existence","organizer"].includes(currentStage);
+  $("worldHint").hidden=["existence","organizer","automation"].includes(currentStage);
   const selected=state.universe.planets.find(p=>p.id===state.universe.selectedPlanetId);
   const stageRows=currentStage==="time"?[
     ["世界秒",Math.min(1,state.time.worldSeconds).toFixed(6)],
@@ -394,6 +405,63 @@ function sourcesHTML(){
       ${cardQuote("source",x.id)}
     </article>`;
   }).join("")}</div>`;
+}
+function automationHTML(){
+  const tab=currentSub.slice(5),e=state.engraving,disabled=readOnly||store.blocked;
+  const locked=' disabled title="取得後に利用できます"';
+  const selected=(a,b)=>a===b?' selected':'';
+  const option=(value,text,sel,extra='')=>'<option value="'+esc(value)+'"'+selected(value,sel)+extra+'>'+esc(text)+'</option>';
+  const panelHead='<div class="automation-heading"><strong>オートメーション</strong><small>設定は保存され、オンライン中に反映されます</small></div>';
+  if(tab==="existence"){
+    const buy=(kind,label,rate)=>{
+      const cfg=e.autoBuy[kind],unlocked=rate>0,off=disabled||!unlocked;
+      const pri=[["auto","自動選択"],["cheap","安い順"],["expensive","高い順"],["efficient","効率優先"]];
+      const priorityOptions=pri.map(([value,text])=>option(value,text,cfg.priority,
+        value==="efficient"&&!engravingAutoEfficient(state)?' disabled':'')).join("");
+      return '<section class="kw-card automation-row" data-automation-buy="'+kind+'">'+
+        '<div class="automation-line"><strong>'+esc(label)+'</strong><small>'+(unlocked?'Lv相当 '+rate+'回/ゲーム秒':'対応する刻印で解放')+'</small>'+
+        '<label class="automation-toggle"><span>ON</span><input type="checkbox" data-auto-buy-kind="'+kind+'" data-auto-field="enabled"'+(unlocked&&cfg.enabled?' checked':'')+(off?' disabled':'')+' aria-label="'+esc(label)+'の自動購入をON/OFF"></label></div>'+
+        '<div class="automation-line automation-fields"><label>優先<select class="input-select" data-auto-buy-kind="'+kind+'" data-auto-field="priority"'+(off?' disabled':'')+'>'+priorityOptions+'</select></label>'+
+        '<label>購入間隔<select class="input-select" data-auto-buy-kind="'+kind+'" data-auto-field="intervalSeconds"'+(off?' disabled':'')+'>'+
+        [1,2,5,10,30,60].map(v=>option(String(v),v+'ゲーム秒',String(cfg.intervalSeconds))).join('')+
+        '</select></label></div></section>';
+    };
+    const a=e.autoConverge,on=e.owned.includes(ENGRAVING_AUTO_CONVERGE_ID),off=disabled||!on;
+    const modes=[["ready","条件到達"],["seconds","秒間隔"],["minutes","分間隔"],["earned","周回累計"]];
+    const modeOptions=modes.map(([value,label])=>option(value,label,a.mode)).join("");
+    const conditionValue=a.mode==="seconds"?String(a.intervalSeconds):
+      a.mode==="minutes"?String(a.intervalMinutes):a.mode==="earned"?String(a.targetRunOrbs):"";
+    const conditionLabel=a.mode==="seconds"?"秒":a.mode==="minutes"?"分":a.mode==="earned"?"累計オーブ":"条件到達";
+    const conditionKey=a.mode==="seconds"?"intervalSeconds":a.mode==="minutes"?"intervalMinutes":"targetRunOrbs";
+    const valueControl='<input class="input-select" type="text" inputmode="decimal" data-auto-converge="'+conditionKey+'" value="'+esc(conditionValue)+'"'+(off||a.mode==="ready"?' disabled':'')+' aria-label="'+conditionLabel+'" placeholder="'+(a.mode==="ready"?'準備ができたら実行':'数値を入力')+'">';
+    const rewardOptions=[...new Set(["0.025","0.05","0.1","0.5","1",a.minReward])].map(v=>option(v,v+' 存在',a.minReward)).join("");
+    const stepsOptions=[...new Set([1,2,3,5,10,20,50,100,a.minSteps])].sort((a,b)=>a-b).map(v=>option(String(v),v+' 段階',String(a.minSteps))).join("");
+    return panelHead+buy("moment","刹那・自動購入",engravingAutoMomentRate(state))+
+      buy("source","源・自動購入",engravingAutoSourceRate(state))+
+      '<section class="kw-card automation-convergence"><div class="automation-line"><strong>自動収束</strong><small>'+(on?'最短60秒の安全間隔':'自動収束の刻印で解放')+'</small>'+
+      '<label class="automation-toggle"><span>ON</span><input type="checkbox" data-auto-converge="enabled"'+(on&&a.enabled?' checked':'')+(off?' disabled':'')+' aria-label="自動収束をON/OFF"></label></div>'+
+      '<div class="automation-line automation-fields"><label>収束条件<select class="input-select" data-auto-converge="mode"'+(off?' disabled':'')+'>'+modeOptions+'</select></label>'+
+      '<label>'+conditionLabel+valueControl+'</label></div>'+
+      '<div class="automation-line automation-fields"><label>最低報酬<select class="input-select" data-auto-converge="minReward"'+(off?' disabled':'')+'>'+rewardOptions+'</select></label>'+
+      '<label>最低段階<select class="input-select" data-auto-converge="minSteps"'+(off||!engravingConvergenceControl(state)?' disabled':'')+'>'+stepsOptions+'</select></label></div></section>';
+  }
+  if(tab==="universe"){
+    const u=state.universe,unlocked=u.unlocked&&autoPlanetAvailable(u),off=disabled||!unlocked;
+    return panelHead+'<section class="kw-card automation-row"><div class="automation-line"><strong>惑星の自動生成</strong><small>'+
+      (unlocked?'300ゲーム秒ごとに生成':'条件を満たすと解放')+'</small>'+
+      '<label class="automation-toggle"><span>ON</span><input type="checkbox" data-auto-planet-enabled'+(u.autoGenerate?' checked':'')+(off?' disabled':'')+' aria-label="惑星の自動生成をON/OFF"></label></div>'+
+      '<div class="automation-line automation-fields"><label>各R1の最低保有量<select class="input-select" data-auto-planet-reserve'+(off?' disabled':'')+'>'+
+      [0,10,100,1000,u.autoReserve].filter((v,i,arr)=>arr.indexOf(v)===i).sort((a,b)=>a-b).map(v=>option(String(v),v+' 個',String(u.autoReserve))).join('')+
+      '</select></label></div></section>';
+  }
+  if(tab==="time"){
+    return panelHead+'<section class="kw-card automation-row automation-info"><strong>時の流れ</strong><small>'+
+      (state.time.unlocked?'ゲーム内時間の経過で進行します。':'時のステージはまだ解放されていません。')+
+      '</small><small>設定可能な自動化は解放済みの機能に応じて表示します。</small></section>';
+  }
+  return panelHead+'<section class="kw-card automation-row automation-info"><strong>生命</strong><small>'+
+    (state.life.unlocked?'現在設定できる自動化はありません。':'生命のステージはまだ解放されていません。')+
+    '</small></section>';
 }
 function engravingHTML(){
   const e=state.engraving,catalogue=engravingCatalogue();
@@ -828,9 +896,9 @@ function renderPanel(force=false){
   if(!force&&(now-lastPanelRender<1700||now-lastInteraction<700||$("sheetBody").contains(document.activeElement)&&document.activeElement.matches("input,textarea,select")))return;
   lastPanelRender=now;
   const stage=CONTENT.stages.find(x=>x.id===currentStage);
-  const children=currentStage==="organizer"?organizerItems:stage.children;
+  const children=currentStage==="organizer"?organizerItems:currentStage==="automation"?["auto-existence","auto-time","auto-universe","auto-life"]:stage.children;
   $("childTabs").innerHTML=children.map(id=>`<button data-child="${id}" class="${currentSub===id?"active":""}" aria-pressed="${currentSub===id}">${childNames[id]}</button>`).join("");
-  $("sheetHeading").textContent=(currentStage==="organizer"?"管理":"強化")+" / "+childNames[currentSub];
+  $("sheetHeading").textContent=(currentStage==="organizer"?"管理":currentStage==="automation"?"自動化":"強化")+" / "+childNames[currentSub];
   $("purchaseToolbar").hidden=currentStage!=="existence"||!["moment","sources"].includes(currentSub);
   const cycle=$("purchaseCycle");
   const buyTabs=currentStage==="existence"&&["moment","sources"].includes(currentSub);
@@ -845,6 +913,7 @@ function renderPanel(force=false){
     life:()=>'<div class="empty-state"><div class="glyph">◌</div><p>未知の変化から、生命を認識する。</p><p>まだ生命を観測できません。</p></div>',
     boost:boostHTML,achievements:achievementHTML,statistics:statisticsHTML,settings:settingsHTML,backup:backupHTML,spec:specHTML,proposals:proposalsHTML,lab:labHTML,priceLab:priceLabHTML,guide:guideHTML,
     chronicle:chronicleHTML,
+    "auto-existence":automationHTML,"auto-time":automationHTML,"auto-universe":automationHTML,"auto-life":automationHTML,
     collection:()=>conceptHTML()};
   body.innerHTML=(map[currentSub]||guideHTML)();
 
@@ -972,7 +1041,7 @@ function birth(){
 }
 function handleTap(x,y){
   if(readOnly||store.blocked||busyBirth||!state)return;
-  if(!["existence","organizer"].includes(currentStage)&&state.intro.complete)return;
+  if(!["existence","organizer","automation"].includes(currentStage)&&state.intro.complete)return;
   checkpoint();const result=G.tap(state);wave(x,y,result.gain,result);
   if(state.settings.hapticTap && typeof navigator.vibrate==="function"){
     try{navigator.vibrate(8);}catch{/* 端末非対応時もゲーム処理を妨げない */}
@@ -1071,6 +1140,7 @@ function download(text,name,type="application/json"){
 }
 async function dispatchAction(action){
   if(action==="organizer"){openOrganizer();return;}
+  if(action==="open-automation"){openAutomation();return;}
   if(action==="open-common-info"){
     stopHoldPurchase(null,true);
     infoPanelOpen=true;
@@ -1274,6 +1344,7 @@ document.addEventListener("click",async e=>{
     if(b.dataset.stage){setStage(b.dataset.stage);return;}
     if(b.dataset.child){
       stopHoldPurchase(null,true);currentSub=b.dataset.child;
+      if(currentStage==="automation"&&currentSub.startsWith("auto-")&&!readOnly&&!store.blocked){state.settings.automationStage=currentSub.slice(5);save();}
       if(currentStage==="existence"&&["moment","sources","engraving"].includes(currentSub)&&!readOnly&&!store.blocked){
         state.settings.existenceLastTab=currentSub;save();
       }
@@ -1450,6 +1521,27 @@ document.addEventListener("change",async e=>{
   }
   if(readOnly){render(true);return;}
   checkpoint();
+  if(t.dataset.autoBuyKind!==undefined){
+    const kind=t.dataset.autoBuyKind,field=t.dataset.autoField;
+    if(!["enabled","priority","intervalSeconds"].includes(field))return;
+    const value=field==="enabled"?t.checked:field==="intervalSeconds"?Number(t.value):t.value;
+    resultDone(G.configureAutoPurchase(state,kind,{[field]:value}));return;
+  }
+  if(t.dataset.autoConverge!==undefined){
+    const field=t.dataset.autoConverge;
+    if(!["enabled","mode","intervalSeconds","intervalMinutes","targetRunOrbs","minReward","minSteps"].includes(field))return;
+    const value=field==="enabled"?t.checked:
+      ["intervalSeconds","intervalMinutes","minSteps"].includes(field)?Number(t.value):t.value;
+    const result=G.configureAutoConvergence(state,{[field]:value},Date.now());
+    resultDone(result);return;
+  }
+  if(t.hasAttribute("data-auto-planet-enabled")){
+    if(t.checked===state.universe.autoGenerate)return;
+    resultDone(G.toggleAutoPlanet(state));return;
+  }
+  if(t.hasAttribute("data-auto-planet-reserve")){
+    resultDone(G.setAutoPlanetReserve(state,Number(t.value)));return;
+  }
   if(t.dataset.momentFilter!==undefined){
     state.settings.momentFilter=t.value;save();renderPanel(true);return;
   }
