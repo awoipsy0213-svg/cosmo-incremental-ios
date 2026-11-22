@@ -28,12 +28,22 @@ const store=new SaveStore(storage,mode,globalThis.crypto?.randomUUID?.()||"tab-"
 let state,readOnly=false,storageUnavailable=false,lockRelease=null;
 let currentStage="existence",currentSub="moment",sheetState="closed",infoPanelOpen=false;
 let lastFrame=Date.now(),hiddenAt=null,lastSavedAt=0,lastPanelRender=0,lastInteraction=0;
-let toastTimer,importDraft="",offlineReport=null,updateWorker=null,confirmedAction=null;
+let toastTimer,noticeFadeTimer,noticeDismissTimer,importDraft="",offlineReport=null,updateWorker=null,confirmedAction=null;
 let interferencePartnerId=null,bulkScope="all",bulkPurchasePending=false;
 let navDigest="",notice="",busyBirth=false;
 const BOOST_QUICK_ICON=`<svg class="boost-quick-symbol" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M13 2 5 13h6l-1 9 9-12h-6V2z" fill="currentColor"/></svg>`;
+const HOLD_LEVEL_LIMIT=3000; // BOOST-Q673/674: one continuous long press, total acquired Lv
 let holdPurchase=null,skipClickFor=null;
 const f=(n,p=2)=>formatAmount(n,p,state?.settings.notation);
+// Display-only orb integer formatting. Fractional balance and purchase prices never change.
+// Specific UI rounding policy remains unresolved: truncation is provisional.
+const orbDisplay=value=>{
+  const n=A(value);
+  if(n.m===0||n.e<0)return "0";
+  if(n.e<6)return Math.trunc(n.toNumber()).toLocaleString("ja-JP");
+  const significant=Math.trunc(n.m*100);
+  return String(significant)+"e"+(n.e-2>=0?"+":"")+(n.e-2);
+};
 const duration=seconds=>{
   seconds=Math.max(0,Math.floor(seconds));
   const h=Math.floor(seconds/3600),m=Math.floor(seconds%3600/60),s=seconds%60;
@@ -43,8 +53,16 @@ function toast(message){
   $("toast").textContent=message;$("toast").classList.add("show");
   clearTimeout(toastTimer);toastTimer=setTimeout(()=>$("toast").classList.remove("show"),3500);
 }
-function showNotice(message){
-  notice=message;$("noticeText").textContent=message;$("noticeBar").hidden=!message;
+function showNotice(message,{autoDismiss=false}={}){
+  clearTimeout(noticeFadeTimer);clearTimeout(noticeDismissTimer);
+  const bar=$("noticeBar");bar.classList.remove("is-fading");
+  notice=message;$("noticeText").textContent=message;bar.hidden=!message;
+  // Informational login/offline reward finishes its visual fade at 3 seconds.
+  // Storage, migration and read-only errors stay visible until manually closed.
+  if(message&&autoDismiss){
+    noticeFadeTimer=setTimeout(()=>bar.classList.add("is-fading"),2700);
+    noticeDismissTimer=setTimeout(()=>{if(notice===message)showNotice("");},3000);
+  }
 }
 async function ask(title,text,yes="実行する"){
   if(confirmedAction)return false;
@@ -106,7 +124,7 @@ function reportOffline(report){
   if(report.elapsed<10)return;
   offlineReport=report;
   if(state.settings.showOffline)showNotice(`復帰：ステージ進行・資源獲得なし / BOOST +${duration(Math.max(0,report.boost))}`+
-    (report.boostDiscarded>0?` / 容量超過破棄 ${duration(report.boostDiscarded)}`:"")+"。オンライン中のBOOST新規獲得はありません。");
+    (report.boostDiscarded>0?` / 容量超過破棄 ${duration(report.boostDiscarded)}`:"")+"。オンライン中のBOOST新規獲得はありません。",{autoDismiss:true});
 }
 // BOOST-Q625: offline BOOST credit must be durably saved and read-back
 // verified before success is visible. Failed primary saves never claim a grant.
@@ -183,22 +201,18 @@ function renderWorld(){
   $("commonInfoBar").hidden=!showShared;
   document.body.classList.toggle("has-common-info",showShared);
   if(showShared){
+    const timeSpeed=state.boost.active&&state.boost.seconds>0?CONFIG.provisional.boost.multiplier:1;
     const metrics=[
-      ["existence",G.existence(state),"存在",""],
-      ["orbs",state.orbs,"オーブ",""],
-      ["speed",rate,"生成/秒"," オーブ/秒"],
-      ["tap",tap,"干渉/回"," オーブ"],
-      ["convergences",state.convergenceCount,"収束"," 回"],
-      ["boost",state.boost.seconds,"BOOST"," 秒"]
+      ["existence",formatScientific3(G.existence(state)),"存在",""],
+      ["timeSpeed","×"+timeSpeed,"時間の経過速度","（現行の時間倍率は試験値）"]
     ];
-    for(const [id,value,label,unit] of metrics){
-      const node=document.querySelector(`[data-common-value="${id}"]`);
+    for(const [id,formatted,label,unit] of metrics){
+      const node=document.querySelector('[data-common-value="'+id+'"]');
       if(!node)continue;
-      const formatted=id==="convergences"?Number(value).toLocaleString("ja-JP"):formatScientific3(value);
       node.textContent=formatted;
       const button=node.closest("button");
-      button.title=`${label}：${f(value,3)}${unit}`;
-      button.setAttribute("aria-label",`${label} ${formatted}${unit}。詳細を開く`);
+      button.title=label+"："+formatted+unit;
+      button.setAttribute("aria-label",label+" "+formatted+unit+"。詳細を開く");
     }
   }
   const combo=G.momentComboView(state);
@@ -209,8 +223,8 @@ function renderWorld(){
   const storedHtml=A(combo.stored).cmp(0)>0?`<span class="kw-stored">蓄積 ${f(combo.stored)}</span>`:"";
   $("convergeMain").hidden=!state.intro.complete||!["existence","organizer"].includes(currentStage);
   if(["existence","organizer"].includes(currentStage)){
-    $("primaryValue").textContent=f(state.orbs,3);
-    $("worldDetails").innerHTML=`<span class="wallet">オーブ <b>${f(state.orbs)}</b></span><span>干渉 +${f(tap)} / 源 +${f(rate)} 毎秒</span>${comboHtml}${storedHtml}`;
+    $("primaryValue").textContent=orbDisplay(state.orbs);
+    $("worldDetails").innerHTML=`<span class="wallet">オーブ <b>${orbDisplay(state.orbs)}</b></span><span>干渉 +${f(tap)} / 源 +${f(rate)} 毎秒</span>${comboHtml}${storedHtml}`;
     $("worldHint").textContent="タップして理を観測";
     const q=G.convergenceQuote(state);
     $("convergeMain").disabled=!q.steps||readOnly;
@@ -246,7 +260,7 @@ function renderWorld(){
   ]:[
     ["源の生成",f(rate)+"/秒"],
     ["干渉",f(tap)+"/回"],
-    ["累計オーブ",f(state.totalOrbs)],
+    ["累計オーブ",orbDisplay(state.totalOrbs)],
     ["コンボ",combo.combo.toLocaleString("ja-JP")]
   ];
   $("stageResourceList").innerHTML=stageRows.map(([label,value])=>`<div class="stage-stat"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`).join("");
@@ -573,7 +587,7 @@ function achievementHTML(){
   return `<p class="panel-intro">達成条件が決まっているものを実装。条件未定の実績に仮の倍率報酬は付けません。</p><div class="kw-list">${CONTENT.achievements.map(x=>`<div class="kw-card"><div class="card-top"><strong>${state.achievements.includes(x.id)?"✦":"◇"} ${x.name}</strong><span class="badge">${x.status}</span></div><p>${x.description}</p><small>${state.achievements.includes(x.id)?"記録済み":x.id==="engravingObservation"?"達成条件 ？？？":"未達成"}</small></div>`).join("")}</div>`;
 }
 function statisticsHTML(){
-  const values=[["タップ入力",state.counters.taps.toLocaleString("ja-JP")],["収束",state.convergenceCount.toLocaleString("ja-JP")+"回"],["累計オーブ",f(state.totalOrbs)],["余剰存在",f(state.surplusExistence,3)],["源総Lv.",Object.values(state.sources).reduce((v,x)=>v+x.level,0).toLocaleString("ja-JP")],["概念形成",Object.values(state.time.concepts).filter(x=>x>0).length+" / 77"],["オンライン",duration(state.counters.onlineSeconds)],["オフライン",duration(state.counters.offlineSeconds)]];
+  const values=[["タップ入力",state.counters.taps.toLocaleString("ja-JP")],["収束",state.convergenceCount.toLocaleString("ja-JP")+"回"],["累計オーブ",orbDisplay(state.totalOrbs)],["余剰存在",f(state.surplusExistence,3)],["源総Lv.",Object.values(state.sources).reduce((v,x)=>v+x.level,0).toLocaleString("ja-JP")],["概念形成",Object.values(state.time.concepts).filter(x=>x>0).length+" / 77"],["オンライン",duration(state.counters.onlineSeconds)],["オフライン",duration(state.counters.offlineSeconds)]];
   const t=state.telemetry,rows=consecutiveOrbGains(t);
   const logarithmic=v=>{const a=A(v);return a.m>0?Math.max(0,a.e+Math.log10(a.m)+1):0;};
   const max=Math.max(1,...rows.filter(r=>r.gain!==null).map(r=>logarithmic(r.gain)));
@@ -590,7 +604,7 @@ function statisticsHTML(){
     <h3>オフライン精算履歴 · ${t.offlineReports.length}/10件</h3>
     ${t.offlineReports.length?`<div class="kw-list">${[...t.offlineReports].reverse().map(r=>`<div class="kw-card telemetry-row">
       <small>${new Date(r.at).toLocaleString("ja-JP")} · 離席 ${duration(r.seconds)}${r.effectiveSeconds>0?" · 旧版有効 "+duration(r.effectiveSeconds):" · ステージ停止"}</small>
-      <strong>BOOST獲得 ${duration(r.boostEarned)}</strong><small>${r.effectiveSeconds>0||A(r.orbs).cmp(0)>0?"旧版オーブ +"+f(r.orbs):"ステージ獲得 0"} · 超過破棄 ${duration(r.boostDiscarded||0)}</small></div>`).join("")}</div>`:"<p class='tiny muted'>まだ記録がありません。10秒未満の離席でもBOOST獲得を精算し、通知・履歴だけ省略します。</p>"}
+      <strong>BOOST獲得 ${duration(r.boostEarned)}</strong><small>${r.effectiveSeconds>0||A(r.orbs).cmp(0)>0?"旧版オーブ +"+orbDisplay(r.orbs):"ステージ獲得 0"} · 超過破棄 ${duration(r.boostDiscarded||0)}</small></div>`).join("")}</div>`:"<p class='tiny muted'>まだ記録がありません。10秒未満の離席でもBOOST獲得を精算し、通知・履歴だけ省略します。</p>"}
     <h3>収束履歴 · ${t.convergences.length}/20件</h3>
     ${t.convergences.length?`<div class="kw-list">${[...t.convergences].reverse().map(r=>`<div class="kw-card telemetry-row">
       <small>${new Date(r.at).toLocaleString("ja-JP")} · 収束 ${r.steps.toLocaleString("ja-JP")}段階</small>
@@ -629,7 +643,7 @@ function backupHTML(){
   <h3>保存履歴 · 候補を比較して選択</h3>
   <div class="kw-card backup-comparison"><strong>現在の主セーブ</strong>
   ${store.blocked?"<small>読み込み不可・原本保護中。仮の初期状態を比較対象にしません。</small>":
-    `<small>余剰存在 ${f(state.surplusExistence,3)} · オーブ ${f(state.orbs)} · 収束 ${state.convergenceCount}回</small>
+    `<small>余剰存在 ${f(state.surplusExistence,3)} · オーブ ${orbDisplay(state.orbs)} · 収束 ${state.convergenceCount}回</small>
     <small>源Lv合計 ${Object.values(state.sources).reduce((n,v)=>n+v.level,0).toLocaleString("ja-JP")} · 概念 ${Object.values(state.time.concepts).filter(v=>v>0).length}/77 · 惑星 ${state.universe.planets.length}個</small>`}
   </div>
   ${bs.length?bs.map((x,i)=>{
@@ -638,7 +652,7 @@ function backupHTML(){
     return `<div class="kw-card backup-comparison">
       <div class="card-top"><strong>履歴 ${i+1} · ${new Date(x.at).toLocaleString("ja-JP")}</strong>
         <span class="badge ${candidate?"confirmed":"pending"}">${candidate?"検証済":"破損"}</span></div>
-      ${candidate?`<small>余剰存在 ${f(candidate.surplusExistence,3)} · オーブ ${f(candidate.orbs)} · 収束 ${candidate.convergenceCount}回</small>
+      ${candidate?`<small>余剰存在 ${f(candidate.surplusExistence,3)} · オーブ ${orbDisplay(candidate.orbs)} · 収束 ${candidate.convergenceCount}回</small>
       <small>源Lv合計 ${Object.values(candidate.sources).reduce((n,v)=>n+v.level,0).toLocaleString("ja-JP")} · 概念 ${Object.values(candidate.time.concepts).filter(v=>v>0).length}/77 · 惑星 ${candidate.universe.planets.length}個</small>
       <small>保存世代 ${candidate.revision} · データ形式 ${candidate.schemaVersion}</small>`:
       "<small>この履歴は検証に失敗しました。復元対象にはできません。元データは変更しません。</small>"}
@@ -724,19 +738,12 @@ function labHTML(){
 }
 
 function commonInfoHTML(){
-  const metrics=[
-    ["存在量",G.existence(state),""],
-    ["オーブ",state.orbs,""],
-    ["生成速度",G.production(state)," オーブ/秒"],
-    ["干渉",G.tapPower(state)," オーブ/回"],
-    ["収束回数",state.convergenceCount," 回"],
-    ["BOOST残量",state.boost.seconds," 秒"]
-  ];
-  return `<section class="common-info-detail" aria-label="全ステージ共通情報の詳細">
-    <p class="panel-intro">共通情報バーの数値は科学表記・有効数字3桁です。各ステージ固有の資源と操作はステージ画面に表示します。</p>
-    ${metrics.map(([label,value,unit])=>`<div class="kw-card"><span>${esc(label)}</span><strong>${esc(label==="収束回数"?Number(value).toLocaleString("ja-JP"):formatScientific3(value))}${esc(unit)}</strong></div>`).join("")}
-    <button type="button" class="wide-button" data-action="return-stage-panel">ステージ操作に戻る</button>
-  </section>`;
+  const timeSpeed=state.boost.active&&state.boost.seconds>0?CONFIG.provisional.boost.multiplier:1;
+  return '<section class="common-info-detail" aria-label="全ステージ共通情報の詳細">' +
+    '<p class="panel-intro">共通表示は確定済みの2項目のみ。残り4項目は未決定。オーブなどは各ステージ内、BOOSTの操作・残量は左下から確認できます。</p>' +
+    '<div class="kw-card"><span>存在</span><strong>'+esc(formatScientific3(G.existence(state)))+'</strong></div>' +
+    '<div class="kw-card"><span>時間の経過速度</span><strong>×'+esc(timeSpeed)+'</strong><small>現行の時間×2と消費式は試験値です。</small></div>' +
+    '<button type="button" class="wide-button" data-action="return-stage-panel">ステージ操作に戻る</button></section>';
 }
 function renderPanel(force=false){
   if(sheetState==="closed")return;
@@ -980,9 +987,15 @@ function buyWhileHeld(h){
   if(h!==holdPurchase||readOnly||store.blocked||document.hidden||!state?.settings.holdToBuy)return;
   if(!["1","10"].includes(state.purchaseMode)){stopHoldPurchase();return;}
   checkpoint();
+  // A single hold operation cannot exceed 3,000 purchased levels, including ×10.
+  if(h.levelsPurchased>=HOLD_LEVEL_LIMIT){stopHoldPurchase();return;}
+  const quote=G.purchaseQuote(state,h.kind,h.id);
+  if(!quote.enabled)return;
+  if(quote.count>HOLD_LEVEL_LIMIT-h.levelsPurchased){stopHoldPurchase();return;}
   const result=G.buy(state,h.kind,h.id);
   if(!result.ok)return;
-  h.bought++;
+  h.bought++;h.levelsPurchased+=result.count;
+  if(h.levelsPurchased>=HOLD_LEVEL_LIMIT){stopHoldPurchase();toast("長押し1操作の上限（合計3,000Lv）に到達しました");return;}
   if(Date.now()-h.lastSave>950){save();h.lastSave=Date.now();}
   const node=$("sheetBody").querySelector(h.kind==="source"?`[data-source-level="${h.id}"]`:`[data-moment-level="${h.id}"]`);
   if(node){
@@ -996,7 +1009,7 @@ document.addEventListener("pointerdown",e=>{
   if(!b||b.disabled||!state?.settings.holdToBuy||readOnly||store.blocked||holdPurchase||!["1","10"].includes(state.purchaseMode))return;
   if(e.pointerType==="mouse"&&e.button!==0)return;
   const h={button:b,kind:b.dataset.purchase,id:b.dataset.id,pointerId:e.pointerId,
-    x:e.clientX,y:e.clientY,started:false,bought:0,timer:null,repeat:null,lastSave:Date.now()};
+    x:e.clientX,y:e.clientY,started:false,bought:0,levelsPurchased:0,timer:null,repeat:null,lastSave:Date.now()};
   holdPurchase=h;
   h.timer=setTimeout(()=>{
     if(holdPurchase!==h)return;
@@ -1421,7 +1434,7 @@ async function setupPWA(){
 await acquireLock();
 const loaded=store.load();
 state=loaded.state;storageUnavailable=!!loaded.storageUnavailable;
-if(loaded.warning)showNotice(loaded.warning);
+if(loaded.warning)showNotice(loaded.warning,{autoDismiss:!loaded.blocked&&!loaded.storageUnavailable});
 if(readOnly)showNotice("ほかのタブがプレイ中のため閲覧専用です。そのタブを閉じてから再読み込みしてください。");
 if(!readOnly&&!store.blocked){
   settleOfflineAndPersist(Date.now(),{snapshot:true});
