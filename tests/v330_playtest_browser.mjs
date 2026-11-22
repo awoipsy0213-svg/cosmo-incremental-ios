@@ -65,8 +65,7 @@ try{
   const upgrade=page.locator('button[data-engraving-trial-upgrade="ENG-01"]');
   assert.equal(await upgrade.isDisabled(),false);
   await upgrade.click();
-  await page.locator("#confirmDialog").waitFor({state:"visible"});
-  await page.locator("#confirmYes").click();
+  assert.equal(await page.locator("#confirmDialog").evaluate(el=>el.open),false,"engraving upgrades are one tap by default");
   await page.waitForFunction(()=>window.KOTOWARI_DEBUG.state().engraving.trialLevels["ENG-01"]===1);
   const eng=await page.evaluate(()=>window.KOTOWARI_DEBUG.state());
   assert.equal(eng.engraving.levels["ENG-01"],2);
@@ -74,8 +73,7 @@ try{
   await page.locator('[data-organizer="boost"]').click();
   assert.equal(await page.locator('#sheetBody button[data-boost-trial-buy]').count(),5);
   await page.locator('button[data-boost-trial-buy="0"]').click();
-  await page.locator("#confirmDialog").waitFor({state:"visible"});
-  await page.locator("#confirmYes").click();
+  assert.equal(await page.locator("#confirmDialog").evaluate(el=>el.open),false,"BOOST upgrades are one tap by default");
   await page.waitForFunction(()=>window.KOTOWARI_DEBUG.state().boost.trialLevels[0]===1);
   const earnedRate=await page.evaluate(async()=>{
    const G=await import("./game.mjs");return G.boostValues(window.KOTOWARI_DEBUG.state()).offlineRate*3600;
