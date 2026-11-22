@@ -364,52 +364,58 @@ function momentHTML(){
   </div>`;
 }
 function sourcesHTML(){
-  const ms=CONFIG.confirmed.sourceMilestones,cycle=G.sourceCycleStatus(state);
-  const resonance=G.sourceResonanceProgress(state);
-  const resonanceValue=state.moment.setsuna23>0?G.momentEffects(state)[22].current:"未購入";
-  const next= resonance.next?`${resonance.next.id} Lv.${resonance.next.level}（残り${resonance.next.remaining}Lv）`:"全節目到達";
-  return `<details class="source-summary"><summary>源の共振 ${resonance.completed}/${resonance.total} · 一巡 ${cycle.reached}/${cycle.total}</summary><small>次の節目：${esc(next)} · ${esc(resonanceValue)} · ＋循環${cycle.unlocked?"解放":"未解放"}</small></details><div class="row-grid compact-upgrades">${CONTENT.sources.map((x,i)=>{
-    const v=state.sources[x.id],done=ms.filter(m=>m<=v.level).length,next=ms.find(m=>m>v.level);
-    return `<article class="kw-card source-card purchase-card" data-source-entry="${x.id}" data-purchase-card><div class="card-top"><strong>${String(i+1).padStart(2,"0")} ${esc(x.name)} ＋${v.plus.toLocaleString("ja-JP")}</strong><small data-source-level="${x.id}">Lv.${v.level.toLocaleString("ja-JP")}</small></div>
-    <button class="more-button source-detail-button" data-source-detail="${x.id}" aria-label="${esc(x.name)}の詳細">⋯</button>
-    <div class="source-rates" title="1Lv増加量 / この源の合計秒間生産量"><span data-source-next="${x.id}">次+${o(G.sourceNextGain(state,x.id))}/秒</span><span data-source-total="${x.id}">計 ${o(G.sourceProduction(state,x.id))}/秒</span></div>
-    ${cardQuote("source",x.id)}
-    ${v.level===1000000?`<button class="wide-button" data-breakthrough="${x.id}" ${!cycle.unlocked?"disabled":""}>＋循環 ${cycle.unlocked?"・Lv1から再開":"・全30源一巡まで残り"+cycle.remaining+"種"}</button>`:""}</article>`;
+  const cycle=G.sourceCycleStatus(state),resonance=G.sourceResonanceProgress(state);
+  return `<button type="button" class="source-summary" data-source-summary aria-label="源の共振と一巡の詳細" title="源の共振と一巡の詳細">源の共振 ${resonance.completed}/${resonance.total} · 一巡 ${cycle.reached}/${cycle.total} · ⋯</button>
+  <div class="row-grid compact-upgrades">${CONTENT.sources.map((x,i)=>{
+    const v=state.sources[x.id];
+    const cycleReady=v.level===1000000&&cycle.unlocked&&!readOnly&&!store.blocked;
+    return `<article class="kw-card source-card purchase-card" data-source-entry="${x.id}" data-purchase-card>
+      <div class="card-top"><strong title="${esc(x.name)}">${String(i+1).padStart(2,"0")} ${esc(x.name)} ＋${v.plus.toLocaleString("ja-JP")}</strong><small data-source-level="${x.id}">Lv.${v.level.toLocaleString("ja-JP")}</small></div>
+      <button type="button" class="more-button source-detail-button" data-source-detail="${x.id}" aria-label="${esc(x.name)}の詳細" title="効果の詳細">⋯</button>
+      <button type="button" class="source-cycle-button" data-breakthrough="${x.id}" ${!cycleReady?"disabled":""} aria-label="${esc(x.name)}の＋循環" title="${cycleReady?"＋循環を実行":v.level===1000000?"全30源一巡まで未解放":"Lv.1,000,000で＋循環が解放"}">↻</button>
+      <div class="source-rates" title="1Lv増加量 / この源の合計秒間生産量"><span data-source-next="${x.id}">次+${o(G.sourceNextGain(state,x.id))}/秒</span><span data-source-total="${x.id}">計 ${o(G.sourceProduction(state,x.id))}/秒</span></div>
+      ${cardQuote("source",x.id)}
+    </article>`;
   }).join("")}</div>`;
 }
 function engravingHTML(){
   const e=state.engraving,catalogue=engravingCatalogue();
   const count=tier=>catalogue.filter(x=>x.tier===tier&&e.owned.includes(x.id)).length;
   const options=["0.025","0.05","0.1","0.5","1"];
+  const autoControls=e.owned.includes(ENGRAVING_AUTO_CONVERGE_ID)?`<div class="kw-card engraving-auto">
+    <div class="card-top"><strong>ENG-24 自動収束</strong><span class="badge ${e.autoConverge.enabled?"confirmed":""}">${e.autoConverge.enabled?"ON":"OFF"}</span></div>
+    <small>取得済みかつONのとき動作。最短60秒間隔・オフライン実行なし。</small>
+    <label class="kw-row">最低獲得存在
+      <select id="autoConvergeThreshold" class="input-select" aria-label="自動収束の最低報酬">
+        ${[...new Set([...options,e.autoConverge.minReward])].map(v=>`<option value="${v}" ${A(v).cmp(e.autoConverge.minReward)===0?"selected":""}>${v}</option>`).join("")}
+      </select>
+    </label>
+    <button class="wide-button" data-action="toggle-auto-converge">${e.autoConverge.enabled?"自動収束を停止":"自動収束を開始"}</button>
+  </div>`:"";
   return `<div class="kw-card engraving-overview">
-      <div class="card-top"><strong>余剰存在 ${f(state.surplusExistence,3)}</strong><span class="badge confirmed">最初の存在1を保護</span></div>
-      <small>取得済み ${e.owned.length} / 30 · 収束 ${state.convergenceCount} 回 · 取得済みの刻印は収束後も保持</small>
-
-    </div>
-    ${e.owned.includes(ENGRAVING_AUTO_CONVERGE_ID)?`<div class="kw-card engraving-auto">
-      <div class="card-top"><strong>ENG-24 自動収束</strong><span class="badge ${e.autoConverge.enabled?"confirmed":""}">${e.autoConverge.enabled?"ON":"OFF"}</span></div>
-      <small>取得済みかつONのとき動作。最短60秒間隔・オフライン実行なし。</small>
-      <label class="kw-row">最低獲得存在
-        <select id="autoConvergeThreshold" class="input-select" aria-label="自動収束の最低報酬">
-          ${[...new Set([...options,e.autoConverge.minReward])].map(v=>`<option value="${v}" ${A(v).cmp(e.autoConverge.minReward)===0?"selected":""}>${v}</option>`).join("")}
-        </select>
-      </label>
-      <button class="wide-button" data-action="toggle-auto-converge">${e.autoConverge.enabled?"自動収束を停止":"自動収束を開始"}</button>
-    </div>`:""}
-    ${[1,2,3].map(tier=>`<h3>刻印 ${["初級","中級","上級"][tier-1]} · 初回費用 ${["0.005","0.025","0.125"][tier-1]} 存在 / 取得 ${count(tier)}/10</h3>
-      <div class="row-grid engraving-list">
-      ${catalogue.filter(x=>x.tier===tier).map(item=>{
-        const owned=e.owned.includes(item.id),level=e.levels?.[item.id],q=engravingPurchaseQuote(state,item.id),upgrade=G.engravingTrialUpgradeQuote(state,item.id),extra=e.trialLevels?.[item.id]||0;
-        const levelText=!owned?"未取得":level===undefined?"旧取得済・Lv換算保留":"Lv."+level.toLocaleString("ja-JP");
-        return `<article class="kw-card engraving-card">
-          <div class="card-top"><strong>${esc(item.id)}</strong><span class="badge ${owned?"confirmed":""}">${esc(levelText)}</span></div>
-          <details class="tiny"><summary>効果詳細</summary><small>${esc(item.description)}</small></details>
-          <small>${owned?"追加強化 +"+extra+"（共通補正は試験値）":"初回費用 "+item.cost+" 存在"} · ${item.status==="implemented"?"固有効果利用可能":"固有効果は照合待ち"}</small>
-          ${owned?`<button class="wide-button" data-engraving-trial-upgrade="${item.id}" ${!upgrade.ok||readOnly||store.blocked?"disabled":""}>${upgrade.ok?"追加Lv+"+(extra+1)+" · "+f(upgrade.price,3)+" 存在（試験）":esc(upgrade.reason)}</button>`:`<button class="wide-button" data-engraving-buy="${item.id}" ${!q.ok||readOnly||store.blocked?"disabled":""}>${q.ok?"初回購入":q.reason}</button>`}
-        </article>`;
-      }).join("")}</div>`).join("")}
-    ${mode==="lab"&&e.active.length?'<p class="tiny muted">旧検証版の刻印実験データは独立したlabデータのまま保護しています。</p>':""}
-    <details class="tiny muted"><summary>試験値と旧セーブについて</summary><p>未確定の刻印固有効果・旧Lv換算と旧装備履歴は別管理し、バックアップに保護します。</p></details>`;
+    <div class="card-top"><strong>余剰存在 ${f(state.surplusExistence,3)}</strong><span class="badge confirmed">最初の存在1を保護</span></div>
+    <small>取得済み ${e.owned.length} / 30 · 収束 ${state.convergenceCount} 回 · 取得済みの刻印は収束後も保持</small>
+  </div>
+  ${[1,2,3].map(tier=>`<h3 class="engraving-tier-title">刻印 ${["初級","中級","上級"][tier-1]} · 初回費用 ${["0.005","0.025","0.125"][tier-1]} 存在 / 取得 ${count(tier)}/10</h3>
+    <div class="row-grid engraving-list">
+    ${catalogue.filter(x=>x.tier===tier).map(item=>{
+      const owned=e.owned.includes(item.id),level=e.levels?.[item.id],q=engravingPurchaseQuote(state,item.id),upgrade=G.engravingTrialUpgradeQuote(state,item.id);
+      const levelText=!owned?"未取得":level===undefined?"旧取得済・Lv換算保留":"Lv."+level.toLocaleString("ja-JP");
+      const price=owned?upgrade.price:q.price??item.cost;
+      const shownPrice=price===undefined||price===null?"—":f(price,3);
+      const button=owned?`<button class="wide-button engraving-purchase-button" data-engraving-trial-upgrade="${item.id}" ${!upgrade.ok||readOnly||store.blocked?"disabled":""} aria-label="${esc(item.id+"を追加強化")}" title="${esc(upgrade.reason||"追加強化 "+shownPrice+" 存在")}">購入</button>`:
+        `<button class="wide-button engraving-purchase-button" data-engraving-buy="${item.id}" ${!q.ok||readOnly||store.blocked?"disabled":""} aria-label="${esc(item.id+"を初回購入")}" title="${esc(q.reason||"初回購入 "+shownPrice+" 存在")}">購入</button>`;
+      return `<article class="kw-card engraving-card" data-engraving-entry="${item.id}">
+        <div class="card-top"><strong title="${esc(item.name)}">${esc(item.id)}</strong><span class="badge ${owned?"confirmed":""}" title="${esc(levelText)}">${esc(levelText)}</span></div>
+        <button type="button" class="engraving-detail-button" data-engraving-detail="${item.id}" aria-label="${esc(item.id)}の効果詳細" title="効果の詳細">⋯</button>
+        <small class="engraving-effect" title="${esc(item.description)}">${esc(item.description)}</small>
+        <span class="engraving-cost" title="${esc("費用 "+shownPrice+" 存在")}">費用 <strong>${esc(shownPrice)}</strong> 存在</span>
+        ${button}
+      </article>`;
+    }).join("")}</div>`).join("")}
+  ${autoControls}
+  ${mode==="lab"&&e.active.length?'<p class="tiny muted">旧検証版の刻印実験データは独立したlabデータのまま保護しています。</p>':""}
+  <details class="tiny muted"><summary>試験値と旧セーブについて</summary><p>未確定の刻印固有効果・旧Lv換算と旧装備履歴は別管理し、バックアップに保護します。</p></details>`;
 }
 function flowHTML(){
   const t=state.time;
