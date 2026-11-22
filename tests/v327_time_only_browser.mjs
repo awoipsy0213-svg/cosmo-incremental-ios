@@ -48,8 +48,8 @@ try{
   await page.locator('.app-top [data-action="organizer"]').click();
   await page.locator('[data-organizer="boost"]').click();
   const content=await page.locator("#sheetBody").textContent();
-  for(const x of ["正式5強化系統","BOOST基礎獲得速度","オフラインBOOST獲得倍率",
-     "BOOST容量","ゲーム内時間倍率","時間加速の消費効率","補償判定待ち",
+  for(const x of ["BOOST強化","BOOST基礎獲得速度","オフラインBOOST獲得倍率",
+     "BOOST容量","ゲーム内時間倍率","時間加速の消費効率",
      "旧BOOST残高を容量外で保護中","旧版の加速設定","旧強化Lv：3 / 2 / 1 / 0 / 0"]){
     assert.ok(content.includes(x),device+" missing "+x);
   }

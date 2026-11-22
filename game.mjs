@@ -27,7 +27,7 @@ const MOMENT_IDS=CONTENT.moment.map(x=>x.id);
 const freshMoment=()=>Object.fromEntries(MOMENT_IDS.map(id=>[id,0]));
 const add=(a,b)=>A(a).add(b).toString();
 const sub=(a,b)=>A(a).sub(b).toString();
-const unknown="仕様が未決定のため、通常プレイではまだ適用しません。";
+const unknown="今はこの力を使えません。";
 export function engravingPlaytestFactor(s){
   return A(1).add(A(engravingTrialTotal(s)).mul(ENGRAVING_TRIAL.sharedBonusPerExtraLevel));
 }
@@ -384,7 +384,7 @@ export function breakthrough(s,id) {
   x.plus++;x.level=1;
   // Keep source effects and cycle history. The PLUS production coefficient
   // remains unresolved in normal mode; never promote the lab's ×2 to official.
-  event(s,`${CONTENT.sources.find(x=>x.id===id).name} ＋${x.plus}：Lv.1へ戻した（生産倍率は未確定）`);
+  event(s,`${CONTENT.sources.find(x=>x.id===id).name} ＋${x.plus}：Lv.1から再び成長を始めた。`);
   return {ok:true,plus:x.plus,level:x.level};
 }
 export function convergenceQuote(s) {
@@ -869,7 +869,7 @@ export function buyEngraving(s,id) {
   s.surplusExistence=sub(s.surplusExistence,q.price);
   s.engraving.owned.push(id);
   s.engraving.levels??={};s.engraving.levels[id]=1;
-  event(s,`${id} ${ENGRAVING_EFFECTS[id]?.name||"刻印"} の初回購入を記録した。`);
+  event(s,`${ENGRAVING_EFFECTS[id]?.name||"刻印"}を取得した。`);
   return {ok:true,id,price:q.price};
 }
 export function buyEngravingTrialUpgrade(s,id){
@@ -883,7 +883,7 @@ export function buyEngravingTrialUpgrade(s,id){
   // An older unverified engraving first gains a verified Lv.1 here.
   if(s.engraving.levels[id]===undefined)s.engraving.levels[id]=1;
   else s.engraving.levels[id]++;
-  event(s,`${id} の追加強化＋${q.next}（暫定バランス）。`);
+  event(s,`${ENGRAVING_EFFECTS[id]?.name||"刻印"}がLv.${s.engraving.levels[id]}になった。`);
   return {ok:true,id,price:q.price,extraLevel:q.next};
 }
 // Historical equipped/draft arrays remain in saves verbatim. They no longer
@@ -909,7 +909,7 @@ export function configureAutoConvergence(s,{enabled,minReward,minSteps}={},now=D
   if(enabled!==undefined){
     if(typeof enabled!=="boolean")return {ok:false,reason:"設定が不正です"};
     if(enabled&&(!s.engraving.owned.includes(ENGRAVING_AUTO_CONVERGE_ID)))
-      return {ok:false,reason:"ENG-24の購入が必要です"};
+      return {ok:false,reason:"自動収束の刻印が必要です"};
     if(enabled&&!a.enabled)a.lastAt=now; // 60s safety interval after ON
     a.enabled=enabled;
   }
@@ -927,7 +927,7 @@ export function autoConvergenceTick(s,now=Date.now(),offline=false) {
   const result=converge(s);
   if(result.ok){
     s.engraving.autoConverge.lastAt=now;
-    event(s,"ENG-24により自動収束を実行した。",now);
+    event(s,"自動収束した。",now);
   }
   return result;
 }
@@ -959,11 +959,11 @@ export function boostValues(s) {
     timeMultiplier:CONFIG.provisional.boost.multiplier,consumptionFactor:1};
 }
 export function boostTrialPurchaseQuote(s,index){
-  if(s.mode!=="normal")return {ok:false,reason:"通常モードの試験強化です"};
+  if(s.mode!=="normal")return {ok:false,reason:"現在のモードでは購入できません"};
   const q=CONFIG.provisional.boostTrial,u=s.boost.trialLevels||[0,0,0,0,0];
   if(!Number.isInteger(index)||index<0||index>4)return {ok:false,reason:"強化IDが不正です"};
   const current=u[index];
-  if(current>=q.limits[index])return {ok:false,reason:"試験上限に到達しました",current};
+  if(current>=q.limits[index])return {ok:false,reason:"強化上限に達しました",current};
   const cost=Math.ceil(q.baseCosts[index]*q.growth**current);
   const enough=s.boost.seconds>=cost;
   return {ok:enough,index,current,next:current+1,cost,reason:enough?"":"BOOST残量が不足しています"};
@@ -975,7 +975,7 @@ export function buyBoostTrialUpgrade(s,index){
   s.boost.trialLevels[index]++;
   if(s.boost.seconds<1)s.boost.active=false;
   recordBoostAccounting(s,"upgrade",q.cost,Date.now(),"正式5系統・試験強化 "+index);
-  event(s,"BOOST試験強化："+index+" Lv."+q.next);
+  event(s,"BOOSTの"+["基礎獲得","オフライン獲得","容量","時間倍率","消費効率"][index]+"がLv."+q.next+"になった。");
   return {ok:true,...q};
 }
 export function labBoostUpgrade(s,index){
@@ -1318,7 +1318,7 @@ export function migrateLegacy(raw,now=Date.now(),boostRaw=null) {
     archived:["星屑","旧永続強化","旧増幅器","自動生成装置","惑星ランク・欠片","旧崩壊回数"],
     note:"旧版の数値を新しい存在値へ推測変換していません。旧キー・旧版プレイは残ります。"};
   if(Array.isArray(g.events))s.events=g.events.filter(x=>x&&Number.isFinite(x.at)&&typeof x.text==="string").slice(-100).map(x=>({at:x.at,text:"【旧版】"+x.text.slice(0,450)}));
-  event(s,"Ver.3.1へ安全に移行。対応が未決定の旧値は旧版に保管しています。",now);
+  event(s,"以前の進行データを引き継ぎました。",now);
   // Offline accounting uses new rules once, at load, not every refresh.
   s.lastWall=Math.min(now,Math.max(s.createdAt-31536000000,finite(g.lastSave,now)));
   return s;
