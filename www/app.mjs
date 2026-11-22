@@ -201,7 +201,7 @@ function renderWorld(){
   $("commonInfoBar").hidden=!showShared;
   document.body.classList.toggle("has-common-info",showShared);
   if(showShared){
-    const timeSpeed=state.boost.active&&state.boost.seconds>0?CONFIG.provisional.boost.multiplier:1;
+    const timeSpeed=state.boost.active&&state.boost.seconds>0?G.boostTimeMultiplier(state):1;
     const metrics=[
       ["existence",formatScientific3(G.existence(state)),"存在",""],
       ["timeSpeed","×"+timeSpeed,"時間の経過速度","（現行の時間倍率は試験値）"]
@@ -392,13 +392,13 @@ function engravingHTML(){
     ${[1,2,3].map(tier=>`<h3>刻印 ${["初級","中級","上級"][tier-1]} · 初回費用 ${["0.005","0.025","0.125"][tier-1]} 存在 / 取得 ${count(tier)}/10</h3>
       <div class="row-grid engraving-list">
       ${catalogue.filter(x=>x.tier===tier).map(item=>{
-        const owned=e.owned.includes(item.id),level=e.levels?.[item.id],q=engravingPurchaseQuote(state,item.id);
+        const owned=e.owned.includes(item.id),level=e.levels?.[item.id],q=engravingPurchaseQuote(state,item.id),upgrade=G.engravingTrialUpgradeQuote(state,item.id),extra=e.trialLevels?.[item.id]||0;
         const levelText=!owned?"未取得":level===undefined?"旧取得済・Lv換算保留":"Lv."+level.toLocaleString("ja-JP");
         return `<article class="kw-card engraving-card">
           <div class="card-top"><strong>${esc(item.id)}</strong><span class="badge ${owned?"confirmed":""}">${esc(levelText)}</span></div>
-          <small>${esc(item.description)}</small>
-          <small>${owned?"購入済み・常時有効":"初回費用 "+item.cost+" 存在"} · ${item.status==="implemented"?"効果利用可能":"効果は仕様照合待ち"}</small>
-          ${owned?'<button class="wide-button" disabled>次Lvの仕様確定待ち</button>':`<button class="wide-button" data-engraving-buy="${item.id}" ${!q.ok||readOnly||store.blocked?"disabled":""}>${q.ok?"初回購入":q.reason}</button>`}
+          <details class="tiny"><summary>効果詳細</summary><small>${esc(item.description)}</small></details>
+          <small>${owned?"追加強化 +"+extra+"（共通補正は試験値）":"初回費用 "+item.cost+" 存在"} · ${item.status==="implemented"?"固有効果利用可能":"固有効果は照合待ち"}</small>
+          ${owned?`<button class="wide-button" data-engraving-trial-upgrade="${item.id}" ${!upgrade.ok||readOnly||store.blocked?"disabled":""}>${upgrade.ok?"追加Lv+"+(extra+1)+" · "+f(upgrade.price,3)+" 存在（試験）":esc(upgrade.reason)}</button>`:`<button class="wide-button" data-engraving-buy="${item.id}" ${!q.ok||readOnly||store.blocked?"disabled":""}>${q.ok?"初回購入":q.reason}</button>`}
         </article>`;
       }).join("")}</div>`).join("")}
     ${mode==="lab"&&e.active.length?'<p class="tiny muted">旧検証版の刻印実験データは独立したlabデータのまま保護しています。</p>':""}
@@ -551,20 +551,39 @@ function boostHTML(){
     <p>Ver.3.26以降の記録：獲得 ${ledger.earned.toFixed(3)}秒／使用 ${ledger.spent.toFixed(3)}秒／旧検証強化購入 ${ledger.upgrade.toFixed(3)}秒／容量超過破棄 ${ledger.discarded.toFixed(3)}秒</p>
     <p class="tiny">旧版の取得・購入は遡及推計しません。未受取補償は金額未決定で自動計上・返還しません。詳細は直近記録のみ表示し、累積値は保存します。</p>
     ${items?`<ol>${items}</ol>`:"<p>まだ記録がありません。</p>"}</details>`;
+
   if(mode!=="lab"){
     const labels=["BOOST基礎獲得速度","オフラインBOOST獲得倍率","BOOST容量","ゲーム内時間倍率","時間加速の消費効率"];
-    return `<div class="kw-card boost-status-card"><div class="card-top"><strong data-boost-remaining>${duration(s.seconds)} / ${duration(v.capacity)}</strong><span class="badge" data-boost-state>${s.active?"加速中":"待機中"}</span></div>
+    const levels=s.trialLevels||[0,0,0,0,0],trialConfig=CONFIG.provisional.boostTrial;
+    const view=(i,b,lv)=>[
+      duration(CONFIG.confirmed.boostOfflineSecondsPerHour*(1+lv[0]*trialConfig.baseGainStep))+"/時",
+      "×"+(1+lv[1]*trialConfig.offlineGainStep).toFixed(2),
+      duration(b.capacity),
+      "×"+b.timeMultiplier,
+      "消費"+(b.consumptionFactor*100).toFixed(0)+"%"
+    ][i];
+    return `<div class="kw-card boost-status-card">
+      <div class="card-top"><strong data-boost-remaining>${duration(s.seconds)} / ${duration(v.capacity)}</strong><span class="badge" data-boost-state>${s.active?"加速中":"待機中"}</span></div>
       <div class="slim-progress"><i data-boost-progress style="width:${Math.min(100,100*s.seconds/v.capacity)}%"></i></div>
-      <p>現実のオフライン1時間につきBOOST15分を蓄積。オンライン新規獲得なし。</p>
-      <small data-boost-fill>${extraStored>0?"容量超過旧残高を保護中":`満タンまで ${duration(v.offlineRate>0?(v.capacity-s.seconds)/v.offlineRate:0)}（現実の離席時間）`}</small>
-      <button class="wide-button" data-action="toggle-boost" ${s.seconds<1&&!s.active?"disabled":""}>${s.active?"時間加速を停止":"時間×2をON（暫定）"}</button>
-      <p>現実1秒 → ゲーム内${CONFIG.provisional.boost.multiplier}秒（暫定の時間倍率）。オーブ・タップ・収束・資源への最終倍率はありません。</p>
-      <p class="tiny">オフラインは全ステージ停止・BOOSTだけ蓄積。オンライン中の新規獲得なし。現行×2と消費(m−1)は試験値であり正式な上限・料金・消費式ではありません。</p>${overCap}</div>
-      <h3>BOOST・正式5強化系統（費用・係数は未決定）</h3>
-      <div class="kw-list">${labels.map((label,i)=>`<div class="kw-card"><div class="card-top"><strong>${esc(label)}</strong><span class="badge pending">要確認</span></div>
-        <small>現在 ${i===0?duration(v.offlineRate*3600)+"/実時間1時間":i===1?"×1（初期）":i===2?duration(v.capacity):i===3?"×2（暫定）":"未確定"} · 強化費用 未確定</small>
-        <button class="wide-button" disabled>仕様確定後に解放</button></div>`).join("")}</div>
-      <p class="status-note">補償判定待ち：旧最終資源倍率強化や旧試験5系統の投資履歴を保存。金額・移行先は未決定なので補償は未付与です。${esc(migrationNote)}</p>${auditHTML}`;
+      <small>オフライン +${duration(v.offlineRate*3600)}/時 · オンライン獲得なし · 時間×${v.timeMultiplier} · 消費係数 ${v.consumptionFactor.toFixed(2)}</small>
+      <small data-boost-fill>${extraStored>0?"旧残高を容量外で保護中":`満タンまで ${duration(v.offlineRate>0?(v.capacity-s.seconds)/v.offlineRate:0)}（離席時間）`}</small>
+      <button class="wide-button" data-action="toggle-boost" ${s.seconds<1&&!s.active?"disabled":""}>${s.active?"時間加速を停止":"時間×"+v.timeMultiplier+"をON（試験値）"}</button>
+      ${overCap}
+    </div>
+    <h3>BOOST・正式5強化系統（試験値）</h3>
+    <div class="kw-list">${labels.map((label,i)=>{
+      const q=G.boostTrialPurchaseQuote(state,i);
+      const lv=[...levels];lv[i]=Math.min(trialConfig.limits[i],lv[i]+1);
+      const nextState={...state,boost:{...state.boost,trialLevels:lv}};
+      const after=G.boostValues(nextState);
+      return `<div class="kw-card boost-trial-card">
+        <div class="card-top"><strong>${esc(label)}</strong><span class="badge">試験 Lv.${levels[i]}/${trialConfig.limits[i]}</span></div>
+        <small>${esc(view(i,v,levels))} ${q.current===trialConfig.limits[i]?"（上限）":"→ "+esc(view(i,after,lv))}</small>
+        <button class="wide-button" data-boost-trial-buy="${i}" ${!q.ok||readOnly||store.blocked?"disabled":""}>${q.ok?"強化 · "+duration(q.cost)+" BOOST":esc(q.reason||"購入不可")}</button>
+      </div>`;
+    }).join("")}</div>
+    <details class="tiny muted"><summary>試験値・旧資産の扱い</summary><p>各系統の効果・費用は動作確認用の暫定値。BOOSTはゲーム時間だけを加速し、資源の最終獲得倍率は変更しません。旧購入履歴・資産を保持。${esc(migrationNote)}</p></details>
+    <p class="status-note">補償判定待ち：旧BOOST投資履歴を新5系統と別保存。自動返還なし。</p>${auditHTML}`;
   }
   const labels=["旧試験：オフライン効率","旧試験：進行対象時間","旧試験：BOOST基礎獲得","旧試験：オフライン獲得倍率","旧試験：容量"];
   return `<div class="kw-card boost-status-card"><div class="card-top"><strong data-boost-remaining>${duration(s.seconds)} / ${duration(v.capacity)}</strong><span class="badge" data-boost-state>${s.active?"加速中":"蓄積中"}</span></div><div class="slim-progress"><i data-boost-progress style="width:${Math.min(100,100*s.seconds/v.capacity)}%"></i></div>
@@ -735,11 +754,11 @@ function labHTML(){
 }
 
 function commonInfoHTML(){
-  const timeSpeed=state.boost.active&&state.boost.seconds>0?CONFIG.provisional.boost.multiplier:1;
+  const timeSpeed=state.boost.active&&state.boost.seconds>0?G.boostTimeMultiplier(state):1;
   return '<section class="common-info-detail" aria-label="全ステージ共通情報の詳細">' +
     '<p class="panel-intro">共通表示は確定済みの2項目のみ。残り4項目は未決定。オーブなどは各ステージ内、BOOSTの操作・残量は左下から確認できます。</p>' +
     '<div class="kw-card"><span>存在</span><strong>'+esc(formatScientific3(G.existence(state)))+'</strong></div>' +
-    '<div class="kw-card"><span>時間の経過速度</span><strong>×'+esc(timeSpeed)+'</strong><small>現行の時間×2と消費式は試験値です。</small></div>' +
+    '<div class="kw-card"><span>時間の経過速度</span><strong>×'+esc(timeSpeed)+'</strong><small>時間倍率と消費係数は試験値です。</small></div>' +
     '<button type="button" class="wide-button" data-action="return-stage-panel">ステージ操作に戻る</button></section>';
 }
 function renderPanel(force=false){
@@ -883,7 +902,7 @@ function refreshBoostShortcut(){
     const time=$("boostQuickTime");
     if(time){
       // Two stable text glyphs, with a fixed box: no reflow as seconds change.
-      const display=active?"×2":seconds>=3600?`${Math.floor(seconds/3600)}h`:seconds>=60?`${Math.floor(seconds/60)}m`:`${Math.floor(seconds)}s`;
+      const display=active?"×"+G.boostTimeMultiplier(state):seconds>=3600?`${Math.floor(seconds/3600)}h`:seconds>=60?`${Math.floor(seconds/60)}m`:`${Math.floor(seconds)}s`;
       if(time.textContent!==display)time.textContent=display;
     }
     shortcut.style.setProperty("--boost-ratio",String(Math.max(0,Math.min(1,seconds/capacity))));
@@ -902,7 +921,7 @@ function refreshBoostShortcut(){
   const button=panel.querySelector('button[data-action="toggle-boost"]');
   if(button){
     button.disabled=readOnly||store.blocked||(!active&&seconds<1);
-    button.textContent=active?"時間加速を停止":"時間×2をON（暫定）";
+    button.textContent=active?"時間加速を停止":"時間×"+G.boostTimeMultiplier(state)+"をON（試験値）";
   }
 }
 function render(force=false){
@@ -1204,7 +1223,7 @@ async function dispatchAction(action){
     }
     state.boost.active=!state.boost.active;
     save();render(true);
-    toast(state.boost.active?"時間加速×2をONにしました（暫定消費式）":"時間加速をOFFにしました");
+    toast(state.boost.active?"時間加速×"+G.boostTimeMultiplier(state)+"をONにしました（試験値）":"時間加速をOFFにしました");
     return;
   }
   if(action==="toggle-trial"){
@@ -1334,10 +1353,22 @@ document.addEventListener("click",async e=>{
       checkpoint();
       return resultDone(G.buyEngraving(state,id),id+"を購入しました");
     }
+    if(b.dataset.engravingTrialUpgrade){
+      const id=b.dataset.engravingTrialUpgrade,q=G.engravingTrialUpgradeQuote(state,id);
+      if(!q.ok)return toast(q.reason);
+      if(!await ask("刻印の試験強化",`${id} の追加強化Lv.+${q.next}。費用 ${f(q.price,3)} 余剰存在。タップ・源が追加Lvあたり+0.5%（試験値）。旧取得履歴は保護します。`,"購入する"))return;
+      checkpoint();return resultDone(G.buyEngravingTrialUpgrade(state,id),"刻印を追加強化しました");
+    }
     if(b.dataset.draft){resultDone(G.toggleDraft(state,b.dataset.draft));return;}
     if(b.dataset.form){resultDone(G.formConcept(state,b.dataset.form),"概念を認識しました");return;}
     if(b.dataset.formMax){resultDone(G.formConceptMax(state,b.dataset.formMax),"概念を一括強化しました");return;}
     if(b.dataset.invest){const r=G.invest(state,b.dataset.invest,Number(b.dataset.count||1));resultDone(r,"資源を投入し、質量と固有ステータスを強化しました");return;}
+    if(b.dataset.boostTrialBuy!==undefined){
+      const id=Number(b.dataset.boostTrialBuy),q=G.boostTrialPurchaseQuote(state,id);
+      if(!q.ok)return toast(q.reason);
+      if(!await ask("BOOSTの試験強化",`5系統の${id+1}番をLv.${q.next}へ。費用：${duration(q.cost)} BOOST。正式採用前の試験値です。`,"BOOSTで購入"))return;
+      checkpoint();return resultDone(G.buyBoostTrialUpgrade(state,id),"BOOSTを試験強化しました");
+    }
     if(b.dataset.boostUpgrade!==undefined){resultDone(G.labBoostUpgrade(state,Number(b.dataset.boostUpgrade)));return;}
     if(b.dataset.restore!==undefined){
       if(!await ask("保存履歴から復元","現在のデータを退避して、この履歴へ戻します。","復元する"))return;
