@@ -1,0 +1,652 @@
+/*
+ * 《理》Ver.3.33 / fixed-geometry mobile UI layer.
+ * UI only: DEC-20261122-008 plus 2026-11-22 tab/action placement.
+ * Price, ownership, engine calculations, save and history remain unchanged.
+ * Same viewport + panel + explicit detail state => no geometry changes.
+ */
+:root{
+  --fixed-card-h:76px;
+  --fixed-buy-w:clamp(98px,30vw,122px);
+  --fixed-tab-strip-h:40px;
+}
+#childTabStrip[hidden],#childTabs[hidden],#purchaseToolbar[hidden]{display:none!important}
+.child-tab-strip{
+  width:100%;
+  height:var(--fixed-tab-strip-h);
+  min-height:var(--fixed-tab-strip-h);
+  max-height:var(--fixed-tab-strip-h);
+  display:flex;
+  flex:0 0 var(--fixed-tab-strip-h);
+  align-items:center;
+  justify-content:space-between;
+  gap:3px;
+  min-width:0;
+  overflow:hidden;
+  background:rgba(242,239,255,.94);
+  border-bottom:1px solid rgba(124,112,198,.27);
+}
+.child-tab-strip .child-tabs{
+  display:flex;
+  align-items:center;
+  flex:1 1 auto;
+  width:auto;
+  min-width:0;
+  height:39px;
+  min-height:39px;
+  max-height:39px;
+  margin:0;
+  padding:2px 2px 3px 4px;
+  gap:2px;
+  border:0;
+  background:transparent;
+  overflow-x:auto;
+  overflow-y:hidden;
+  scrollbar-width:none;
+}
+.child-tab-strip .child-tabs button{
+  box-sizing:border-box;
+  flex:0 0 auto;
+  min-height:34px;
+  height:34px;
+  max-height:34px;
+  border-radius:7px;
+  padding:2px 9px;
+  font-size:11px;
+  line-height:1;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:clip;
+}
+.child-tab-strip:has(#purchaseToolbar:not([hidden])) .child-tabs{
+  overflow:hidden;
+}
+.child-tab-strip:has(#purchaseToolbar:not([hidden])) .child-tabs button{
+  flex:1 1 0;
+  min-width:0;
+  padding:2px 0;
+  text-align:center;
+}
+.child-tab-strip .purchase-toolbar.purchase-toolbar-compact,
+#purchaseToolbar.purchase-toolbar.purchase-toolbar-compact{
+  position:relative;
+  box-sizing:border-box;
+  display:flex;
+  flex:0 0 auto;
+  justify-content:flex-end;
+  align-items:center;
+  width:auto;
+  height:38px;
+  min-height:38px;
+  max-height:38px;
+  padding:2px 4px 2px 0;
+  margin:0;
+  gap:3px;
+  background:transparent;
+  border:0;
+  overflow:hidden;
+}
+#purchaseToolbar.purchase-toolbar-compact>button{
+  box-sizing:border-box;
+  display:block;
+  flex:0 0 auto;
+  min-width:0!important;
+  min-height:34px!important;
+  height:34px!important;
+  max-height:34px;
+  margin:0;
+  padding:2px 3px!important;
+  font-size:10px!important;
+  line-height:1;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:clip;
+  text-align:center;
+  color:#514887!important;
+}
+#purchaseToolbar #bulkBuyButton{width:45px}
+#purchaseToolbar #bulkScopeButton{width:43px}
+#purchaseToolbar #bulkOrderButton{width:43px}
+#purchaseToolbar .purchase-live-summary{
+  position:absolute!important;
+  width:1px!important;
+  height:1px!important;
+  padding:0!important;
+  overflow:hidden!important;
+  clip:rect(0,0,0,0)!important;
+  white-space:nowrap!important;
+  pointer-events:none;
+}
+/* Name/level/price/effect are one-line fixed cells in each purchase row. */
+.kw-sheet-body .compact-upgrades{
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  align-items:start;
+  gap:4px;
+  min-width:0;
+}
+.kw-sheet-body .compact-upgrades .purchase-card,
+.kw-sheet-body .compact-upgrades .moment-card,
+.kw-sheet-body .compact-upgrades .source-card{
+  position:relative;
+  box-sizing:border-box;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) var(--fixed-buy-w);
+  grid-template-rows:18px 14px 14px 18px;
+  grid-auto-rows:0;
+  align-items:center;
+  gap:0 6px;
+  width:100%;
+  height:var(--fixed-card-h)!important;
+  min-height:var(--fixed-card-h)!important;
+  max-height:var(--fixed-card-h)!important;
+  padding:5px 6px!important;
+  margin:0;
+  border-radius:9px;
+  contain:layout style;
+  overflow:hidden;
+}
+.kw-sheet-body .compact-upgrades .purchase-card .card-top,
+.kw-sheet-body .compact-upgrades .source-card .card-top,
+.kw-sheet-body .compact-upgrades .moment-card .card-top{
+  display:flex;
+  flex:initial;
+  grid-column:1;
+  grid-row:1;
+  align-items:center;
+  justify-content:space-between;
+  position:relative;
+  min-width:0;
+  width:100%;
+  height:18px;
+  min-height:18px;
+  max-height:18px;
+  margin:0;
+  padding:0 32px 0 0;
+  gap:4px;
+  overflow:hidden;
+}
+.kw-sheet-body .compact-upgrades .source-card .card-top{padding-right:57px!important}
+.kw-sheet-body .compact-upgrades .purchase-card .card-top strong,
+.kw-sheet-body .compact-upgrades .moment-card .card-top strong,
+.kw-sheet-body .compact-upgrades .source-card .card-top strong{
+  flex:1 1 auto;
+  display:block;
+  min-width:0;
+  max-width:none;
+  height:17px;
+  line-height:17px;
+  font-size:11px;
+  font-weight:750;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  overflow-wrap:normal;
+  color:#334164;
+}
+.kw-sheet-body .compact-upgrades .purchase-card .card-top small{
+  flex:0 0 auto;
+  display:block;
+  width:clamp(38px,13vw,60px);
+  max-width:40%;
+  height:17px;
+  min-height:17px;
+  line-height:17px;
+  font-size:10px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  font-variant-numeric:tabular-nums;
+  color:#5d578e!important;
+}
+.kw-sheet-body .compact-upgrades .purchase-card .compact-stat,
+.kw-sheet-body .compact-upgrades .moment-card .compact-stat{
+  display:flex;
+  grid-column:1;
+  flex-direction:row;
+  align-items:center;
+  gap:4px;
+  margin:0;
+  min-width:0;
+  width:100%;
+  height:14px;
+  min-height:14px;
+  max-height:14px;
+  padding:0;
+  border:0;
+  background:transparent;
+  overflow:hidden;
+}
+.kw-sheet-body .compact-upgrades .moment-card .compact-stat:nth-of-type(2){grid-row:2}
+.kw-sheet-body .compact-upgrades .moment-card .compact-stat:nth-of-type(3){grid-row:3}
+.kw-sheet-body .compact-upgrades .moment-card .compact-stat>span{
+  flex:0 0 28px;
+  min-width:0;
+  height:13px;
+  font-size:8px;
+  line-height:13px;
+  color:#7b83a2;
+}
+.kw-sheet-body .compact-upgrades .moment-card .compact-stat strong,
+.kw-sheet-body .compact-upgrades .moment-card .compact-stat .moment-live-effect{
+  display:block;
+  flex:1 1 auto;
+  min-width:0;
+  height:13px;
+  margin:0;
+  font-size:10px;
+  line-height:13px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  overflow-wrap:normal;
+  color:#454e8c;
+  font-variant-numeric:tabular-nums;
+}
+.kw-sheet-body .compact-upgrades .source-card .source-rates{
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  justify-content:space-between;
+  grid-column:1;
+  grid-row:2/span 2;
+  gap:0;
+  min-width:0;
+  height:28px;
+  min-height:28px;
+  max-height:28px;
+  margin:0;
+  padding:0;
+  border:0;
+  background:transparent;
+  overflow:hidden;
+}
+.kw-sheet-body .compact-upgrades .source-card .source-rates span{
+  flex:0 0 14px;
+  display:block;
+  width:100%;
+  min-width:0;
+  height:14px;
+  min-height:14px;
+  max-height:14px;
+  font-size:10px;
+  line-height:14px;
+  color:#4b6092;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.kw-sheet-body .compact-upgrades .source-card .source-rates span:last-child{color:#63609b}
+.kw-sheet-body .compact-upgrades .purchase-card .purchase-cost,
+.kw-sheet-body .compact-upgrades .moment-card .purchase-cost,
+.kw-sheet-body .compact-upgrades .source-card .purchase-cost{
+  box-sizing:border-box;
+  display:flex;
+  grid-column:1;
+  grid-row:4;
+  align-items:center;
+  min-width:0;
+  width:100%;
+  height:18px;
+  min-height:18px;
+  max-height:18px;
+  margin:0;
+  padding:0 1px;
+  gap:3px;
+  white-space:nowrap;
+  overflow:hidden;
+  color:#5c4d9d;
+  font-size:9.5px;
+  line-height:18px;
+  font-variant-numeric:tabular-nums;
+}
+.kw-sheet-body .compact-upgrades .purchase-card .purchase-cost small{
+  flex:0 0 auto;
+  font-size:9px;
+  line-height:18px;
+  height:18px;
+  white-space:nowrap;
+}
+.kw-sheet-body .compact-upgrades .purchase-card .purchase-cost strong,
+.kw-sheet-body .compact-upgrades .purchase-card .purchase-cost-value{
+  flex:1 1 auto;
+  display:block;
+  min-width:0;
+  height:18px;
+  line-height:18px;
+  text-align:left;
+  font-size:11px;
+  font-weight:750;
+  color:#57459a;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.kw-sheet-body .compact-upgrades .purchase-card>.buy-button,
+.kw-sheet-body .compact-upgrades .source-card>.buy-button,
+.kw-sheet-body .compact-upgrades .moment-card>.buy-button{
+  box-sizing:border-box;
+  display:flex;
+  grid-column:2;
+  grid-row:1/span 4;
+  align-self:center;
+  justify-self:stretch;
+  align-items:center;
+  justify-content:center;
+  flex:initial;
+  width:100%;
+  min-width:0;
+  height:56px!important;
+  min-height:56px!important;
+  max-height:56px!important;
+  margin:0!important;
+  padding:2px 5px!important;
+  border-radius:8px;
+  font-size:12px;
+  line-height:1;
+  font-weight:700;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  transition:background .12s,border-color .12s,opacity .12s;
+}
+.kw-sheet-body .compact-upgrades .purchase-card>.buy-button:disabled{
+  color:#7c7e9b!important;
+  background:#eaecf6!important;
+  border-color:#d4d6e7!important;
+  opacity:.78;
+}
+/* Controls are absolutely overlaid in the reserved top-row area.
+   The formerly multiline detail row and favorite stars are gone. */
+.kw-sheet-body .compact-upgrades .moment-card .moment-detail-button,
+.kw-sheet-body .compact-upgrades .source-card .source-detail-button,
+.kw-sheet-body .engraving-card .engraving-detail-button{
+  position:absolute;
+  box-sizing:border-box;
+  top:3px;
+  right:calc(var(--fixed-buy-w) + 9px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-width:29px;
+  width:29px;
+  height:30px;
+  min-height:30px;
+  max-height:30px;
+  margin:0;
+  padding:0;
+  color:#59459c!important;
+  background:rgba(231,223,255,.5)!important;
+  border:1px solid rgba(154,133,206,.30)!important;
+  border-radius:7px;
+  box-shadow:none!important;
+  font-size:17px;
+  line-height:1;
+  z-index:2;
+  touch-action:manipulation;
+}
+.kw-sheet-body .compact-upgrades .source-card .source-cycle-button{
+  position:absolute;
+  box-sizing:border-box;
+  top:3px;
+  right:calc(var(--fixed-buy-w) + 41px);
+  display:grid;
+  place-items:center;
+  width:26px;
+  min-width:26px;
+  height:30px;
+  min-height:30px;
+  margin:0;
+  padding:0;
+  font-size:16px;
+  line-height:1;
+  color:#5d5794;
+  background:rgba(231,223,255,.6);
+  border:1px solid rgba(154,133,206,.29);
+  border-radius:7px;
+  z-index:2;
+  touch-action:manipulation;
+}
+.kw-sheet-body .compact-upgrades .source-card .source-cycle-button:disabled{
+  opacity:.4;
+  color:#8689ab;
+  background:rgba(239,240,247,.76);
+}
+/* One-row fixed source resonance block. No dynamic expander below it. */
+.kw-sheet-body .source-summary{
+  display:block;
+  box-sizing:border-box;
+  width:100%;
+  height:27px;
+  min-height:27px;
+  max-height:27px;
+  margin:0 0 4px;
+  padding:3px 8px;
+  border:1px solid rgba(125,111,185,.33);
+  border-radius:8px;
+  background:rgba(252,251,255,.91);
+  color:#51518b;
+  text-align:left;
+  font-size:10px;
+  line-height:19px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.kw-sheet-body .moment-group-title,
+.kw-sheet-body .compact-upgrades .moment-group-title{
+  height:18px;
+  min-height:18px;
+  max-height:18px;
+  padding:2px 3px 0;
+  margin:0;
+  font-size:9px;
+  line-height:15px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+/* Engravings keep same card footprint before and after initial purchase. */
+.kw-sheet-body .engraving-list{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;align-items:start}
+.kw-sheet-body .engraving-card{
+  position:relative;
+  display:grid;
+  box-sizing:border-box;
+  grid-template-columns:minmax(0,1fr) var(--fixed-buy-w);
+  grid-template-rows:20px 22px 20px;
+  grid-auto-rows:0;
+  gap:0 6px;
+  align-items:center;
+  width:100%;
+  height:var(--fixed-card-h)!important;
+  min-height:var(--fixed-card-h)!important;
+  max-height:var(--fixed-card-h)!important;
+  padding:6px;
+  margin:0;
+  overflow:hidden;
+  contain:layout style;
+}
+.kw-sheet-body .engraving-card .card-top{
+  display:flex;
+  grid-column:1;
+  grid-row:1;
+  width:100%;
+  min-width:0;
+  height:20px;
+  min-height:20px;
+  max-height:20px;
+  padding:0 32px 0 0;
+  margin:0;
+  gap:3px;
+  overflow:hidden;
+  align-items:center;
+}
+.kw-sheet-body .engraving-card .card-top strong,
+.kw-sheet-body .engraving-card .card-top .badge,
+.kw-sheet-body .engraving-card .engraving-effect,
+.kw-sheet-body .engraving-card .engraving-cost strong{
+  color:#2b3554!important;
+  text-shadow:none!important;
+}
+.kw-sheet-body .engraving-card .card-top strong{
+  display:block;
+  min-width:0;
+  flex:1 1 auto;
+  font-size:11px;
+  line-height:18px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.kw-sheet-body .engraving-card .card-top .badge{
+  flex:0 0 auto;
+  max-width:58%;
+  min-width:0;
+  height:18px;
+  line-height:16px;
+  padding:0 4px;
+  font-size:9px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  background:rgba(235,234,247,.93);
+  border-color:#c3c4dd;
+}
+.kw-sheet-body .engraving-card>.engraving-effect{
+  display:block;
+  grid-column:1;
+  grid-row:2;
+  min-width:0;
+  width:100%;
+  height:22px;
+  min-height:22px;
+  max-height:22px;
+  line-height:22px;
+  font-size:10px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.kw-sheet-body .engraving-card>.engraving-cost{
+  display:block;
+  grid-column:1;
+  grid-row:3;
+  min-width:0;
+  width:100%;
+  height:20px;
+  min-height:20px;
+  max-height:20px;
+  font-size:10px;
+  line-height:20px;
+  color:#59639a;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  font-variant-numeric:tabular-nums;
+}
+.kw-sheet-body .engraving-card>.engraving-cost strong{font-size:11px;font-weight:750}
+.kw-sheet-body .engraving-card>.engraving-purchase-button{
+  display:grid;
+  grid-column:2;
+  grid-row:1/span 3;
+  place-items:center;
+  justify-self:stretch;
+  align-self:center;
+  box-sizing:border-box;
+  width:100%;
+  min-width:0;
+  height:56px!important;
+  min-height:56px!important;
+  max-height:56px!important;
+  padding:2px 5px;
+  margin:0!important;
+  font-size:12px;
+  line-height:1;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.kw-sheet-body .engraving-card>.engraving-detail-button{
+  grid-column:auto;
+  grid-row:auto;
+}
+.kw-sheet-body .engraving-overview{
+  box-sizing:border-box;
+  height:46px;
+  min-height:46px;
+  max-height:46px;
+  margin:0 0 4px;
+  padding:4px 7px;
+  overflow:hidden;
+}
+.kw-sheet-body .engraving-overview .card-top{height:18px;min-height:18px;max-height:18px;margin:0;overflow:hidden}
+.kw-sheet-body .engraving-overview .card-top strong{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kw-sheet-body .engraving-overview>small{display:block;height:17px;line-height:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kw-sheet-body .engraving-tier-title{height:18px;min-height:18px;max-height:18px;line-height:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kw-sheet-body .converge-compact{
+  box-sizing:border-box;
+  height:95px;
+  min-height:95px;
+  max-height:95px;
+  padding:6px 8px;
+  margin-top:4px;
+  overflow:hidden;
+}
+.kw-sheet-body .converge-compact>.card-top{display:flex;height:18px;min-height:18px;max-height:18px;margin:0;overflow:hidden;white-space:nowrap}
+.kw-sheet-body .converge-compact>.card-top small{max-width:35%;overflow:hidden;text-overflow:ellipsis}
+.kw-sheet-body .converge-compact>small{display:block;height:17px;min-height:17px;max-height:17px;line-height:17px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.kw-sheet-body .converge-compact>.wide-button{
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  justify-content:center;
+  height:43px;
+  min-height:43px;
+  max-height:43px;
+  padding:3px 8px;
+  margin:1px 0 0;
+  overflow:hidden;
+}
+.kw-sheet-body .converge-compact [data-converge-text]{display:block;width:100%;height:22px;line-height:22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kw-sheet-body .converge-compact .converge-gauge{display:block;height:4px;min-height:4px;max-height:4px;margin:3px 0 0;overflow:hidden}
+/* HUD numbers never force adjacent frames to grow or shift. */
+.common-info-bar .common-info-copy,.scene-stat{min-width:0}
+.common-info-bar .common-info-copy strong,
+.world-matrix small,.world-matrix strong,
+.scene-stat strong,.scene-stat span,
+.stage-hud .primary-value{
+  display:block;
+  min-width:0;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  overflow-wrap:normal!important;
+}
+.world-matrix strong{height:15px;line-height:15px}
+.world-matrix small{height:12px;line-height:12px}
+.scene-stat{min-height:24px;max-height:24px;overflow:hidden}
+.scene-stat span{height:12px;line-height:12px}
+.scene-stat strong{height:12px;line-height:12px}
+.notice-bar,.update-bar,.toast{position:absolute;max-width:calc(100% - 20px);box-sizing:border-box;pointer-events:auto}
+#noticeBar[hidden],#updateBar[hidden]{display:none!important}
+@media(max-width:350px){
+  :root{--fixed-buy-w:98px}
+  .child-tab-strip{gap:0}
+  .child-tab-strip .child-tabs{gap:1px;padding-left:2px;padding-right:1px}
+  #purchaseToolbar.purchase-toolbar.purchase-toolbar-compact{gap:2px;padding-right:2px}
+  #purchaseToolbar #bulkBuyButton{width:41px}
+  #purchaseToolbar #bulkScopeButton{width:39px}
+  #purchaseToolbar #bulkOrderButton{width:40px}
+  .child-tab-strip .child-tabs button{font-size:10px}
+  .kw-sheet-body .compact-upgrades .purchase-card .card-top strong{font-size:10px}
+  .kw-sheet-body .compact-upgrades .purchase-card .card-top small{width:37px}
+}
+@media(min-width:560px){
+  :root{--fixed-buy-w:106px}
+  .kw-sheet-body .compact-upgrades,.kw-sheet-body .engraving-list{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
+}
+@media(prefers-reduced-motion:reduce){
+  .kw-sheet-body .purchase-card,.kw-sheet-body .purchase-card *,
+  .kw-sheet-body .engraving-card,.kw-sheet-body .engraving-card *{transition:none!important}
+}
+body.reduced-motion .kw-sheet-body .purchase-card,
+body.low-power .kw-sheet-body .purchase-card{transition:none!important}
