@@ -5,6 +5,7 @@ import {KNOWLEDGE_IDS,addKnowledge,knowledgeLevel,coreRequirements,makeCoreState
 import {INTERFERENCE_RULES,R1_RESOURCE_IDS,STABILIZING_RESOURCES,resourceSpendPlan,induceResourceCost,interferenceKnowledgeReady} from "./universe-interference-v318.mjs";
 import {ENGRAVING_IDS,ENGRAVING_AUTO_CONVERGE_ID,AUTO_CONVERGE_MIN_INTERVAL_MS,AUTO_CONVERGE_DEFAULT_MIN_REWARD,engravingSlots,engravingPurchaseQuote,engravingTrialUpgradeQuote,engravingTrialTotal,ENGRAVING_TRIAL,validRewardThreshold} from "./engraving-rules-v317.mjs";
 import {FINAL_EFFECTS,ownsSourceFinal,sourceFinalMarker,sourcePlusMultiplier} from "./source-effects-v315.mjs";
+export {engravingTrialUpgradeQuote};
 import {freshTelemetry,sampleActualOrbs,recordOfflineReport,recordConvergence,validateTelemetry} from "./telemetry-v319.mjs";
 import {cleanMomentPrefs} from "./moment-filter.mjs";
 import * as SETSUNA from "./setsuna-rules-v39.mjs";
