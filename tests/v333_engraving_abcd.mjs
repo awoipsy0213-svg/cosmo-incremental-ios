@@ -115,7 +115,7 @@ check("D: no introduction of independent BOOST income or capacity change",()=>{
   const modified=G.boostValues(s);
   assert.equal(modified.capacity,base.capacity);
   assert.equal(modified.offlineRate,base.offlineRate);
-  assert.equal(modified.multiplier,base.multiplier);
+  assert.equal(modified.timeMultiplier,base.timeMultiplier);
 });
 check("engraving save and migration decode safely preserves ongoing automation credits",()=>{
   const s=started();owned(s,"ENG-22");owned(s,"ENG-28");
