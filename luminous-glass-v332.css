@@ -1018,3 +1018,20 @@ body.high-contrast .panel-intro{color:#28375e!important}
  .kw-sheet-body .compact-upgrades .source-card{grid-template-columns:minmax(0,1fr) 104px}
  .kw-sheet-body .compact-upgrades .source-card .source-detail-button{right:110px}
 }
+
+/* Reclaim redundant "purchase possible" hint space; shortage hints remain.
+   The favorite's 30px tap region is overlaid within the name row rather than
+   increasing the row's height. */
+.kw-sheet-body .compact-upgrades .purchase-card.is-buyable .live-buy-hint{
+  display:none!important;
+}
+.kw-sheet-body .compact-upgrades .moment-card .card-top{
+  position:relative;
+  padding-right:26px;
+}
+.kw-sheet-body .compact-upgrades .moment-card .card-top .moment-favorite{
+  position:absolute;
+  top:-5px;right:0;
+  width:27px;height:30px;min-width:27px;min-height:30px;
+  margin:0;
+}
