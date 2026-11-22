@@ -33,7 +33,7 @@ try{
   },raw);
   await page.reload({waitUntil:"domcontentloaded"});
   await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
-  assert.match(await page.locator("#buildLabel").textContent(),/3\.32/);
+  assert.match(await page.locator("#buildLabel").textContent(),/3\.33/);
   assert.equal(await page.locator("#worldStatus").count(),0,"status panel should be removed");
   assert.equal(await page.locator("#worldObserve .scene-stat").count(),2);
   const obs=await page.locator("#worldObserve").textContent();
