@@ -924,7 +924,7 @@ function refreshBoostShortcut(){
   const button=panel.querySelector('button[data-action="toggle-boost"]');
   if(button){
     button.disabled=readOnly||store.blocked||(!active&&seconds<1);
-    button.textContent=active?"時間加速を停止":"時間×"+G.boostTimeMultiplier(state)+"をON（試験値）";
+    button.textContent=active?"時間加速を停止":"時間×"+G.boostTimeMultiplier(state)+"を開始";
   }
 }
 function render(force=false){
