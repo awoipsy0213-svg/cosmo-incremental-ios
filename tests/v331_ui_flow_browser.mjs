@@ -57,7 +57,9 @@ try{
     assert.equal(await page.locator("#confirmDialog").evaluate(el=>el.open),false,"engraving upgrades should be one tap");
     await page.waitForFunction(()=>window.KOTOWARI_DEBUG.state().engraving.levels["ENG-01"]===2);
     assert.ok(!/Lv.*購入しました/.test(await page.locator("#toast").textContent()),"level-up purchase popup must be suppressed");
-    assert.equal(await page.evaluate(()=>window.KOTOWARI_DEBUG.state().runOrbsEarned),baseline);
+    // Passive source generation increases the earned total while the browser runs.
+    // Spending for upgrades must never make the earned total move backwards.
+    assert.ok(Number(await page.evaluate(()=>window.KOTOWARI_DEBUG.state().runOrbsEarned))>=Number(baseline));
     // Enabling the corresponding preference restores a decision dialog.
     await page.locator('.app-top [data-action="organizer"]').click();
     await page.locator('[data-organizer="settings"]').click();
