@@ -9,11 +9,11 @@ for(const path of ["index.html","sw.js","luminous-glass-v332.css",
   "app.mjs","game.mjs","save.mjs","numbers.mjs","balance-config.mjs"]){
   assert.equal(read(path),read("www/"+path),path+" mismatched Web/Capacitor assets");
 }
-assert.ok(html.indexOf("matrix-v324.css")<html.indexOf("luminous-glass-v332.css"),
+assert.ok(html.indexOf("matrix-v324.css")<html.indexOf("luminous-glass-v332.css") && html.indexOf("luminous-glass-v332.css")<html.indexOf("fixed-layout-v333.css"),
   "new theme must override legacy theme");
-assert.match(html,/3\.32 · GLASS/);
+assert.match(html,/3\.33 · FIXED/);
 assert.match(html,/name="theme-color" content="#f4f2ff"/);
-assert.match(sw,/const VERSION = "3\.32\.0-luminous-glass"/);
+assert.match(sw,/const VERSION = "3\.33\.0-fixed-geometry"/);
 assert.equal((sw.match(/"luminous-glass-v332\.css"/g)||[]).length,2,
   "new theme must be core cached and available offline");
 assert.match(css,/--sheet-half-height:min\(51dvh,452px\)/);
