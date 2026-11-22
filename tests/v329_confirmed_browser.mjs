@@ -60,7 +60,7 @@ try{
   await page.locator('[data-child="engraving"]').click();
   assert.equal(await page.locator(".engraving-card").count(),30);
   assert.equal(await page.locator('button[data-action="edit-engraving"]').count(),0);
-  assert.match(await page.locator("#sheetBody").textContent(),/旧取得済・Lv換算保留/);
+  assert.match(await page.locator("#sheetBody").textContent(),/Lv\.―/);
   await page.locator('button[data-action="toggle-auto-converge"]').click();
   assert.equal((await page.evaluate(()=>window.KOTOWARI_DEBUG.state())).engraving.autoConverge.enabled,true);
   await page.locator('[data-child="moment"]').click();
