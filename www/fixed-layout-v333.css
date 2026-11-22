@@ -650,3 +650,17 @@
 }
 body.reduced-motion .kw-sheet-body .purchase-card,
 body.low-power .kw-sheet-body .purchase-card{transition:none!important}
+
+/* The three existence tabs keep their positions when engraving hides bulk controls. */
+.child-tab-strip.is-existence .child-tabs{
+  flex:0 0 47%;
+  width:47%;
+  min-width:0;
+  max-width:47%;
+  overflow:hidden;
+}
+.child-tab-strip.is-existence .child-tabs button{
+  flex:1 1 0;
+  min-width:0;
+  padding:2px 0;
+}
