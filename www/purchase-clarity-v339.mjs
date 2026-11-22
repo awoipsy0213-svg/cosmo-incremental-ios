@@ -1,0 +1,140 @@
+/*
+ * Player-facing, concise descriptions for 30 approved Setsuna effects.
+ * UI text only. Indices follow CONTENT.moment / SETSUNA.NAMES order.
+ * No additional effect is granted or modified.
+ */
+export const MOMENT_BRIEFS = Object.freeze([
+ [
+  "タップの獲得量を増加",
+  "1回あたりの基礎オーブ"
+ ],
+ [
+  "タップの倍率を強化",
+  "基礎タップの獲得倍率"
+ ],
+ [
+  "タップ時に余波を追加",
+  "毎回の追加オーブ"
+ ],
+ [
+  "5タップごとに追加",
+  "連続操作でボーナス"
+ ],
+ [
+  "待機後のタップを強化",
+  "1秒以上の待機で効果"
+ ],
+ [
+  "連撃で獲得倍率が上昇",
+  "コンボ数に応じて強化"
+ ],
+ [
+  "連撃の受付時間を延長",
+  "コンボを維持しやすく"
+ ],
+ [
+  "10連撃ごとに加速",
+  "自動接触と源も加速"
+ ],
+ [
+  "連撃報酬を追加蓄積",
+  "終了時にまとめて獲得"
+ ],
+ [
+  "連撃の節目で追加獲得",
+  "10・50・100回など"
+ ],
+ [
+  "会心の発生率が上昇",
+  "タップで大当たり"
+ ],
+ [
+  "会心時の獲得倍率UP",
+  "会心発動時に適用"
+ ],
+ [
+  "追加接触の発生率UP",
+  "タップが二重に発動"
+ ],
+ [
+  "会心の連鎖率が上昇",
+  "最大3回まで連鎖"
+ ],
+ [
+  "奇跡の発生率が上昇",
+  "発動すると200倍"
+ ],
+ [
+  "自動接触が発生",
+  "一定間隔でオーブ獲得"
+ ],
+ [
+  "自動接触の獲得量UP",
+  "自動操作の倍率強化"
+ ],
+ [
+  "自動接触が連撃を作る",
+  "コンボに反映する確率"
+ ],
+ [
+  "源の生成量を追加回収",
+  "10秒ごとに獲得"
+ ],
+ [
+  "自動接触にも会心反映",
+  "会心・二重接触と連動"
+ ],
+ [
+  "源の生産をタップに反映",
+  "生成量の一部を加算"
+ ],
+ [
+  "10タップごとに源強化",
+  "5秒間の生産ボーナス"
+ ],
+ [
+  "源の節目でタップ強化",
+  "節目達成数で倍率UP"
+ ],
+ [
+  "タップの報酬を分割",
+  "5秒間かけて追加獲得"
+ ],
+ [
+  "100連撃で双方を強化",
+  "タップと源を10秒強化"
+ ],
+ [
+  "刹那の効果量を強化",
+  "他の強化との共鳴"
+ ],
+ [
+  "120秒ごとに源を回収",
+  "源の数秒分を一括獲得"
+ ],
+ [
+  "コンボ上限・速度強化",
+  "倍率上限と自動間隔"
+ ],
+ [
+  "1000タップで覚醒",
+  "10秒間タップと源UP"
+ ],
+ [
+  "周回と刹那Lvで強化",
+  "タップの基礎倍率に反映"
+ ]
+].map(pair=>Object.freeze(pair)));
+export function momentBrief(index){
+  if(!Number.isInteger(index)||index<0||index>=MOMENT_BRIEFS.length)throw Error("刹那説明の番号が不正です");
+  const [effect,mechanism]=MOMENT_BRIEFS[index];
+  return {effect,mechanism};
+}
+export function compactEffectValue(value){
+  const raw=String(value??"").trim();
+  if(!raw||raw==="未購入")return "—";
+  return raw.replace(/（.*$/u,"").replace(/\s*\/\s*最大.*$/u,"")
+    .replace(/\s*\/\s*最短.*$/u,"").replace(/\s*\/\s*次の1Lv.*$/u,"")
+    .replace(/\s*\/\s*10秒.*$/u,"").replace(/\s*\/\s*5秒.*$/u,"")
+    .replace(/\s+/gu," ").trim();
+}

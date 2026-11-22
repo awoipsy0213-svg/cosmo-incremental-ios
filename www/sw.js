@@ -1,5 +1,5 @@
 /* Versioned, scope-specific cache. Does not delete saves or another app's cache. */
-const VERSION = "3.38.0-dense-purchase";
+const VERSION = "3.39.0-purchase-clarity";
 const PREFIX = "kotowari-handoff:" + new URL(self.registration.scope).pathname + ":";
 const CACHE = PREFIX + VERSION;
 const RELATIVE = [
@@ -16,6 +16,8 @@ const RELATIVE = [
   "automation-center-v336.css",
   "purchase-row-v338.css",
   "purchase-preview-v338.mjs",
+  "purchase-clarity-v339.mjs",
+  "purchase-clarity-v339.css",
   "time-confirmed-v4.mjs",
   "universe-confirmed-v4.mjs",
   "universe-progression-v316.mjs",
@@ -68,6 +70,8 @@ const CORE_FILES = [
   "automation-center-v336.css",
   "purchase-row-v338.css",
   "purchase-preview-v338.mjs",
+  "purchase-clarity-v339.mjs",
+  "purchase-clarity-v339.css",
   "time-confirmed-v4.mjs", "universe-confirmed-v4.mjs",
   "universe-progression-v316.mjs",
   "universe-interference-v318.mjs",
