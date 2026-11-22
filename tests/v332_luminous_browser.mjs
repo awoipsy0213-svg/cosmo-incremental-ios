@@ -58,7 +58,7 @@ try{
    },fixture);
    await page.reload({waitUntil:"domcontentloaded"});
    await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
-   assert.match(await page.locator("#buildLabel").textContent(),/3\.32/);
+   assert.match(await page.locator("#buildLabel").textContent(),/3\.33/);
    await page.locator('[data-stage="existence"]').click();
    await page.locator('[data-child="moment"]').click();
    assert.equal(await page.locator(".moment-card").count(),30);
@@ -122,7 +122,7 @@ try{
        await oldPage.goto(live,{waitUntil:"domcontentloaded",timeout:14000});
        await oldPage.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中",{timeout:8000});
        const oldBuild=await oldPage.locator("#buildLabel").textContent();
-       if(!oldBuild.includes("3.32")){
+       if(!oldBuild.includes("3.33")){
          await oldPage.locator('[data-stage="existence"]').click();
          await oldPage.locator('[data-child="moment"]').click();
          const before=await oldPage.evaluate(evaluateLayout);
