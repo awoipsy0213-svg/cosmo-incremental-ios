@@ -4,6 +4,7 @@ import {UNIVERSE_RESOURCE_RULES,eligibleResourceWeights,pickWeightedResource,inv
 import {KNOWLEDGE_IDS,addKnowledge,knowledgeLevel,coreRequirements,makeCoreState,advanceCore,autoPlanetAvailable} from "./universe-progression-v316.mjs";
 import {INTERFERENCE_RULES,R1_RESOURCE_IDS,STABILIZING_RESOURCES,resourceSpendPlan,induceResourceCost,interferenceKnowledgeReady} from "./universe-interference-v318.mjs";
 import {ENGRAVING_IDS,ENGRAVING_AUTO_CONVERGE_ID,AUTO_CONVERGE_MIN_INTERVAL_MS,AUTO_CONVERGE_DEFAULT_MIN_REWARD,engravingSlots,engravingPurchaseQuote,engravingTrialUpgradeQuote,engravingTrialTotal,ENGRAVING_TRIAL,validRewardThreshold} from "./engraving-rules-v317.mjs";
+import {ENGRAVING_EFFECTS,engravingTapFactor,engravingSourceFactor,engravingCriticalRate,engravingCriticalMultiplier,engravingPurchaseFactor,engravingTapSourceSeconds,engravingRepeatTaps,engravingRepeatEvery,engravingOrbAward,engravingConvergenceCostFactor,engravingConvergenceRewardFactor,engravingRetainedLevels,engravingAutoTapRate,engravingAutoMomentRate,engravingAutoSourceRate,engravingAutoEfficient,engravingConvergenceControl,ENGRAVING_AUTO_BATCH_LIMIT,freshEngravingRuntime} from "./engraving-effects-v333.mjs";
 import {FINAL_EFFECTS,ownsSourceFinal,sourceFinalMarker,sourcePlusMultiplier} from "./source-effects-v315.mjs";
 export {engravingTrialUpgradeQuote};
 import {freshTelemetry,sampleActualOrbs,recordOfflineReport,recordConvergence,validateTelemetry} from "./telemetry-v319.mjs";
@@ -51,7 +52,8 @@ export function createState(now=Date.now(),mode="normal") {
     // Separate experiment flag; never active in normal saves.
     trial:{enabled:false},
     engraving:{active:[],draft:null,observationUnlocked:false,owned:[],equipped:[],levels:{},trialLevels:{},
-      autoConverge:{enabled:false,minReward:AUTO_CONVERGE_DEFAULT_MIN_REWARD,lastAt:0}},
+      autoConverge:{enabled:false,minReward:AUTO_CONVERGE_DEFAULT_MIN_REWARD,minSteps:1,lastAt:0},
+      runtime:freshEngravingRuntime()},
     boost:{seconds:0,active:false,upgrades:[0,0,0,0,0],trialLevels:[0,0,0,0,0],accounting:freshBoostAccounting(),
       timeOnlyMigration:{version:1,at:now,previousActive:null,source:"new"}},
     counters:{taps:0,orbsSpent:"0",sourcePurchases:0,conversions:0,onlineSeconds:0,offlineSeconds:0},
@@ -105,7 +107,9 @@ function spendOrbs(s,amount) {
   return true;
 }
 export function tapPower(s,now=Date.now()) {
-  return SETSUNA.tapPreview(setsunaProjection(s,null,now),now).mul(existenceMultiplier(s)).mul(finalTap(s)).mul(engravingPlaytestFactor(s));
+  const tap=SETSUNA.tapPreview(setsunaProjection(s,null,now),now)
+    .mul(existenceMultiplier(s)).mul(finalTap(s)).mul(engravingPlaytestFactor(s)).mul(engravingTapFactor(s));
+  return tap.add(production(s,now).mul(engravingTapSourceSeconds(s)));
 }
 // Each convergence gives a persistent, additive +1% per 0.01 surplus existence.
 // First existence (the protected 1) is not counted: 0.02 surplus => x1.02; 1 => x2.
@@ -135,8 +139,8 @@ function setsunaProjection(s,rawSource=null,now=Date.now()){
   t.sourceMilestones=Object.values(s.sources).reduce((sum,v)=>sum+
     CONFIG.confirmed.sourceMilestones.filter(m=>m<=v.level).length,0);
   t.sourceBase=(rawSource===null?baseProduction(s).div(existenceMultiplier(s)):A(rawSource)).toString();
-  t.critExtraRate=finalCritRate(s);
-  t.critExtraMultiplier=finalCritMultiplier(s);
+  t.critExtraRate=finalCritRate(s)+engravingCriticalRate(s);
+  t.critExtraMultiplier=finalCritMultiplier(s)*engravingCriticalMultiplier(s);
   Object.assign(t,s.momentRuntime||{});t.wallet="0";t.lastTick=now;
   return t;
 }
@@ -196,7 +200,7 @@ export function sourceProduction(s,id) {
   const unit=sourceProductionPerLevel(id);
   const growth=CONFIG.provisional.source.productionGrowth;
   const total=seriesCost(unit,growth,0,v.level);
-  return total.mul(plus).mul(ownsSourceFinal(s,"SOURCE_09")&&id==="SOURCE_09"?2:1).mul(ownsSourceFinal(s,"SOURCE_04")?2:1).mul(existenceMultiplier(s)).mul(engravingPlaytestFactor(s));
+  return total.mul(plus).mul(ownsSourceFinal(s,"SOURCE_09")&&id==="SOURCE_09"?2:1).mul(ownsSourceFinal(s,"SOURCE_04")?2:1).mul(existenceMultiplier(s)).mul(engravingPlaytestFactor(s)).mul(engravingSourceFactor(s));
 }
 /** Extra output from buying this Source's next one level, including all current bonuses. */
 export function sourceNextGain(s,id) {
@@ -205,7 +209,7 @@ export function sourceNextGain(s,id) {
   const plus=sourcePlusMultiplier(v.plus);
   return sourceProductionPerLevel(id)
     .mul(A(CONFIG.provisional.source.productionGrowth).pow(v.level))
-    .mul(plus).mul(ownsSourceFinal(s,"SOURCE_09")&&id==="SOURCE_09"?2:1).mul(ownsSourceFinal(s,"SOURCE_04")?2:1).mul(existenceMultiplier(s)).mul(engravingPlaytestFactor(s));
+    .mul(plus).mul(ownsSourceFinal(s,"SOURCE_09")&&id==="SOURCE_09"?2:1).mul(ownsSourceFinal(s,"SOURCE_04")?2:1).mul(existenceMultiplier(s)).mul(engravingPlaytestFactor(s)).mul(engravingSourceFactor(s));
 }
 export function production(s,now=Date.now()) {
   return baseProduction(s).mul(SETSUNA.sourceMultiplier(setsunaProjection(s,null,now),now));
@@ -231,7 +235,13 @@ export function tap(s,now=Date.now(),rng=Math.random) {
   const proj=setsunaProjection(s,null,now);proj.taps=Math.max(0,s.counters.taps-1);
   const hit=SETSUNA.tap(proj,now,rng);rememberSetsuna(s,proj);
   const factor=existenceMultiplier(s);
-  const gain=hit.amount.mul(factor).mul(finalTap(s));addOrbs(s,gain);
+  let gain=hit.amount.mul(factor).mul(finalTap(s))
+    .mul(engravingPlaytestFactor(s)).mul(engravingTapFactor(s))
+    .add(production(s,now).mul(engravingTapSourceSeconds(s)));
+  if(s.counters.taps%engravingRepeatEvery()===0)
+    gain=gain.mul(1+engravingRepeatTaps(s));
+  gain=engravingOrbAward(s,gain,rng);
+  addOrbs(s,gain);
   sampleActualOrbs(s.telemetry,now,s.totalOrbs);
   return {ok:true,gain:gain.toString(),crit:hit.crit,combo:hit.combo,
     miracle:hit.miracle,chain:hit.chain,components:Object.fromEntries(
@@ -254,6 +264,7 @@ function purchaseData(s,kind,id) {
 export function purchaseQuote(s,kind,id,mode=s.purchaseMode) {
   if(!modeSet.has(mode))throw Error("購入モードが不正です");
   const p=purchaseData(s,kind,id),remain=Math.max(0,p.max-p.level);
+  p.base=p.base.mul(engravingPurchaseFactor(s));
   let n=mode==="MAX"?maxAffordable(s.orbs,p.base,p.growth,p.level,Math.min(remain,MAX_LEVELS_PER_ACTION))
     :mode==="10"?maxAffordable(s.orbs,p.base,p.growth,p.level,Math.min(10,remain))
     :Math.min(1,remain);
@@ -379,7 +390,7 @@ export function breakthrough(s,id) {
 export function convergenceQuote(s) {
   const c=CONFIG.provisional.convergence;
   const priceFactor=ownsSourceFinal(s,"SOURCE_02")?.5:1;
-  const cost=A(c.baseCost).mul(priceFactor);
+  const cost=A(c.baseCost).mul(priceFactor).mul(engravingConvergenceCostFactor(s));
   const legacy=s.runOrbsEvidence!=="verified";
   // Legacy purchase history cannot be reconstructed; new confirmed gains alone
   // count until a verified new run. Never fall back to spendable wallet balance.
@@ -387,7 +398,7 @@ export function convergenceQuote(s) {
   const steps=maxAffordable(earned,cost,c.costGrowth,0,1000000000);
   const spent=seriesCost(cost,c.costGrowth,0,steps);
   const next=seriesCost(cost,c.costGrowth,0,steps+1);
-  return {steps,reward:A(c.existencePerStep).mul(steps).mul(ownsSourceFinal(s,"SOURCE_01")?2:1).toString(),
+  return {steps,reward:A(c.existencePerStep).mul(steps).mul(ownsSourceFinal(s,"SOURCE_01")?2:1).mul(engravingConvergenceRewardFactor(s)).toString(),
     nextRequired:next.toString(),nextRemaining:next.sub(earned).toString(),spent:spent.toString(),
     basis:"run-earned",historyVerified:!legacy,runOrbsEarned:s.runOrbsEarned??"0"};
 }
@@ -409,9 +420,12 @@ export function converge(s) {
   s.surplusExistence=add(s.surplusExistence,q.reward);
   s.totalExistenceEarned=add(s.totalExistenceEarned,q.reward);
   const retain=s.mode==="lab"&&s.engraving.active.includes("retain");
+  const preserved=engravingRetainedLevels(s,s.moment.tap||0,s.sources.SOURCE_01.level);
   if(!retain){
     s.moment=freshMoment();
     Object.values(s.sources).forEach(x=>x.level=0);
+    s.moment.tap=preserved.tap;
+    s.sources.SOURCE_01.level=preserved.source;
   }
   // 仮設定の全消費。源の+と能力はデータ保護のため維持し、正式保持規則と断定しない。
   spendOrbs(s,CONFIG.provisional.convergence.spend==="all"?s.orbs:q.spent);
@@ -855,7 +869,7 @@ export function buyEngraving(s,id) {
   s.surplusExistence=sub(s.surplusExistence,q.price);
   s.engraving.owned.push(id);
   s.engraving.levels??={};s.engraving.levels[id]=1;
-  event(s,`${id} の初回購入を記録した。所有中は常時効果が有効（未確認の固有効果は未適用）。`);
+  event(s,`${id} ${ENGRAVING_EFFECTS[id]?.name||"刻印"} の初回購入を記録した。`);
   return {ok:true,id,price:q.price};
 }
 export function buyEngravingTrialUpgrade(s,id){
@@ -864,8 +878,12 @@ export function buyEngravingTrialUpgrade(s,id){
   s.surplusExistence=sub(s.surplusExistence,q.price);
   s.engraving.trialLevels??={};
   s.engraving.trialLevels[id]=q.next;
-  if(s.engraving.levels[id]!==undefined)s.engraving.levels[id]++;
-  event(s,`${id} の追加強化＋${q.next}（試験値）。`);
+  // New successful payments prove only new investment; they do NOT infer old
+  // pre-migration levels from ownership or historical trial purchase counts.
+  // An older unverified engraving first gains a verified Lv.1 here.
+  if(s.engraving.levels[id]===undefined)s.engraving.levels[id]=1;
+  else s.engraving.levels[id]++;
+  event(s,`${id} の追加強化＋${q.next}（暫定バランス）。`);
   return {ok:true,id,price:q.price,extraLevel:q.next};
 }
 // Historical equipped/draft arrays remain in saves verbatim. They no longer
@@ -875,11 +893,18 @@ export function toggleDraft(){return {ok:false,reason:"刻印の装備切替は�
 export function engravingQuote(){return {added:[],removed:[],slots:0,cost:"0",legacyOnly:true};}
 export function confirmEngraving(){return {ok:false,reason:"刻印の装備切替は廃止されました"};}
 export function cancelEngraving(){return {ok:false,reason:"刻印の装備切替は廃止されました"};}
-export function configureAutoConvergence(s,{enabled,minReward}={},now=Date.now()) {
+export function configureAutoConvergence(s,{enabled,minReward,minSteps}={},now=Date.now()) {
   const a=s.engraving.autoConverge;
   if(minReward!==undefined){
     if(!validRewardThreshold(minReward))return {ok:false,reason:"報酬閾値は0.025以上で指定してください"};
     a.minReward=str(minReward);
+  }
+  if(minSteps!==undefined){
+    if(!Number.isSafeInteger(minSteps)||minSteps<1||minSteps>100)
+      return {ok:false,reason:"自動収束の必要段階は1〜100です"};
+    if(minSteps>1&&!engravingConvergenceControl(s))
+      return {ok:false,reason:"循環制御の刻印Lvが必要です"};
+    a.minSteps=minSteps;
   }
   if(enabled!==undefined){
     if(typeof enabled!=="boolean")return {ok:false,reason:"設定が不正です"};
@@ -888,7 +913,7 @@ export function configureAutoConvergence(s,{enabled,minReward}={},now=Date.now()
     if(enabled&&!a.enabled)a.lastAt=now; // 60s safety interval after ON
     a.enabled=enabled;
   }
-  return {ok:true,enabled:a.enabled,minReward:a.minReward};
+  return {ok:true,enabled:a.enabled,minReward:a.minReward,minSteps:a.minSteps||1};
 }
 export function autoConvergenceTick(s,now=Date.now(),offline=false) {
   if(offline||!s.intro.complete||!s.engraving.autoConverge.enabled ||
@@ -897,7 +922,7 @@ export function autoConvergenceTick(s,now=Date.now(),offline=false) {
   if(!Number.isFinite(now)||now<0||now-s.engraving.autoConverge.lastAt<AUTO_CONVERGE_MIN_INTERVAL_MS)
     return {ok:false,reason:"自動収束の待機中です"};
   const q=convergenceQuote(s);
-  if(!q.steps||A(q.reward).cmp(s.engraving.autoConverge.minReward)<0)
+  if(q.steps<(s.engraving.autoConverge.minSteps||1)||A(q.reward).cmp(s.engraving.autoConverge.minReward)<0)
     return {ok:false,reason:"報酬閾値または必要オーブが不足しています"};
   const result=converge(s);
   if(result.ok){
@@ -962,6 +987,65 @@ export function labBoostUpgrade(s,index){
   s.boost.seconds-=cost;s.boost.upgrades[index]++;
   recordBoostAccounting(s,"upgrade",cost,Date.now(),"旧5系統・lab "+index);
   return {ok:true,cost};
+}
+
+/**
+ * Online-only engraving automation: bounded operations and persistent
+ * fractional credits make the result independent of display refresh rate.
+ * No BOOST balance, offline stage, or saved legacy equipment is changed.
+ */
+function autoEngravingBuy(s,kind,quantity,efficient){
+  const ids=kind==="source"?SOURCE_IDS:MOMENT_IDS,previousMode=s.purchaseMode;
+  let count=0;
+  try{
+    s.purchaseMode="1";
+    for(let i=0;i<Math.min(quantity,ENGRAVING_AUTO_BATCH_LIMIT);i++){
+      const offers=[];
+      for(const id of ids){
+        const quote=purchaseQuote(s,kind,id,"1");
+        if(quote.enabled)offers.push({id,cost:A(quote.cost)});
+      }
+      if(!offers.length)break;
+      if(efficient){
+        if(kind==="source"){
+          for(const o of offers)o.score=sourceNextGain(s,o.id).div(o.cost);
+        }else{
+          const before=tapPower(s).add(production(s));
+          for(const o of offers){
+            s.moment[o.id]++;
+            try{
+              const after=tapPower(s).add(production(s));
+              o.score=after.cmp(before)>0?after.sub(before).div(o.cost):A(0);
+            }finally{s.moment[o.id]--;}
+          }
+        }
+        offers.sort((a,b)=>b.score.cmp(a.score)||a.cost.cmp(b.cost));
+      }else offers.sort((a,b)=>a.cost.cmp(b.cost));
+      if(!buy(s,kind,offers[0].id).ok)break;
+      count++;
+    }
+  }finally{s.purchaseMode=previousMode;}
+  return count;
+}
+function runEngravingAutomation(s,seconds,now,rng){
+  if(seconds<=0)return;
+  const runtime=s.engraving.runtime??(s.engraving.runtime=freshEngravingRuntime());
+  const tapRate=engravingAutoTapRate(s);
+  if(tapRate>0){
+    const earned=engravingOrbAward(s,tapPower(s,now).mul(seconds*tapRate),rng);
+    addOrbs(s,earned);
+  }
+  const efficient=engravingAutoEfficient(s);
+  for(const [key,kind,rate] of [
+    ["autoMomentCredit","moment",engravingAutoMomentRate(s)],
+    ["autoSourceCredit","source",engravingAutoSourceRate(s)]
+  ]){
+    if(rate<=0)continue;
+    const total=Math.min(1000,runtime[key]+seconds*rate);
+    const due=Math.min(ENGRAVING_AUTO_BATCH_LIMIT,Math.floor(total));
+    runtime[key]=total-due;
+    if(due>0)autoEngravingBuy(s,kind,due,efficient);
+  }
 }
 export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
   const dt=Math.max(0,(now-s.lastWall)/1000);
@@ -1041,6 +1125,7 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
     const report=SETSUNA.advance(proj,now,{seconds:elapsedSeconds,offline:false,rng});
     rememberSetsuna(s,proj);
     gained=A(report.source).mul(factor).add(base.mul(Math.max(0,gameSeconds-elapsedSeconds)));
+    gained=engravingOrbAward(s,gained,rng);
     addOrbs(s,gained);
   }
   if(s.time.unlocked){
@@ -1127,6 +1212,7 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
       for(let i=0;i<ticks;i++)autoPlanetOnce(s,now);
     }
   }
+  if(s.intro.complete)runEngravingAutomation(s,gameSeconds,now,rng);
   autoConvergenceTick(s,now,false);
   if(s.mode==="lab"){
     if(s.engraving.active.includes("autoTap"))addOrbs(s,tapPower(s).mul(gameSeconds));
@@ -1390,6 +1476,11 @@ export function validateState(input,expectedMode=null) {
       Object.entries(e.levels).some(([id,level])=>!ENGRAVING_IDS.includes(id)||
         !Number.isSafeInteger(level)||level<1||level>1000000||!e.owned.includes(id)))fail("刻印Lv");
   if(e.autoConverge===undefined)e.autoConverge={enabled:false,minReward:AUTO_CONVERGE_DEFAULT_MIN_REWARD,lastAt:0};
+  if(e.autoConverge.minSteps===undefined)e.autoConverge.minSteps=1;
+  if(e.runtime===undefined)e.runtime=freshEngravingRuntime();
+  if(!e.runtime||typeof e.runtime!=="object"||Array.isArray(e.runtime))fail("刻印自動化状態");
+  for(const k of ["autoTapCredit","autoMomentCredit","autoSourceCredit"])
+    if(!Number.isFinite(e.runtime[k])||e.runtime[k]<0||e.runtime[k]>1000)fail("刻印自動化残高");
   if(!Array.isArray(e.active)||e.active.some(x=>!CONTENT.engravings.some(y=>y.id===x)))fail("旧刻印");
   const checkIds=(list,label)=>{
     if(!Array.isArray(list)||list.length>30||new Set(list).size!==list.length||
@@ -1410,11 +1501,13 @@ export function validateState(input,expectedMode=null) {
   }
   if(!e.autoConverge||typeof e.autoConverge!=="object"||
       typeof e.autoConverge.enabled!=="boolean"||
+      !Number.isSafeInteger(e.autoConverge.minSteps)||e.autoConverge.minSteps<1||e.autoConverge.minSteps>100||
       !validRewardThreshold(e.autoConverge.minReward)||
       !Number.isFinite(e.autoConverge.lastAt)||e.autoConverge.lastAt<0||e.autoConverge.lastAt>1e15)
     fail("自動収束設定");
   e.autoConverge.minReward=str(e.autoConverge.minReward);
   if(e.autoConverge.enabled&&!e.owned.includes(ENGRAVING_AUTO_CONVERGE_ID))fail("自動収束の未購入設定");
+  if(e.autoConverge.minSteps>1&&!engravingConvergenceControl(s))fail("循環制御の取得状態");
   const b=s.boost;if(!b||!Number.isFinite(b.seconds)||b.seconds<0||!Array.isArray(b.upgrades)||b.upgrades.length!==5||b.upgrades.some(x=>!Number.isInteger(x)||x<0||x>10000))fail("BOOST");
   if(b.trialLevels===undefined)b.trialLevels=[0,0,0,0,0];
   if(!Array.isArray(b.trialLevels)||b.trialLevels.length!==5||

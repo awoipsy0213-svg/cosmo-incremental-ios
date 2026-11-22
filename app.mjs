@@ -2,6 +2,7 @@ import {CONFIG} from "./balance-config.mjs";
 import {UNIVERSE_RESOURCE_RULES,resourceEligible} from "./universe-confirmed-v4.mjs";
 import {KNOWLEDGE_IDS,KNOWLEDGE_NAMES,knowledgeLevel,coreRequirements,autoPlanetAvailable} from "./universe-progression-v316.mjs";
 import {engravingCatalogue,engravingSlots,engravingPurchaseQuote,ENGRAVING_AUTO_CONVERGE_ID} from "./engraving-rules-v317.mjs";
+import {engravingConvergenceControl} from "./engraving-effects-v333.mjs";
 import {TELEMETRY_LIMITS,consecutiveOrbGains} from "./telemetry-v319.mjs";
 import {compareMomentPrice,compareMomentPriceProfiles,exportPriceReport,PRICE_MODEL_VERSION} from "./price-lab.mjs";
 import {MOMENT_GROUP_NAMES,cleanMomentPrefs,toggleMomentFavorite,moveMomentFavorite,momentVisible} from "./moment-filter.mjs";
@@ -390,6 +391,10 @@ function engravingHTML(){
         ${[...new Set([...options,e.autoConverge.minReward])].map(v=>`<option value="${v}" ${A(v).cmp(e.autoConverge.minReward)===0?"selected":""}>${v}</option>`).join("")}
       </select>
     </label>
+    ${engravingConvergenceControl(state)?`<label class="kw-row">必要収束段階
+       <select id="autoConvergeMinSteps" class="input-select" aria-label="自動収束の最低段階">
+       ${[...new Set([1,2,3,5,10,20,50,100,e.autoConverge.minSteps||1])].sort((a,b)=>a-b).map(n=>`<option value="${n}" ${(e.autoConverge.minSteps||1)===n?"selected":""}>${n}段階</option>`).join("")}
+       </select></label>`:""}
     <button class="wide-button" data-action="toggle-auto-converge">${e.autoConverge.enabled?"自動収束を停止":"自動収束を開始"}</button>
   </div>`:"";
   return `<div class="kw-card engraving-overview">
@@ -406,7 +411,7 @@ function engravingHTML(){
       const button=owned?`<button class="wide-button engraving-purchase-button" data-engraving-trial-upgrade="${item.id}" ${!upgrade.ok||readOnly||store.blocked?"disabled":""} aria-label="${esc(item.id+"を追加強化")}" title="${esc(upgrade.reason||"追加強化 "+shownPrice+" 存在")}">購入</button>`:
         `<button class="wide-button engraving-purchase-button" data-engraving-buy="${item.id}" ${!q.ok||readOnly||store.blocked?"disabled":""} aria-label="${esc(item.id+"を初回購入")}" title="${esc(q.reason||"初回購入 "+shownPrice+" 存在")}">購入</button>`;
       return `<article class="kw-card engraving-card" data-engraving-entry="${item.id}">
-        <div class="card-top"><strong title="${esc(item.name)}">${esc(item.id)}</strong><span class="badge ${owned?"confirmed":""}" title="${esc(levelText)}">${esc(levelText)}</span></div>
+        <div class="card-top"><strong title="${esc(item.name)}">${esc(item.id+" "+item.name)}</strong><span class="badge ${owned?"confirmed":""}" title="${esc(levelText)}">${esc(levelText)}</span></div>
         <button type="button" class="engraving-detail-button" data-engraving-detail="${item.id}" aria-label="${esc(item.id)}の効果詳細" title="効果の詳細">⋯</button>
         <small class="engraving-effect" title="${esc(item.description)}">${esc(item.description)}</small>
         <span class="engraving-cost" title="${esc("費用 "+shownPrice+" 存在")}">費用 <strong>${esc(shownPrice)}</strong> 存在</span>
@@ -415,7 +420,7 @@ function engravingHTML(){
     }).join("")}</div>`).join("")}
   ${autoControls}
   ${mode==="lab"&&e.active.length?'<p class="tiny muted">旧検証版の刻印実験データは独立したlabデータのまま保護しています。</p>':""}
-  <details class="tiny muted"><summary>試験値と旧セーブについて</summary><p>未確定の刻印固有効果・旧Lv換算と旧装備履歴は別管理し、バックアップに保護します。</p></details>`;
+  <details class="tiny muted"><summary>暫定効果と旧セーブ保護</summary><p>A〜Dの25効果は推奨数値で適用。Lv未確認の旧刻印は推測換算せず、旧装備履歴とセーブ原本を保護します。その他の5刻印は固有効果を未適用。</p></details>`;
 }
 function flowHTML(){
   const t=state.time;
@@ -1299,7 +1304,7 @@ document.addEventListener("click",async e=>{
       const price=q.price??item.cost;
       await ask(item.name,"状態："+(owned?"取得済み":"未取得")+"\n"+item.description+
         "\n費用："+(price===null||price===undefined?"—":f(price,3))+" 存在"+
-        "\n追加強化は検証値、未確認効果は未適用です。","閉じる");
+        "\nA〜Dの25効果は暫定数値です。旧Lv・未確認効果を推測しません。","閉じる");
       return;
     }
     if(b.dataset.sourceSummary!==undefined){
@@ -1373,14 +1378,14 @@ document.addEventListener("click",async e=>{
     if(b.dataset.engravingBuy){
       const id=b.dataset.engravingBuy,quote=engravingPurchaseQuote(state,id);
       if(!quote.ok)return toast(quote.reason||"購入できません");
-      if(state.settings.confirmEngravingPurchase&&!await ask("刻印の初回購入",`${id} を余剰存在 ${quote.price} で初回購入します。残り存在：${f(A(state.surplusExistence).sub(quote.price),3)}。取得後は常時有効ですが、未確定効果は適用しません。`,"購入する"))return;
+      if(state.settings.confirmEngravingPurchase&&!await ask("刻印の初回購入",`${id} を余剰存在 ${quote.price} で初回購入します。残り存在：${f(A(state.surplusExistence).sub(quote.price),3)}。有効な固有効果は購入後から常時適用します。`,"購入する"))return;
       checkpoint();
       return resultDone(G.buyEngraving(state,id));
     }
     if(b.dataset.engravingTrialUpgrade){
       const id=b.dataset.engravingTrialUpgrade,q=G.engravingTrialUpgradeQuote(state,id);
       if(!q.ok)return toast(q.reason);
-      if(state.settings.confirmEngravingUpgrade&&!await ask("刻印の試験強化",`${id} の追加強化Lv.+${q.next}。費用 ${f(q.price,3)} 余剰存在。タップ・源が追加Lvあたり+0.5%（試験値）。旧取得履歴は保護します。`,"購入する"))return;
+      if(state.settings.confirmEngravingUpgrade&&!await ask("刻印の試験強化",`${id} の追加強化Lv.+${q.next}。費用 ${f(q.price,3)} 余剰存在。個別の刻印効果を強化します。旧取得履歴は保護します。`,"購入する"))return;
       checkpoint();return resultDone(G.buyEngravingTrialUpgrade(state,id));
     }
     if(b.dataset.draft){resultDone(G.toggleDraft(state,b.dataset.draft));return;}
@@ -1432,6 +1437,7 @@ document.addEventListener("change",async e=>{
   if(t.id==="autoReserveSelect"){resultDone(G.setAutoPlanetReserve(state,Number(t.value)),"最低保有量を変更しました");return;}
   if(t.id==="interferencePartner"){interferencePartnerId=t.value;renderPanel(true);return;}
   if(t.id==="autoConvergeThreshold"){resultDone(G.configureAutoConvergence(state,{minReward:t.value}),"自動収束の最低報酬を変更しました");return;}
+  if(t.id==="autoConvergeMinSteps"){resultDone(G.configureAutoConvergence(state,{minSteps:Number(t.value)}),"自動収束の最低段階を変更しました");return;}
   if(t.id==="receiptSelect"&&mode==="lab"){
     if(state.universe.planets.some(p=>Object.values(p.pendingResources).some(x=>A(x).cmp(0)>0))){
       toast("保留報酬があるため、先に現在方式で崩壊を確認してください。");renderPanel(true);return;

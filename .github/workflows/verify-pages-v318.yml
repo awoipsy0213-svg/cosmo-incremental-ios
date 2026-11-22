@@ -71,6 +71,7 @@ jobs:
         env:
           KOTOWARI_SMOKE_BASE_URL: https://awoipsy0213-svg.github.io/cosmo-incremental-ios/
         run: |
+          node tests/v333_engraving_browser.mjs
           node tests/v333_fixed_browser.mjs
           node tests/v332_luminous_browser.mjs
           node tests/v318_browser_smoke.mjs

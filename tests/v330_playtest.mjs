@@ -63,7 +63,7 @@ check("ENG add-on upgrades never infer legacy owned Lv, and preserve equipment r
   assert.ok(q.ok);assert.equal(A(q.price).cmp("0.008"),0);
   assert.ok(G.buyEngravingTrialUpgrade(s,"ENG-01").ok);
   assert.deepEqual(s.engraving.equipped,JSON.parse(old));
-  assert.equal(s.engraving.levels["ENG-01"],undefined);
+  assert.equal(s.engraving.levels["ENG-01"],1,"newly purchased upgrade now proves verified first effect level");
   assert.equal(s.engraving.trialLevels["ENG-01"],1);
   assert.equal(G.engravingPlaytestFactor(s).cmp("1.005"),0);
   assert.equal(G.validateState(s,"normal").engraving.trialLevels["ENG-01"],1);
@@ -122,7 +122,7 @@ check("old save schema and byte-compatible www; removed status UI and old tap in
   assert.ok(!read("app.mjs").includes("タップして理を観測"));
   assert.ok(read("app.mjs").includes('data-engraving-trial-upgrade'));
   assert.ok(read("app.mjs").includes('data-boost-trial-buy'));
-  assert.ok(read("index.html").includes("3.33 · FIXED"));
-  assert.ok(read("sw.js").includes("3.33.0-fixed-geometry"));
+  assert.ok(read("index.html").includes("3.34 · ENGRAVING"));
+  assert.ok(read("sw.js").includes("3.34.0-engraving-abcd"));
 });
 console.log("PASS "+passed+" v330 test-driven provisional upgrade and UI invariants");

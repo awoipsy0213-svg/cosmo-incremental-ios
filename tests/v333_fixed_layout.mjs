@@ -9,11 +9,11 @@ for(const path of ["app.mjs","index.html","sw.js","fixed-layout-v333.css","game.
   assert.equal(read(path),read("www/"+path),path+" Web/Capacitor mismatch");
 }
 assert.ok(html.indexOf('luminous-glass-v332.css')<html.indexOf('fixed-layout-v333.css'),"cascade final");
-assert.match(html,/3\.33 · FIXED/);
+assert.match(html,/3\.34 · ENGRAVING/);
 assert.match(html,/id="childTabStrip"/);
 assert.match(html,/data-action="buy-all"/);
 assert.match(html,/id="bulkOrderButton"/);
-assert.match(sw,/const VERSION = "3\.33\.0-fixed-geometry"/);
+assert.match(sw,/const VERSION = "3\.34\.0-engraving-abcd"/);
 assert.equal((sw.match(/"fixed-layout-v333\.css"/g)||[]).length,2,"PWA core cache");
 assert.match(css,/--fixed-card-h:76px/);
 assert.match(css,/height:var\(--fixed-card-h\)!important/);
@@ -36,5 +36,5 @@ for(const banned of ["purchaseInsight(","不足 ","あと約","自動で約","li
   assert.ok(!refresh.includes(banned),"no prediction display: "+banned);
 assert.match(refresh,/b\.disabled=!enabled/);
 assert.match(refresh,/const price=costLabel\(q\)/);
-assert.ok(!read("game.mjs").includes("v333"),"game engine must not be modified for layout");
-console.log("PASS v333 fixed UI, prior saves and balance unchanged, app/www parity and no dynamic hints");
+assert.match(read("game.mjs"),/engraving-effects-v333\.mjs/,"user-approved 25 engraving effects may change gameplay separately from fixed UI");
+console.log("PASS v333 fixed UI and approved engraving game changes, app/www parity and no dynamic hints");

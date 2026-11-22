@@ -7,6 +7,7 @@
  * Unverified effect formulas remain inert until their exact specification is confirmed.
  */
 import {A} from "./numbers.mjs";
+import {ENGRAVING_EFFECTS,engravingLevel} from "./engraving-effects-v333.mjs";
 
 export const ENGRAVING_IDS=Object.freeze(Array.from({length:30},(_,i)=>"ENG-"+String(i+1).padStart(2,"0")));
 export const ENGRAVING_GROUP_PRICES=Object.freeze(["0.005","0.025","0.125"]);
@@ -35,8 +36,7 @@ export function engravingPrerequisite(tier,owned=[]){
   return {ok:count>=3,count,targetTier,needed:Math.max(0,3-count)};
 }
 export function engravingEffectStatus(id){
-  if(id===ENGRAVING_AUTO_CONVERGE_ID)
-    return {status:"implemented",description:"購入済みかつONの場合、指定収束報酬以上で実時間60秒ごとに自動収束。オフライン実行なし。"};
+  if(ENGRAVING_EFFECTS[id])return {status:"implemented",description:ENGRAVING_EFFECTS[id].description};
   if(["ENG-05","ENG-17","ENG-25"].includes(id))
     return {status:"pending-target",description:"収束時に対象源のLvを1%保持（最大10,000Lv）。対象源IDの原文照合が必要なため未適用。"};
   return {status:"pending",description:"固有効果は確定回答の原文照合待ち。現在は未適用。"};
@@ -44,7 +44,7 @@ export function engravingEffectStatus(id){
 export function engravingCatalogue(){
   return ENGRAVING_IDS.map((id,i)=>Object.freeze({
     id,
-    name:"刻印 "+String(i+1).padStart(2,"0")+"（仮表示）",
+    name:ENGRAVING_EFFECTS[id]?.name||"刻印 "+String(i+1).padStart(2,"0")+"（未照合）",
     tier:engravingTier(id),
     cost:engravingPrice(id),
     ...engravingEffectStatus(id)
