@@ -50,6 +50,7 @@ jobs:
           node tests/v325_boost_browser.mjs
           node tests/v326_confirmed_browser.mjs
           node tests/v330_playtest_browser.mjs
+          node tests/v331_ui_flow_browser.mjs
           node tests/v329_confirmed_browser.mjs
           node tests/v328_confirmed_browser.mjs
           node tests/v327_time_only_browser.mjs

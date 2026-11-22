@@ -11,7 +11,7 @@ import {cleanMomentPrefs} from "./moment-filter.mjs";
 import * as SETSUNA from "./setsuna-rules-v39.mjs";
 import {CONTENT} from "./content.mjs";
 import {PROPOSED,resourcePrototype,trialResourceWeights,naturalGrowthFactors,boostTrialCost} from "./design-proposals.mjs";
-import {A,str,seriesCost,maxAffordable} from "./numbers.mjs";
+import {A,str,seriesCost,maxAffordable,formatOrbAmount} from "./numbers.mjs";
 
 const clone=x=>JSON.parse(JSON.stringify(x));
 const finite=(n,fallback=0)=>typeof n==="number"&&Number.isFinite(n)?n:fallback;
@@ -57,6 +57,9 @@ export function createState(now=Date.now(),mode="normal") {
     counters:{taps:0,orbsSpent:"0",sourcePurchases:0,conversions:0,onlineSeconds:0,offlineSeconds:0},
     achievements:[],events:[],telemetry:freshTelemetry(),settings:{compact:true,showPurchaseHints:true,affordableOnly:false,bulkOrder:"cheap",holdToBuy:true,hapticTap:false,reducedMotion:false,highContrast:false,
       lowPower:false,confirmConvergence:true,confirmBulkPurchase:false,confirmMaxPurchase:true,showOffline:true,notation:"auto",
+      existenceLastTab:"moment",confirmEngravingPurchase:false,confirmEngravingUpgrade:false,
+      confirmBoostUpgrade:false,confirmSourceBreakthrough:true,confirmInterference:true,
+      confirmCoreFormation:true,confirmSaveImport:true,confirmSaveRestore:true,
       momentFavorites:[],momentGroup:"0",momentFilter:"all"},
     migration:null
   };
@@ -143,7 +146,7 @@ export function momentEffects(s){
   return MOMENT_IDS.map((id,i)=>{
     const info={...SETSUNA.effectInfo(p,i),id,level:s.moment[id]};
     if(i===16 && s.moment[id]>0)info.current+=" / 1回 "+(s.moment[MOMENT_IDS[15]]>0?
-      str(SETSUNA.autoExpected(p).mul(existenceMultiplier(s)))+" オーブ":"自動接触が必要");
+      formatOrbAmount(SETSUNA.autoExpected(p).mul(existenceMultiplier(s)))+" オーブ":"自動接触が必要");
     if(i===14)info.detail+="。奇跡の記録："+(s.momentRuntime?.miracleHistory||[]).length+"件（直近10件まで保持）";
     return info;
   });
@@ -378,19 +381,21 @@ export function convergenceQuote(s) {
   const priceFactor=ownsSourceFinal(s,"SOURCE_02")?.5:1;
   const cost=A(c.baseCost).mul(priceFactor);
   const legacy=s.runOrbsEvidence!=="verified";
-  const earned=legacy?s.orbs:s.runOrbsEarned;
+  // Legacy purchase history cannot be reconstructed; new confirmed gains alone
+  // count until a verified new run. Never fall back to spendable wallet balance.
+  const earned=s.runOrbsEarned??"0";
   const steps=maxAffordable(earned,cost,c.costGrowth,0,1000000000);
   const spent=seriesCost(cost,c.costGrowth,0,steps);
   const next=seriesCost(cost,c.costGrowth,0,steps+1);
   return {steps,reward:A(c.existencePerStep).mul(steps).mul(ownsSourceFinal(s,"SOURCE_01")?2:1).toString(),
     nextRequired:next.toString(),nextRemaining:next.sub(earned).toString(),spent:spent.toString(),
-    basis:legacy?"legacy-balance":"run-earned",runOrbsEarned:s.runOrbsEarned??"0"};
+    basis:"run-earned",historyVerified:!legacy,runOrbsEarned:s.runOrbsEarned??"0"};
 }
 // NEXT is measured within the current earned-orb step, never against the wallet
 // for a verified run. Legacy saves keep an explicitly marked compatibility basis.
 export function convergenceProgress(s){
   const q=convergenceQuote(s);
-  const basis=A(q.basis==="run-earned"?s.runOrbsEarned:s.orbs);
+  const basis=A(s.runOrbsEarned??"0");
   const from=A(q.spent),until=A(q.nextRequired);
   const size=until.sub(from);
   const advanced=basis.sub(from);
@@ -1130,7 +1135,7 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
       const ids=[...SOURCE_IDS].sort((a,b)=>A(purchaseQuote(s,"source",a).cost).cmp(purchaseQuote(s,"source",b).cost));
       if(ids[0])buy(s,"source",ids[0]);s.purchaseMode=mode;
     }
-    if(s.engraving.active.includes("autoConverge")&&A(s.orbs).cmp(CONFIG.lab.autoConvergeOrbs)>=0)converge(s);
+    if(s.engraving.active.includes("autoConverge")&&A(s.runOrbsEarned??"0").cmp(CONFIG.lab.autoConvergeOrbs)>=0)converge(s);
   }
   sampleActualOrbs(s.telemetry,now,s.totalOrbs);
   return {elapsed:dt,gameSeconds,orbs:gained.toString(),boost:s.boost.seconds-boostBefore};
@@ -1170,6 +1175,8 @@ export function migrateLegacy(raw,now=Date.now(),boostRaw=null) {
   // 旧版には演出型の序章がないため、操作済みデータは導入を省略して保護する。
   s.intro.complete=hadProgress;s.intro.touches=s.intro.complete?CONFIG.provisional.introTouches:0;
   s.orbs=str(Math.max(0,g.particles));s.totalOrbs=str(Math.max(0,finite(g.total)));
+  // Previous total earnings do not establish the active run total.
+  s.runOrbsEvidence="legacy-unverified";
   s.moment.tap=integer(g.clickLevel,1000000);
   // The old multLevel affected both tap and auto; retain it only in archive, not a guessed equivalent.
   const k=g.kotowari||{};
@@ -1239,9 +1246,8 @@ export function validateState(input,expectedMode=null) {
   for(const k of ["createdAt","lastWall"])if(!Number.isFinite(s[k])||s[k]<0||s[k]>1e15)fail(k);
   for(const k of ["orbs","totalOrbs","surplusExistence","totalExistenceEarned"])s[k]=str(s[k]);
   // A prior run has no provable earned total; never infer it from wallet/spend.
-  if(s.runOrbsEarned===undefined||s.runOrbsEvidence===undefined){
-    s.runOrbsEarned="0";s.runOrbsEvidence="legacy-unverified";
-  }
+  if(s.runOrbsEarned===undefined)s.runOrbsEarned="0";
+  if(s.runOrbsEvidence===undefined)s.runOrbsEvidence="legacy-unverified";
   s.runOrbsEarned=str(s.runOrbsEarned);
   if(!["verified","legacy-unverified"].includes(s.runOrbsEvidence))fail("周回獲得履歴");
   if(typeof s.intro?.complete!=="boolean"||!Number.isSafeInteger(s.intro.touches)||s.intro.touches<0)fail("導入");
@@ -1468,6 +1474,7 @@ export function validateState(input,expectedMode=null) {
   s.settings={...defaults.settings,...Object.fromEntries(Object.entries(s.settings).filter(([k,v])=>k in defaults.settings&&typeof v===typeof defaults.settings[k]))};
   if(!["auto","scientific","exponent","zeros"].includes(s.settings.notation))s.settings.notation="auto";
   if(!["cheap","expensive"].includes(s.settings.bulkOrder))s.settings.bulkOrder="cheap";
+  if(!["moment","sources","engraving"].includes(s.settings.existenceLastTab))s.settings.existenceLastTab="moment";
   Object.assign(s.settings,cleanMomentPrefs(s.settings,MOMENT_IDS));
   // BOOST-Q469/499/500: verified legacy seconds may exceed the new cap.
   // Do not trim on decode, encode, save, restore or offline settlement.

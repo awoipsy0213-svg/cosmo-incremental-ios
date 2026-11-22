@@ -107,3 +107,25 @@ export function maxAffordable(wallet,base,growth,start,limit) {
   }
   return lo;
 }
+
+
+/**
+ * Display-only integer orb formatter. Never alters prices, accounting or saves.
+ * Costs/required amounts round UP; balances and gains round DOWN.
+ * Fractions below one are shown as "1未満" for nonzero positive gains.
+ * Scientific values use an integer three-significant-digit coefficient.
+ */
+export function formatOrbAmount(value,rounding="floor",notation="auto"){
+  const n=A(value);
+  if(n.m===0)return "0";
+  if(n.e<0)return rounding==="ceil"?"1":"1未満";
+  if(n.e<6 || (n.e===6&&n.toNumber()<=1000000)){
+    const rounded=rounding==="ceil"?Math.ceil(n.toNumber()):Math.floor(n.toNumber());
+    if(rounded===0)return rounding==="ceil"?"1":"1未満";
+    return rounded.toLocaleString("ja-JP",{maximumFractionDigits:0});
+  }
+  // Express huge quantities without any decimal point, including the mantissa.
+  const significant=rounding==="ceil"?Math.ceil(n.m*100):Math.floor(n.m*100);
+  const exponent=n.e-2,mark=notation==="exponent"?"E":notation==="zeros"?"×10^":"e";
+  return `${significant}${mark}${notation==="zeros"?"":exponent>=0?"+":""}${exponent}`;
+}

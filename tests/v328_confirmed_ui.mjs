@@ -4,7 +4,7 @@ import {createState} from "../game.mjs";
 import {CONFIG} from "../balance-config.mjs";
 const read=p=>readFileSync(new URL("../"+p,import.meta.url),"utf8");
 const html=read("index.html"),app=read("app.mjs"),css=read("matrix-v324.css");
-assert.equal(CONFIG.schemaVersion,31);assert.equal(CONFIG.version,"3.30.0");
+assert.equal(CONFIG.schemaVersion,31);assert.equal(CONFIG.version,"3.30.1");
 assert.equal((html.match(/data-common-value="/g)||[]).length,2);
 for(const id of ["existence","timeSpeed"])assert.ok(html.includes('data-common-value="'+id+'"'));
 for(const id of ["orbs","speed","tap","convergences","boost"])assert.ok(!html.includes('data-common-value="'+id+'"'));

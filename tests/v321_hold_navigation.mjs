@@ -40,7 +40,7 @@ testCase("U-43 app cancels active/pending hold on each major navigation path",()
  assert.match(source,/function setStage\(id\)\{[\s\S]*?stopHoldPurchase\(null,true\)/);
  assert.match(source,/function setSheet\(which\)\{[\s\S]*?stopHoldPurchase\(null,true\)/);
  assert.match(source,/function openOrganizerPage\(id\)\{[\s\S]*?stopHoldPurchase\(null,true\)/);
- assert.ok(source.includes('if(b.dataset.child){stopHoldPurchase(null,true);'));
+ assert.match(source,/if\(b\.dataset\.child\)\{\s*stopHoldPurchase\(null,true\)/);
  assert.ok(source.includes('if(b.dataset.buyMode){stopHoldPurchase(null,true);'));
  assert.match(source,/if\(action==="cycle-buy-mode"\)\{[\s\S]*?stopHoldPurchase\(null,true\)/);
  assert.ok(source.includes('window.addEventListener("blur",()=>stopHoldPurchase(null,true))'));
