@@ -11,6 +11,8 @@ import {A} from "./numbers.mjs";
 export const ENGRAVING_IDS=Object.freeze(Array.from({length:30},(_,i)=>"ENG-"+String(i+1).padStart(2,"0")));
 export const ENGRAVING_GROUP_PRICES=Object.freeze(["0.005","0.025","0.125"]);
 export const ENGRAVING_AUTO_CONVERGE_ID="ENG-24";
+// Extra levels are reversible trial effects, independent of old equipment.
+export const ENGRAVING_TRIAL=Object.freeze({maxExtraLevels:15,costGrowth:1.6,sharedBonusPerExtraLevel:0.005});
 export const AUTO_CONVERGE_MIN_INTERVAL_MS=60000;
 export const AUTO_CONVERGE_DEFAULT_MIN_REWARD="0.025";
 
@@ -57,6 +59,18 @@ export function engravingPurchaseQuote(s,id){
     reason:"前段階の刻印を3種所有する必要があります（残り"+prerequisite.needed+"種）"};
   if(A(s.surplusExistence).cmp(price)<0)return {ok:false,tier,price,prerequisite,reason:"余剰存在が不足しています"};
   return {ok:true,tier,price,prerequisite};
+}
+export function engravingTrialUpgradeQuote(s,id){
+  if(!ENGRAVING_IDS.includes(id))return {ok:false,reason:"刻印IDが不正です"};
+  if(!s.engraving?.owned?.includes(id))return {ok:false,reason:"最初に刻印を取得してください"};
+  const current=s.engraving.trialLevels?.[id]||0;
+  if(current>=ENGRAVING_TRIAL.maxExtraLevels)return {ok:false,reason:"追加強化の試験上限です",current};
+  const price=A(engravingPrice(id)).mul(A(ENGRAVING_TRIAL.costGrowth).pow(current+1)).toString();
+  const enough=A(s.surplusExistence).cmp(price)>=0;
+  return {ok:enough,price,current,next:current+1,reason:enough?"":"余剰存在が不足しています（試験値）"};
+}
+export function engravingTrialTotal(s){
+  return ENGRAVING_IDS.reduce((sum,id)=>sum+(s.engraving.trialLevels?.[id]||0),0);
 }
 export function validRewardThreshold(value){
   try{

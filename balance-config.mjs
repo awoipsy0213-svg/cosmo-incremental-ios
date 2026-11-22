@@ -2,7 +2,7 @@
 // null = 未決定。nullを汎用倍率で埋めない。
 // provisionalの値は遊べる基盤の動作確認用で、正式な採用値ではない。
 export const CONFIG = {
-  version: "3.29.0",
+  version: "3.30.0",
   schemaVersion: 31,
   confirmed: {
     sourceMaxLevel: 1000000,
@@ -102,6 +102,10 @@ export const CONFIG = {
     timeUnlock: "firstSource",
     universe: {startingMass:10, massGrowthPerSecond:1/60, massPerResource:1, ageClock:"real"},
     boost: {multiplier:2, consumptionRule:"additional-time"},
+    // Explicit balance-test values, not canonical specification.
+    boostTrial: {limits:[10,10,12,3,16],baseCosts:[300,600,1200,900,900],growth:1.3,
+      baseGainStep:0.1,offlineGainStep:0.1,capacityStepSeconds:1800,
+      timeMultipliers:[2,3,5,10],efficiencyStep:0.05,maxReduction:0.8},
     commonResidueDraw: {trigger:"manual",distribution:"uniform"},
     saveIntervalMs: 5000
   },

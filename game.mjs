@@ -3,7 +3,7 @@ import {TIME_EFFECTS,conceptLevelCost,conceptBonuses,conceptActive,residueWeight
 import {UNIVERSE_RESOURCE_RULES,eligibleResourceWeights,pickWeightedResource,investmentDelta,collapsePressureFactor,collapseHazardPerMinute} from "./universe-confirmed-v4.mjs";
 import {KNOWLEDGE_IDS,addKnowledge,knowledgeLevel,coreRequirements,makeCoreState,advanceCore,autoPlanetAvailable} from "./universe-progression-v316.mjs";
 import {INTERFERENCE_RULES,R1_RESOURCE_IDS,STABILIZING_RESOURCES,resourceSpendPlan,induceResourceCost,interferenceKnowledgeReady} from "./universe-interference-v318.mjs";
-import {ENGRAVING_IDS,ENGRAVING_AUTO_CONVERGE_ID,AUTO_CONVERGE_MIN_INTERVAL_MS,AUTO_CONVERGE_DEFAULT_MIN_REWARD,engravingSlots,engravingPurchaseQuote,validRewardThreshold} from "./engraving-rules-v317.mjs";
+import {ENGRAVING_IDS,ENGRAVING_AUTO_CONVERGE_ID,AUTO_CONVERGE_MIN_INTERVAL_MS,AUTO_CONVERGE_DEFAULT_MIN_REWARD,engravingSlots,engravingPurchaseQuote,engravingTrialUpgradeQuote,engravingTrialTotal,ENGRAVING_TRIAL,validRewardThreshold} from "./engraving-rules-v317.mjs";
 import {FINAL_EFFECTS,ownsSourceFinal,sourceFinalMarker,sourcePlusMultiplier} from "./source-effects-v315.mjs";
 import {freshTelemetry,sampleActualOrbs,recordOfflineReport,recordConvergence,validateTelemetry} from "./telemetry-v319.mjs";
 import {cleanMomentPrefs} from "./moment-filter.mjs";
@@ -26,6 +26,9 @@ const freshMoment=()=>Object.fromEntries(MOMENT_IDS.map(id=>[id,0]));
 const add=(a,b)=>A(a).add(b).toString();
 const sub=(a,b)=>A(a).sub(b).toString();
 const unknown="仕様が未決定のため、通常プレイではまだ適用しません。";
+export function engravingPlaytestFactor(s){
+  return A(1).add(A(engravingTrialTotal(s)).mul(ENGRAVING_TRIAL.sharedBonusPerExtraLevel));
+}
 
 export function createState(now=Date.now(),mode="normal") {
   return {
@@ -46,9 +49,9 @@ export function createState(now=Date.now(),mode="normal") {
     life:{unlocked:false},
     // Separate experiment flag; never active in normal saves.
     trial:{enabled:false},
-    engraving:{active:[],draft:null,observationUnlocked:false,owned:[],equipped:[],levels:{},
+    engraving:{active:[],draft:null,observationUnlocked:false,owned:[],equipped:[],levels:{},trialLevels:{},
       autoConverge:{enabled:false,minReward:AUTO_CONVERGE_DEFAULT_MIN_REWARD,lastAt:0}},
-    boost:{seconds:0,active:false,upgrades:[0,0,0,0,0],accounting:freshBoostAccounting(),
+    boost:{seconds:0,active:false,upgrades:[0,0,0,0,0],trialLevels:[0,0,0,0,0],accounting:freshBoostAccounting(),
       timeOnlyMigration:{version:1,at:now,previousActive:null,source:"new"}},
     counters:{taps:0,orbsSpent:"0",sourcePurchases:0,conversions:0,onlineSeconds:0,offlineSeconds:0},
     achievements:[],events:[],telemetry:freshTelemetry(),settings:{compact:true,showPurchaseHints:true,affordableOnly:false,bulkOrder:"cheap",holdToBuy:true,hapticTap:false,reducedMotion:false,highContrast:false,
@@ -98,7 +101,7 @@ function spendOrbs(s,amount) {
   return true;
 }
 export function tapPower(s,now=Date.now()) {
-  return SETSUNA.tapPreview(setsunaProjection(s,null,now),now).mul(existenceMultiplier(s)).mul(finalTap(s));
+  return SETSUNA.tapPreview(setsunaProjection(s,null,now),now).mul(existenceMultiplier(s)).mul(finalTap(s)).mul(engravingPlaytestFactor(s));
 }
 // Each convergence gives a persistent, additive +1% per 0.01 surplus existence.
 // First existence (the protected 1) is not counted: 0.02 surplus => x1.02; 1 => x2.
@@ -189,7 +192,7 @@ export function sourceProduction(s,id) {
   const unit=sourceProductionPerLevel(id);
   const growth=CONFIG.provisional.source.productionGrowth;
   const total=seriesCost(unit,growth,0,v.level);
-  return total.mul(plus).mul(ownsSourceFinal(s,"SOURCE_09")&&id==="SOURCE_09"?2:1).mul(ownsSourceFinal(s,"SOURCE_04")?2:1).mul(existenceMultiplier(s));
+  return total.mul(plus).mul(ownsSourceFinal(s,"SOURCE_09")&&id==="SOURCE_09"?2:1).mul(ownsSourceFinal(s,"SOURCE_04")?2:1).mul(existenceMultiplier(s)).mul(engravingPlaytestFactor(s));
 }
 /** Extra output from buying this Source's next one level, including all current bonuses. */
 export function sourceNextGain(s,id) {
@@ -198,7 +201,7 @@ export function sourceNextGain(s,id) {
   const plus=sourcePlusMultiplier(v.plus);
   return sourceProductionPerLevel(id)
     .mul(A(CONFIG.provisional.source.productionGrowth).pow(v.level))
-    .mul(plus).mul(ownsSourceFinal(s,"SOURCE_09")&&id==="SOURCE_09"?2:1).mul(ownsSourceFinal(s,"SOURCE_04")?2:1).mul(existenceMultiplier(s));
+    .mul(plus).mul(ownsSourceFinal(s,"SOURCE_09")&&id==="SOURCE_09"?2:1).mul(ownsSourceFinal(s,"SOURCE_04")?2:1).mul(existenceMultiplier(s)).mul(engravingPlaytestFactor(s));
 }
 export function production(s,now=Date.now()) {
   return baseProduction(s).mul(SETSUNA.sourceMultiplier(setsunaProjection(s,null,now),now));
@@ -849,6 +852,16 @@ export function buyEngraving(s,id) {
   event(s,`${id} の初回購入を記録した。所有中は常時効果が有効（未確認の固有効果は未適用）。`);
   return {ok:true,id,price:q.price};
 }
+export function buyEngravingTrialUpgrade(s,id){
+  const q=engravingTrialUpgradeQuote(s,id);
+  if(!q.ok)return q;
+  s.surplusExistence=sub(s.surplusExistence,q.price);
+  s.engraving.trialLevels??={};
+  s.engraving.trialLevels[id]=q.next;
+  if(s.engraving.levels[id]!==undefined)s.engraving.levels[id]++;
+  event(s,`${id} の追加強化＋${q.next}（試験値）。`);
+  return {ok:true,id,price:q.price,extraLevel:q.next};
+}
 // Historical equipped/draft arrays remain in saves verbatim. They no longer
 // govern effects; editing and re-equipping are deliberately unavailable.
 export function beginEngraving(){return {ok:false,reason:"刻印の装備切替は廃止されました"};}
@@ -887,21 +900,52 @@ export function autoConvergenceTick(s,now=Date.now(),offline=false) {
   }
   return result;
 }
+export function boostTimeMultiplier(s){
+  if(s.mode==="lab")return CONFIG.provisional.boost.multiplier;
+  return CONFIG.provisional.boostTrial.timeMultipliers[s.boost.trialLevels?.[3]||0]||2;
+}
+export function boostConsumptionFactor(s){
+  if(s.mode==="lab")return 1;
+  const q=CONFIG.provisional.boostTrial;
+  return 1-Math.min(q.maxReduction,(s.boost.trialLevels?.[4]||0)*q.efficiencyStep);
+}
 export function boostValues(s) {
-  // BOOST-Q121/Q217: no new BOOST earned online, including isolated lab mode.
-  // The offline base is an independent confirmed 15min per real hour, not a
-  // multiplier derived from the obsolete 10min-per-hour online mechanism.
-  // The official time-only system has FIVE upgrade paths (BOOST-CORE-004).
-  // The obsolete five lab-test path levels stay isolated for archival QA,
-  // not reinterpreted as newly decided production upgrade costs or values.
-  const u=s.mode==="lab"?s.boost.upgrades:[0,0,0,0,0],c=CONFIG.confirmed;
-  const b=PROPOSED.boost;
+  const c=CONFIG.confirmed;
+  if(s.mode==="normal"){
+    const q=CONFIG.provisional.boostTrial,u=s.boost.trialLevels||[0,0,0,0,0];
+    return {capacity:c.boostCapacitySeconds+u[2]*q.capacityStepSeconds,
+      offlineRate:c.boostOfflineSecondsPerHour/3600*(1+u[0]*q.baseGainStep)*(1+u[1]*q.offlineGainStep),
+      onlineRate:0,efficiency:c.offlineEfficiency,offlineCap:c.offlineCapSeconds,
+      timeMultiplier:boostTimeMultiplier(s),consumptionFactor:boostConsumptionFactor(s)};
+  }
+  // Legacy lab experiment stays separate from the five official roles.
+  const u=s.boost.upgrades,b=PROPOSED.boost;
   return {capacity:Math.min(b.maxCapacitySeconds,c.boostCapacitySeconds+u[4]*b.capacityStepSeconds),
     onlineRate:0,
-    offlineRate:c.boostOfflineSecondsPerHour*(s.mode==="lab"?
-      (1+u[2]*b.basicGainRateStep)*(1+u[3]*b.offlineGainMultiplierStep):1)/3600,
+    offlineRate:c.boostOfflineSecondsPerHour*(1+u[2]*b.basicGainRateStep)*(1+u[3]*b.offlineGainMultiplierStep)/3600,
     efficiency:Math.min(b.maxOfflineEfficiency,c.offlineEfficiency+u[0]*b.offlineEfficiencyStep),
-    offlineCap:Math.min(b.maxOfflineCapSeconds,c.offlineCapSeconds+u[1]*b.offlineCapStepSeconds)};
+    offlineCap:Math.min(b.maxOfflineCapSeconds,c.offlineCapSeconds+u[1]*b.offlineCapStepSeconds),
+    timeMultiplier:CONFIG.provisional.boost.multiplier,consumptionFactor:1};
+}
+export function boostTrialPurchaseQuote(s,index){
+  if(s.mode!=="normal")return {ok:false,reason:"通常モードの試験強化です"};
+  const q=CONFIG.provisional.boostTrial,u=s.boost.trialLevels||[0,0,0,0,0];
+  if(!Number.isInteger(index)||index<0||index>4)return {ok:false,reason:"強化IDが不正です"};
+  const current=u[index];
+  if(current>=q.limits[index])return {ok:false,reason:"試験上限に到達しました",current};
+  const cost=Math.ceil(q.baseCosts[index]*q.growth**current);
+  const enough=s.boost.seconds>=cost;
+  return {ok:enough,index,current,next:current+1,cost,reason:enough?"":"BOOST残量が不足しています"};
+}
+export function buyBoostTrialUpgrade(s,index){
+  const q=boostTrialPurchaseQuote(s,index);
+  if(!q.ok)return q;
+  s.boost.seconds-=q.cost;
+  s.boost.trialLevels[index]++;
+  if(s.boost.seconds<1)s.boost.active=false;
+  recordBoostAccounting(s,"upgrade",q.cost,Date.now(),"正式5系統・試験強化 "+index);
+  event(s,"BOOST試験強化："+index+" Lv."+q.next);
+  return {ok:true,...q};
 }
 export function labBoostUpgrade(s,index){
   if(s.mode!=="lab")return {ok:false,reason:"費用・増加幅・上限は？？？です"};
@@ -964,18 +1008,16 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
   if(s.boost.active){
     // BOOST-CORE-004: exactly one game-time multiplier, no direct resource
     // multiplier or instant-tap surcharge. m-1 is a trial-only cost formula.
-    const m=CONFIG.provisional.boost.multiplier;
+    const m=boostTimeMultiplier(s),factor=boostConsumptionFactor(s);
     if(m>1){
-      const extra=Math.min(s.boost.seconds,dt*(m-1));
-      s.boost.seconds=Math.max(0,s.boost.seconds-extra);
+      const extra=Math.min(dt*(m-1),s.boost.seconds/factor),spent=Math.min(s.boost.seconds,extra*factor);
+      s.boost.seconds=Math.max(0,s.boost.seconds-spent);
       gameSeconds+=extra;
-      if(extra>0){
+      if(spent>0){
         const activeWall=extra/(m-1),startAt=now-dt*1000;
-        // BOOST-Q419/Q312: if BOOST runs out mid-frame, log only the
-        // accelerated interval, not the rest that continues at normal speed.
-        recordBoostAccounting(s,"spent",extra,now,"時間倍率（暫定）",{
+        recordBoostAccounting(s,"spent",spent,now,"時間倍率（暫定）",{
           from:startAt,to:startAt+activeWall*1000,realSeconds:activeWall,
-          effectiveBoostSeconds:activeWall,gameSeconds:activeWall*m,multiplier:m
+          effectiveBoostSeconds:spent,gameSeconds:activeWall*m,multiplier:m
         });
       }
       if(s.boost.seconds<=0)s.boost.active=false;
@@ -1333,6 +1375,10 @@ export function validateState(input,expectedMode=null) {
   if(e.equipped===undefined)e.equipped=[];
   // Old ownership proves a purchase, not the numerical level of a new system.
   if(e.levels===undefined)e.levels={};
+  if(e.trialLevels===undefined)e.trialLevels={};
+  if(!e.trialLevels||typeof e.trialLevels!=="object"||Array.isArray(e.trialLevels)||
+     Object.entries(e.trialLevels).some(([id,v])=>!ENGRAVING_IDS.includes(id)||!e.owned.includes(id)||
+       !Number.isSafeInteger(v)||v<0||v>ENGRAVING_TRIAL.maxExtraLevels))fail("刻印試験強化");
   if(!e.levels||typeof e.levels!=="object"||Array.isArray(e.levels)||
       Object.entries(e.levels).some(([id,level])=>!ENGRAVING_IDS.includes(id)||
         !Number.isSafeInteger(level)||level<1||level>1000000||!e.owned.includes(id)))fail("刻印Lv");
@@ -1363,6 +1409,10 @@ export function validateState(input,expectedMode=null) {
   e.autoConverge.minReward=str(e.autoConverge.minReward);
   if(e.autoConverge.enabled&&!e.owned.includes(ENGRAVING_AUTO_CONVERGE_ID))fail("自動収束の未購入設定");
   const b=s.boost;if(!b||!Number.isFinite(b.seconds)||b.seconds<0||!Array.isArray(b.upgrades)||b.upgrades.length!==5||b.upgrades.some(x=>!Number.isInteger(x)||x<0||x>10000))fail("BOOST");
+  if(b.trialLevels===undefined)b.trialLevels=[0,0,0,0,0];
+  if(!Array.isArray(b.trialLevels)||b.trialLevels.length!==5||
+     b.trialLevels.some((lv,i)=>!Number.isSafeInteger(lv)||lv<0||lv>CONFIG.provisional.boostTrial.limits[i]))fail("BOOST試験強化");
+  if(s.mode==="lab"&&b.trialLevels.some(v=>v!==0))fail("通常BOOST強化のlab混在");
   if(typeof b.active!=="boolean")fail("BOOST状態");
   if(b.timeOnlyMigration===undefined){
     // BOOST-Q501: the old ON bit must never become an automatically active
