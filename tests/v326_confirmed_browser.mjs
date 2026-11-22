@@ -40,7 +40,7 @@ try{
   await page.locator('[data-stage="existence"]').click();
   await page.locator('[data-child="sources"]').click();
   const sourceText=await page.locator("#sheetBody").textContent();
-  assert.ok(sourceText.includes("源の共振：3 / 630節目"),"source progress missing");
+  assert.ok(sourceText.includes("源の共振 3/630"),"source progress missing");
   assert.ok(sourceText.includes("SOURCE_01 Lv.50"),"next milestone missing");
   await page.locator('.app-top [data-action="organizer"]').click();
   await page.locator('[data-organizer="boost"]').click();
