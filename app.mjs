@@ -224,9 +224,21 @@ function renderWorld(){
     $("worldDetails").innerHTML=`<span class="wallet">オーブ <b>${orbDisplay(state.orbs)}</b></span><span>${state.runOrbsEvidence==="verified"?"周回獲得 "+orbDisplay(state.runOrbsEarned)+" オーブ":"旧周回・確認済獲得 "+orbDisplay(state.runOrbsEarned)+" オーブ"}</span><span>干渉 +${o(tap)} / 源 +${o(rate)} 毎秒</span>${comboHtml}${storedHtml}`;
     $("worldHint").textContent="";
     const q=G.convergenceQuote(state);
-    $("convergeMain").disabled=!q.steps||readOnly;
+    $("convergeMain").disabled=!q.steps||readOnly||store.blocked;
     const gauge=G.convergenceProgress(state);
-    $("convergeMain").innerHTML=`<strong>収束 <span>+${f(q.reward,3)}</span></strong><span><small>${q.historyVerified?"次の報酬まで":"確認済の獲得で次まで"}</small>${o(q.nextRemaining,"ceil")} オーブ</span><span class="converge-gauge" aria-hidden="true"><i style="width:${gauge.percent.toFixed(2)}%"></i></span>`;
+    const mainConverge=$("convergeMain");
+    if(!mainConverge.querySelector("[data-main-convergence-reward]")){
+      mainConverge.innerHTML=`<span class="converge-main-reward"><strong>収束</strong><span data-main-convergence-reward>+0</span></span><span class="converge-main-next"><small>NEXT</small><span data-main-convergence-next>0 オーブ</span></span><span class="converge-gauge" aria-hidden="true"><i data-main-convergence-gauge style="width:0%"></i></span>`;
+    }
+    const nextOrbs=o(q.nextRemaining,"ceil"),rewardLabel="+"+f(q.reward,3);
+    const mainReward=mainConverge.querySelector("[data-main-convergence-reward]");
+    const mainNext=mainConverge.querySelector("[data-main-convergence-next]");
+    if(mainReward.textContent!==rewardLabel)mainReward.textContent=rewardLabel;
+    if(mainNext.textContent!==nextOrbs+" オーブ")mainNext.textContent=nextOrbs+" オーブ";
+    mainConverge.querySelector("[data-main-convergence-gauge]").style.width=gauge.percent.toFixed(2)+"%";
+    const convergeInfo=`収束で存在 ${rewardLabel}。次の報酬まで ${nextOrbs} オーブ。`+(q.historyVerified?"":"旧周回の獲得履歴は未確認です。現在の確認済み獲得分だけを数えています。");
+    if(mainConverge.title!==convergeInfo)mainConverge.title=convergeInfo;
+    if(mainConverge.getAttribute("aria-label")!==convergeInfo)mainConverge.setAttribute("aria-label",convergeInfo);
   }else if(currentStage==="time"){
     $("primaryValue").textContent=Math.floor(state.time.elapsed).toLocaleString("ja-JP");
     $("worldDetails").innerHTML=`<span class="wallet">TIME · 継続する流れ</span><span>世界時間 ${Math.min(1,state.time.worldSeconds).toFixed(6)} / 1 秒 · 自動生成 +${o(rate)} オーブ / 秒</span>`;
@@ -273,7 +285,11 @@ function renderWorld(){
   $("matrixCaption").textContent=`${stage.name} のマトリクス`;
   $("matrixSummary").textContent=progress.total?`${progress.title} ${progress.done} / ${progress.total}`:"まだ観測できません";
   $("matrixFill").style.width=progress.total?`${Math.min(100,100*progress.done/progress.total).toFixed(1)}%`:"0%";
-  $("worldObserve").innerHTML=stageRows.slice(0,currentStage==="existence"||currentStage==="organizer"?2:3).map(([name,value])=>`<div class="scene-stat"><span>${esc(name)}</span><strong>${esc(value)}</strong></div>`).join("");
+  const observeRows=currentStage==="existence"||currentStage==="organizer"?[
+    ["源の生成/秒",o(rate),`源の生成 ${o(rate)} オーブ/秒`],
+    ["干渉1タップ",o(tap),`干渉1タップ ${o(tap)} オーブ/タップ`]
+  ]:stageRows.slice(0,3).map(([name,value])=>[name,value,`${name} ${value}`]);
+  $("worldObserve").innerHTML=observeRows.map(([label,value,full])=>`<div class="scene-stat" title="${esc(full)}"><span>${esc(label)}</span><strong title="${esc(full)}">${esc(value)}</strong></div>`).join("");
   // DEC-20261122-005: the permanent “理の状態” sidebar is removed.
   // Game state and history remain intact; only redundant on-screen copy is hidden.
   $("heroSigil").textContent=currentStage==="time"?"時":currentStage==="universe"?"宇":currentStage==="life"?"生":"理";

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {CONFIG} from "../balance-config.mjs";
+import {formatOrbAmount} from "../numbers.mjs";
 const read=p=>readFileSync(new URL("../"+p,import.meta.url),"utf8");
 const html=read("index.html"),sw=read("sw.js"),app=read("app.mjs"),css=read("fixed-layout-v333.css");
 assert.equal(CONFIG.schemaVersion,31,"must not migrate saves for UI");
@@ -13,7 +14,7 @@ assert.match(html,/3\.34 · ENGRAVING/);
 assert.match(html,/id="childTabStrip"/);
 assert.match(html,/data-action="buy-all"/);
 assert.match(html,/id="bulkOrderButton"/);
-assert.match(sw,/const VERSION = "3\.34\.1-player-copy"/);
+assert.match(sw,/const VERSION = "3\.35\.0-ui-stability"/);
 assert.equal((sw.match(/"fixed-layout-v333\.css"/g)||[]).length,2,"PWA core cache");
 assert.match(css,/--fixed-card-h:76px/);
 assert.match(css,/height:var\(--fixed-card-h\)!important/);
@@ -37,4 +38,9 @@ for(const banned of ["purchaseInsight(","不足 ","あと約","自動で約","li
 assert.match(refresh,/b\.disabled=!enabled/);
 assert.match(refresh,/const price=costLabel\(q\)/);
 assert.match(read("game.mjs"),/engraving-effects-v333\.mjs/,"user-approved 25 engraving effects may change gameplay separately from fixed UI");
-console.log("PASS v333 fixed UI and approved engraving game changes, app/www parity and no dynamic hints");
+assert.equal(formatOrbAmount("1e10","floor","zeros"),"100×10^8","zero-expanded orb label must keep its exponent");
+assert.match(app,/data-main-convergence-next/,"fixed NEXT control remains mounted");
+assert.match(app,/const observeRows=currentStage/,"compact live observation values");
+assert.match(css,/\.world-bottom \.converge-button:not\(\[hidden\]\)/,"main convergence geometry rule");
+assert.match(css,/height:54px/,"main convergence fixed height");
+console.log("PASS v333 fixed UI, stable NEXT, compact observation HUD, complete integer orbs and app/www parity");

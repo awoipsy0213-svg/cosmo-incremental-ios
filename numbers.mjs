@@ -127,5 +127,6 @@ export function formatOrbAmount(value,rounding="floor",notation="auto"){
   // Express huge quantities without any decimal point, including the mantissa.
   const significant=rounding==="ceil"?Math.ceil(n.m*100):Math.floor(n.m*100);
   const exponent=n.e-2,mark=notation==="exponent"?"E":notation==="zeros"?"×10^":"e";
-  return `${significant}${mark}${notation==="zeros"?"":exponent>=0?"+":""}${exponent}`;
+  const exponentLabel=notation==="zeros"?String(exponent):`${exponent>=0?"+":""}${exponent}`;
+  return `${significant}${mark}${exponentLabel}`;
 }

@@ -694,3 +694,57 @@ body.low-power .kw-sheet-body .purchase-card{transition:none!important}
   border-color:#a394da;
 }
 .brand #buildLabel{display:none!important}
+
+/* Mobile existence HUD: NEXT values never resize the button and compact
+   observation values do not waste space on repeated resource units.
+   Presentation only; gameplay numbers and accessibility remain intact. */
+.world-bottom .converge-button:not([hidden]){
+  box-sizing:border-box;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  grid-template-rows:minmax(0,1fr) 4px;
+  gap:2px 8px;
+  height:54px;
+  min-height:54px;
+  max-height:54px;
+  width:100%;
+  max-width:none;
+  padding:5px 10px;
+  overflow:hidden;
+  line-height:1.15;
+  white-space:nowrap;
+}
+.converge-main-reward,.converge-main-next{
+  display:flex;align-items:center;gap:5px;min-width:0;max-width:100%;overflow:hidden;
+}
+.converge-main-reward{justify-content:flex-start}
+.converge-main-next{justify-content:flex-end}
+.converge-main-reward strong{flex:0 0 auto;font-size:14px}
+.converge-main-reward [data-main-convergence-reward]{
+  min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:12px;font-weight:750;
+}
+.converge-main-next small{flex:0 0 auto;font-size:10px;line-height:1}
+.converge-main-next [data-main-convergence-next]{
+  min-width:0;display:block;max-width:100%;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;text-align:right;
+  font-size:11px;font-weight:750;font-variant-numeric:tabular-nums;
+}
+.world-bottom .converge-button .converge-gauge{
+  grid-column:1/-1;grid-row:2;display:block;width:100%;
+  height:4px;min-height:4px;max-height:4px;margin:0;overflow:hidden;
+}
+.world-sideboards .scene-stat{
+  box-sizing:border-box;display:grid;grid-template-rows:11px 12px;
+  align-content:center;gap:0;
+  height:24px;min-height:24px;max-height:24px;padding:0;overflow:hidden;
+}
+.world-sideboards .scene-stat span,.world-sideboards .scene-stat strong{
+  box-sizing:border-box;display:block;min-width:0;width:100%;
+  overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
+}
+.world-sideboards .scene-stat span{height:11px;line-height:11px;font-size:8px}
+.world-sideboards .scene-stat strong{
+  height:12px;line-height:12px;font-size:clamp(9px,2.45vw,11px);
+  font-variant-numeric:tabular-nums;letter-spacing:-.02em;
+}
