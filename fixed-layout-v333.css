@@ -664,3 +664,6 @@ body.low-power .kw-sheet-body .purchase-card{transition:none!important}
   min-width:0;
   padding:2px 0;
 }
+
+/* Status toasts are overlays, never invisible click shields. */
+.toast,.toast.show{pointer-events:none!important}
