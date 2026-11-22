@@ -38,7 +38,7 @@ assert.match(app,/purchasePreview\(state,kind,id\)/);
 assert.match(css,/--fixed-card-h:66px/);
 assert.match(css,/dense-purchase-button/);
 assert.match(html,/purchase-row-v338\.css/);
-assert.match(sw,/3\.38\.0-dense-purchase/);
+assert.match(sw,/3\.39\.0-purchase-clarity/);
 assert.equal((sw.match(/"purchase-row-v338\.css"/g)||[]).length,2);
 assert.equal((sw.match(/"purchase-preview-v338\.mjs"/g)||[]).length,2);
 for(const file of ["index.html","app.mjs","sw.js","purchase-preview-v338.mjs","purchase-row-v338.css"])

@@ -11,7 +11,7 @@ assert.match(css,/\.confirm-dialog #confirmText\s*\{[\s\S]*?overflow-y:auto/);
 assert.match(css,/\.confirm-dialog \.dialog-actions\s*\{[\s\S]*?flex:0 0 auto/);
 assert.match(css,/max-height:calc\(100dvh/);
 assert.match(css,/@media\(max-height:450px\)/);
-assert.match(sw,/3\.38\.0-dense-purchase/);
+assert.match(sw,/3\.39\.0-purchase-clarity/);
 for(const p of ["index.html","matrix-v324.css","sw.js"]){
   assert.equal(source(p),source("www/"+p),p+" Web/iOS assets differ");
 }

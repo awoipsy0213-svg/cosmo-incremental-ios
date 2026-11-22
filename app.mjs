@@ -13,6 +13,7 @@ import * as G from "./game.mjs";
 import {SaveStore,KEYS,decode,encode} from "./save.mjs";
 import {shortDuration} from "./purchase-insights.mjs";
 import {purchasePreview} from "./purchase-preview-v338.mjs";
+import {momentBrief,compactEffectValue} from "./purchase-clarity-v339.mjs";
 
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -317,20 +318,31 @@ function costLabel(q){
   return q.count===0&&q.reason==="上限到達"?"MAX":q.count===0&&q.cost==="0"?"—":q.cost!==undefined&&q.cost!==null?o(q.cost,"ceil"):"—";
 }
 function purchaseGainLabel(kind,id,preview){
-  if(!preview.count)return "上昇 —";
-  return kind==="source"?"+"+f(preview.sourceGain,3)+"/秒":"→ "+preview.afterEffect;
+  if(!preview.count)return "→ —";
+  return kind==="source"?"+"+f(preview.sourceGain,3)+"/秒":"→ "+compactEffectValue(preview.afterEffect);
+}
+function purchaseCurrentLabel(kind,id){
+  if(kind==="source")return "現 "+f(G.sourceProduction(state,id),3)+"/秒";
+  const i=CONTENT.moment.findIndex(item=>item.id===id);
+  return "現 "+compactEffectValue(G.momentEffects(state)[i]?.current);
+}
+function sourceMilestoneLabel(id){
+  const level=state.sources[id].level;
+  const next=CONFIG.confirmed.sourceMilestones.find(n=>n>level);
+  return next?"次の節目 Lv."+next.toLocaleString("ja-JP"):"全節目に到達";
 }
 function cardQuote(kind,id){
   const preview=purchasePreview(state,kind,id),q=preview.quote;
   const name=(kind==="source"?CONTENT.sources:CONTENT.moment).find(x=>x.id===id).name;
-  const count=preview.count.toLocaleString("ja-JP"),gain=purchaseGainLabel(kind,id,preview);
-  const full=name+"：費用 "+costLabel(q)+" オーブ / 購入 ×"+count+" / "+gain;
-  const aria=name+"、購入可能 "+count+" レベル。費用 "+costLabel(q)+" オーブ。"+gain+"。購入";
+  const count=preview.count.toLocaleString("ja-JP"),gain=purchaseGainLabel(kind,id,preview),current=purchaseCurrentLabel(kind,id);
+  const full=name+"：費用 "+costLabel(q)+" オーブ / 購入 ×"+count+" / "+current+" / "+gain;
+  const aria=name+"、購入可能 "+count+" レベル。費用 "+costLabel(q)+" オーブ。"+current+"。"+gain+"。購入";
   return '<button type="button" class="buy-button dense-purchase-button" data-purchase="'+kind+'" data-id="'+esc(id)+'" '+
     (!q.enabled||readOnly||store.blocked?"disabled":"")+' aria-label="'+esc(aria)+'" title="'+esc(full)+'">'+
     '<span class="purchase-cost" title="'+esc(full)+'"><span class="purchase-symbol" aria-hidden="true">◉</span>'+
     '<strong class="purchase-cost-value" data-quote-label>'+esc(costLabel(q))+'</strong><small>オーブ</small></span>'+
     '<span class="purchase-action">購入 ×<strong data-quote-count>'+esc(count)+'</strong></span>'+
+    '<span class="purchase-current" data-quote-current title="'+esc(current)+'">'+esc(current)+'</span>'+
     '<span class="purchase-delta" data-quote-gain title="'+esc(gain)+'">'+esc(gain)+'</span></button>';
 }
 const MOMENT_PREF_IDS=CONTENT.moment.map(x=>x.id);
@@ -384,12 +396,12 @@ function momentHTML(){
   const gauge=G.convergenceProgress(state);
   return `<div class="row-grid compact-upgrades">${CONTENT.moment.map((x,i)=>{
     const heading=i%5===0?`<div class="moment-group-title" data-moment-heading="${Math.floor(i/5)}">${esc(["基礎干渉","連続干渉","確率干渉","自律干渉","源泉共鳴","超越干渉"][Math.floor(i/5)])}</div>`:"";
-    const e=effects[i];
+    const e=effects[i],brief=momentBrief(i);
     return `${heading}<article class="kw-card purchase-card moment-card" data-purchase-card data-moment-card="${x.id}" data-moment-entry="${x.id}">
       <div class="card-top"><strong title="${esc(x.name)}">${esc(x.name)}</strong><small data-moment-level="${x.id}">Lv.${state.moment[x.id].toLocaleString("ja-JP")}</small></div>
       <button type="button" class="moment-detail-button" data-moment-detail="${x.id}" aria-label="${esc(x.name)}の詳細" title="効果の詳細">⋯</button>
-      <div class="compact-stat"><span>現在</span><strong class="moment-live-effect" title="${esc(e.current)}">${esc(e.current)}</strong></div>
-      <div class="compact-stat"><span>次Lv</span><strong class="moment-next-effect" title="${esc(e.next)}">${esc(e.next)}</strong></div>
+      <div class="compact-stat"><span>効果</span><strong class="moment-live-effect" title="${esc(x.description||brief.effect)}">${esc(brief.effect)}</strong></div>
+      <div class="compact-stat"><span>内容</span><strong class="moment-next-effect" title="${esc(brief.mechanism)}">${esc(brief.mechanism)}</strong></div>
       ${cardQuote("moment",x.id)}
       </article>`;
   }).join("")}</div>
@@ -412,7 +424,7 @@ function sourcesHTML(){
       <div class="card-top"><strong title="${esc(x.name)}">${String(i+1).padStart(2,"0")} ${esc(x.name)} ＋${v.plus.toLocaleString("ja-JP")}</strong><small data-source-level="${x.id}">Lv.${v.level.toLocaleString("ja-JP")}</small></div>
       <button type="button" class="more-button source-detail-button" data-source-detail="${x.id}" aria-label="${esc(x.name)}の詳細" title="効果の詳細">⋯</button>
       <button type="button" class="source-cycle-button" data-breakthrough="${x.id}" ${!cycleReady?"disabled":""} aria-label="${esc(x.name)}の＋循環" title="${cycleReady?"＋循環を実行":v.level===1000000?"全30源一巡まで未解放":"Lv.1,000,000で＋循環が解放"}">↻</button>
-      <div class="source-rates" title="1Lv増加量 / この源の合計秒間生産量"><span data-source-next="${x.id}">次+${o(G.sourceNextGain(state,x.id))}/秒</span><span data-source-total="${x.id}">計 ${o(G.sourceProduction(state,x.id))}/秒</span></div>
+      <div class="source-rates" title="オーブを毎秒自動生成。源の生成量と購入差分は右側で確認"><span data-source-next="${x.id}">毎秒オーブを生成</span><span data-source-total="${x.id}">${esc(sourceMilestoneLabel(x.id))}</span></div>
       ${cardQuote("source",x.id)}
     </article>`;
   }).join("")}</div>`;
@@ -1014,24 +1026,26 @@ function refreshPurchaseButtons(){
     if(countNode&&countNode.textContent!==count)countNode.textContent=count;
     const gain=purchaseGainLabel(kind,id,preview),gainNode=card?.querySelector("[data-quote-gain]");
     if(gainNode&&gainNode.textContent!==gain){gainNode.textContent=gain;gainNode.title=gain;}
+    const current=purchaseCurrentLabel(kind,id),currentNode=card?.querySelector("[data-quote-current]");
+    if(currentNode&&currentNode.textContent!==current){currentNode.textContent=current;currentNode.title=current;}
     const levelNode=card?.querySelector(kind==="source"?"[data-source-level]":"[data-moment-level]");
     const level=kind==="source"?state.sources[id].level:state.moment[id];
     const levelText="Lv."+level.toLocaleString("ja-JP");
     if(levelNode&&levelNode.textContent!==levelText)levelNode.textContent=levelText;
     const name=(kind==="source"?CONTENT.sources:CONTENT.moment).find(x=>x.id===id)?.name||id;
-    const full=name+"：費用 "+price+" オーブ / 購入 ×"+count+" / "+gain;
+    const full=name+"：費用 "+price+" オーブ / 購入 ×"+count+" / "+current+" / "+gain;
     if(b.title!==full)b.title=full;
-    const aria=name+"、購入可能 "+count+" レベル。費用 "+price+" オーブ。"+gain+"。購入";
+    const aria=name+"、購入可能 "+count+" レベル。費用 "+price+" オーブ。"+current+"。"+gain+"。購入";
     if(b.getAttribute("aria-label")!==aria)b.setAttribute("aria-label",aria);
     const cost=card?.querySelector(".purchase-cost");
     if(cost&&cost.title!==full)cost.title=full;
     if(enabled)ready++;
     if(kind==="source"){
       const total=card?.querySelector(`[data-source-total="${id}"]`);
-      const sum=`計 ${o(G.sourceProduction(state,id))}/秒`;
+      const sum=sourceMilestoneLabel(id);
       if(total&&total.textContent!==sum)total.textContent=sum;
       const next=card?.querySelector(`[data-source-next="${id}"]`);
-      const nextText=`次+${o(G.sourceNextGain(state,id))}/秒`;
+      const nextText="毎秒オーブを生成";
       if(next&&next.textContent!==nextText)next.textContent=nextText;
       const cycle=card?.querySelector("[data-breakthrough]");
       if(cycle)cycle.disabled=state.sources[id].level!==1000000||!G.sourceCycleStatus(state).unlocked||readOnly||store.blocked;
