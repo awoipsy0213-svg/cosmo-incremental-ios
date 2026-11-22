@@ -63,12 +63,12 @@ try {
     });
     assert.ok(await page.locator('[data-stage="universe"]').count(),label+" fixture stage absent: "+JSON.stringify(diagnostics));
     await page.locator("#commonInfoBar").waitFor({state:"visible"});
-    assert.equal(await page.locator("#commonInfoBar button").count(),6);
+    assert.equal(await page.locator("#commonInfoBar button").count(),2);
     assert.equal(await page.locator("#stageResourceList .stage-stat").count(),4);
     assert.match(await page.locator('[data-common-value="existence"]').textContent(),/^[0-9]+[.][0-9]{2}e[+-][0-9]+$/);
     await page.locator("#commonInfoBar button").first().click();
     assert.equal(await page.locator("#sheetHeading").textContent(),"共通情報");
-    assert.match(await page.locator("#sheetBody").textContent(),/生成速度/);
+    assert.match(await page.locator("#sheetBody").textContent(),/時間の経過速度/);
     await page.locator('[data-action="return-stage-panel"]').click();
     await page.locator('[data-stage="universe"]').click();
     assert.equal(await page.locator("#commonInfoBar").isVisible(),true);
