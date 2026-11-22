@@ -211,3 +211,38 @@
   .automation-master-line>small{font-size:9px!important}
   .automation-mode-button{font-size:9px!important}
 }
+
+/* Explicit switch treatment for all automation on/off controls.
+   It remains a real accessible checkbox and does not change card geometry. */
+.automation-toggle input[type="checkbox"]{
+  appearance:none!important;-webkit-appearance:none!important;
+  position:relative;display:block;box-sizing:border-box;cursor:pointer;
+  flex:0 0 36px!important;
+  width:36px!important;min-width:36px!important;max-width:36px!important;
+  height:22px!important;min-height:22px!important;max-height:22px!important;
+  margin:0!important;padding:0!important;
+  border:1px solid #a5a4bc!important;border-radius:999px!important;
+  background:#c7c7d3!important;box-shadow:inset 0 1px 3px rgba(38,37,69,.14);
+  transition:background-color .15s ease;outline-offset:2px;
+}
+.automation-toggle input[type="checkbox"]::after{
+  content:"";position:absolute;top:2px;left:2px;
+  width:16px;height:16px;border-radius:50%;
+  background:#fff;box-shadow:0 1px 3px rgba(42,32,76,.28);
+  transform:translateX(0);transition:transform .15s ease;
+}
+.automation-toggle input[type="checkbox"]:checked{
+  background:#7a5ac2!important;border-color:#7353b7!important;
+}
+.automation-toggle input[type="checkbox"]:checked::after{transform:translateX(14px)}
+.automation-toggle input[type="checkbox"]:disabled{opacity:.48;cursor:not-allowed}
+.automation-toggle input[type="checkbox"]:focus-visible{outline:2px solid #7453b8}
+.kw-sheet-body .automation-row.is-locked,
+.kw-sheet-body .automation-convergence.is-locked{
+  background:linear-gradient(120deg,rgba(247,247,250,.97),rgba(232,232,238,.95))!important;
+  border-color:#bcbcc9!important;
+}
+@media(prefers-reduced-motion:reduce){
+  .automation-toggle input[type="checkbox"],
+  .automation-toggle input[type="checkbox"]::after{transition:none!important}
+}

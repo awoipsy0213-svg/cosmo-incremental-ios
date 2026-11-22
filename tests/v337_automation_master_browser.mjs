@@ -33,6 +33,13 @@ try{
     assert.equal(await page.locator(".automation-status").count(),3,label+" status summaries");
     assert.equal(await page.locator(".automation-row[data-automation-buy]").count(),0,label+" detail collapsed by default");
     assert.equal(await page.locator('[data-auto-master]').isChecked(),true);
+    const switchVisual=await page.locator('[data-auto-master]').evaluate(el=>({
+      appearance:getComputedStyle(el).appearance,width:el.getBoundingClientRect().width,
+      radius:getComputedStyle(el).borderRadius
+    }));
+    assert.equal(switchVisual.appearance,"none",label+" toggle renders as a switch");
+    assert.ok(switchVisual.width>=34,label+" switch touch track is visible");
+
     assert.equal(await page.locator('[data-action="toggle-auto-details"]').getAttribute("aria-expanded"),"false");
     const overviewBefore=await page.locator(".automation-overview").boundingBox();
     assert.equal(Math.round(overviewBefore.height),111,label+" fixed summary height");
