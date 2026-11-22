@@ -1,7 +1,7 @@
 // 《理》刹那30: 210 approved choices, seven rounds (2026-11-19).
 // Main-game engine only. Standalone setsuna-playtest.html retains its own v3.8 engine.
 // Every base output here excludes 存在倍率; the game applies it exactly once.
-import {A,formatAmount} from "./numbers.mjs";
+import {A,formatAmount,formatOrbAmount} from "./numbers.mjs";
 
 export const COUNT=30;
 export const GROUPS=["基礎干渉","連続干渉","確率干渉","自律干渉","源泉共鳴","超越干渉"];
@@ -338,7 +338,7 @@ export function effectInfo(s,i){
  const effect=(n)=>{
   const k=Math.max(0,n);
   switch(i){
-   case 0:return "+"+f(fixedTotal(k))+" /tap（次の1Lv +"+f(fixedIncrement(k+1))+"）";
+   case 0:return "+"+formatOrbAmount(fixedTotal(k))+" /tap（次の1Lv +"+formatOrbAmount(fixedIncrement(k+1))+"）";
    case 1:return "×"+formatAmount(A(1.02).pow(k))+"（×1.02/Lv）";
    case 2:return "追加 "+p(Math.min(1,.005*k));
    case 3:return "5タップごと ×"+f(Math.min(25,.1*k));
