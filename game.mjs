@@ -27,7 +27,7 @@ const MOMENT_IDS=CONTENT.moment.map(x=>x.id);
 const freshMoment=()=>Object.fromEntries(MOMENT_IDS.map(id=>[id,0]));
 const add=(a,b)=>A(a).add(b).toString();
 const sub=(a,b)=>A(a).sub(b).toString();
-const unknown="仕様が未決定のため、通常プレイではまだ適用しません。";
+const unknown="今はこの力を使えません。";
 export function engravingPlaytestFactor(s){
   return A(1).add(A(engravingTrialTotal(s)).mul(ENGRAVING_TRIAL.sharedBonusPerExtraLevel));
 }
@@ -384,7 +384,7 @@ export function breakthrough(s,id) {
   x.plus++;x.level=1;
   // Keep source effects and cycle history. The PLUS production coefficient
   // remains unresolved in normal mode; never promote the lab's ×2 to official.
-  event(s,`${CONTENT.sources.find(x=>x.id===id).name} ＋${x.plus}：Lv.1へ戻した（生産倍率は未確定）`);
+  event(s,`${CONTENT.sources.find(x=>x.id===id).name} ＋${x.plus}：Lv.1から再び成長を始めた。`);
   return {ok:true,plus:x.plus,level:x.level};
 }
 export function convergenceQuote(s) {
@@ -1318,7 +1318,7 @@ export function migrateLegacy(raw,now=Date.now(),boostRaw=null) {
     archived:["星屑","旧永続強化","旧増幅器","自動生成装置","惑星ランク・欠片","旧崩壊回数"],
     note:"旧版の数値を新しい存在値へ推測変換していません。旧キー・旧版プレイは残ります。"};
   if(Array.isArray(g.events))s.events=g.events.filter(x=>x&&Number.isFinite(x.at)&&typeof x.text==="string").slice(-100).map(x=>({at:x.at,text:"【旧版】"+x.text.slice(0,450)}));
-  event(s,"Ver.3.1へ安全に移行。対応が未決定の旧値は旧版に保管しています。",now);
+  event(s,"以前の進行データを引き継ぎました。",now);
   // Offline accounting uses new rules once, at load, not every refresh.
   s.lastWall=Math.min(now,Math.max(s.createdAt-31536000000,finite(g.lastSave,now)));
   return s;
