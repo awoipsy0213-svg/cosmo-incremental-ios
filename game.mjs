@@ -1109,7 +1109,7 @@ function runEngravingAutomation(s,seconds,now,rng){
     const total=Math.min(1000,runtime[key]+seconds*rate);
     runtime[key]=total;
     runtime[waitKey]=Math.min(config.intervalSeconds,(runtime[waitKey]||0)+seconds);
-    if(runtime[waitKey]<config.intervalSeconds)return;
+    if(runtime[waitKey]<config.intervalSeconds)continue;
     runtime[waitKey]=0;
     const due=Math.min(ENGRAVING_AUTO_BATCH_LIMIT,Math.floor(runtime[key]));
     runtime[key]-=due;
@@ -1548,10 +1548,29 @@ export function validateState(input,expectedMode=null) {
         !Number.isSafeInteger(level)||level<1||level>1000000||!e.owned.includes(id)))fail("刻印Lv");
   if(e.autoConverge===undefined)e.autoConverge={enabled:false,minReward:AUTO_CONVERGE_DEFAULT_MIN_REWARD,lastAt:0};
   if(e.autoConverge.minSteps===undefined)e.autoConverge.minSteps=1;
+  const defaultAuto=createState().engraving;
+  // Upgrade old saves without altering verified ownership, purchased levels or saved credits.
+  if(e.autoBuy===undefined)e.autoBuy=structuredClone(defaultAuto.autoBuy);
+  if(e.autoConverge.mode===undefined)e.autoConverge.mode="ready";
+  if(e.autoConverge.intervalSeconds===undefined)e.autoConverge.intervalSeconds=60;
+  if(e.autoConverge.intervalMinutes===undefined)e.autoConverge.intervalMinutes=1;
+  if(e.autoConverge.targetRunOrbs===undefined)e.autoConverge.targetRunOrbs="1000";
   if(e.runtime===undefined)e.runtime=freshEngravingRuntime();
   if(!e.runtime||typeof e.runtime!=="object"||Array.isArray(e.runtime))fail("刻印自動化状態");
+  for(const k of ["autoMomentWait","autoSourceWait"])
+    if(e.runtime[k]===undefined)e.runtime[k]=0;
   for(const k of ["autoTapCredit","autoMomentCredit","autoSourceCredit"])
     if(!Number.isFinite(e.runtime[k])||e.runtime[k]<0||e.runtime[k]>1000)fail("刻印自動化残高");
+  for(const k of ["autoMomentWait","autoSourceWait"])
+    if(!Number.isFinite(e.runtime[k])||e.runtime[k]<0||e.runtime[k]>60)fail("刻印自動化待機時間");
+  if(!e.autoBuy||typeof e.autoBuy!=="object"||Array.isArray(e.autoBuy))fail("自動購入設定");
+  for(const k of ["moment","source"]){
+    const a=e.autoBuy[k];
+    if(!a||typeof a!=="object"||typeof a.enabled!=="boolean"||
+       !["auto","cheap","expensive","efficient"].includes(a.priority)||
+       !Number.isSafeInteger(a.intervalSeconds)||a.intervalSeconds<1||a.intervalSeconds>60)
+      fail("自動購入の設定");
+  }
   if(!Array.isArray(e.active)||e.active.some(x=>!CONTENT.engravings.some(y=>y.id===x)))fail("旧刻印");
   const checkIds=(list,label)=>{
     if(!Array.isArray(list)||list.length>30||new Set(list).size!==list.length||
@@ -1574,9 +1593,19 @@ export function validateState(input,expectedMode=null) {
       typeof e.autoConverge.enabled!=="boolean"||
       !Number.isSafeInteger(e.autoConverge.minSteps)||e.autoConverge.minSteps<1||e.autoConverge.minSteps>100||
       !validRewardThreshold(e.autoConverge.minReward)||
+      !["ready","seconds","minutes","earned"].includes(e.autoConverge.mode)||
+      !Number.isSafeInteger(e.autoConverge.intervalSeconds)||
+        e.autoConverge.intervalSeconds<60||e.autoConverge.intervalSeconds>3600||
+      !Number.isSafeInteger(e.autoConverge.intervalMinutes)||
+        e.autoConverge.intervalMinutes<1||e.autoConverge.intervalMinutes>240||
+      typeof e.autoConverge.targetRunOrbs!=="string"||
+      !/^\\d+(?:\\.\\d+)?(?:e\\+?\\d+)?$/i.test(e.autoConverge.targetRunOrbs)||
+      A(e.autoConverge.targetRunOrbs).cmp(0)<=0||
+      A(e.autoConverge.targetRunOrbs).e>999||
       !Number.isFinite(e.autoConverge.lastAt)||e.autoConverge.lastAt<0||e.autoConverge.lastAt>1e15)
     fail("自動収束設定");
   e.autoConverge.minReward=str(e.autoConverge.minReward);
+  e.autoConverge.targetRunOrbs=str(e.autoConverge.targetRunOrbs);
   if(e.autoConverge.enabled&&!e.owned.includes(ENGRAVING_AUTO_CONVERGE_ID))fail("自動収束の未購入設定");
   if(e.autoConverge.minSteps>1&&!engravingConvergenceControl(s))fail("循環制御の取得状態");
   const b=s.boost;if(!b||!Number.isFinite(b.seconds)||b.seconds<0||!Array.isArray(b.upgrades)||b.upgrades.length!==5||b.upgrades.some(x=>!Number.isInteger(x)||x<0||x>10000))fail("BOOST");
@@ -1639,6 +1668,7 @@ export function validateState(input,expectedMode=null) {
   if(!["auto","scientific","exponent","zeros"].includes(s.settings.notation))s.settings.notation="auto";
   if(!["cheap","expensive"].includes(s.settings.bulkOrder))s.settings.bulkOrder="cheap";
   if(!["moment","sources","engraving"].includes(s.settings.existenceLastTab))s.settings.existenceLastTab="moment";
+  if(!["existence","time","universe","life"].includes(s.settings.automationStage))s.settings.automationStage="existence";
   Object.assign(s.settings,cleanMomentPrefs(s.settings,MOMENT_IDS));
   // BOOST-Q469/499/500: verified legacy seconds may exceed the new cap.
   // Do not trim on decode, encode, save, restore or offline settlement.
