@@ -10,7 +10,7 @@ let passed=0;
 const check=(label,fn)=>{fn();passed++;console.log("PASS v330",label);};
 const started=()=>{const s=G.createState(NOW);s.intro.complete=true;return s;};
 check("version, save schema and separated provisional constants",()=>{
-  assert.equal(CONFIG.version,"3.30.0");assert.equal(CONFIG.schemaVersion,31);
+  assert.equal(CONFIG.version,"3.30.1");assert.equal(CONFIG.schemaVersion,31);
   assert.equal(KEYS.normal,"kotowari_v31_normal");
   assert.deepEqual(CONFIG.provisional.boostTrial.limits,[10,10,12,3,16]);
   assert.deepEqual(started().boost.trialLevels,[0,0,0,0,0]);
