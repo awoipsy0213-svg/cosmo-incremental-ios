@@ -22,7 +22,7 @@ const childNames={moment:"刹那",sources:"源",engraving:"刻印",flow:"流れ"
   planets:"惑星",resources:"資源",observations:"観測",life:"生命",
   boost:"BOOST",achievements:"実績",chronicle:"記録",statistics:"統計",collection:"コレクション",
   guide:"遊び方",settings:"設定",backup:"保存",spec:"設計状況",proposals:"研究・試案",lab:"開発テスト",priceLab:"価格試算"};
-const organizerItems=["boost","achievements","chronicle","statistics","collection","guide","settings","backup","spec","proposals",...(dev?["priceLab","lab"]:[])];
+const organizerItems=["boost","achievements","chronicle","statistics","collection","guide","settings","backup",...(mode==="lab"?["spec","proposals","priceLab","lab"]:[])];
 let memory={};let storage;
 try{storage=window.localStorage;}catch(e){storage={getItem:k=>memory[k]||null,setItem:(k,v)=>memory[k]=String(v),removeItem:k=>delete memory[k]};}
 const store=new SaveStore(storage,mode,globalThis.crypto?.randomUUID?.()||"tab-"+Date.now());
@@ -201,7 +201,7 @@ function renderWorld(){
     const timeSpeed=state.boost.active&&state.boost.seconds>0?G.boostTimeMultiplier(state):1;
     const metrics=[
       ["existence",formatScientific3(G.existence(state)),"存在",""],
-      ["timeSpeed","×"+timeSpeed,"時間の経過速度","（現行の時間倍率は試験値）"]
+      ["timeSpeed","×"+timeSpeed,"時間の経過速度",""]
     ];
     for(const [id,formatted,label,unit] of metrics){
       const node=document.querySelector('[data-common-value="'+id+'"]');
@@ -238,7 +238,7 @@ function renderWorld(){
     $("worldHint").textContent="観測し、理解し、干渉する。";
   }else{
     $("primaryValue").textContent="—";$("worldDetails").textContent="未知の変化が、自己を維持し始める。";
-    $("worldHint").textContent="《生命》の詳細システムは設計中です。";
+    $("worldHint").textContent="未知の生命を観測する。";
   }
   const stageLabels={existence:"オーブ",time:"経過時間 · 秒",universe:"惑星数",life:"生命の兆し",organizer:"オーブ"};
   $("stageResourceLabel").textContent=stageLabels[currentStage]||"進行";
@@ -255,7 +255,7 @@ function renderWorld(){
     ["崩壊",String(state.universe.collapseCount)],
     ["選択",selected?selected.id.replace("PLANET_","惑星 "):"未選択"]
   ]:currentStage==="life"?[
-    ["段階","観測準備"],["状態","設計中"]
+    ["段階","観測準備"],["状態","未知"]
   ]:[
     ["源の生成",o(rate)+" オーブ/秒"],
     ["干渉1タップ",o(tap)+" オーブ/タップ"],
@@ -268,10 +268,10 @@ function renderWorld(){
   const conceptsCount=Object.keys(state.time.concepts).length;
   const progress=currentStage==="time"?{done:conceptsCount,total:77,title:"認識した概念"}:
     currentStage==="universe"?{done:state.universe.discoveredResources.length,total:42,title:"発見した資源"}:
-    currentStage==="life"?{done:0,total:0,title:"設計中"}:
+    currentStage==="life"?{done:0,total:0,title:"未知"}:
     {done:unlockedSourceCount+unlockedMomentCount,total:60,title:"強化した種類"};
   $("matrixCaption").textContent=`${stage.name} のマトリクス`;
-  $("matrixSummary").textContent=progress.total?`${progress.title} ${progress.done} / ${progress.total}`:"詳細システムは設計中";
+  $("matrixSummary").textContent=progress.total?`${progress.title} ${progress.done} / ${progress.total}`:"まだ観測できません";
   $("matrixFill").style.width=progress.total?`${Math.min(100,100*progress.done/progress.total).toFixed(1)}%`:"0%";
   $("worldObserve").innerHTML=stageRows.slice(0,currentStage==="existence"||currentStage==="organizer"?2:3).map(([name,value])=>`<div class="scene-stat"><span>${esc(name)}</span><strong>${esc(value)}</strong></div>`).join("");
   // DEC-20261122-005: the permanent “理の状態” sidebar is removed.
@@ -384,7 +384,7 @@ function engravingHTML(){
   const count=tier=>catalogue.filter(x=>x.tier===tier&&e.owned.includes(x.id)).length;
   const options=["0.025","0.05","0.1","0.5","1"];
   const autoControls=e.owned.includes(ENGRAVING_AUTO_CONVERGE_ID)?`<div class="kw-card engraving-auto">
-    <div class="card-top"><strong>ENG-24 自動収束</strong><span class="badge ${e.autoConverge.enabled?"confirmed":""}">${e.autoConverge.enabled?"ON":"OFF"}</span></div>
+    <div class="card-top"><strong>自動収束</strong><span class="badge ${e.autoConverge.enabled?"confirmed":""}">${e.autoConverge.enabled?"ON":"OFF"}</span></div>
     <small>取得済みかつONのとき動作。最短60秒間隔・オフライン実行なし。</small>
     <label class="kw-row">最低獲得存在
       <select id="autoConvergeThreshold" class="input-select" aria-label="自動収束の最低報酬">
@@ -405,29 +405,29 @@ function engravingHTML(){
     <div class="row-grid engraving-list">
     ${catalogue.filter(x=>x.tier===tier).map(item=>{
       const owned=e.owned.includes(item.id),level=e.levels?.[item.id],q=engravingPurchaseQuote(state,item.id),upgrade=G.engravingTrialUpgradeQuote(state,item.id);
-      const levelText=!owned?"未取得":level===undefined?"旧取得済・Lv換算保留":"Lv."+level.toLocaleString("ja-JP");
+      const levelText=!owned?"Lv.0":Number.isSafeInteger(level)?"Lv."+level.toLocaleString("ja-JP"):"Lv.―";
+      const levelHint=!owned?"未取得":Number.isSafeInteger(level)?"現在のレベル："+level.toLocaleString("ja-JP"):"取得済み・レベルの記録なし";
       const price=owned?upgrade.price:q.price??item.cost;
       const shownPrice=price===undefined||price===null?"—":f(price,3);
-      const button=owned?`<button class="wide-button engraving-purchase-button" data-engraving-trial-upgrade="${item.id}" ${!upgrade.ok||readOnly||store.blocked?"disabled":""} aria-label="${esc(item.id+"を追加強化")}" title="${esc(upgrade.reason||"追加強化 "+shownPrice+" 存在")}">購入</button>`:
-        `<button class="wide-button engraving-purchase-button" data-engraving-buy="${item.id}" ${!q.ok||readOnly||store.blocked?"disabled":""} aria-label="${esc(item.id+"を初回購入")}" title="${esc(q.reason||"初回購入 "+shownPrice+" 存在")}">購入</button>`;
+      const button=owned?`<button class="wide-button engraving-purchase-button" data-engraving-trial-upgrade="${item.id}" ${!upgrade.ok||readOnly||store.blocked?"disabled":""} aria-label="${esc(item.name+"を強化する")}" title="${esc(upgrade.reason||"追加強化 "+shownPrice+" 存在")}">購入</button>`:
+        `<button class="wide-button engraving-purchase-button" data-engraving-buy="${item.id}" ${!q.ok||readOnly||store.blocked?"disabled":""} aria-label="${esc(item.name+"を取得する")}" title="${esc(q.reason||"初回購入 "+shownPrice+" 存在")}">購入</button>`;
       return `<article class="kw-card engraving-card" data-engraving-entry="${item.id}">
-        <div class="card-top"><strong title="${esc(item.name)}">${esc(item.id+" "+item.name)}</strong><span class="badge ${owned?"confirmed":""}" title="${esc(levelText)}">${esc(levelText)}</span></div>
-        <button type="button" class="engraving-detail-button" data-engraving-detail="${item.id}" aria-label="${esc(item.id)}の効果詳細" title="効果の詳細">⋯</button>
+        <div class="card-top"><strong title="${esc(item.name)}">${esc(item.name)}</strong><span class="badge engraving-level ${owned?"confirmed":""}" title="${esc(levelHint)}" aria-label="${esc(levelHint)}">${esc(levelText)}</span></div>
+        <button type="button" class="engraving-detail-button" data-engraving-detail="${item.id}" aria-label="${esc(item.name)}の効果詳細" title="効果の詳細">⋯</button>
         <small class="engraving-effect" title="${esc(item.description)}">${esc(item.description)}</small>
         <span class="engraving-cost" title="${esc("費用 "+shownPrice+" 存在")}">費用 <strong>${esc(shownPrice)}</strong> 存在</span>
         ${button}
       </article>`;
     }).join("")}</div>`).join("")}
   ${autoControls}
-  ${mode==="lab"&&e.active.length?'<p class="tiny muted">旧検証版の刻印実験データは独立したlabデータのまま保護しています。</p>':""}
-  <details class="tiny muted"><summary>暫定効果と旧セーブ保護</summary><p>A〜Dの25効果は推奨数値で適用。Lv未確認の旧刻印は推測換算せず、旧装備履歴とセーブ原本を保護します。その他の5刻印は固有効果を未適用。</p></details>`;
+  ${e.owned.some(id=>e.levels?.[id]===undefined)?'<p class="tiny muted">一部の刻印は以前の記録からレベルを確認できません。取得済みの状態は保持されています。</p>':""}`;
 }
 function flowHTML(){
   const t=state.time;
   return `<p class="panel-intro">存在を方向へ配分し、変化を見守ります。《時》に転生・リセットはありません。</p>
-    <div class="kw-card"><strong>認識した方向 ${t.revealedDirections} / 6</strong><p>${t.revealedDirections===1?"まだ、流れだけがある。":"配分できるのは最大3方向。配分は本検証版では非消費の比率設定です（正式な消費・配置規則は要確認）。"}</p></div>
+    <div class="kw-card"><strong>認識した方向 ${t.revealedDirections} / 6</strong><p>${t.revealedDirections===1?"まだ、流れだけがある。":"最大3方向を選んで、流れの配分を調整できます。"}</p></div>
     <div class="kw-list">${CONTENT.principles.slice(0,t.revealedDirections).map((name,i)=>`<div class="principle-row"><label><input type="checkbox" data-direction="${i}" ${t.selected.includes(i)?"checked":""}>${name}</label>${t.revealedDirections>1?`<div class="princ-weight"><input type="range" min="0" max="100" step="1" data-weight="${i}" value="${Math.round(t.weights[i])}" ${!t.selected.includes(i)?"disabled":""} aria-label="${name}の配分"><output>${t.weights[i].toFixed(0)}%</output></div>`:"<small>100%</small>"}</div>`).join("")}</div>
-    <div class="status-note">方向解放の《奇跡》、残滓イベント、世界時間の自動進行が有効です。初期発生率・1秒への換算はバランス調整対象です。</div>
+    <div class="status-note">奇跡と残滓の変化を観測できます。</div>
     ${t.revealedDirections===1?'<p class="tiny">生成が起きた後の結果は、衝突25%・移動25%・共通？？？50%。生成そのものの発生率とは別です。</p>':""}`;
 }
 function icon(c){
@@ -474,7 +474,7 @@ function planetHTML(){
         return `<div class="kw-row"><span>${esc(name)} <small>${id}</small></span><strong>${f(quantity)}個</strong></div>`;
       }).join("")}
     </div>`:""}
-    <div class="status-note">自然崩壊は確率で発生し、質量×2と圧力に応じた追加資源を一度だけ獲得します。部分破壊は未実装です。惑星間干渉の操作は観測画面で管理します。</div>
+    <div class="status-note">自然崩壊で質量と圧力に応じた資源を獲得します。惑星間の操作は「観測」から行えます。</div>
     ${p&&((p.core?.started||p.core?.formed)||Object.values(p.stats).some(v=>Number(v)>100))?`<div class="kw-card cosmic-core-card">
       <div class="card-top"><strong>惑星内部のコア</strong><span class="badge">${p.core?.formed?"形成済み":p.core?.started?"形成中":"未形成"}</span></div>
       <small>形成度 ${Math.floor(p.core?.progress||0)}% · 脈動 ${p.core?.pulses||0}回</small>
@@ -492,18 +492,18 @@ function planetHTML(){
       </label>
       <button class="wide-button" data-action="toggle-auto-planet">${u.autoGenerate?"自動生成を停止":"自動生成を開始"}</button>
     </div>`:""}
-    ${mode==="lab"?'<p class="tiny">検証では「開発テスト」から観測名の解放・崩壊イベントを試せます。星齢の仮表示は実時間基準です。</p>':""}`;
+    `;
 }
 const statName=id=>CONTENT.stats.find(st=>st.id===id)?.name||id;
 function resourcesHTML(){
   const u=state.universe,visible=CONTENT.resources.filter(r=>u.discoveredResources.includes(r.id)||A(u.resources[r.id]||0).cmp(0)>0);
   return `<p class="panel-intro">全42資源は質量と固有ステータスを育てます。時間ごとに獲得し、最終崩壊では追加報酬を受け取ります。</p>
-    <div class="status-note">通常版の資源受取はB方式（時間＋崩壊追加報酬）。資源同士の直接合成はありません。</div>
+    <div class="status-note">資源は時間の経過と惑星の崩壊で獲得できます。</div>
     ${mode==="lab"?`<label class="kw-row">従来の検証方式<select class="input-select" id="receiptSelect"><option value="" ${!u.receiptMode?"selected":""}>未選択</option><option value="A" ${u.receiptMode==="A"?"selected":""}>A：崩壊で受領</option><option value="B" ${u.receiptMode==="B"?"selected":""}>B：時間＋崩壊</option></select></label>`:""}
-    <p class="tiny muted">資源名は仮称、内部IDを保持。確定効果は各資源に紐づいており、未解放資源への隠し優遇はありません。</p>
+
     ${visible.length?`<div class="row-grid">${visible.map(r=>{
       const rule=UNIVERSE_RESOURCE_RULES[r.id],effects=Object.entries(rule?.effects||{}).map(([id,n])=>statName(id)+" +"+n).join(" / ");
-      return `<div class="kw-card"><div class="card-top"><strong>${esc(r.name)}</strong><span class="badge">R${r.rank} / 仮名</span></div>
+      return `<div class="kw-card"><div class="card-top"><strong>${esc(r.name)}</strong><span class="badge">R${r.rank}</span></div>
       <small>所持 ${f(u.resources[r.id]||0)}</small>
       <small>1個投入：質量 +${rule?.mass||0} / ${effects}</small>
       <div class="invest-choices">${[1,10,10000].map((n,k)=>{const max=A(u.resources[r.id]||0).cmp(10000)>=0?10000:Math.floor(A(u.resources[r.id]||0).toNumber());const amount=k===2?max:n;return `<button class="wide-button" data-invest="${r.id}" data-count="${amount}" ${!G.planet(state)||amount<1||A(u.resources[r.id]||0).cmp(amount)<0?"disabled":""}>${k===2?"MAX":"×"+n}</button>`;}).join("")}</div></div>`;
@@ -551,8 +551,8 @@ function observationsHTML(){
           ${!quote.ok||readOnly||store.blocked?"disabled":""}>${quote.ok?"確認して実行":"実行不可"}</button>
       </div>`;
     }).join("")}</div>
-    <p class="tiny muted">干渉による資源消費は実行時に再検証します。成長移転・安定化は保存データへ記録されます。</p>`:"<div class='status-note'>先に惑星を生成してください。</div>"}
-    <div class="status-note">干渉の操作本体は追加済みです。ただし現象理解を獲得するすべての物理イベントは未実装であり、未達の操作は利用できません。部分破壊は引き続き未実装です。</div>`;
+    <p class="tiny muted">干渉を実行すると資源を消費します。</p>`:"<div class='status-note'>先に惑星を生成してください。</div>"}
+    `;
 }
 function boostHTML(){
   const v=G.boostValues(state),s=state.boost;
@@ -564,10 +564,10 @@ function boostHTML(){
   const migrationNote=s.timeOnlyMigration?.source!=="new"?
     `旧版の加速設定（${legacyBit===null?"状態不明":legacyBit?"ON":"OFF"}）は履歴として保持し、新時間加速はOFFから開始しました。${Array.isArray(legacyLevels)?" 旧強化Lv："+legacyLevels.join(" / ")+"（購入履歴保護・新5系統へ転用しない）":""}`:"";
   const auditNames={earned:"獲得",spent:"使用",upgrade:"強化購入",discarded:"容量超過",pending:"保留"};
-  const items=ledger.entries.slice(-20).reverse().map(e=>`<li>${esc(new Date(e.at).toLocaleString("ja-JP"))} · ${auditNames[e.kind]||"保留"} ${e.seconds.toFixed(3)}秒${e.note?" · "+esc(e.note):""}</li>`).join("");
+  const items=ledger.entries.slice(-20).reverse().map(e=>`<li>${esc(new Date(e.at).toLocaleString("ja-JP"))} · ${auditNames[e.kind]||"保留"} ${e.seconds.toFixed(3)}秒${mode==="lab"&&e.note?" · "+esc(e.note):""}</li>`).join("");
   const auditHTML=`<details class="kw-card boost-audit"><summary>BOOST取引記録（直近20件を表示）</summary>
-    <p>Ver.3.26以降の記録：獲得 ${ledger.earned.toFixed(3)}秒／使用 ${ledger.spent.toFixed(3)}秒／旧検証強化購入 ${ledger.upgrade.toFixed(3)}秒／容量超過破棄 ${ledger.discarded.toFixed(3)}秒</p>
-    <p class="tiny">旧版の取得・購入は遡及推計しません。未受取補償は金額未決定で自動計上・返還しません。詳細は直近記録のみ表示し、累積値は保存します。</p>
+    <p>獲得 ${ledger.earned.toFixed(3)}秒／使用 ${ledger.spent.toFixed(3)}秒／強化 ${ledger.upgrade.toFixed(3)}秒／容量超過 ${ledger.discarded.toFixed(3)}秒</p>
+    
     ${items?`<ol>${items}</ol>`:"<p>まだ記録がありません。</p>"}</details>`;
 
   if(mode!=="lab"){
@@ -585,31 +585,30 @@ function boostHTML(){
       <div class="slim-progress"><i data-boost-progress style="width:${Math.min(100,100*s.seconds/v.capacity)}%"></i></div>
       <small>オフライン +${duration(v.offlineRate*3600)}/時 · オンライン獲得なし · 時間×${v.timeMultiplier} · 消費係数 ${v.consumptionFactor.toFixed(2)}</small>
       <small data-boost-fill>${extraStored>0?"旧残高を容量外で保護中":`満タンまで ${duration(v.offlineRate>0?(v.capacity-s.seconds)/v.offlineRate:0)}（離席時間）`}</small>
-      <button class="wide-button" data-action="toggle-boost" ${s.seconds<1&&!s.active?"disabled":""}>${s.active?"時間加速を停止":"時間×"+v.timeMultiplier+"をON（試験値）"}</button>
+      <button class="wide-button" data-action="toggle-boost" ${s.seconds<1&&!s.active?"disabled":""}>${s.active?"時間加速を停止":"時間×"+v.timeMultiplier+"を開始"}</button>
       ${overCap}
     </div>
-    <h3>BOOST・正式5強化系統（試験値）</h3>
+    <h3>BOOST強化</h3>
     <div class="kw-list">${labels.map((label,i)=>{
       const q=G.boostTrialPurchaseQuote(state,i);
       const lv=[...levels];lv[i]=Math.min(trialConfig.limits[i],lv[i]+1);
       const nextState={...state,boost:{...state.boost,trialLevels:lv}};
       const after=G.boostValues(nextState);
       return `<div class="kw-card boost-trial-card">
-        <div class="card-top"><strong>${esc(label)}</strong><span class="badge">試験 Lv.${levels[i]}/${trialConfig.limits[i]}</span></div>
+        <div class="card-top"><strong>${esc(label)}</strong><span class="badge">Lv.${levels[i]} / ${trialConfig.limits[i]}</span></div>
         <small>${esc(view(i,v,levels))} ${q.current===trialConfig.limits[i]?"（上限）":"→ "+esc(view(i,after,lv))}</small>
         <button class="wide-button" data-boost-trial-buy="${i}" ${!q.ok||readOnly||store.blocked?"disabled":""}>${q.ok?"強化 · "+duration(q.cost)+" BOOST":esc(q.reason||"購入不可")}</button>
       </div>`;
     }).join("")}</div>
-    <details class="tiny muted"><summary>試験値・旧資産の扱い</summary><p>各系統の効果・費用は動作確認用の暫定値。BOOSTはゲーム時間だけを加速し、資源の最終獲得倍率は変更しません。旧購入履歴・資産を保持。${esc(migrationNote)}</p></details>
-    <p class="status-note">補償判定待ち：旧BOOST投資履歴を新5系統と別保存。自動返還なし。</p>${auditHTML}`;
+    ${migrationNote?`<details class="tiny muted"><summary>以前のBOOST情報</summary><p>${esc(migrationNote)}</p></details>`:""}${auditHTML}`;
   }
-  const labels=["旧試験：オフライン効率","旧試験：進行対象時間","旧試験：BOOST基礎獲得","旧試験：オフライン獲得倍率","旧試験：容量"];
+  const labels=["オフライン効率","進行対象時間","BOOST基礎獲得","オフライン獲得倍率","容量"];
   return `<div class="kw-card boost-status-card"><div class="card-top"><strong data-boost-remaining>${duration(s.seconds)} / ${duration(v.capacity)}</strong><span class="badge" data-boost-state>${s.active?"加速中":"蓄積中"}</span></div><div class="slim-progress"><i data-boost-progress style="width:${Math.min(100,100*s.seconds/v.capacity)}%"></i></div>
     <p>オンライン新規獲得なし · 現実オフライン ${duration(v.offlineRate*3600)}/時（旧試験強化の影響を含む）</p>
     <small data-boost-fill>オフラインで満タンまで ${duration((v.capacity-s.seconds)/v.offlineRate)}</small>
     <button class="wide-button" data-action="toggle-boost" ${s.seconds<1&&!s.active?"disabled":""}>${s.active?"加速を停止":"加速を開始 ×2（仮設定）"}</button>
-    <p class="tiny">暫定式：m倍で実時間1秒につきBOOST(m−1)秒消費。タップ威力は直接増えません。アプリを閉じている間は消費しません。</p></div>
-    <h3>旧検証用5系統（正式BOOST5系統とは別）</h3><p class="panel-intro">旧来の試験効果・購入履歴をlabセーブに隔離しています。新しい正式5強化系統の価格・増加幅は未決定であり、ここでは研究以外に適用されません。</p>
+    <p class="tiny">m倍速では実時間1秒につきBOOST(m−1)秒を消費します。タップ威力は直接増えません。アプリを閉じている間は消費しません。</p></div>
+    <h3>追加のBOOST設定</h3><p class="panel-intro">旧来の試験効果・購入履歴をlabセーブに隔離しています。新しい正式5強化系統の価格・増加幅は未決定であり、ここでは研究以外に適用されません。</p>
     <div class="kw-list">${labels.map((x,i)=>{
       const current=[`${Math.round(v.efficiency*100)}%`,duration(v.offlineCap),`${duration(v.onlineRate*3600)}/時`,`${(v.offlineRate/(CONFIG.confirmed.boostOfflineSecondsPerHour/3600)).toFixed(2)}倍`,duration(v.capacity)][i];
       const trial=JSON.parse(JSON.stringify(state));trial.mode="lab";trial.boost.upgrades[i]++;
@@ -618,7 +617,7 @@ function boostHTML(){
     }).join("")}</div><p class="status-note">旧5系統のラボ用試案は通常プレイには適用されません。オフライン中はBOOSTのみ蓄積し、オーブ・時・惑星の進行は停止します。</p>${auditHTML}`;
 }
 function achievementHTML(){
-  return `<p class="panel-intro">達成条件が決まっているものを実装。条件未定の実績に仮の倍率報酬は付けません。</p><div class="kw-list">${CONTENT.achievements.map(x=>`<div class="kw-card"><div class="card-top"><strong>${state.achievements.includes(x.id)?"✦":"◇"} ${x.name}</strong><span class="badge">${x.status}</span></div><p>${x.description}</p><small>${state.achievements.includes(x.id)?"記録済み":x.id==="engravingObservation"?"達成条件 ？？？":"未達成"}</small></div>`).join("")}</div>`;
+  return `<p class="panel-intro">これまでの達成と発見を確認できます。</p><div class="kw-list">${CONTENT.achievements.map(x=>`<div class="kw-card"><div class="card-top"><strong>${state.achievements.includes(x.id)?"✦":"◇"} ${x.name}</strong><span class="badge">${state.achievements.includes(x.id)?"達成":"未達成"}</span></div><p>${x.description}</p><small>${state.achievements.includes(x.id)?"達成済み":x.id==="engravingObservation"?"条件：？？？":"未達成"}</small></div>`).join("")}</div>`;
 }
 function statisticsHTML(){
   const values=[["タップ入力",state.counters.taps.toLocaleString("ja-JP")],["収束",state.convergenceCount.toLocaleString("ja-JP")+"回"],["累計オーブ",orbDisplay(state.totalOrbs)],["余剰存在",f(state.surplusExistence,3)],["源総Lv.",Object.values(state.sources).reduce((v,x)=>v+x.level,0).toLocaleString("ja-JP")],["概念形成",Object.values(state.time.concepts).filter(x=>x>0).length+" / 77"],["オンライン",duration(state.counters.onlineSeconds)],["オフライン",duration(state.counters.offlineSeconds)]];
@@ -649,21 +648,18 @@ function guideHTML(){
   return `<div class="kw-list"><div class="kw-card"><strong>世界を生み、変化を観測する</strong><p>《無》は序章です。光に干渉すると最初の存在が成立します。存在1は失われません。</p></div>
   ${state.intro.complete?'<div class="kw-card"><strong>刹那・源・刻印</strong><p>タップと源は通常資源のオーブを生みます。任意のタイミングで収束して、余剰の存在を得ます。刻印は余剰分だけを使う設計です。</p></div>':""}
   ${state.time.unlocked?'<div class="kw-card"><strong>流れと概念</strong><p>時は自律成長を見守る場所です。同じ残滓10個で最初の概念を認識し、確定した概念効果が有効になります。</p></div>':""}
-  <div class="kw-card"><strong>採用済み効果と旧研究候補</strong><p>42資源と77概念の基本効果を本編へ採用。源の通常特殊効果・BOOSTの未確定係数は別セーブで研究できます。</p><button class="wide-button" data-organizer="proposals">数値と効果の試案を見る</button></div>
-  <div class="kw-card"><strong>この版の範囲</strong><p>設定データに「確定」「暫定」「要確認」「未決定」を保持しています。価格・速度など動作確認用の値と、正式仕様は別です。</p><button class="wide-button" data-organizer="spec">反映済みと未決定を確認</button></div></div>`;
+  </div>`;
 }
 function settingsHTML(){
-  const labels=[["confirmEngravingPurchase","刻印の初回購入を確認","OFFならワンタップで取得"],["confirmEngravingUpgrade","刻印の追加強化を確認","OFFならワンタップで強化"],["confirmBoostUpgrade","BOOST強化を確認","OFFならワンタップで強化（試験値）"],["confirmSourceBreakthrough","源の＋循環を確認","最大レベルから再開始する操作"],["confirmInterference","惑星への干渉を確認","衝突・移転・崩壊・安定化"],["confirmCoreFormation","コア形成を確認","資源消費を伴う操作"],["confirmSaveImport","セーブ読込前に確認","現在の進行を入れ替えるため初期ON推奨"],["confirmSaveRestore","履歴復元前に確認","過去の保存状態へ戻るため初期ON推奨"],["confirmBulkPurchase","一括購入前に確認","OFF：タップですぐ購入。ON：数量・費用を確認してから購入します"],["confirmMaxPurchase","MAX購入前に確認","ON：所持資源の90%以上を使うMAX購入を確認します"],["compact","コンパクト表示","ほかの一覧の密度を調整"],["holdToBuy","長押しで連続購入","押している間だけ通常購入を繰り返します"],["hapticTap","タップ時の振動","対応端末のみ。初期設定はOFFです"],["reducedMotion","動きを減らす","発光・波紋・開閉演出を抑える"],["highContrast","読みやすい境界線","文字と境界のコントラストを調整"],["lowPower","省電力","背景アニメーションを停止"],["confirmConvergence","収束前に確認","仮のリセット範囲を確認する"],["showOffline","復帰時に報告","オフラインの進行とBOOSTを表示"]];
-  return `<p class="panel-intro">背景は既存のORGANIC FLOWを維持。安全な保存・表示設定は序章から利用できます。</p>
+  const labels=[["confirmEngravingPurchase","刻印の初回購入を確認","OFFならワンタップで取得"],["confirmEngravingUpgrade","刻印の追加強化を確認","OFFならワンタップで強化"],["confirmBoostUpgrade","BOOST強化を確認","OFFならワンタップで強化"],["confirmSourceBreakthrough","源の＋循環を確認","最大レベルから再開始する操作"],["confirmInterference","惑星への干渉を確認","衝突・移転・崩壊・安定化"],["confirmCoreFormation","コア形成を確認","資源消費を伴う操作"],["confirmSaveImport","セーブ読込前に確認","現在の進行を入れ替えるため初期ON推奨"],["confirmSaveRestore","履歴復元前に確認","過去の保存状態へ戻るため初期ON推奨"],["confirmBulkPurchase","一括購入前に確認","OFF：タップですぐ購入。ON：数量・費用を確認してから購入します"],["confirmMaxPurchase","MAX購入前に確認","ON：所持資源の90%以上を使うMAX購入を確認します"],["compact","コンパクト表示","ほかの一覧の密度を調整"],["holdToBuy","長押しで連続購入","押している間だけ通常購入を繰り返します"],["hapticTap","タップ時の振動","対応端末のみ。初期設定はOFFです"],["reducedMotion","動きを減らす","発光・波紋・開閉演出を抑える"],["highContrast","読みやすい境界線","文字と境界のコントラストを調整"],["lowPower","省電力","背景アニメーションを停止"],["confirmConvergence","収束前に確認","収束で失われる内容を確認する"],["showOffline","復帰時に報告","オフラインの進行とBOOSTを表示"]];
+  return `<p class="panel-intro">表示や購入時の確認方法を変更できます。</p>
   ${labels.map(([id,name,desc])=>`<label class="kw-row"><span>${name}<small>${desc}</small></span><input type="checkbox" data-pref="${id}" ${state.settings[id]?"checked":""}></label>`).join("")}
   <label class="kw-row">数値表記<select class="input-select" data-pref="notation"><option value="auto" ${state.settings.notation==="auto"?"selected":""}>標準（100万以降e）</option><option value="scientific" ${state.settings.notation==="scientific"?"selected":""}>指数 e（1.23e12）</option><option value="exponent" ${state.settings.notation==="exponent"?"selected":""}>指数 E（1.23E+12）</option><option value="zeros" ${state.settings.notation==="zeros"?"selected":""}>0の個数（10^12）</option></select></label>
-  <div class="kw-row"><span>バージョン<small>Ver.3.27 BOOST時間単一化・旧資産保護</small></span><strong>${CONFIG.version}</strong></div>
   <div class="kw-row"><span>通信<small>クラウド・課金は未接続</small></span><strong>${navigator.onLine?"オンライン":"オフライン"}</strong></div>
   <button class="wide-button" data-organizer="backup">保存とバックアップ</button>
-  <a class="link-button" href="./legacy/" data-legacy-link>保管した旧版Ver.3.0で続ける</a><br>
   <a class="link-button" href="./privacy.html">プライバシー・データ保存について</a>
-  ${mode==="lab"?'<a class="link-button" href="./">通常プレイに戻る</a>':'<a class="link-button" href="./?lab=1">別セーブで設計検証モードを開く</a>'}
-  <p class="tiny">BGM・SE・通知・クラウド同期・決済は、この版では実装していません。</p>`;
+  ${mode==="lab"?'<a class="link-button" href="./">通常プレイに戻る</a>':""}
+  `;
 }
 function backupHTML(){
   const bs=store.backups();
@@ -774,10 +770,22 @@ function labHTML(){
 function commonInfoHTML(){
   const timeSpeed=state.boost.active&&state.boost.seconds>0?G.boostTimeMultiplier(state):1;
   return '<section class="common-info-detail" aria-label="全ステージ共通情報の詳細">' +
-    '<p class="panel-intro">共通表示は確定済みの2項目のみ。残り4項目は未決定。オーブなどは各ステージ内、BOOSTの操作・残量は左下から確認できます。</p>' +
+    '<p class="panel-intro">存在と時間の流れを確認できます。</p>' +
     '<div class="kw-card"><span>存在</span><strong>'+esc(formatScientific3(G.existence(state)))+'</strong></div>' +
-    '<div class="kw-card"><span>時間の経過速度</span><strong>×'+esc(timeSpeed)+'</strong><small>時間倍率と消費係数は試験値です。</small></div>' +
+    '<div class="kw-card"><span>時間の経過速度</span><strong>×'+esc(timeSpeed)+'</strong><small>BOOST使用中は時間が加速します。</small></div>' +
     '<button type="button" class="wide-button" data-action="return-stage-panel">ステージ操作に戻る</button></section>';
+}
+/** Presentation-only filtering; never edits or deletes historical saved events. */
+function chronicleHTML(){
+  const names=Object.fromEntries(engravingCatalogue().map(x=>[x.id,x.name]));
+  const entries=[...state.events].reverse().map(e=>{
+    const raw=String(e.text??"");
+    if(mode!=="lab" && /【検証】|試験強化|暫定バランス|実装状態|未実装|原文照合|仕様が未決定/.test(raw))return null;
+    const text=raw.replace(/ENG-\d{2}/g,id=>names[id]||"刻印");
+    return {...e,text};
+  }).filter(Boolean);
+  if(!entries.length)return '<div class="empty-state"><p>まだ出来事は記録されていません。</p></div>';
+  return '<div class="kw-list">'+entries.map(e=>`<div class="kw-row"><span>${esc(e.text)}<small>${new Date(e.at).toLocaleString("ja-JP")}</small></span></div>`).join("")+"</div>";
 }
 function renderPanel(force=false){
   if(sheetState==="closed")return;
@@ -818,9 +826,9 @@ function renderPanel(force=false){
   const body=$("sheetBody"),top=body.scrollTop,details=[...body.querySelectorAll("details[open][data-preserve]")].map(x=>x.dataset.preserve);
   const map={moment:momentHTML,sources:sourcesHTML,engraving:engravingHTML,flow:flowHTML,concepts:conceptHTML,
     planets:planetHTML,resources:resourcesHTML,observations:observationsHTML,
-    life:()=>'<div class="empty-state"><div class="glyph">◌</div><p>未知の変化から、生命を認識する。</p><p>微生物・有機生物への接続は設計中です。生命を購入する操作は追加していません。</p></div>',
+    life:()=>'<div class="empty-state"><div class="glyph">◌</div><p>未知の変化から、生命を認識する。</p><p>まだ生命を観測できません。</p></div>',
     boost:boostHTML,achievements:achievementHTML,statistics:statisticsHTML,settings:settingsHTML,backup:backupHTML,spec:specHTML,proposals:proposalsHTML,lab:labHTML,priceLab:priceLabHTML,guide:guideHTML,
-    chronicle:()=>state.events.length?'<div class="kw-list">'+[...state.events].reverse().map(e=>`<div class="kw-row"><span>${esc(e.text)}<small>${new Date(e.at).toLocaleString("ja-JP")}</small></span></div>`).join("")+'</div>':'<div class="empty-state"><p>まだ出来事は記録されていません。</p></div>',
+    chronicle:chronicleHTML,
     collection:()=>conceptHTML()};
   body.innerHTML=(map[currentSub]||guideHTML)();
 
@@ -1185,7 +1193,7 @@ async function dispatchAction(action){
     const q=G.convergenceQuote(state);
     if(!q.steps){toast("必要なオーブを集めてください");return;}
     const newRate=A(G.existenceMultiplier(state)).add(q.reward);
-    const text=`存在 +${f(q.reward,3)} を獲得します。\n以後のタップ・源生産は ×${f(newRate,3)}（暫定）になります。\nオーブと刹那・源の周回内Lvをリセットします。\n最初の存在1・時・概念は残ります。`;
+    const text=`存在 +${f(q.reward,3)} を獲得します。\n以後のタップ・源生産は ×${f(newRate,3)}になります。\nオーブと刹那・源の周回内Lvをリセットします。\n最初の存在1・時・概念は残ります。`;
     if(state.settings.confirmConvergence&&!await ask("収束する",text,"収束する"))return;
     if(resultDone(G.converge(state))){
       busyBirth=true;document.body.classList.add("is-converging");
@@ -1217,7 +1225,7 @@ async function dispatchAction(action){
     }
     state.boost.active=!state.boost.active;
     save();render(true);
-    toast(state.boost.active?"時間加速×"+G.boostTimeMultiplier(state)+"をONにしました（試験値）":"時間加速をOFFにしました");
+    toast(state.boost.active?"時間加速×"+G.boostTimeMultiplier(state)+"を開始しました":"時間加速を停止しました");
     return;
   }
   if(action==="toggle-trial"){
@@ -1294,7 +1302,7 @@ document.addEventListener("click",async e=>{
         x.description+"\n\n現在："+e.current+"\n次Lv："+e.next+
         "\n購入費用："+costLabel(q)+" オーブ"+
         (q.enabled&&q.count>0?"\n購入後："+G.momentAfterQuote(state,i,q.count):"")+
-        "\n\n価格・未指定節目は検証値。","閉じる");
+        "","閉じる");
       return;
     }
     if(b.dataset.engravingDetail){
@@ -1302,9 +1310,10 @@ document.addEventListener("click",async e=>{
       if(!item)return;
       const owned=state.engraving.owned.includes(id),q=owned?G.engravingTrialUpgradeQuote(state,id):engravingPurchaseQuote(state,id);
       const price=q.price??item.cost;
-      await ask(item.name,"状態："+(owned?"取得済み":"未取得")+"\n"+item.description+
-        "\n費用："+(price===null||price===undefined?"—":f(price,3))+" 存在"+
-        "\nA〜Dの25効果は暫定数値です。旧Lv・未確認効果を推測しません。","閉じる");
+      const level=state.engraving.levels?.[id];
+      const status=!owned?"Lv.0（未取得）":Number.isSafeInteger(level)?"Lv."+level.toLocaleString("ja-JP"):"Lv.―（以前のレベル情報がありません）";
+      await ask(item.name,"現在 "+status+"\n"+item.description+
+        "\n必要存在："+(price===null||price===undefined?"—":f(price,3)),"閉じる");
       return;
     }
     if(b.dataset.sourceSummary!==undefined){
@@ -1319,7 +1328,7 @@ document.addEventListener("click",async e=>{
       const x=CONTENT.sources.find(x=>x.id===b.dataset.sourceDetail);
       const status=G.sourceFinalEffectStatus(state,x.id);
       const v=state.sources[x.id],ms=CONFIG.confirmed.sourceMilestones,done=ms.filter(k=>k<=v.level).length,next=ms.find(k=>k>v.level);
-      await ask(x.name+"（仮名）",`現在 Lv.${v.level.toLocaleString("ja-JP")} / ＋${v.plus}\n節目 ${done}/21 / 次 ${next||"MAX"}\n＋倍率 ×${f(G.sourcePlusGain(v.plus))}\n合計 ${o(G.sourceProduction(state,x.id))} オーブ/秒\n次Lv増加 ${o(G.sourceNextGain(state,x.id))} オーブ/秒\n\n特性案：${x.role}\n最終効果：${status?.label||"？？？"}\n実装状態：${status?(status.implemented?"計算に適用":"解放履歴のみ・効果保留"):"未決定"}\n取得状態：${status?.unlocked?"解放済み":"未取得"}\n\n通常6効果の詳細：？？？（未確定）\n効果取得節目：25／1,000／10,000／50,000／100,000／500,000／1,000,000\n個別の未確定効果は適用しません。`,"閉じる");return;
+      await ask(x.name,`現在 Lv.${v.level.toLocaleString("ja-JP")} / ＋${v.plus}\n節目 ${done}/21 / 次 ${next||"MAX"}\n＋倍率 ×${f(G.sourcePlusGain(v.plus))}\n合計 ${o(G.sourceProduction(state,x.id))} オーブ/秒\n次Lv増加 ${o(G.sourceNextGain(state,x.id))} オーブ/秒\n\n特性：${x.role}\n特別な効果：${status?.unlocked&&status?.implemented?status.label:"？？？"}\n次の効果節目：25／1,000／10,000／50,000／100,000／500,000／1,000,000`,"閉じる");return;
     }
     if(readOnly){toast("別タブの書き込みを保護中です");return;}
     if(store.blocked && b.dataset.restore===undefined){toast("元セーブを保護中です。「保存」から復元してください。");return;}
@@ -1378,14 +1387,14 @@ document.addEventListener("click",async e=>{
     if(b.dataset.engravingBuy){
       const id=b.dataset.engravingBuy,quote=engravingPurchaseQuote(state,id);
       if(!quote.ok)return toast(quote.reason||"購入できません");
-      if(state.settings.confirmEngravingPurchase&&!await ask("刻印の初回購入",`${id} を余剰存在 ${quote.price} で初回購入します。残り存在：${f(A(state.surplusExistence).sub(quote.price),3)}。有効な固有効果は購入後から常時適用します。`,"購入する"))return;
+      if(state.settings.confirmEngravingPurchase&&!await ask("刻印の初回購入",`${engravingCatalogue().find(x=>x.id===id)?.name||"刻印"} を余剰存在 ${quote.price} で初回購入します。残り存在：${f(A(state.surplusExistence).sub(quote.price),3)}。有効な固有効果は購入後から常時適用します。`,"購入する"))return;
       checkpoint();
       return resultDone(G.buyEngraving(state,id));
     }
     if(b.dataset.engravingTrialUpgrade){
       const id=b.dataset.engravingTrialUpgrade,q=G.engravingTrialUpgradeQuote(state,id);
       if(!q.ok)return toast(q.reason);
-      if(state.settings.confirmEngravingUpgrade&&!await ask("刻印の試験強化",`${id} の追加強化Lv.+${q.next}。費用 ${f(q.price,3)} 余剰存在。個別の刻印効果を強化します。旧取得履歴は保護します。`,"購入する"))return;
+      if(state.settings.confirmEngravingUpgrade&&!await ask("刻印の強化",`${engravingCatalogue().find(x=>x.id===id)?.name||"刻印"} のLvを上げます。費用 ${f(q.price,3)} 余剰存在。`,"購入する"))return;
       checkpoint();return resultDone(G.buyEngravingTrialUpgrade(state,id));
     }
     if(b.dataset.draft){resultDone(G.toggleDraft(state,b.dataset.draft));return;}
@@ -1395,7 +1404,7 @@ document.addEventListener("click",async e=>{
     if(b.dataset.boostTrialBuy!==undefined){
       const id=Number(b.dataset.boostTrialBuy),q=G.boostTrialPurchaseQuote(state,id);
       if(!q.ok)return toast(q.reason);
-      if(state.settings.confirmBoostUpgrade&&!await ask("BOOSTの試験強化",`5系統の${id+1}番をLv.${q.next}へ。費用：${duration(q.cost)} BOOST。正式採用前の試験値です。`,"BOOSTで購入"))return;
+      if(state.settings.confirmBoostUpgrade&&!await ask("BOOST強化",`${["基礎獲得","オフライン獲得","容量","時間倍率","消費効率"][id]}をLv.${q.next}へ。費用：${duration(q.cost)} BOOST。`,"BOOSTで購入"))return;
       checkpoint();return resultDone(G.buyBoostTrialUpgrade(state,id));
     }
     if(b.dataset.boostUpgrade!==undefined){resultDone(G.labBoostUpgrade(state,Number(b.dataset.boostUpgrade)));return;}
@@ -1405,7 +1414,7 @@ document.addEventListener("click",async e=>{
     }
     if(b.dataset.lab){
       const r=G.labAction(state,b.dataset.lab);
-      if(resultDone(r)){if(r.report)reportOffline(r.report);else toast("検証用データに反映しました");}return;
+      if(resultDone(r)){if(r.report)reportOffline(r.report);else toast("変更しました");}return;
     }
   }catch(error){toast("操作を中止しました："+error.message);console.error(error);}
 });
