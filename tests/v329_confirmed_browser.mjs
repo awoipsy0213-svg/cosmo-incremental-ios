@@ -27,8 +27,15 @@ try{
    s.engraving.levels={};
    return S.encode(s,"v329-fixture");
   });
-  // Install once: addInitScript would overwrite the saved progress on every reload.
-  await page.evaluate(raw=>localStorage.setItem("kotowari_v31_normal",raw),fixture);
+  // Seed exactly once before application bootstrap, not on the final saved-state reload.
+  // The initial pagehide can overwrite a direct localStorage write; sessionStorage
+  // guards this init script against resetting progress on subsequent reloads.
+  await page.addInitScript(raw=>{
+    if(sessionStorage.getItem("v329-fixture-initialized")!=="yes"){
+      localStorage.setItem("kotowari_v31_normal",raw);
+      sessionStorage.setItem("v329-fixture-initialized","yes");
+    }
+  },fixture);
   await page.reload({waitUntil:"domcontentloaded"});
   await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
   assert.match(await page.locator("#buildLabel").textContent(),/3\.29/);
