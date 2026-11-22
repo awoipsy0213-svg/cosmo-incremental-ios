@@ -62,7 +62,7 @@ check("Web and Capacitor payloads match and the PWA caches the new visuals",()=>
    assert.equal(root(name),root("www/"+name),name+" mirror mismatch");
  assert.equal(CONFIG.version,"3.29.0");
  assert.equal(CONFIG.schemaVersion,31);
- assert.match(root("sw.js"),/3\.29\.0-hud/);
+ assert.match(root("sw.js"),/3\.29\.0-run-engrave/);
  assert.match(root("sw.js"),/stage-worlds\.css/);
  assert.match(root("sw.js"),/matrix-v324\.css/);
  assert.match(root("index.html"),/3\.29 · RUN/);
