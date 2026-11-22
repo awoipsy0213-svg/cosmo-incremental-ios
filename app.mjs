@@ -770,9 +770,9 @@ function labHTML(){
 function commonInfoHTML(){
   const timeSpeed=state.boost.active&&state.boost.seconds>0?G.boostTimeMultiplier(state):1;
   return '<section class="common-info-detail" aria-label="全ステージ共通情報の詳細">' +
-    '<p class="panel-intro">共通表示は確定済みの2項目のみ。残り4項目は未決定。オーブなどは各ステージ内、BOOSTの操作・残量は左下から確認できます。</p>' +
+    '<p class="panel-intro">存在と時間の流れを確認できます。</p>' +
     '<div class="kw-card"><span>存在</span><strong>'+esc(formatScientific3(G.existence(state)))+'</strong></div>' +
-    '<div class="kw-card"><span>時間の経過速度</span><strong>×'+esc(timeSpeed)+'</strong><small>時間倍率と消費係数は試験値です。</small></div>' +
+    '<div class="kw-card"><span>時間の経過速度</span><strong>×'+esc(timeSpeed)+'</strong><small>BOOST使用中は時間が加速します。</small></div>' +
     '<button type="button" class="wide-button" data-action="return-stage-panel">ステージ操作に戻る</button></section>';
 }
 /** Presentation-only filtering; never edits or deletes historical saved events. */
@@ -1193,7 +1193,7 @@ async function dispatchAction(action){
     const q=G.convergenceQuote(state);
     if(!q.steps){toast("必要なオーブを集めてください");return;}
     const newRate=A(G.existenceMultiplier(state)).add(q.reward);
-    const text=`存在 +${f(q.reward,3)} を獲得します。\n以後のタップ・源生産は ×${f(newRate,3)}（暫定）になります。\nオーブと刹那・源の周回内Lvをリセットします。\n最初の存在1・時・概念は残ります。`;
+    const text=`存在 +${f(q.reward,3)} を獲得します。\n以後のタップ・源生産は ×${f(newRate,3)}になります。\nオーブと刹那・源の周回内Lvをリセットします。\n最初の存在1・時・概念は残ります。`;
     if(state.settings.confirmConvergence&&!await ask("収束する",text,"収束する"))return;
     if(resultDone(G.converge(state))){
       busyBirth=true;document.body.classList.add("is-converging");
@@ -1414,7 +1414,7 @@ document.addEventListener("click",async e=>{
     }
     if(b.dataset.lab){
       const r=G.labAction(state,b.dataset.lab);
-      if(resultDone(r)){if(r.report)reportOffline(r.report);else toast("検証用データに反映しました");}return;
+      if(resultDone(r)){if(r.report)reportOffline(r.report);else toast("変更しました");}return;
     }
   }catch(error){toast("操作を中止しました："+error.message);console.error(error);}
 });
