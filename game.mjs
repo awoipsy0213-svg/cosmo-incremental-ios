@@ -4,6 +4,7 @@ import {UNIVERSE_RESOURCE_RULES,eligibleResourceWeights,pickWeightedResource,inv
 import {KNOWLEDGE_IDS,addKnowledge,knowledgeLevel,coreRequirements,makeCoreState,advanceCore,autoPlanetAvailable} from "./universe-progression-v316.mjs";
 import {INTERFERENCE_RULES,R1_RESOURCE_IDS,STABILIZING_RESOURCES,resourceSpendPlan,induceResourceCost,interferenceKnowledgeReady} from "./universe-interference-v318.mjs";
 import {ENGRAVING_IDS,ENGRAVING_AUTO_CONVERGE_ID,AUTO_CONVERGE_MIN_INTERVAL_MS,AUTO_CONVERGE_DEFAULT_MIN_REWARD,engravingSlots,engravingPurchaseQuote,engravingTrialUpgradeQuote,engravingTrialTotal,ENGRAVING_TRIAL,validRewardThreshold} from "./engraving-rules-v317.mjs";
+import {ENGRAVING_EFFECTS,engravingTapFactor,engravingSourceFactor,engravingCriticalRate,engravingCriticalMultiplier,engravingPurchaseFactor,engravingTapSourceSeconds,engravingRepeatTaps,engravingRepeatEvery,engravingOrbAward,engravingConvergenceCostFactor,engravingConvergenceRewardFactor,engravingRetainedLevels,engravingAutoTapRate,engravingAutoMomentRate,engravingAutoSourceRate,engravingAutoEfficient,engravingConvergenceControl,ENGRAVING_AUTO_BATCH_LIMIT,freshEngravingRuntime} from "./engraving-effects-v333.mjs";
 import {FINAL_EFFECTS,ownsSourceFinal,sourceFinalMarker,sourcePlusMultiplier} from "./source-effects-v315.mjs";
 export {engravingTrialUpgradeQuote};
 import {freshTelemetry,sampleActualOrbs,recordOfflineReport,recordConvergence,validateTelemetry} from "./telemetry-v319.mjs";
@@ -51,7 +52,8 @@ export function createState(now=Date.now(),mode="normal") {
     // Separate experiment flag; never active in normal saves.
     trial:{enabled:false},
     engraving:{active:[],draft:null,observationUnlocked:false,owned:[],equipped:[],levels:{},trialLevels:{},
-      autoConverge:{enabled:false,minReward:AUTO_CONVERGE_DEFAULT_MIN_REWARD,lastAt:0}},
+      autoConverge:{enabled:false,minReward:AUTO_CONVERGE_DEFAULT_MIN_REWARD,minSteps:1,lastAt:0},
+      runtime:freshEngravingRuntime()},
     boost:{seconds:0,active:false,upgrades:[0,0,0,0,0],trialLevels:[0,0,0,0,0],accounting:freshBoostAccounting(),
       timeOnlyMigration:{version:1,at:now,previousActive:null,source:"new"}},
     counters:{taps:0,orbsSpent:"0",sourcePurchases:0,conversions:0,onlineSeconds:0,offlineSeconds:0},
@@ -105,7 +107,9 @@ function spendOrbs(s,amount) {
   return true;
 }
 export function tapPower(s,now=Date.now()) {
-  return SETSUNA.tapPreview(setsunaProjection(s,null,now),now).mul(existenceMultiplier(s)).mul(finalTap(s)).mul(engravingPlaytestFactor(s));
+  const tap=SETSUNA.tapPreview(setsunaProjection(s,null,now),now)
+    .mul(existenceMultiplier(s)).mul(finalTap(s)).mul(engravingPlaytestFactor(s)).mul(engravingTapFactor(s));
+  return tap.add(production(s,now).mul(engravingTapSourceSeconds(s)));
 }
 // Each convergence gives a persistent, additive +1% per 0.01 surplus existence.
 // First existence (the protected 1) is not counted: 0.02 surplus => x1.02; 1 => x2.
@@ -135,8 +139,8 @@ function setsunaProjection(s,rawSource=null,now=Date.now()){
   t.sourceMilestones=Object.values(s.sources).reduce((sum,v)=>sum+
     CONFIG.confirmed.sourceMilestones.filter(m=>m<=v.level).length,0);
   t.sourceBase=(rawSource===null?baseProduction(s).div(existenceMultiplier(s)):A(rawSource)).toString();
-  t.critExtraRate=finalCritRate(s);
-  t.critExtraMultiplier=finalCritMultiplier(s);
+  t.critExtraRate=finalCritRate(s)+engravingCriticalRate(s);
+  t.critExtraMultiplier=finalCritMultiplier(s)*engravingCriticalMultiplier(s);
   Object.assign(t,s.momentRuntime||{});t.wallet="0";t.lastTick=now;
   return t;
 }
@@ -196,7 +200,7 @@ export function sourceProduction(s,id) {
   const unit=sourceProductionPerLevel(id);
   const growth=CONFIG.provisional.source.productionGrowth;
   const total=seriesCost(unit,growth,0,v.level);
-  return total.mul(plus).mul(ownsSourceFinal(s,"SOURCE_09")&&id==="SOURCE_09"?2:1).mul(ownsSourceFinal(s,"SOURCE_04")?2:1).mul(existenceMultiplier(s)).mul(engravingPlaytestFactor(s));
+  return total.mul(plus).mul(ownsSourceFinal(s,"SOURCE_09")&&id==="SOURCE_09"?2:1).mul(ownsSourceFinal(s,"SOURCE_04")?2:1).mul(existenceMultiplier(s)).mul(engravingPlaytestFactor(s)).mul(engravingSourceFactor(s));
 }
 /** Extra output from buying this Source's next one level, including all current bonuses. */
 export function sourceNextGain(s,id) {
@@ -205,7 +209,7 @@ export function sourceNextGain(s,id) {
   const plus=sourcePlusMultiplier(v.plus);
   return sourceProductionPerLevel(id)
     .mul(A(CONFIG.provisional.source.productionGrowth).pow(v.level))
-    .mul(plus).mul(ownsSourceFinal(s,"SOURCE_09")&&id==="SOURCE_09"?2:1).mul(ownsSourceFinal(s,"SOURCE_04")?2:1).mul(existenceMultiplier(s)).mul(engravingPlaytestFactor(s));
+    .mul(plus).mul(ownsSourceFinal(s,"SOURCE_09")&&id==="SOURCE_09"?2:1).mul(ownsSourceFinal(s,"SOURCE_04")?2:1).mul(existenceMultiplier(s)).mul(engravingPlaytestFactor(s)).mul(engravingSourceFactor(s));
 }
 export function production(s,now=Date.now()) {
   return baseProduction(s).mul(SETSUNA.sourceMultiplier(setsunaProjection(s,null,now),now));
@@ -231,7 +235,13 @@ export function tap(s,now=Date.now(),rng=Math.random) {
   const proj=setsunaProjection(s,null,now);proj.taps=Math.max(0,s.counters.taps-1);
   const hit=SETSUNA.tap(proj,now,rng);rememberSetsuna(s,proj);
   const factor=existenceMultiplier(s);
-  const gain=hit.amount.mul(factor).mul(finalTap(s));addOrbs(s,gain);
+  let gain=hit.amount.mul(factor).mul(finalTap(s))
+    .mul(engravingPlaytestFactor(s)).mul(engravingTapFactor(s))
+    .add(production(s,now).mul(engravingTapSourceSeconds(s)));
+  if(s.counters.taps%engravingRepeatEvery()===0)
+    gain=gain.mul(1+engravingRepeatTaps(s));
+  gain=engravingOrbAward(s,gain,rng);
+  addOrbs(s,gain);
   sampleActualOrbs(s.telemetry,now,s.totalOrbs);
   return {ok:true,gain:gain.toString(),crit:hit.crit,combo:hit.combo,
     miracle:hit.miracle,chain:hit.chain,components:Object.fromEntries(
@@ -254,6 +264,7 @@ function purchaseData(s,kind,id) {
 export function purchaseQuote(s,kind,id,mode=s.purchaseMode) {
   if(!modeSet.has(mode))throw Error("購入モードが不正です");
   const p=purchaseData(s,kind,id),remain=Math.max(0,p.max-p.level);
+  p.base=p.base.mul(engravingPurchaseFactor(s));
   let n=mode==="MAX"?maxAffordable(s.orbs,p.base,p.growth,p.level,Math.min(remain,MAX_LEVELS_PER_ACTION))
     :mode==="10"?maxAffordable(s.orbs,p.base,p.growth,p.level,Math.min(10,remain))
     :Math.min(1,remain);
@@ -379,7 +390,7 @@ export function breakthrough(s,id) {
 export function convergenceQuote(s) {
   const c=CONFIG.provisional.convergence;
   const priceFactor=ownsSourceFinal(s,"SOURCE_02")?.5:1;
-  const cost=A(c.baseCost).mul(priceFactor);
+  const cost=A(c.baseCost).mul(priceFactor).mul(engravingConvergenceCostFactor(s));
   const legacy=s.runOrbsEvidence!=="verified";
   // Legacy purchase history cannot be reconstructed; new confirmed gains alone
   // count until a verified new run. Never fall back to spendable wallet balance.
@@ -387,7 +398,7 @@ export function convergenceQuote(s) {
   const steps=maxAffordable(earned,cost,c.costGrowth,0,1000000000);
   const spent=seriesCost(cost,c.costGrowth,0,steps);
   const next=seriesCost(cost,c.costGrowth,0,steps+1);
-  return {steps,reward:A(c.existencePerStep).mul(steps).mul(ownsSourceFinal(s,"SOURCE_01")?2:1).toString(),
+  return {steps,reward:A(c.existencePerStep).mul(steps).mul(ownsSourceFinal(s,"SOURCE_01")?2:1).mul(engravingConvergenceRewardFactor(s)).toString(),
     nextRequired:next.toString(),nextRemaining:next.sub(earned).toString(),spent:spent.toString(),
     basis:"run-earned",historyVerified:!legacy,runOrbsEarned:s.runOrbsEarned??"0"};
 }
@@ -409,9 +420,12 @@ export function converge(s) {
   s.surplusExistence=add(s.surplusExistence,q.reward);
   s.totalExistenceEarned=add(s.totalExistenceEarned,q.reward);
   const retain=s.mode==="lab"&&s.engraving.active.includes("retain");
+  const preserved=engravingRetainedLevels(s,s.moment.tap||0,s.sources.SOURCE_01.level);
   if(!retain){
     s.moment=freshMoment();
     Object.values(s.sources).forEach(x=>x.level=0);
+    s.moment.tap=preserved.tap;
+    s.sources.SOURCE_01.level=preserved.source;
   }
   // 仮設定の全消費。源の+と能力はデータ保護のため維持し、正式保持規則と断定しない。
   spendOrbs(s,CONFIG.provisional.convergence.spend==="all"?s.orbs:q.spent);
@@ -855,7 +869,7 @@ export function buyEngraving(s,id) {
   s.surplusExistence=sub(s.surplusExistence,q.price);
   s.engraving.owned.push(id);
   s.engraving.levels??={};s.engraving.levels[id]=1;
-  event(s,`${id} の初回購入を記録した。所有中は常時効果が有効（未確認の固有効果は未適用）。`);
+  event(s,`${id} ${ENGRAVING_EFFECTS[id]?.name||"刻印"} の初回購入を記録した。`);
   return {ok:true,id,price:q.price};
 }
 export function buyEngravingTrialUpgrade(s,id){
@@ -865,7 +879,7 @@ export function buyEngravingTrialUpgrade(s,id){
   s.engraving.trialLevels??={};
   s.engraving.trialLevels[id]=q.next;
   if(s.engraving.levels[id]!==undefined)s.engraving.levels[id]++;
-  event(s,`${id} の追加強化＋${q.next}（試験値）。`);
+  event(s,`${id} の追加強化＋${q.next}（暫定バランス）。`);
   return {ok:true,id,price:q.price,extraLevel:q.next};
 }
 // Historical equipped/draft arrays remain in saves verbatim. They no longer
