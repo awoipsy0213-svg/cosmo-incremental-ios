@@ -47,7 +47,7 @@ export function engravingLevel(s,id){
   return Number.isSafeInteger(n)&&n>0?limited(n,B().maxEffectLevel):0;
 }
 export function engravingLevelTotal(s){
-  return Object.keys(ENGRAVING_EFFECTS).reduce((n,id)=>n+engravingLevel(s,id),0);
+  return (s?.engraving?.owned||[]).reduce((n,id)=>n+engravingLevel(s,id),0);
 }
 const sumMoment=s=>Object.values(s.moment||{}).reduce((v,n)=>v+limited(Number(n)||0,1e6),0);
 const sourceLevels=s=>Object.values(s.sources||{}).map(x=>limited(Number(x?.level)||0,1e6));
