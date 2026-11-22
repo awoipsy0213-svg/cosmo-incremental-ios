@@ -791,6 +791,7 @@ function renderPanel(force=false){
     return;
   }
   $("childTabStrip").hidden=false;
+  $("childTabStrip").classList.toggle("is-existence",currentStage==="existence");
   $("childTabs").hidden=false;
   // Currency/affordability is patched on the existing buttons every UI tick.
   // Do not rebuild the purchase cards while earning resources or holding a finger.
