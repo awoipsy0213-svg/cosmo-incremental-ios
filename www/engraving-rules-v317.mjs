@@ -38,13 +38,13 @@ export function engravingPrerequisite(tier,owned=[]){
 export function engravingEffectStatus(id){
   if(ENGRAVING_EFFECTS[id])return {status:"implemented",description:ENGRAVING_EFFECTS[id].description};
   if(["ENG-05","ENG-17","ENG-25"].includes(id))
-    return {status:"pending-target",description:"収束時に対象源のLvを1%保持（最大10,000Lv）。対象源IDの原文照合が必要なため未適用。"};
-  return {status:"pending",description:"固有効果は確定回答の原文照合待ち。現在は未適用。"};
+    return {status:"pending-target",description:"この刻印には、まだ明らかになっていない力があります。"};
+  return {status:"pending",description:"この刻印の力はまだ明らかになっていません。"};
 }
 export function engravingCatalogue(){
   return ENGRAVING_IDS.map((id,i)=>Object.freeze({
     id,
-    name:ENGRAVING_EFFECTS[id]?.name||"刻印 "+String(i+1).padStart(2,"0")+"（未照合）",
+    name:ENGRAVING_EFFECTS[id]?.name||"未知の刻印 "+String(i+1),
     tier:engravingTier(id),
     cost:engravingPrice(id),
     ...engravingEffectStatus(id)
@@ -52,7 +52,7 @@ export function engravingCatalogue(){
 }
 export function engravingPurchaseQuote(s,id){
   if(!ENGRAVING_IDS.includes(id))return {ok:false,reason:"刻印IDが不正です"};
-  if(s.engraving.owned.includes(id))return {ok:false,reason:"取得済みです。次Lvの価格・成長式は未決定です"};
+  if(s.engraving.owned.includes(id))return {ok:false,reason:"すでに取得しています"};
   if(!s.intro.complete)return {ok:false,reason:"最初の存在を認識してください"};
   const tier=engravingTier(id),price=engravingPrice(id),prerequisite=engravingPrerequisite(tier,s.engraving.owned);
   if(!prerequisite.ok)return {ok:false,tier,price,prerequisite,
@@ -64,10 +64,10 @@ export function engravingTrialUpgradeQuote(s,id){
   if(!ENGRAVING_IDS.includes(id))return {ok:false,reason:"刻印IDが不正です"};
   if(!s.engraving?.owned?.includes(id))return {ok:false,reason:"最初に刻印を取得してください"};
   const current=s.engraving.trialLevels?.[id]||0;
-  if(current>=ENGRAVING_TRIAL.maxExtraLevels)return {ok:false,reason:"追加強化の試験上限です",current};
+  if(current>=ENGRAVING_TRIAL.maxExtraLevels)return {ok:false,reason:"強化上限に達しました",current};
   const price=A(engravingPrice(id)).mul(A(ENGRAVING_TRIAL.costGrowth).pow(current+1)).toString();
   const enough=A(s.surplusExistence).cmp(price)>=0;
-  return {ok:enough,price,current,next:current+1,reason:enough?"":"余剰存在が不足しています（試験値）"};
+  return {ok:enough,price,current,next:current+1,reason:enough?"":"余剰存在が不足しています"};
 }
 export function engravingTrialTotal(s){
   return ENGRAVING_IDS.reduce((sum,id)=>sum+(s.engraving.trialLevels?.[id]||0),0);
