@@ -27,7 +27,8 @@ try{
    s.engraving.levels={};
    return S.encode(s,"v329-fixture");
   });
-  await page.addInitScript(raw=>localStorage.setItem("kotowari_v31_normal",raw),fixture);
+  // Install once: addInitScript would overwrite the saved progress on every reload.
+  await page.evaluate(raw=>localStorage.setItem("kotowari_v31_normal",raw),fixture);
   await page.reload({waitUntil:"domcontentloaded"});
   await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
   assert.match(await page.locator("#buildLabel").textContent(),/3\.29/);
