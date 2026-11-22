@@ -775,6 +775,18 @@ function commonInfoHTML(){
     '<div class="kw-card"><span>時間の経過速度</span><strong>×'+esc(timeSpeed)+'</strong><small>時間倍率と消費係数は試験値です。</small></div>' +
     '<button type="button" class="wide-button" data-action="return-stage-panel">ステージ操作に戻る</button></section>';
 }
+/** Presentation-only filtering; never edits or deletes historical saved events. */
+function chronicleHTML(){
+  const names=Object.fromEntries(engravingCatalogue().map(x=>[x.id,x.name]));
+  const entries=[...state.events].reverse().map(e=>{
+    const raw=String(e.text??"");
+    if(mode!=="lab" && /【検証】|試験強化|暫定バランス|実装状態|未実装|原文照合|仕様が未決定/.test(raw))return null;
+    const text=raw.replace(/ENG-\d{2}/g,id=>names[id]||"刻印");
+    return {...e,text};
+  }).filter(Boolean);
+  if(!entries.length)return '<div class="empty-state"><p>まだ出来事は記録されていません。</p></div>';
+  return '<div class="kw-list">'+entries.map(e=>`<div class="kw-row"><span>${esc(e.text)}<small>${new Date(e.at).toLocaleString("ja-JP")}</small></span></div>`).join("")+"</div>";
+}
 function renderPanel(force=false){
   if(sheetState==="closed")return;
   const now=Date.now();
@@ -816,7 +828,7 @@ function renderPanel(force=false){
     planets:planetHTML,resources:resourcesHTML,observations:observationsHTML,
     life:()=>'<div class="empty-state"><div class="glyph">◌</div><p>未知の変化から、生命を認識する。</p><p>まだ生命を観測できません。</p></div>',
     boost:boostHTML,achievements:achievementHTML,statistics:statisticsHTML,settings:settingsHTML,backup:backupHTML,spec:specHTML,proposals:proposalsHTML,lab:labHTML,priceLab:priceLabHTML,guide:guideHTML,
-    chronicle:()=>state.events.length?'<div class="kw-list">'+[...state.events].reverse().map(e=>`<div class="kw-row"><span>${esc(e.text)}<small>${new Date(e.at).toLocaleString("ja-JP")}</small></span></div>`).join("")+'</div>':'<div class="empty-state"><p>まだ出来事は記録されていません。</p></div>',
+    chronicle:chronicleHTML,
     collection:()=>conceptHTML()};
   body.innerHTML=(map[currentSub]||guideHTML)();
 
@@ -1316,7 +1328,7 @@ document.addEventListener("click",async e=>{
       const x=CONTENT.sources.find(x=>x.id===b.dataset.sourceDetail);
       const status=G.sourceFinalEffectStatus(state,x.id);
       const v=state.sources[x.id],ms=CONFIG.confirmed.sourceMilestones,done=ms.filter(k=>k<=v.level).length,next=ms.find(k=>k>v.level);
-      await ask(x.name+"（仮名）",`現在 Lv.${v.level.toLocaleString("ja-JP")} / ＋${v.plus}\n節目 ${done}/21 / 次 ${next||"MAX"}\n＋倍率 ×${f(G.sourcePlusGain(v.plus))}\n合計 ${o(G.sourceProduction(state,x.id))} オーブ/秒\n次Lv増加 ${o(G.sourceNextGain(state,x.id))} オーブ/秒\n\n特性案：${x.role}\n最終効果：${status?.label||"？？？"}\n実装状態：${status?(status.implemented?"計算に適用":"解放履歴のみ・効果保留"):"未決定"}\n取得状態：${status?.unlocked?"解放済み":"未取得"}\n\n通常6効果の詳細：？？？（未確定）\n効果取得節目：25／1,000／10,000／50,000／100,000／500,000／1,000,000\n個別の未確定効果は適用しません。`,"閉じる");return;
+      await ask(x.name,`現在 Lv.${v.level.toLocaleString("ja-JP")} / ＋${v.plus}\n節目 ${done}/21 / 次 ${next||"MAX"}\n＋倍率 ×${f(G.sourcePlusGain(v.plus))}\n合計 ${o(G.sourceProduction(state,x.id))} オーブ/秒\n次Lv増加 ${o(G.sourceNextGain(state,x.id))} オーブ/秒\n\n特性：${x.role}\n特別な効果：${status?.unlocked&&status?.implemented?status.label:"？？？"}\n次の効果節目：25／1,000／10,000／50,000／100,000／500,000／1,000,000`,"閉じる");return;
     }
     if(readOnly){toast("別タブの書き込みを保護中です");return;}
     if(store.blocked && b.dataset.restore===undefined){toast("元セーブを保護中です。「保存」から復元してください。");return;}
