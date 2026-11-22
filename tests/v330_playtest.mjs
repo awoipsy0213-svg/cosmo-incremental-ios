@@ -123,6 +123,6 @@ check("old save schema and byte-compatible www; removed status UI and old tap in
   assert.ok(read("app.mjs").includes('data-engraving-trial-upgrade'));
   assert.ok(read("app.mjs").includes('data-boost-trial-buy'));
   assert.ok(read("index.html").includes("3.34 · ENGRAVING"));
-  assert.ok(read("sw.js").includes("3.35.0-ui-stability"));
+  assert.ok(read("sw.js").includes("3.36.0-automation-center"));
 });
 console.log("PASS "+passed+" v330 test-driven provisional upgrade and UI invariants");
