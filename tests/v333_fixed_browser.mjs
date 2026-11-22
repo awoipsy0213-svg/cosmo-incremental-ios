@@ -173,6 +173,43 @@ try{
    await page.locator("#confirmYes").click();
    sameGeometry(engr0,await page.evaluate(getGeometry),label+" engraving detail");
    await page.screenshot({path:dir+"/"+label+"-engraving.png",animations:"disabled"});
+   await page.locator('[data-action="collapse-sheet"]').click();
+   assert.equal(await page.locator("#convergeMain").isVisible(),true,label+" main NEXT visible");
+   const convergeBefore=await page.evaluate(()=>{
+     const e=document.getElementById("convergeMain"),r=e.getBoundingClientRect();
+     window.__convergeRewardNode=e.querySelector("[data-main-convergence-reward]");
+     return {geometry:[r.x,r.y,r.width,r.height],
+       observation:[...document.querySelectorAll("#worldObserve .scene-stat strong")].map(n=>n.textContent),
+       observedFull:document.querySelector("#worldObserve .scene-stat")?.title};
+   });
+   assert.equal(Math.round(convergeBefore.geometry[3]),54,label+" convergence control fixed 54px");
+   assert.ok(convergeBefore.observation.length===2&&convergeBefore.observation.every(s=>!s.includes("オーブ")),label+" numeric observation omits repeated units");
+   assert.ok(convergeBefore.observedFull?.includes("オーブ/秒"),label+" full observation available on title");
+   await page.evaluate(async()=>{
+     const G=await import("./game.mjs"),s=G.createState(Date.now(),"lab");
+     s.intro.complete=true;s.surplusExistence="5";
+     s.orbs="1e120";s.totalOrbs="1e120";s.runOrbsEarned="1e120";
+     window.KOTOWARI_DEBUG.setLabState(s);
+   });
+   const convergeAfter=await page.evaluate(()=>{
+     const e=document.getElementById("convergeMain"),r=e.getBoundingClientRect();
+     return {geometry:[r.x,r.y,r.width,r.height],
+       sameNode:e.querySelector("[data-main-convergence-reward]")===window.__convergeRewardNode,
+       next:e.querySelector("[data-main-convergence-next]")?.textContent,
+       overflow:document.documentElement.scrollWidth-document.documentElement.clientWidth};
+   });
+   assert.equal(convergeAfter.sameNode,true,label+" convergence HTML stays mounted during earnings");
+   assert.match(convergeAfter.next,/オーブ/,label+" NEXT value shown");
+   convergeBefore.geometry.forEach((v,i)=>assert.ok(Math.abs(v-convergeAfter.geometry[i])<=.3,label+" convergence geometry["+i+"] stable"));
+   assert.ok(convergeAfter.overflow<=1,label+" huge NEXT no horizontal overflow");
+   await page.evaluate(()=>{
+     const s=window.KOTOWARI_DEBUG.state();
+     s.runOrbsEvidence="legacy-unverified";
+     window.KOTOWARI_DEBUG.setLabState(s);
+   });
+   assert.match(await page.locator("#convergeMain").getAttribute("title"),/旧周回/,label+" prior progress warning retained");
+   const legacyRect=await page.locator("#convergeMain").boundingBox();
+   assert.ok(Math.abs(legacyRect.height-convergeBefore.geometry[3])<=.3,label+" legacy text does not resize NEXT");
    assert.deepEqual(errors,[],label+" JS errors");
    results.push({width,height,fullMomentCards:initial.full,momentCardHeight:initial.cardRect[0][3],
      momentBuyHeight:initial.buttonRect[0][3],sourceCardHeight:source0.cardRect[0][3],
