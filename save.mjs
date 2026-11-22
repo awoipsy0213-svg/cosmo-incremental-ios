@@ -68,6 +68,22 @@ export class SaveStore {
             return {state:s,blocked:true,warning:"周回獲得履歴・刻印移行前の原本退避に失敗しました。旧セーブを保護し上書きを停止しています。"};
           }
         }
+        // Engraving A-D v333: before adding persistent automation credit/threshold
+        // and effect-bearing levels, retain the exact prior bytes. If storage is
+        // unavailable, block writes rather than silently rewriting the only save.
+        if(oldShape.engraving &&
+           (oldShape.engraving.runtime===undefined ||
+            oldShape.engraving.autoConverge?.minSteps===undefined)){
+          const key=this.key+".before-v333-engraving-effects";
+          try{
+            if(!this.read(key))this.storage.setItem(key,raw);
+            if(this.read(key)!==raw)throw Error("v333 archive verification mismatch");
+          }catch(error){
+            this.blocked=true;
+            return {state:s,blocked:true,
+              warning:"刻印25効果導入前のセーブ原本を退避できません。既存データの上書きを停止しています。"};
+          }
+        }
         // BOOST-CORE-004/Q469/499/501: save a byte-for-byte backup BEFORE
         // normalizing old active flags and preserving balances above capacity.
         // A failed backup blocks all writes to the only original save.
