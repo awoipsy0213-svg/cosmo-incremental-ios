@@ -18,6 +18,7 @@ assert.equal((sw.match(/"fixed-layout-v333\.css"/g)||[]).length,2,"PWA core cach
 assert.match(css,/--fixed-card-h:76px/);
 assert.match(css,/height:var\(--fixed-card-h\)!important/);
 assert.match(css,/\.purchase-cost-value/);
+assert.match(css,/\.toast,\.toast\.show\{pointer-events:none!important\}/);
 assert.match(css,/\.child-tab-strip\.is-existence/);
 assert.match(css,/\.engraving-card \.card-top strong/);
 assert.match(css,/color:#2b3554!important/);
