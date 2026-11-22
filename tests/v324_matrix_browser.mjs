@@ -28,14 +28,14 @@ try{
   await page.addInitScript(raw=>localStorage.setItem("kotowari_v31_normal",raw),fixture);
   await page.reload({waitUntil:"domcontentloaded"});
   await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
-  assert.match(await page.locator("#buildLabel").textContent(),/3\.29/);
+  assert.match(await page.locator("#buildLabel").textContent(),/3\.30/);
   assert.equal(await page.locator("#commonInfoBar .common-info-item").count(),2);
   assert.equal(await page.locator(".app-top [data-action='organizer']").count(),1);
   assert.equal(await page.locator("#stageNav [data-action='organizer']").count(),0,"duplicate bottom menu");
   assert.equal(await page.locator(".matrix-hero-cube").isVisible(),true);
   assert.equal(await page.locator(".world-matrix").isVisible(),true);
   assert.ok((await page.locator("#worldObserve .scene-stat").count())>0);
-  assert.ok((await page.locator("#worldStatus .scene-stat").count())>0);
+  assert.equal(await page.locator("#worldStatus").count(),0,"redundant state sidebar removed");
   const sizing=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,width:document.documentElement.clientWidth}));
   assert.ok(sizing.scroll<=width+2,tag+" page overflow "+JSON.stringify(sizing));
   await page.locator('[data-stage="existence"]').click();

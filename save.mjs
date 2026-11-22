@@ -46,6 +46,16 @@ export class SaveStore {
         // Preserve an untouched pre-v3.8 snapshot before first migration to 30 slots.
         // If backup cannot be verified, block writes rather than risking the sole save.
         const oldShape=JSON.parse(raw).data??JSON.parse(raw);
+        if(oldShape.boost?.trialLevels===undefined||oldShape.engraving?.trialLevels===undefined){
+          const key=this.key+".before-v330-playtest";
+          try{
+            if(!this.read(key))this.storage.setItem(key,raw);
+            if(this.read(key)!==raw)throw Error("v330 copy mismatch");
+          }catch(e){
+            this.blocked=true;
+            return {state:s,blocked:true,warning:"試験強化導入前のセーブ原本を退避できません。上書きを停止しました。"};
+          }
+        }
         // DEC-20261122-002/003: preserve the exact source before recording
         // verified run earnings or new permanent engraving levels.
         if(oldShape.runOrbsEvidence===undefined||oldShape.engraving?.levels===undefined){

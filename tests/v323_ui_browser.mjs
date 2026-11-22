@@ -32,7 +32,7 @@ try{
    await page.addInitScript(raw=>localStorage.setItem("kotowari_v31_normal",raw),fixture);
    await page.reload({waitUntil:"domcontentloaded"});
    await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
-   assert.match(await page.locator("#buildLabel").textContent(),/3\.29/);
+   assert.match(await page.locator("#buildLabel").textContent(),/3\.30/);
    assert.equal(await page.locator(".common-info-item").count(),2);
    const layout=await page.evaluate(()=>({
      scroll:document.documentElement.scrollWidth,
@@ -40,7 +40,7 @@ try{
      rowCount:document.querySelectorAll("#stageResourceList .stage-stat").length
    }));
    assert.ok(layout.scroll<=width+2,label+" page width overflow "+JSON.stringify(layout));
-   assert.equal(layout.rowCount,4);
+   assert.equal(layout.rowCount,3);
    await page.locator('[data-stage="existence"]').click();
    await page.locator('[data-child="moment"]').click();
    assert.equal(await page.locator(".moment-card .compact-stat").count(),60);

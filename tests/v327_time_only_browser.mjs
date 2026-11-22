@@ -44,18 +44,18 @@ try{
   assert.deepEqual(first.state.boost.upgrades,[0,0,0,0,0]);
   assert.deepEqual(first.state.boost.timeOnlyMigration.legacyUpgradeLevels,[3,2,1,0,0]);
   assert.equal(first.archive,raw,"original encoded bytes remain recoverable");
-  assert.match(await page.locator("#buildLabel").textContent(),/3\.29/);
+  assert.match(await page.locator("#buildLabel").textContent(),/3\.30/);
   await page.locator('.app-top [data-action="organizer"]').click();
   await page.locator('[data-organizer="boost"]').click();
   const content=await page.locator("#sheetBody").textContent();
   for(const x of ["正式5強化系統","BOOST基礎獲得速度","オフラインBOOST獲得倍率",
      "BOOST容量","ゲーム内時間倍率","時間加速の消費効率","補償判定待ち",
-     "旧BOOST残高を容量外で保護中","現実1秒","旧版の加速設定","旧強化Lv：3 / 2 / 1 / 0 / 0"]){
+     "旧BOOST残高を容量外で保護中","旧版の加速設定","旧強化Lv：3 / 2 / 1 / 0 / 0"]){
     assert.ok(content.includes(x),device+" missing "+x);
   }
   assert.ok(!content.includes("最終資源獲得倍率"),"obsolete resource final multiplier visible");
   assert.equal(await page.locator('#sheetBody button[data-boost-upgrade]').count(),0);
-  assert.equal(await page.locator('#sheetBody button[disabled]').count()>=5,true);
+  assert.equal(await page.locator('#sheetBody button[data-boost-trial-buy]').count(),5,"new five trials available with protected prior balance");
   await page.locator("#boostQuick").click();
   await page.waitForTimeout(450);
   const begun=await page.evaluate(()=>window.KOTOWARI_DEBUG.state());

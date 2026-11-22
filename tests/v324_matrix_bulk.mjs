@@ -9,7 +9,7 @@ let count=0;
 function check(name,fn){fn();count++;console.log("PASS "+name);}
 check("Main/in-app data is still schema31 and the release is v3.27",()=>{
  const s=createState();
- assert.equal(CONFIG.version,"3.29.0");
+ assert.equal(CONFIG.version,"3.30.0");
  assert.equal(s.schemaVersion,31);
  assert.equal(KEYS.normal,"kotowari_v31_normal");
  assert.equal(KEYS.lab,"kotowari_v31_lab");
@@ -24,7 +24,7 @@ check("Only the top-right organizer remains",()=>{
 });
 check("Visuals use real stages and keep all stage tabs",()=>{
  const html=text("index.html"),css=text("matrix-v324.css"),app=text("app.mjs");
- for(const id of ["matrixCaption","matrixSummary","matrixFill","worldObserve","worldStatus","heroSigil","activeStageTitle"])
+ for(const id of ["matrixCaption","matrixSummary","matrixFill","worldObserve","heroSigil","activeStageTitle"])
    assert.ok(html.includes('id="'+id+'"'),id);
  for(const selector of [".world-matrix",".world-sideboards",".matrix-hero-cube",".scene-sidebar"])
    assert.ok(css.includes(selector),selector);
@@ -58,8 +58,8 @@ check("Quoted bulk and actual purchases preserve the same spend",()=>{
 check("Published SW and iOS copy include new CSS",()=>{
  const root=["app.mjs","index.html","balance-config.mjs","sw.js","stage-worlds.css","matrix-v324.css"];
  for(const name of root)assert.equal(text(name),text("www/"+name),name);
- assert.match(text("sw.js"),/3\.29\.0-run-engrave/);
+ assert.match(text("sw.js"),/3\.30\.0-playtest/);
  assert.match(text("sw.js"),/matrix-v324\.css/);
- assert.match(text("index.html"),/3\.29 · RUN/);
+ assert.match(text("index.html"),/3\.30 · TEST/);
 });
 console.log("PASS "+count+" Ver3.28 matrix and bulk invariants");
