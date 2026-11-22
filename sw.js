@@ -1,5 +1,5 @@
 /* Versioned, scope-specific cache. Does not delete saves or another app's cache. */
-const VERSION = "3.32.0-luminous-glass";
+const VERSION = "3.33.0-engraving-abcd";
 const PREFIX = "kotowari-handoff:" + new URL(self.registration.scope).pathname + ":";
 const CACHE = PREFIX + VERSION;
 const RELATIVE = [
@@ -18,6 +18,7 @@ const RELATIVE = [
   "universe-interference-v318.mjs",
   "telemetry-v319.mjs",
   "engraving-rules-v317.mjs",
+  "engraving-effects-v333.mjs",
   "purchase-insights.mjs",
   "moment-filter.mjs",
   "price-lab.mjs",
@@ -65,6 +66,7 @@ const CORE_FILES = [
   "telemetry-v319.mjs",
   "source-effects-v315.mjs",
   "engraving-rules-v317.mjs",
+  "engraving-effects-v333.mjs",
   "purchase-insights.mjs",
   "moment-filter.mjs",
   "price-lab.mjs",
