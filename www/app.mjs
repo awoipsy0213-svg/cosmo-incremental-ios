@@ -31,7 +31,7 @@ let currentStage="existence",currentSub="moment",sheetState="closed",infoPanelOp
 let lastFrame=Date.now(),hiddenAt=null,lastSavedAt=0,lastPanelRender=0,lastInteraction=0;
 let toastTimer,noticeFadeTimer,noticeDismissTimer,importDraft="",offlineReport=null,updateWorker=null,confirmedAction=null;
 let interferencePartnerId=null,bulkScope="all",bulkPurchasePending=false;
-let navDigest="",notice="",busyBirth=false;
+let navDigest="",notice="",busyBirth=false,automationDetailsOpen=false;
 const BOOST_QUICK_ICON=`<svg class="boost-quick-symbol" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M13 2 5 13h6l-1 9 9-12h-6V2z" fill="currentColor"/></svg>`;
 const HOLD_LEVEL_LIMIT=3000; // BOOST-Q673/674: one continuous long press, total acquired Lv
 let holdPurchase=null,skipClickFor=null;
@@ -408,58 +408,114 @@ function sourcesHTML(){
 }
 function automationHTML(){
   const tab=currentSub.slice(5),e=state.engraving,disabled=readOnly||store.blocked;
-  const locked=' disabled title="取得後に利用できます"';
-  const selected=(a,b)=>a===b?' selected':'';
-  const option=(value,text,sel,extra='')=>'<option value="'+esc(value)+'"'+selected(value,sel)+extra+'>'+esc(text)+'</option>';
-  const panelHead='<div class="automation-heading"><strong>オートメーション</strong><small>設定は保存され、オンライン中に反映されます</small></div>';
+  const master=state.settings.automationEnabled!==false;
+  const selected=(a,b)=>String(a)===String(b)?" selected":"";
+  const option=(value,label,chosen,extra="")=>'<option value="'+esc(value)+'"'+selected(value,chosen)+extra+'>'+esc(label)+'</option>';
+  const name=id=>engravingCatalogue().find(x=>x.id===id)?.name||"刻印";
+  const momentRate=engravingAutoMomentRate(state),sourceRate=engravingAutoSourceRate(state);
+  const convergeOwned=e.owned.includes(ENGRAVING_AUTO_CONVERGE_ID);
+  const status=(title,unlocked,on)=>{
+    const text=unlocked?(on?"ON":"OFF"):"未解放";
+    return '<span class="automation-status '+(unlocked?(on?"is-on":"is-off"):"is-locked")+'" title="'+esc(title+"："+text)+'">'+esc(title)+' <b>'+esc(text)+'</b></span>';
+  };
+  const overview='<section class="kw-card automation-overview" aria-label="オートメーションの状態">'+
+    '<div class="automation-master-line"><strong>全体自動化</strong><small data-auto-master-state>'+
+    (master?"稼働中":"一時停止")+'</small>'+
+    '<label class="automation-toggle automation-master-toggle"><input type="checkbox" data-auto-master'+
+    (master?" checked":"")+(disabled?" disabled":"")+
+    ' aria-label="全ステージの自動化をまとめてON/OFF"><span>ON</span></label></div>'+
+    '<div class="automation-status-line" aria-label="存在の自動化状態">'+
+    status("刹那",momentRate>0,e.autoBuy.moment.enabled)+
+    status("源",sourceRate>0,e.autoBuy.source.enabled)+
+    status("収束",convergeOwned,e.autoConverge.enabled)+'</div>'+
+    '<button type="button" class="automation-details-button" data-action="toggle-auto-details" aria-expanded="'+
+    String(automationDetailsOpen)+'">'+(automationDetailsOpen?"設定を閉じる":"設定を開く")+'</button></section>';
+  if(!automationDetailsOpen)return overview;
   if(tab==="existence"){
-    const buy=(kind,label,rate)=>{
+    const buy=(kind,label,rate,engravingId)=>{
       const cfg=e.autoBuy[kind],unlocked=rate>0,off=disabled||!unlocked;
-      const pri=[["auto","自動選択"],["cheap","安い順"],["expensive","高い順"],["efficient","効率優先"]];
-      const priorityOptions=pri.map(([value,text])=>option(value,text,cfg.priority,
-        value==="efficient"&&!engravingAutoEfficient(state)?' disabled':'')).join("");
-      return '<section class="kw-card automation-row" data-automation-buy="'+kind+'">'+
-        '<div class="automation-line"><strong>'+esc(label)+'</strong><small>'+(unlocked?'Lv相当 '+rate+'回/ゲーム秒':'対応する刻印で解放')+'</small>'+
-        '<label class="automation-toggle"><span>ON</span><input type="checkbox" data-auto-buy-kind="'+kind+'" data-auto-field="enabled"'+(unlocked&&cfg.enabled?' checked':'')+(off?' disabled':'')+' aria-label="'+esc(label)+'の自動購入をON/OFF"></label></div>'+
-        '<div class="automation-line automation-fields"><label>優先<select class="input-select" data-auto-buy-kind="'+kind+'" data-auto-field="priority"'+(off?' disabled':'')+'>'+priorityOptions+'</select></label>'+
-        '<label>購入間隔<select class="input-select" data-auto-buy-kind="'+kind+'" data-auto-field="intervalSeconds"'+(off?' disabled':'')+'>'+
-        [1,2,5,10,30,60].map(v=>option(String(v),v+'ゲーム秒',String(cfg.intervalSeconds))).join('')+
+      const requirement='刻印「'+name(engravingId)+'」で解放';
+      const priorities=[["auto","自動選択"],["cheap","安い順"],["expensive","高い順"],
+        ["efficient","効率優先"]];
+      const priorityOptions=priorities.map(([value,text])=>option(value,text,cfg.priority,
+        value==="efficient"&&!engravingAutoEfficient(state)?" disabled":"")).join("");
+      return '<section class="kw-card automation-row'+(unlocked?"":" is-locked")+'" data-automation-buy="'+kind+'">'+
+        '<div class="automation-line"><strong>'+esc(label)+'</strong><small title="'+esc(requirement)+'">'+
+        (unlocked?rate+'回/ゲーム秒':esc(requirement))+'</small>'+
+        '<label class="automation-toggle"><input type="checkbox" data-auto-buy-kind="'+kind+
+        '" data-auto-field="enabled"'+(cfg.enabled?' checked':'')+(off?' disabled':'')+
+        ' aria-label="'+esc(label)+'の自動購入をON/OFF"><span>ON</span></label></div>'+
+        '<div class="automation-line automation-fields"><label>購入優先<select class="input-select" data-auto-buy-kind="'+kind+
+        '" data-auto-field="priority"'+(off?' disabled':'')+'>'+priorityOptions+'</select></label>'+
+        '<label>購入間隔<select class="input-select" data-auto-buy-kind="'+kind+
+        '" data-auto-field="intervalSeconds"'+(off?' disabled':'')+'>'+
+        [1,2,5,10,30,60].map(v=>option(v,v+'ゲーム秒',cfg.intervalSeconds)).join("")+
         '</select></label></div></section>';
     };
-    const a=e.autoConverge,on=e.owned.includes(ENGRAVING_AUTO_CONVERGE_ID),off=disabled||!on;
-    const modes=[["ready","条件到達"],["seconds","秒間隔"],["minutes","分間隔"],["earned","周回累計"]];
-    const modeOptions=modes.map(([value,label])=>option(value,label,a.mode)).join("");
-    const conditionValue=a.mode==="seconds"?String(a.intervalSeconds):
-      a.mode==="minutes"?String(a.intervalMinutes):a.mode==="earned"?String(a.targetRunOrbs):"";
-    const conditionLabel=a.mode==="seconds"?"秒":a.mode==="minutes"?"分":a.mode==="earned"?"累計オーブ":"条件到達";
-    const conditionKey=a.mode==="seconds"?"intervalSeconds":a.mode==="minutes"?"intervalMinutes":"targetRunOrbs";
-    const valueControl='<input class="input-select" type="text" inputmode="decimal" data-auto-converge="'+conditionKey+'" value="'+esc(conditionValue)+'"'+(off||a.mode==="ready"?' disabled':'')+' aria-label="'+conditionLabel+'" placeholder="'+(a.mode==="ready"?'準備ができたら実行':'数値を入力')+'">';
-    const rewardOptions=[...new Set(["0.025","0.05","0.1","0.5","1",a.minReward])].map(v=>option(v,v+' 存在',a.minReward)).join("");
-    const stepsOptions=[...new Set([1,2,3,5,10,20,50,100,a.minSteps])].sort((a,b)=>a-b).map(v=>option(String(v),v+' 段階',String(a.minSteps))).join("");
-    return panelHead+buy("moment","刹那・自動購入",engravingAutoMomentRate(state))+
-      buy("source","源・自動購入",engravingAutoSourceRate(state))+
-      '<section class="kw-card automation-convergence"><div class="automation-line"><strong>自動収束</strong><small>'+(on?'最短60秒の安全間隔':'自動収束の刻印で解放')+'</small>'+
-      '<label class="automation-toggle"><span>ON</span><input type="checkbox" data-auto-converge="enabled"'+(on&&a.enabled?' checked':'')+(off?' disabled':'')+' aria-label="自動収束をON/OFF"></label></div>'+
-      '<div class="automation-line automation-fields"><label>収束条件<select class="input-select" data-auto-converge="mode"'+(off?' disabled':'')+'>'+modeOptions+'</select></label>'+
-      '<label>'+conditionLabel+valueControl+'</label></div>'+
-      '<div class="automation-line automation-fields"><label>最低報酬<select class="input-select" data-auto-converge="minReward"'+(off?' disabled':'')+'>'+rewardOptions+'</select></label>'+
-      '<label>最低段階<select class="input-select" data-auto-converge="minSteps"'+(off||!engravingConvergenceControl(state)?' disabled':'')+'>'+stepsOptions+'</select></label></div></section>';
+    const a=e.autoConverge,on=convergeOwned,off=disabled||!on;
+    const modes=[["ready","即時"],["seconds","秒ごと"],["minutes","分ごと"],["earned","累計値"]];
+    const modeButtons=modes.map(([value,label])=>'<button type="button" data-auto-mode="'+value+
+      '" aria-label="収束条件：'+esc(label)+'" aria-pressed="'+String(a.mode===value)+
+      '" class="automation-mode-button'+(a.mode===value?" active":"")+'"'+(off?" disabled":"")+
+      '>'+esc(label)+'</button>').join("");
+    const preset=(values,chosen,unit)=>[...new Set([...values,chosen])].sort((a,b)=>a-b)
+      .map(v=>option(v,v+unit,chosen)).join("");
+    const condition=a.mode==="seconds"?
+      '<select class="input-select" data-auto-converge="intervalSeconds"'+(off?' disabled':'')+
+      ' aria-label="自動収束を判定する現実秒間隔">'+
+      preset([60,120,180,300,600,900,1800,3600],a.intervalSeconds,"秒")+'</select>':
+      a.mode==="minutes"?
+      '<select class="input-select" data-auto-converge="intervalMinutes"'+(off?' disabled':'')+
+      ' aria-label="自動収束を判定する現実分間隔">'+
+      preset([1,2,3,5,10,15,30,60,120,240],a.intervalMinutes,"分")+'</select>':
+      a.mode==="earned"?
+      '<input class="input-select" type="text" inputmode="decimal" data-auto-converge="targetRunOrbs"'+
+      ' value="'+esc(a.targetRunOrbs)+'" title="周回で実際に獲得したオーブの累計"'+
+      (off?' disabled':'')+' aria-label="収束する周回累計獲得オーブ">':
+      '<output class="automation-condition-placeholder">条件を満たしたら判定</output>';
+    const rewardOptions=[...new Set(["0.025","0.05","0.1","0.5","1",a.minReward])]
+      .map(v=>option(v,v+' 存在',a.minReward)).join("");
+    const stepsOptions=[...new Set([1,2,3,5,10,20,50,100,a.minSteps])].sort((a,b)=>a-b)
+      .map(v=>option(v,v+' 段階',a.minSteps)).join("");
+    const thresholdInfo='刻印「'+name("ENG-24")+'」で解放';
+    return overview+buy("moment","刹那・自動購入",momentRate,"ENG-23")+
+      buy("source","源・自動購入",sourceRate,"ENG-26")+
+      '<section class="kw-card automation-convergence'+(on?"":" is-locked")+'">'+
+      '<div class="automation-line"><strong>自動収束</strong><small title="'+esc(thresholdInfo)+'">'+
+      (on?'最短60秒の安全間隔':esc(thresholdInfo))+'</small>'+
+      '<label class="automation-toggle"><input type="checkbox" data-auto-converge="enabled"'+
+      (a.enabled?' checked':'')+(off?' disabled':'')+' aria-label="自動収束をON/OFF"><span>ON</span></label></div>'+
+      '<div class="automation-modes" role="group" aria-label="収束条件の4方式">'+modeButtons+'</div>'+
+      '<div class="automation-line automation-condition"><span>判定条件</span>'+condition+'</div>'+
+      '<div class="automation-line automation-fields"><label>最低報酬<select class="input-select" data-auto-converge="minReward"'+
+      (off?' disabled':'')+'>'+rewardOptions+'</select></label>'+
+      '<label>最低段階<select class="input-select" data-auto-converge="minSteps"'+
+      (off||!engravingConvergenceControl(state)?' disabled title="循環制御の刻印で解放"':'')+
+      '>'+stepsOptions+'</select></label></div></section>';
   }
   if(tab==="universe"){
     const u=state.universe,unlocked=u.unlocked&&autoPlanetAvailable(u),off=disabled||!unlocked;
-    return panelHead+'<section class="kw-card automation-row"><div class="automation-line"><strong>惑星の自動生成</strong><small>'+
-      (unlocked?'300ゲーム秒ごとに生成':'条件を満たすと解放')+'</small>'+
-      '<label class="automation-toggle"><span>ON</span><input type="checkbox" data-auto-planet-enabled'+(u.autoGenerate?' checked':'')+(off?' disabled':'')+' aria-label="惑星の自動生成をON/OFF"></label></div>'+
-      '<div class="automation-line automation-fields"><label>各R1の最低保有量<select class="input-select" data-auto-planet-reserve'+(off?' disabled':'')+'>'+
-      [0,10,100,1000,u.autoReserve].filter((v,i,arr)=>arr.indexOf(v)===i).sort((a,b)=>a-b).map(v=>option(String(v),v+' 個',String(u.autoReserve))).join('')+
+    const requirement="累計崩壊20回・惑星5枠・崩壊現象の理解度100で解放";
+    return overview+'<section class="kw-card automation-row'+(unlocked?"":" is-locked")+'">'+
+      '<div class="automation-line"><strong>惑星の自動生成</strong><small title="'+esc(requirement)+'">'+
+      (unlocked?'300ゲーム秒ごとに生成':requirement)+'</small>'+
+      '<label class="automation-toggle"><input type="checkbox" data-auto-planet-enabled'+
+      (u.autoGenerate?' checked':'')+(off?' disabled':'')+
+      ' aria-label="惑星の自動生成をON/OFF"><span>ON</span></label></div>'+
+      '<div class="automation-line automation-fields"><label>各R1の最低保有量<select class="input-select" data-auto-planet-reserve'+
+      (off?' disabled':'')+'>'+
+      [0,10,100,1000,u.autoReserve].filter((v,i,arr)=>arr.indexOf(v)===i).sort((a,b)=>a-b)
+        .map(v=>option(v,v+' 個',u.autoReserve)).join('')+
       '</select></label></div></section>';
   }
   if(tab==="time"){
-    return panelHead+'<section class="kw-card automation-row automation-info"><strong>時の流れ</strong><small>'+
-      (state.time.unlocked?'ゲーム内時間の経過で進行します。':'時のステージはまだ解放されていません。')+
-      '</small><small>設定可能な自動化は解放済みの機能に応じて表示します。</small></section>';
+    return overview+'<section class="kw-card automation-row automation-info'+
+      (state.time.unlocked?'':' is-locked')+'"><strong>時の流れ</strong><small>'+
+      (state.time.unlocked?'ゲーム内時間に応じて進行します。':'時のステージを解放すると進行します。')+
+      '</small><small>追加の自動化設定はまだありません。</small></section>';
   }
-  return panelHead+'<section class="kw-card automation-row automation-info"><strong>生命</strong><small>'+
+  return overview+'<section class="kw-card automation-row automation-info'+
+    (state.life.unlocked?'':' is-locked')+'"><strong>生命</strong><small>'+
     (state.life.unlocked?'現在設定できる自動化はありません。':'生命のステージはまだ解放されていません。')+
     '</small></section>';
 }
@@ -1141,6 +1197,7 @@ function download(text,name,type="application/json"){
 async function dispatchAction(action){
   if(action==="organizer"){openOrganizer();return;}
   if(action==="open-automation"){openAutomation();return;}
+  if(action==="toggle-auto-details"){automationDetailsOpen=!automationDetailsOpen;renderPanel(true);return;}
   if(action==="open-common-info"){
     stopHoldPurchase(null,true);
     infoPanelOpen=true;
@@ -1351,6 +1408,13 @@ document.addEventListener("click",async e=>{
       renderPanel(true);return;
     }
     if(b.dataset.organizer){openOrganizerPage(b.dataset.organizer);return;}
+    if(b.dataset.autoMode!==undefined){
+      if(readOnly||store.blocked)return toast("読み取り専用です");
+      if(!state.engraving.owned.includes(ENGRAVING_AUTO_CONVERGE_ID))return;
+      checkpoint();
+      resultDone(G.configureAutoConvergence(state,{mode:b.dataset.autoMode},Date.now()));
+      return;
+    }
     if(b.dataset.momentGroupSelect!==undefined){
       if(readOnly||store.blocked)return toast("読み取り専用です");
       state.settings.momentGroup=b.dataset.momentGroupSelect;
@@ -1519,8 +1583,11 @@ document.addEventListener("change",async e=>{
     priceLabParams[key]=["durationSeconds","tapsPerSecond","levelOverride","factorOverride"].includes(key)?(t.value===""?null:Number(t.value)):t.value;
     priceLabReport=null;priceLabComparisons=null;renderPanel(true);return;
   }
-  if(readOnly){render(true);return;}
+  if(readOnly||store.blocked){render(true);return;}
   checkpoint();
+  if(t.hasAttribute("data-auto-master")){
+    resultDone(G.configureAutomationMaster(state,t.checked));return;
+  }
   if(t.dataset.autoBuyKind!==undefined){
     const kind=t.dataset.autoBuyKind,field=t.dataset.autoField;
     if(!["enabled","priority","intervalSeconds"].includes(field))return;

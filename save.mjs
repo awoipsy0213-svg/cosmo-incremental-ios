@@ -181,6 +181,19 @@ export class SaveStore {
             return {state:s,blocked:true,warning:"Ver.3.19の統計移行前に元のセーブを退避できませんでした。既存データを守るため書き込みを停止しています。"};
           }
         }
+        // v3.37 adds a global automation pause without changing individual
+        // switches, purchase credits or the schema. Preserve exact old bytes.
+        if(this.mode==="normal"&&oldShape.settings?.automationEnabled===undefined){
+          const key=this.key+".before-v337-automation-master";
+          try{
+            if(!this.read(key))this.storage.setItem(key,raw);
+            if(this.read(key)!==raw)throw Error("global automation backup mismatch");
+          }catch(error){
+            this.blocked=true;
+            return {state:s,blocked:true,
+              warning:"自動化の共通設定追加前のセーブ原本を退避できません。上書きを停止しています。"};
+          }
+        }
         return {state:s};
       }catch(error){
         // I-31/I-34: broken or incompatible current saves must remain untouched.

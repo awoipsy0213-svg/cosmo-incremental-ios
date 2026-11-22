@@ -62,7 +62,7 @@ export function createState(now=Date.now(),mode="normal") {
     counters:{taps:0,orbsSpent:"0",sourcePurchases:0,conversions:0,onlineSeconds:0,offlineSeconds:0},
     achievements:[],events:[],telemetry:freshTelemetry(),settings:{compact:true,showPurchaseHints:true,affordableOnly:false,bulkOrder:"cheap",holdToBuy:true,hapticTap:false,reducedMotion:false,highContrast:false,
       lowPower:false,confirmConvergence:true,confirmBulkPurchase:false,confirmMaxPurchase:true,showOffline:true,notation:"auto",
-      existenceLastTab:"moment",automationStage:"existence",confirmEngravingPurchase:false,confirmEngravingUpgrade:false,
+      existenceLastTab:"moment",automationStage:"existence",automationEnabled:true,confirmEngravingPurchase:false,confirmEngravingUpgrade:false,
       confirmBoostUpgrade:false,confirmSourceBreakthrough:true,confirmInterference:true,
       confirmCoreFormation:true,confirmSaveImport:true,confirmSaveRestore:true,
       momentFavorites:[],momentGroup:"0",momentFilter:"all"},
@@ -896,6 +896,12 @@ export function toggleDraft(){return {ok:false,reason:"刻印の装備切替は�
 export function engravingQuote(){return {added:[],removed:[],slots:0,cost:"0",legacyOnly:true};}
 export function confirmEngraving(){return {ok:false,reason:"刻印の装備切替は廃止されました"};}
 export function cancelEngraving(){return {ok:false,reason:"刻印の装備切替は廃止されました"};}
+/** Global pause leaves per-feature options, fractional credits and purchase history intact. */
+export function configureAutomationMaster(s,enabled){
+  if(typeof enabled!=="boolean")return {ok:false,reason:"全体ON/OFFの指定が不正です"};
+  s.settings.automationEnabled=enabled;
+  return {ok:true,enabled};
+}
 export function configureAutoPurchase(s,kind,{enabled,priority,intervalSeconds}={}){
   if(!["moment","source"].includes(kind))return {ok:false,reason:"購入対象が不正です"};
   const a=s.engraving.autoBuy?.[kind];if(!a)return {ok:false,reason:"自動購入設定がありません"};
@@ -973,7 +979,7 @@ export function configureAutoConvergence(s,{enabled,minReward,minSteps,mode,inte
     intervalSeconds:a.intervalSeconds,intervalMinutes:a.intervalMinutes,targetRunOrbs:a.targetRunOrbs};
 }
 export function autoConvergenceTick(s,now=Date.now(),offline=false) {
-  if(offline||!s.intro.complete||!s.engraving.autoConverge.enabled ||
+  if(offline||s.settings.automationEnabled===false||!s.intro.complete||!s.engraving.autoConverge.enabled ||
     !s.engraving.owned.includes(ENGRAVING_AUTO_CONVERGE_ID))
     return {ok:false,reason:"自動収束の条件を満たしていません"};
   const a=s.engraving.autoConverge;
@@ -1092,7 +1098,7 @@ function autoEngravingBuy(s,kind,quantity,priority){
   return count;
 }
 function runEngravingAutomation(s,seconds,now,rng){
-  if(seconds<=0)return;
+  if(seconds<=0||s.settings.automationEnabled===false)return;
   const runtime=s.engraving.runtime??(s.engraving.runtime=freshEngravingRuntime());
   const tapRate=engravingAutoTapRate(s);
   if(tapRate>0){
@@ -1276,7 +1282,7 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
       const hazard=collapseHazardPerMinute(p.stats)*(p.core?.formed ? .7 : 1);
       if(rng()<1-Math.pow(1-hazard,gameSeconds/60))collapsePlanet(s,p.id,rng,now);
     }
-    if(s.universe.autoGenerate&&autoPlanetAvailable(s.universe)){
+    if(s.settings.automationEnabled!==false&&s.universe.autoGenerate&&autoPlanetAvailable(s.universe)){
       s.universe.autoAccumulator+=gameSeconds;
       const ticks=Math.min(20,Math.floor(s.universe.autoAccumulator/300));
       s.universe.autoAccumulator-=ticks*300;
