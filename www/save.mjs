@@ -46,6 +46,18 @@ export class SaveStore {
         // Preserve an untouched pre-v3.8 snapshot before first migration to 30 slots.
         // If backup cannot be verified, block writes rather than risking the sole save.
         const oldShape=JSON.parse(raw).data??JSON.parse(raw);
+        // DEC-20261122-002/003: preserve the exact source before recording
+        // verified run earnings or new permanent engraving levels.
+        if(oldShape.runOrbsEvidence===undefined||oldShape.engraving?.levels===undefined){
+          const key=this.key+".before-v329-earned-engraving";
+          try{
+            if(!this.read(key))this.storage.setItem(key,raw);
+            if(this.read(key)!==raw)throw Error("original backup mismatch");
+          }catch(error){
+            this.blocked=true;
+            return {state:s,blocked:true,warning:"周回獲得履歴・刻印移行前の原本退避に失敗しました。旧セーブを保護し上書きを停止しています。"};
+          }
+        }
         // BOOST-CORE-004/Q469/499/501: save a byte-for-byte backup BEFORE
         // normalizing old active flags and preserving balances above capacity.
         // A failed backup blocks all writes to the only original save.

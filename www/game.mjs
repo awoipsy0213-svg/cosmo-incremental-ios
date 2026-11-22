@@ -32,7 +32,7 @@ export function createState(now=Date.now(),mode="normal") {
     schemaVersion:CONFIG.schemaVersion,version:CONFIG.version,mode,
     createdAt:now,lastWall:now,revision:0,
     intro:{touches:0,complete:false},
-    orbs:"0",totalOrbs:"0",surplusExistence:"0",totalExistenceEarned:"0",
+    orbs:"0",totalOrbs:"0",runOrbsEarned:"0",runOrbsEvidence:"verified",surplusExistence:"0",totalExistenceEarned:"0",
     moment:freshMoment(),momentRuntime:freshMomentRuntime(),
     sources:Object.fromEntries(SOURCE_IDS.map(id=>[id,{level:0,plus:0,effects:[]}])),
     sourceCycle:{reached:[],unlocked:false},
@@ -46,7 +46,7 @@ export function createState(now=Date.now(),mode="normal") {
     life:{unlocked:false},
     // Separate experiment flag; never active in normal saves.
     trial:{enabled:false},
-    engraving:{active:[],draft:null,observationUnlocked:false,owned:[],equipped:[],
+    engraving:{active:[],draft:null,observationUnlocked:false,owned:[],equipped:[],levels:{},
       autoConverge:{enabled:false,minReward:AUTO_CONVERGE_DEFAULT_MIN_REWARD,lastAt:0}},
     boost:{seconds:0,active:false,upgrades:[0,0,0,0,0],accounting:freshBoostAccounting(),
       timeOnlyMigration:{version:1,at:now,previousActive:null,source:"new"}},
@@ -87,6 +87,9 @@ export function existence(s) {
 export function addOrbs(s,amount) {
   if(A(amount).cmp(0)<=0)return;
   s.orbs=add(s.orbs,amount);s.totalOrbs=add(s.totalOrbs,amount);
+  // Count every confirmed earning once, separately from spendable orbs.
+  // Old saves may remain legacy-unverified until their first new convergence.
+  s.runOrbsEarned=add(s.runOrbsEarned??"0",amount);
 }
 function spendOrbs(s,amount) {
   if(A(s.orbs).cmp(amount)<0)return false;
@@ -370,11 +373,14 @@ export function convergenceQuote(s) {
   const c=CONFIG.provisional.convergence;
   const priceFactor=ownsSourceFinal(s,"SOURCE_02")?.5:1;
   const cost=A(c.baseCost).mul(priceFactor);
-  const steps=maxAffordable(s.orbs,cost,c.costGrowth,0,1000000000);
+  const legacy=s.runOrbsEvidence!=="verified";
+  const earned=legacy?s.orbs:s.runOrbsEarned;
+  const steps=maxAffordable(earned,cost,c.costGrowth,0,1000000000);
   const spent=seriesCost(cost,c.costGrowth,0,steps);
   const next=seriesCost(cost,c.costGrowth,0,steps+1);
   return {steps,reward:A(c.existencePerStep).mul(steps).mul(ownsSourceFinal(s,"SOURCE_01")?2:1).toString(),
-    nextRequired:next.toString(),nextRemaining:next.sub(s.orbs).toString(),spent:spent.toString()};
+    nextRequired:next.toString(),nextRemaining:next.sub(earned).toString(),spent:spent.toString(),
+    basis:legacy?"legacy-balance":"run-earned",runOrbsEarned:s.runOrbsEarned??"0"};
 }
 export function converge(s) {
   if(!s.intro.complete)return {ok:false,reason:"最初の存在は失えません"};
@@ -391,6 +397,9 @@ export function converge(s) {
   spendOrbs(s,CONFIG.provisional.convergence.spend==="all"?s.orbs:q.spent);
   s.momentRuntime=freshMomentRuntime();
   s.convergenceCount++;
+  // Every new run begins with a verified zero. Old unverified runs finish
+  // without guessing historical earned totals or discarding old progress.
+  s.runOrbsEarned="0";s.runOrbsEvidence="verified";
   recordConvergence(s.telemetry,{at:Date.now(),reward:q.reward,steps:q.steps});
   achievement(s,"convergence","最初の通常収束を観測した。");
   event(s,`収束：存在 +${A(q.reward).toNumber().toLocaleString("ja-JP",{maximumFractionDigits:6})}`);
@@ -825,53 +834,17 @@ export function buyEngraving(s,id) {
   if(A(s.surplusExistence).cmp(q.price)<0)return {ok:false,reason:"余剰存在が不足しています"};
   s.surplusExistence=sub(s.surplusExistence,q.price);
   s.engraving.owned.push(id);
-  event(s,`${id} を取得した。装備しない限り効果は発動しません。`);
+  s.engraving.levels??={};s.engraving.levels[id]=1;
+  event(s,`${id} の初回購入を記録した。所有中は常時効果が有効（未確認の固有効果は未適用）。`);
   return {ok:true,id,price:q.price};
 }
-export function beginEngraving(s) {
-  if(s.engraving.draft!==null)return {ok:false,reason:"編集中です"};
-  s.engraving.draft=[...s.engraving.equipped];
-  return {ok:true};
-}
-export function toggleDraft(s,id) {
-  if(!ENGRAVING_IDS.includes(id))return {ok:false,reason:"刻印IDが不正です"};
-  if(s.engraving.draft===null)return {ok:false,reason:"編集を開始してください"};
-  if(!s.engraving.owned.includes(id))return {ok:false,reason:"先に刻印を取得してください"};
-  const draft=s.engraving.draft;
-  if(draft.includes(id))s.engraving.draft=draft.filter(x=>x!==id);
-  else{
-    if(draft.length>=engravingSlots(s.convergenceCount))return {ok:false,reason:"装備スロットの上限です"};
-    s.engraving.draft=[...draft,id];
-  }
-  return {ok:true};
-}
-export function engravingQuote(s) {
-  const slots=engravingSlots(s.convergenceCount);
-  const draft=s.engraving.draft??s.engraving.equipped;
-  const equipped=s.engraving.equipped;
-  return {added:draft.filter(id=>!equipped.includes(id)),
-    removed:equipped.filter(id=>!draft.includes(id)),
-    slots,cost:"0"};
-}
-export function confirmEngraving(s) {
-  const draft=s.engraving.draft;
-  if(draft===null)return {ok:false,reason:"編集中ではありません"};
-  if(new Set(draft).size!==draft.length||draft.length>engravingSlots(s.convergenceCount)||
-     draft.some(id=>!s.engraving.owned.includes(id)||!ENGRAVING_IDS.includes(id)))
-    return {ok:false,reason:"装備対象・スロットが不正です"};
-  const diff=engravingQuote(s);
-  s.engraving.equipped=[...draft];
-  s.engraving.draft=null;
-  if(!s.engraving.equipped.includes(ENGRAVING_AUTO_CONVERGE_ID))
-    s.engraving.autoConverge.enabled=false;
-  if(diff.added.length||diff.removed.length)
-    event(s,`刻印装備を確定した（${s.engraving.equipped.length}/${diff.slots}枠）。所有刻印は消費されません。`);
-  return {ok:true,...diff};
-}
-export function cancelEngraving(s) {
-  if(s.engraving.draft===null)return {ok:false,reason:"編集中ではありません"};
-  s.engraving.draft=null;return {ok:true};
-}
+// Historical equipped/draft arrays remain in saves verbatim. They no longer
+// govern effects; editing and re-equipping are deliberately unavailable.
+export function beginEngraving(){return {ok:false,reason:"刻印の装備切替は廃止されました"};}
+export function toggleDraft(){return {ok:false,reason:"刻印の装備切替は廃止されました"};}
+export function engravingQuote(){return {added:[],removed:[],slots:0,cost:"0",legacyOnly:true};}
+export function confirmEngraving(){return {ok:false,reason:"刻印の装備切替は廃止されました"};}
+export function cancelEngraving(){return {ok:false,reason:"刻印の装備切替は廃止されました"};}
 export function configureAutoConvergence(s,{enabled,minReward}={},now=Date.now()) {
   const a=s.engraving.autoConverge;
   if(minReward!==undefined){
@@ -880,9 +853,8 @@ export function configureAutoConvergence(s,{enabled,minReward}={},now=Date.now()
   }
   if(enabled!==undefined){
     if(typeof enabled!=="boolean")return {ok:false,reason:"設定が不正です"};
-    if(enabled&&(!s.engraving.owned.includes(ENGRAVING_AUTO_CONVERGE_ID)||
-      !s.engraving.equipped.includes(ENGRAVING_AUTO_CONVERGE_ID)))
-      return {ok:false,reason:"ENG-24の取得・装備が必要です"};
+    if(enabled&&(!s.engraving.owned.includes(ENGRAVING_AUTO_CONVERGE_ID)))
+      return {ok:false,reason:"ENG-24の購入が必要です"};
     if(enabled&&!a.enabled)a.lastAt=now; // 60s safety interval after ON
     a.enabled=enabled;
   }
@@ -890,8 +862,7 @@ export function configureAutoConvergence(s,{enabled,minReward}={},now=Date.now()
 }
 export function autoConvergenceTick(s,now=Date.now(),offline=false) {
   if(offline||!s.intro.complete||!s.engraving.autoConverge.enabled ||
-    !s.engraving.owned.includes(ENGRAVING_AUTO_CONVERGE_ID)||
-    !s.engraving.equipped.includes(ENGRAVING_AUTO_CONVERGE_ID))
+    !s.engraving.owned.includes(ENGRAVING_AUTO_CONVERGE_ID))
     return {ok:false,reason:"自動収束の条件を満たしていません"};
   if(!Number.isFinite(now)||now<0||now-s.engraving.autoConverge.lastAt<AUTO_CONVERGE_MIN_INTERVAL_MS)
     return {ok:false,reason:"自動収束の待機中です"};
@@ -1213,6 +1184,12 @@ export function validateState(input,expectedMode=null) {
   if(expectedMode&&s.mode!==expectedMode)fail("通常データと検証データは混ぜられません");
   for(const k of ["createdAt","lastWall"])if(!Number.isFinite(s[k])||s[k]<0||s[k]>1e15)fail(k);
   for(const k of ["orbs","totalOrbs","surplusExistence","totalExistenceEarned"])s[k]=str(s[k]);
+  // A prior run has no provable earned total; never infer it from wallet/spend.
+  if(s.runOrbsEarned===undefined||s.runOrbsEvidence===undefined){
+    s.runOrbsEarned="0";s.runOrbsEvidence="legacy-unverified";
+  }
+  s.runOrbsEarned=str(s.runOrbsEarned);
+  if(!["verified","legacy-unverified"].includes(s.runOrbsEvidence))fail("周回獲得履歴");
   if(typeof s.intro?.complete!=="boolean"||!Number.isSafeInteger(s.intro.touches)||s.intro.touches<0)fail("導入");
   if(!Number.isSafeInteger(s.revision)||s.revision<0)fail("保存世代");
   // Upgrade migration: old v3.1-3.6 saves only have tap/amplify.
@@ -1343,6 +1320,11 @@ export function validateState(input,expectedMode=null) {
   // Additive v3.17 migration; preserve the historical lab-only four-node list.
   if(e.owned===undefined)e.owned=[];
   if(e.equipped===undefined)e.equipped=[];
+  // Old ownership proves a purchase, not the numerical level of a new system.
+  if(e.levels===undefined)e.levels={};
+  if(!e.levels||typeof e.levels!=="object"||Array.isArray(e.levels)||
+      Object.entries(e.levels).some(([id,level])=>!ENGRAVING_IDS.includes(id)||
+        !Number.isSafeInteger(level)||level<1||level>1000000||!e.owned.includes(id)))fail("刻印Lv");
   if(e.autoConverge===undefined)e.autoConverge={enabled:false,minReward:AUTO_CONVERGE_DEFAULT_MIN_REWARD,lastAt:0};
   if(!Array.isArray(e.active)||e.active.some(x=>!CONTENT.engravings.some(y=>y.id===x)))fail("旧刻印");
   const checkIds=(list,label)=>{
@@ -1368,8 +1350,7 @@ export function validateState(input,expectedMode=null) {
       !Number.isFinite(e.autoConverge.lastAt)||e.autoConverge.lastAt<0||e.autoConverge.lastAt>1e15)
     fail("自動収束設定");
   e.autoConverge.minReward=str(e.autoConverge.minReward);
-  if(e.autoConverge.enabled&&(!e.owned.includes(ENGRAVING_AUTO_CONVERGE_ID)||
-      !e.equipped.includes(ENGRAVING_AUTO_CONVERGE_ID)))fail("自動収束の未装備設定");
+  if(e.autoConverge.enabled&&!e.owned.includes(ENGRAVING_AUTO_CONVERGE_ID))fail("自動収束の未購入設定");
   const b=s.boost;if(!b||!Number.isFinite(b.seconds)||b.seconds<0||!Array.isArray(b.upgrades)||b.upgrades.length!==5||b.upgrades.some(x=>!Number.isInteger(x)||x<0||x>10000))fail("BOOST");
   if(typeof b.active!=="boolean")fail("BOOST状態");
   if(b.timeOnlyMigration===undefined){

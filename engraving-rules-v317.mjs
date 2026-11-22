@@ -3,8 +3,8 @@
  * Stable ENG-01..ENG-30. Prices and slot counts are confirmed B decisions.
  * IMPORTANT: names/effects of 27 entries and source-retention target IDs
  * are not available in the versioned handoff; never synthesize them.
- * An unequipped engraving cannot apply an effect. Unimplemented effects
- * may be owned but always remain inert until their exact spec is verified.
+ * All owned engravings are permanently active regardless of historical equipment.
+ * Unverified effect formulas remain inert until their exact specification is confirmed.
  */
 import {A} from "./numbers.mjs";
 
@@ -34,7 +34,7 @@ export function engravingPrerequisite(tier,owned=[]){
 }
 export function engravingEffectStatus(id){
   if(id===ENGRAVING_AUTO_CONVERGE_ID)
-    return {status:"implemented",description:"装備中かつONの場合、収束報酬が指定値以上なら実時間60秒以上の間隔で自動収束。オフライン実行なし。"};
+    return {status:"implemented",description:"購入済みかつONの場合、指定収束報酬以上で実時間60秒ごとに自動収束。オフライン実行なし。"};
   if(["ENG-05","ENG-17","ENG-25"].includes(id))
     return {status:"pending-target",description:"収束時に対象源のLvを1%保持（最大10,000Lv）。対象源IDの原文照合が必要なため未適用。"};
   return {status:"pending",description:"固有効果は確定回答の原文照合待ち。現在は未適用。"};
@@ -50,7 +50,7 @@ export function engravingCatalogue(){
 }
 export function engravingPurchaseQuote(s,id){
   if(!ENGRAVING_IDS.includes(id))return {ok:false,reason:"刻印IDが不正です"};
-  if(s.engraving.owned.includes(id))return {ok:false,reason:"取得済みです"};
+  if(s.engraving.owned.includes(id))return {ok:false,reason:"取得済みです。次Lvの価格・成長式は未決定です"};
   if(!s.intro.complete)return {ok:false,reason:"最初の存在を認識してください"};
   const tier=engravingTier(id),price=engravingPrice(id),prerequisite=engravingPrerequisite(tier,s.engraving.owned);
   if(!prerequisite.ok)return {ok:false,tier,price,prerequisite,
