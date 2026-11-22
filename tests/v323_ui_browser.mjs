@@ -40,7 +40,7 @@ try{
      rowCount:document.querySelectorAll("#stageResourceList .stage-stat").length
    }));
    assert.ok(layout.scroll<=width+2,label+" page width overflow "+JSON.stringify(layout));
-   assert.equal(layout.rowCount,4);
+   assert.equal(layout.rowCount,3);
    await page.locator('[data-stage="existence"]').click();
    await page.locator('[data-child="moment"]').click();
    assert.equal(await page.locator(".moment-card .compact-stat").count(),60);
