@@ -75,6 +75,8 @@
 .kw-sheet-body .engraving-card>.dense-purchase-button{grid-row:1/span 2}
 @media(max-width:350px){
   :root{--fixed-buy-w:98px}
+  /* The currency icon and accessible label retain the unit; show the price in full. */
+  .kw-sheet-body .dense-purchase-button .purchase-cost small{display:none}
   .kw-sheet-body .compact-upgrades .purchase-card .card-top strong{font-size:10px}
   .kw-sheet-body .dense-purchase-button .purchase-cost strong{font-size:10px!important}
 }
