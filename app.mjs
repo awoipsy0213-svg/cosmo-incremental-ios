@@ -780,6 +780,7 @@ function renderPanel(force=false){
   if(infoPanelOpen){
     if(!force&&(now-lastPanelRender<1700||now-lastInteraction<700))return;
     lastPanelRender=now;
+    $("childTabStrip").hidden=true;
     $("childTabs").hidden=true;
     $("sheetHeading").textContent="共通情報";
     $("purchaseToolbar").hidden=true;
@@ -789,6 +790,7 @@ function renderPanel(force=false){
     body.dataset.sub="commonInfo";
     return;
   }
+  $("childTabStrip").hidden=false;
   $("childTabs").hidden=false;
   // Currency/affordability is patched on the existing buttons every UI tick.
   // Do not rebuild the purchase cards while earning resources or holding a finger.
@@ -805,8 +807,8 @@ function renderPanel(force=false){
   cycle.hidden=!buyTabs;
   cycle.textContent=({"1":"×1","10":"×10","NEXT":"NEXT","MAX":"MAX"})[state.purchaseMode];
   cycle.setAttribute("aria-label",`購入数 ${cycle.textContent}。タップで切替`);
-  const order=$("bulkOrderButton");order.textContent=state.settings.bulkOrder==="expensive"?"高い順 ▾":"安い順 ▾";
-  const scope=$("bulkScopeButton");if(scope)scope.textContent=bulkScope==="all"?"全件 ▾":"表示中 ▾";
+  const order=$("bulkOrderButton");order.textContent=state.settings.bulkOrder==="expensive"?"高順":"安順";order.title=state.settings.bulkOrder==="expensive"?"高い順で一括購入":"安い順で一括購入";order.setAttribute("aria-label",order.title);
+  const scope=$("bulkScopeButton");if(scope){scope.textContent=bulkScope==="all"?"全件":"表示";scope.title=bulkScope==="all"?"全件を対象に一括購入":"表示中を対象に一括購入";scope.setAttribute("aria-label",scope.title);}
   const body=$("sheetBody"),top=body.scrollTop,details=[...body.querySelectorAll("details[open][data-preserve]")].map(x=>x.dataset.preserve);
   const map={moment:momentHTML,sources:sourcesHTML,engraving:engravingHTML,flow:flowHTML,concepts:conceptHTML,
     planets:planetHTML,resources:resourcesHTML,observations:observationsHTML,
@@ -822,46 +824,26 @@ function renderPanel(force=false){
 }
 function refreshPurchaseButtons(){
   if(!state||sheetState==="closed"||currentStage!=="existence"||!["moment","sources"].includes(currentSub))return;
-  const wallet=state.orbs,rate=G.production(state),tap=G.tapPower(state);
-  const buttons=[...$("sheetBody").querySelectorAll("button[data-purchase]")];
-  let ready=0,nearest=null;
+  const buttons=$("sheetBody").querySelectorAll("button[data-purchase]");
+  let ready=0;
   for(const b of buttons){
     const kind=b.dataset.purchase,id=b.dataset.id,q=G.purchaseQuote(state,kind,id);
-    const info=purchaseInsight(q,wallet,rate,tap),card=b.closest("[data-purchase-card]");
+    const card=b.closest("[data-purchase-card]");
     const enabled=q.enabled&&!readOnly&&!store.blocked;
     b.disabled=!enabled;
     b.classList.toggle("is-buyable",enabled);
     if(card)card.classList.toggle("is-buyable",enabled);
-    const label=quoteText(q);
-    // No wholesale DOM rebuild, even as the wallet grows or MAX quantity changes.
-    const labelNode=b.querySelector("[data-quote-label]");
-    // Update just the number, never recreate the button or its icon/label.
-    if(labelNode&&labelNode.textContent!==label)labelNode.textContent=label;
+    // The button always reads "購入"; price updates in its fixed-size cell.
+    const price=costLabel(q),priceNode=card?.querySelector("[data-quote-label]");
+    if(priceNode&&priceNode.textContent!==price)priceNode.textContent=price;
+    const name=(kind==="source"?CONTENT.sources:CONTENT.moment).find(x=>x.id===id)?.name||id;
+    const full=name+"："+quoteText(q)+" オーブ";
+    if(b.title!==full)b.title=full;
+    const aria=full+"を購入";
+    if(b.getAttribute("aria-label")!==aria)b.setAttribute("aria-label",aria);
+    const cost=card?.querySelector(".purchase-cost");
+    if(cost&&cost.title!==full)cost.title=full;
     if(enabled)ready++;
-    const hint=card?.querySelector("[data-live-hint]");
-    if(hint){
-      let value="";
-      if(state.settings.showPurchaseHints&&info.hasTarget){
-        if(enabled)value="購入可能 · タップして強化";
-        else {
-          value=`不足 ${o(info.missing,"ceil")}`;
-          if(info.seconds!==null&&Number.isFinite(info.seconds))value+=` · 自動で約${shortDuration(info.seconds)}`;
-          else if(info.taps!==null)value+=` · あと約${formatTaps(info.taps)}タップ`;
-        }
-        if(kind==="source"&&q.count>0){
-          const plus=state.sources[id].plus;
-          const trialMult=mode==="lab"?A(2).pow(plus):A(1);
-          const increment=G.sourceProductionPerLevel(id)
-            .mul(A(CONFIG.provisional.source.productionGrowth).pow(state.sources[id].level))
-            .mul(A(CONFIG.provisional.source.productionGrowth).pow(q.count).sub(1))
-            .div(CONFIG.provisional.source.productionGrowth-1)
-            .mul(trialMult).mul(G.existenceMultiplier(state));
-          if(increment.cmp(0)>0)value+=` · 生成 +${o(increment)}/秒（仮）`;
-        }
-      }
-      if(hint.textContent!==value)hint.textContent=value;
-      hint.hidden=!state.settings.showPurchaseHints||!value;
-    }
     if(kind==="source"){
       const total=card?.querySelector(`[data-source-total="${id}"]`);
       const sum=`計 ${o(G.sourceProduction(state,id))}/秒`;
@@ -869,18 +851,12 @@ function refreshPurchaseButtons(){
       const next=card?.querySelector(`[data-source-next="${id}"]`);
       const nextText=`次+${o(G.sourceNextGain(state,id))}/秒`;
       if(next&&next.textContent!==nextText)next.textContent=nextText;
-    }
-    if(!enabled&&info.hasTarget){
-      // The shortest wait is a UI suggestion, not an automatic purchase queue.
-      const score=A(info.missing).div(rate.cmp(0)>0?rate:tap).toNumber();
-      if(Number.isFinite(score)&&(!nearest||score<nearest.score))nearest={id,kind,score,info};
+      const cycle=card?.querySelector("[data-breakthrough]");
+      if(cycle)cycle.disabled=state.sources[id].level!==1000000||!G.sourceCycleStatus(state).unlocked||readOnly||store.blocked;
     }
   }
-  const summary=`購入可能 ${ready} / ${buttons.length} · 所持 ${o(wallet)} オーブ${nearest?` · 次は ${(nearest.kind==="source"?CONTENT.sources:CONTENT.moment).find(x=>x.id===nearest.id)?.name||""}（${nearest.info.seconds!==null?shortDuration(nearest.info.seconds):"タップで獲得"}）`:""}`;
-  if($("purchaseLiveSummary").textContent!==summary){
-    $("purchaseLiveSummary").textContent=summary;
-    $("purchaseLiveSummary").title=summary;
-  }
+  const summary=`購入可能 ${ready} / ${buttons.length} · 所持 ${o(state.orbs)} オーブ`;
+  if($("purchaseLiveSummary").textContent!==summary)$("purchaseLiveSummary").textContent=summary;
   if(currentSub==="moment"){
     const q=G.convergenceQuote(state),b=$("sheetBody").querySelector('button[data-action="converge"]');
     if(b){
