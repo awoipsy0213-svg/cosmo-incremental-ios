@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {CONTENT} from "../content.mjs";
 import {moveMomentFavorite,cleanMomentPrefs,toggleMomentFavorite} from "../moment-filter.mjs";
-import {createState,converge,validateState} from "../game.mjs";
+import {createState,addOrbs,converge,validateState} from "../game.mjs";
 import {encode,decode,KEYS} from "../save.mjs";
 import {CONFIG} from "../balance-config.mjs";
 
@@ -46,7 +46,7 @@ test("valid reorder is stored with original v31 keys and survives convergence",(
  assert.equal(KEYS.normal,"kotowari_v31_normal");
  const restored=decode(encode(s,"U42-reorder"),"normal");
  assert.deepEqual(restored.settings.momentFavorites,desired);
- restored.orbs="1e20";
+ addOrbs(restored,"1e20");
  assert.ok(converge(restored).ok);
  assert.deepEqual(restored.settings.momentFavorites,desired);
  assert.deepEqual(validateState(restored,"normal").settings.momentFavorites,desired);
