@@ -13,7 +13,7 @@ assert.match(html,/3\.34 · ENGRAVING/);
 assert.match(html,/id="childTabStrip"/);
 assert.match(html,/data-action="buy-all"/);
 assert.match(html,/id="bulkOrderButton"/);
-assert.match(sw,/const VERSION = "3\.34\.0-engraving-abcd"/);
+assert.match(sw,/const VERSION = "3\.34\.1-player-copy"/);
 assert.equal((sw.match(/"fixed-layout-v333\.css"/g)||[]).length,2,"PWA core cache");
 assert.match(css,/--fixed-card-h:76px/);
 assert.match(css,/height:var\(--fixed-card-h\)!important/);
