@@ -11,7 +11,7 @@ import {cleanMomentPrefs} from "./moment-filter.mjs";
 import * as SETSUNA from "./setsuna-rules-v39.mjs";
 import {CONTENT} from "./content.mjs";
 import {PROPOSED,resourcePrototype,trialResourceWeights,naturalGrowthFactors,boostTrialCost} from "./design-proposals.mjs";
-import {A,str,seriesCost,maxAffordable} from "./numbers.mjs";
+import {A,str,seriesCost,maxAffordable,formatOrbAmount} from "./numbers.mjs";
 
 const clone=x=>JSON.parse(JSON.stringify(x));
 const finite=(n,fallback=0)=>typeof n==="number"&&Number.isFinite(n)?n:fallback;
@@ -146,7 +146,7 @@ export function momentEffects(s){
   return MOMENT_IDS.map((id,i)=>{
     const info={...SETSUNA.effectInfo(p,i),id,level:s.moment[id]};
     if(i===16 && s.moment[id]>0)info.current+=" / 1回 "+(s.moment[MOMENT_IDS[15]]>0?
-      str(SETSUNA.autoExpected(p).mul(existenceMultiplier(s)))+" オーブ":"自動接触が必要");
+      formatOrbAmount(SETSUNA.autoExpected(p).mul(existenceMultiplier(s)))+" オーブ":"自動接触が必要");
     if(i===14)info.detail+="。奇跡の記録："+(s.momentRuntime?.miracleHistory||[]).length+"件（直近10件まで保持）";
     return info;
   });
