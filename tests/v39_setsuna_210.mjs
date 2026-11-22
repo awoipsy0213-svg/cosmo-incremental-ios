@@ -71,7 +71,7 @@ const oldRaw=JSON.stringify({kind:'kotowari-save',version:31,checksum:checksum(J
 storage.setItem(KEYS.normal,oldRaw);const store=new SaveStore(storage,'normal','new');const loaded=store.load(time);
 yes(!loaded.blocked,'old save readable');
 same(storage.getItem(KEYS.normal+'.before-setsuna39'),oldRaw,'v3.9 migration backup exact bytes');
-const toConverge=state();toConverge.orbs='1e9';toConverge.moment.setsuna30=10;toConverge.momentRuntime.stored='50';
+const toConverge=state();G.addOrbs(toConverge,'1e9');toConverge.moment.setsuna30=10;toConverge.momentRuntime.stored='50';
 yes(G.converge(toConverge).ok,'convergence succeeds');
 same(toConverge.moment.setsuna30,0,'convergence resets moment level');
 same(toConverge.momentRuntime.stored,'0','convergence resets unpaid bonus');
