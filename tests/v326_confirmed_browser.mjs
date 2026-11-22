@@ -41,7 +41,10 @@ try{
   await page.locator('[data-child="sources"]').click();
   const sourceText=await page.locator("#sheetBody").textContent();
   assert.ok(sourceText.includes("源の共振 3/630"),"source progress missing");
-  assert.ok(sourceText.includes("SOURCE_01 Lv.50"),"next milestone missing");
+  // Full source milestones are now available through the fixed-row detail modal.
+  await page.locator('[data-source-summary]').click();
+  assert.ok((await page.locator("#confirmText").textContent()).includes("SOURCE_01 Lv.50"),"next milestone missing from detail");
+  await page.locator("#confirmYes").click();
   await page.locator('.app-top [data-action="organizer"]').click();
   await page.locator('[data-organizer="boost"]').click();
   const boostText=await page.locator("#sheetBody").textContent();
