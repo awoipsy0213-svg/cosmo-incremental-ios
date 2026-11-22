@@ -122,7 +122,7 @@ check("old save schema and byte-compatible www; removed status UI and old tap in
   assert.ok(!read("app.mjs").includes("タップして理を観測"));
   assert.ok(read("app.mjs").includes('data-engraving-trial-upgrade'));
   assert.ok(read("app.mjs").includes('data-boost-trial-buy'));
-  assert.ok(read("index.html").includes("3.30 · TEST"));
+  assert.ok(read("index.html").includes("3.32 · GLASS"));
   assert.ok(read("sw.js").includes("3.30.1-flow-orb-display"));
 });
 console.log("PASS "+passed+" v330 test-driven provisional upgrade and UI invariants");
