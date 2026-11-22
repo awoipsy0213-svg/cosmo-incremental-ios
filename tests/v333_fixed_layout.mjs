@@ -36,5 +36,5 @@ for(const banned of ["purchaseInsight(","不足 ","あと約","自動で約","li
   assert.ok(!refresh.includes(banned),"no prediction display: "+banned);
 assert.match(refresh,/b\.disabled=!enabled/);
 assert.match(refresh,/const price=costLabel\(q\)/);
-assert.ok(!read("game.mjs").includes("v333"),"game engine must not be modified for layout");
-console.log("PASS v333 fixed UI, prior saves and balance unchanged, app/www parity and no dynamic hints");
+assert.match(read("game.mjs"),/engraving-effects-v333\.mjs/,"user-approved 25 engraving effects may change gameplay separately from fixed UI");
+console.log("PASS v333 fixed UI and approved engraving game changes, app/www parity and no dynamic hints");
