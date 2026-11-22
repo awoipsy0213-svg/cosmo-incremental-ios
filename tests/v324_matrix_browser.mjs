@@ -28,7 +28,7 @@ try{
   await page.addInitScript(raw=>localStorage.setItem("kotowari_v31_normal",raw),fixture);
   await page.reload({waitUntil:"domcontentloaded"});
   await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
-  assert.match(await page.locator("#buildLabel").textContent(),/3\.32/);
+  assert.match(await page.locator("#buildLabel").textContent(),/3\.(32|33)/);
   assert.equal(await page.locator("#commonInfoBar .common-info-item").count(),2);
   assert.equal(await page.locator(".app-top [data-action='organizer']").count(),1);
   assert.equal(await page.locator("#stageNav [data-action='organizer']").count(),0,"duplicate bottom menu");
