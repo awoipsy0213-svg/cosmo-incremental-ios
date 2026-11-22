@@ -98,6 +98,23 @@ export const CONFIG = {
     },
     ui: {refreshMs:150, holdStartMs:480, holdRepeatMs:180},
     convergence: {baseCost:1000, costGrowth:1.1, existencePerStep:0.001, spend:"all"},
+    // 2026-11-22 user-approved A-D engraving effect provisional balance.
+    // Keep in one place for retuning; not an independent BOOST multiplier.
+    engravingEffects:{
+      maxEffectLevel:16,
+      tapPerLevel:0.02,sourcePerLevel:0.02,
+      critMultiplierPerLevel:0.015,critRatePerLevel:0.0025,
+      sourceTuningPerLevel:0.01,purchaseDiscountPerLevel:0.003,
+      minimumPurchaseFactor:0.7,sourceCountPerLevel:0.004,
+      momentLevelCap:10000,momentLevelPerLevel:0.0000001,
+      sourceLevelCap:100000,sourceLevelPerLevel:0.00000001,
+      minimumSourceLevelCap:10000,minimumSourceLevelPerLevel:0.00001,
+      engravingTotalPerLevel:0.00005,convergenceCountCap:50,
+      convergenceCountPerLevel:0.002,tapSourceSecondsPerLevel:0.1,
+      repeatEvery:20,extraChancePerLevel:0.05,extraChanceCap:0.2,
+      convergenceRewardPerLevel:0.02,convergenceDiscountPerLevel:0.01,
+      minimumConvergenceFactor:0.75
+    },
     // firstSourceは時導入と自動生産の接続を確認するための仮ルール。
     timeUnlock: "firstSource",
     universe: {startingMass:10, massGrowthPerSecond:1/60, massPerResource:1, ageClock:"real"},
