@@ -35,7 +35,7 @@ check("normal menu hides development workspace without removing research source 
   assert.ok(read("design-proposals.mjs").length>500);
 });
 check("PWA cache refreshed and Web/Capacitor parity preserved",()=>{
-  assert.match(read("sw.js"),/3\.37\.1-automation-switch/);
+  assert.match(read("sw.js"),/3\.38\.0-dense-purchase/);
   for(const path of ["app.mjs","index.html","game.mjs","engraving-rules-v317.mjs","fixed-layout-v333.css","sw.js"])
     assert.equal(read(path),read("www/"+path),path+" parity");
   assert.match(read("fixed-layout-v333.css"),/engraving-level/);

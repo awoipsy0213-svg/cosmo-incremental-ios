@@ -40,7 +40,7 @@ function sameGeometry(a,b,label){
         label+" "+k+"["+i+"]["+j+"] "+v+" vs "+xb[i][j])));
     }
   }
-  assert.deepEqual(a.btnText,b.btnText,label+" purchase wording");
+  assert.ok(a.btnText.every(x=>x?.includes("購入"))&&b.btnText.every(x=>x?.includes("購入")),label+" purchase action label present");
   assert.ok(a.overflow<=1&&b.overflow<=1,label+" no horizontal overflow");
 }
 let browser;
@@ -82,8 +82,8 @@ try{
    assert.ok(Math.abs(strip.navY-strip.toolsY)<5,label+" controls should share tab row");
    const initial=await page.evaluate(getGeometry);
    assert.equal(await page.locator('[data-purchase="moment"][data-id="tap"]').isDisabled(),true);
-   assert.equal(initial.btnText[0],"購入");
-   assert.equal(initial.cardRect[0][3],76,label+" fixed card height");
+   assert.match(initial.btnText[0],/購入.*×0/,label+" zero affordable levels");
+   assert.equal(initial.cardRect[0][3],66,label+" fixed card height");
    assert.equal(initial.buttonRect[0][3],56,label+" fixed button height");
    assert.ok(!/不足.*オーブ|あと.*タップ|自動で約/.test(await page.locator("#sheetBody").textContent()));
    await page.screenshot({path:dir+"/"+label+"-moment-before.png",animations:"disabled"});
@@ -101,7 +101,7 @@ try{
    const after=await page.evaluate(getGeometry);
    assert.ok((await page.evaluate(()=>window.KOTOWARI_DEBUG.state().moment.tap))>prev,label+" normal purchase works");
    sameGeometry(initial,after,label+" purchase before/after");
-   assert.equal(await page.locator('[data-purchase="moment"][data-id="tap"]').textContent(),"購入");
+   assert.match(await page.locator('[data-purchase="moment"][data-id="tap"]').textContent(),/購入.*×/);
    for(let i=0;i<3;i++){
      await page.locator("#purchaseCycle").click();
      const cycle=await page.evaluate(getGeometry);
@@ -129,7 +129,7 @@ try{
    await page.locator('[data-child="sources"]').click();
    const source0=await page.evaluate(getGeometry);
    assert.equal(source0.cardRect.length,30);
-   assert.equal(source0.cardRect[0][3],76);
+   assert.equal(source0.cardRect[0][3],66);
    assert.equal(source0.buttonRect[0][3],56);
    assert.equal(await page.locator('.source-card [data-breakthrough]').count(),30,"source cycle slot always present");
    await page.evaluate(async()=>{
@@ -157,7 +157,7 @@ try{
    })),tabsBefore,label+" tabs don't shift when bulk toolbar hides");
    const engr0=await page.evaluate(getGeometry);
    assert.equal(engr0.cardRect.length,30);
-   assert.equal(engr0.cardRect[0][3],76);
+   assert.equal(engr0.cardRect[0][3],66);
    assert.equal(engr0.buttonRect[0][3],56);
    const color=await page.locator('.engraving-card .card-top strong').first().evaluate(e=>getComputedStyle(e).color);
    const rgb=color.match(/\d+/g).map(Number);
@@ -165,7 +165,7 @@ try{
    await page.locator('[data-engraving-buy="ENG-01"]').click();
    const engr1=await page.evaluate(getGeometry);
    sameGeometry(engr0,engr1,label+" first engraving purchase");
-   assert.equal(await page.locator('[data-engraving-trial-upgrade="ENG-01"]').textContent(),"購入");
+   assert.match(await page.locator('[data-engraving-trial-upgrade="ENG-01"]').textContent(),/購入.*×/);
    await page.locator('[data-engraving-trial-upgrade="ENG-01"]').click();
    sameGeometry(engr0,await page.evaluate(getGeometry),label+" engraving added level");
    await page.locator('[data-engraving-detail="ENG-01"]').click();
