@@ -1213,7 +1213,7 @@ async function dispatchAction(action){
     }
     state.boost.active=!state.boost.active;
     save();render(true);
-    toast(state.boost.active?"時間加速×"+G.boostTimeMultiplier(state)+"をONにしました（試験値）":"時間加速をOFFにしました");
+    toast(state.boost.active?"時間加速×"+G.boostTimeMultiplier(state)+"を開始しました":"時間加速を停止しました");
     return;
   }
   if(action==="toggle-trial"){
@@ -1290,7 +1290,7 @@ document.addEventListener("click",async e=>{
         x.description+"\n\n現在："+e.current+"\n次Lv："+e.next+
         "\n購入費用："+costLabel(q)+" オーブ"+
         (q.enabled&&q.count>0?"\n購入後："+G.momentAfterQuote(state,i,q.count):"")+
-        "\n\n価格・未指定節目は検証値。","閉じる");
+        "","閉じる");
       return;
     }
     if(b.dataset.engravingDetail){
@@ -1392,7 +1392,7 @@ document.addEventListener("click",async e=>{
     if(b.dataset.boostTrialBuy!==undefined){
       const id=Number(b.dataset.boostTrialBuy),q=G.boostTrialPurchaseQuote(state,id);
       if(!q.ok)return toast(q.reason);
-      if(state.settings.confirmBoostUpgrade&&!await ask("BOOSTの試験強化",`5系統の${id+1}番をLv.${q.next}へ。費用：${duration(q.cost)} BOOST。正式採用前の試験値です。`,"BOOSTで購入"))return;
+      if(state.settings.confirmBoostUpgrade&&!await ask("BOOST強化",`${["基礎獲得","オフライン獲得","容量","時間倍率","消費効率"][id]}をLv.${q.next}へ。費用：${duration(q.cost)} BOOST。`,"BOOSTで購入"))return;
       checkpoint();return resultDone(G.buyBoostTrialUpgrade(state,id));
     }
     if(b.dataset.boostUpgrade!==undefined){resultDone(G.labBoostUpgrade(state,Number(b.dataset.boostUpgrade)));return;}
