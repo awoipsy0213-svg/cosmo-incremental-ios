@@ -59,16 +59,16 @@ try{
   assert.equal(resumed.telemetry.offlineReports[0].orbs,"0");
   assert.equal(resumed.telemetry.offlineReports[0].effectiveSeconds,0);
   assert.ok(resumed.telemetry.offlineReports[0].boostEarned>=899);
-  assert.match(await page.locator("#buildLabel").textContent(),/3\.29/);
+  assert.match(await page.locator("#buildLabel").textContent(),/3\.30/);
   await page.locator('.app-top [data-action="organizer"]').click();
   await page.locator('[data-organizer="boost"]').click();
   const panel=await page.locator("#sheetBody").textContent();
-  for(const phrase of ["オンライン新規獲得なし","BOOST・正式5強化系統","ゲーム内時間倍率","時間加速の消費効率","費用・係数は未決定"]){
+  for(const phrase of ["オンライン獲得なし","BOOST・正式5強化系統","ゲーム内時間倍率","時間加速の消費効率","試験値"]){
     assert.ok(panel.includes(phrase),label+" BOOST panel missing "+phrase);
   }
   assert.equal(await page.locator('#sheetBody button[data-boost-upgrade]').count(),0,
     "normal gameplay must not expose provisional five-path purchases");
-  assert.equal(await page.locator("#sheetBody .kw-card button[disabled]").count(),5);
+  assert.equal(await page.locator('#sheetBody button[data-boost-trial-buy]').count(),5,"new provisional 5-path purchases");
   assert.deepEqual(errors,[]);
   console.log("PASS v325",label,"offline BOOST accrual, frozen stage state, six-path UI and schema31");
   await ctx.close();
