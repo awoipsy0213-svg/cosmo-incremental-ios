@@ -530,8 +530,8 @@ details summary{color:#675d9c;min-width:0}
   box-shadow:none;
   line-height:1.2;
 }
-.kw-sheet-body .moment-card .compact-stat:nth-of-type(1){grid-row:2}
-.kw-sheet-body .moment-card .compact-stat:nth-of-type(2){grid-row:3}
+.kw-sheet-body .moment-card .compact-stat:nth-of-type(2){grid-row:2}
+.kw-sheet-body .moment-card .compact-stat:nth-of-type(3){grid-row:3}
 .kw-sheet-body .moment-card .compact-stat>span{
   flex:0 0 auto;min-width:29px;
   color:#7c83a4;font-size:8px;font-weight:600;
@@ -710,7 +710,7 @@ details summary{color:#675d9c;min-width:0}
 .kw-sheet-body .engraving-auto .kw-row{padding:4px 0}
 .kw-sheet-body .engraving-auto h3{margin:0 0 4px}
 .kw-sheet-body .engraving-auto button{min-height:39px}
-.kw-sheet-body .engraving-card details[open]{grid-row:3;grid-column:1/-1;padding:3px;z-index:1}
+.kw-sheet-body .engraving-card details[open]{grid-row:3;grid-column:1;padding:3px;z-index:1}
 .kw-sheet-body .engraving-card details[open]+small{overflow:visible}
 
 /* Auxiliary views still share accessible components, not the existence card density. */
