@@ -112,7 +112,8 @@ check("UI/master implementation, fixed cards, PWA refresh and Capacitor parity",
   assert.match(app,/automation-status-line/);
   assert.match(css,/height:111px/);
   assert.match(css,/height:185px/);
-  assert.match(sw,/3\.37\.0-automation-controls/);
+  assert.match(css,/appearance:none!important/,"auto checkboxes have switch appearance");
+  assert.match(sw,/3\.37\.1-automation-switch/);
   assert.match(load("game.mjs"),/s\.settings\.automationEnabled===false/);
   for(const file of ["app.mjs","game.mjs","save.mjs","sw.js",
     "automation-center-v336.css","index.html","engraving-effects-v333.mjs"]){
