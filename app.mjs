@@ -1521,6 +1521,27 @@ document.addEventListener("change",async e=>{
   }
   if(readOnly){render(true);return;}
   checkpoint();
+  if(t.dataset.autoBuyKind!==undefined){
+    const kind=t.dataset.autoBuyKind,field=t.dataset.autoField;
+    if(!["enabled","priority","intervalSeconds"].includes(field))return;
+    const value=field==="enabled"?t.checked:field==="intervalSeconds"?Number(t.value):t.value;
+    resultDone(G.configureAutoPurchase(state,kind,{[field]:value}));return;
+  }
+  if(t.dataset.autoConverge!==undefined){
+    const field=t.dataset.autoConverge;
+    if(!["enabled","mode","intervalSeconds","intervalMinutes","targetRunOrbs","minReward","minSteps"].includes(field))return;
+    const value=field==="enabled"?t.checked:
+      ["intervalSeconds","intervalMinutes","minSteps"].includes(field)?Number(t.value):t.value;
+    const result=G.configureAutoConvergence(state,{[field]:value},Date.now());
+    resultDone(result);return;
+  }
+  if(t.hasAttribute("data-auto-planet-enabled")){
+    if(t.checked===state.universe.autoGenerate)return;
+    resultDone(G.toggleAutoPlanet(state));return;
+  }
+  if(t.hasAttribute("data-auto-planet-reserve")){
+    resultDone(G.setAutoPlanetReserve(state,Number(t.value)));return;
+  }
   if(t.dataset.momentFilter!==undefined){
     state.settings.momentFilter=t.value;save();renderPanel(true);return;
   }
