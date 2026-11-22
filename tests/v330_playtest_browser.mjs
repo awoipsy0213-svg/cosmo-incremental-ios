@@ -51,7 +51,7 @@ try{
   await page.locator('[data-child="moment"]').click();
   assert.equal(await page.locator(".moment-card").count(),30);
   assert.equal(await page.locator(".moment-tools").count(),0);
-  assert.equal(await page.locator("button[data-action='converge'] .converge-gauge i").count(),1);
+  assert.equal(await page.locator("#sheetBody button[data-action='converge'] .converge-gauge i").count(),1);
   await page.locator('button[data-purchase="moment"][data-id="tap"]').click();
   const after=await page.evaluate(async()=>{
    const G=await import("./game.mjs");const s=window.KOTOWARI_DEBUG.state();
