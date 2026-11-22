@@ -16,7 +16,7 @@ assert.match(html,/name="theme-color" content="#f4f2ff"/);
 assert.match(sw,/const VERSION = "3\.32\.0-luminous-glass"/);
 assert.equal((sw.match(/"luminous-glass-v332\.css"/g)||[]).length,2,
   "new theme must be core cached and available offline");
-assert.match(css,/--sheet-half-height:min\(48dvh,452px\)/);
+assert.match(css,/--sheet-half-height:min\(51dvh,452px\)/);
 assert.match(css,/color-scheme:light/);
 assert.match(css,/\.kw-sheet-body \.compact-upgrades/);
 assert.match(css,/grid-template-columns:minmax\(0,1fr\)/);
