@@ -1,6 +1,6 @@
 /* Versioned, scope-specific cache. Does not delete saves or another app's cache. */
 const VERSION = "3.40.0-source-milestones";
-const UI_REVISION = "-time-hex-v341";
+const UI_REVISION = "-engraving-v342";
 const PREFIX = "kotowari-handoff:" + new URL(self.registration.scope).pathname + ":";
 const CACHE = PREFIX + VERSION + UI_REVISION;
 const RELATIVE = [
@@ -21,6 +21,9 @@ const RELATIVE = [
   "purchase-clarity-v339.css",
   "time-hex-v341.css",
   "time-hex-v341.mjs",
+  "engraving-v342.css",
+  "engraving-v342.mjs",
+  "engraving-v342-ui.mjs",
   "time-confirmed-v4.mjs",
   "universe-confirmed-v4.mjs",
   "universe-progression-v316.mjs",
@@ -77,6 +80,9 @@ const CORE_FILES = [
   "purchase-clarity-v339.css",
   "time-hex-v341.css",
   "time-hex-v341.mjs",
+  "engraving-v342.css",
+  "engraving-v342.mjs",
+  "engraving-v342-ui.mjs",
   "time-confirmed-v4.mjs", "universe-confirmed-v4.mjs",
   "universe-progression-v316.mjs",
   "universe-interference-v318.mjs",
