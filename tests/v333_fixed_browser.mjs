@@ -59,7 +59,7 @@ try{
    await page.evaluate(async()=>{
      const G=await import("./game.mjs");
      const s=G.createState(Date.now(),"lab");
-     s.intro.complete=true;s.surplusExistence="5";
+     s.intro.complete=true;s.surplusExistence="5";s.engraving.owned.push("ENG-05");s.engraving.levels["ENG-05"]=1;
      s.settings.showPurchaseHints=true;
      s.settings.compact=true;
      window.KOTOWARI_DEBUG.setLabState(s);
