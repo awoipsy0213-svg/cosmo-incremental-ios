@@ -195,24 +195,40 @@ export function sourceProductionPerLevel(id) {
   if(i<0)throw Error("源IDが不正です");
   return A(CONFIG.provisional.source.perSecondPerLevel[i]);
 }
-/** Total of the exponentially growing per-level output across an individual Source. */
-export function sourceProduction(s,id) {
+/**
+ * Temporary common Source milestone bonus (DEC-20261123-005).
+ * Each achieved milestone doubles this Source's entire per-second output:
+ * 0 milestones x1, 1 x2, 2 x4, ... 21 x2,097,152.
+ * Does not unlock or rewrite unresolved special effects or modify purchase costs.
+ */
+export function sourceMilestoneMultiplier(level){
+  if(!Number.isSafeInteger(level)||level<0)throw Error("源Lvが不正です");
+  const completed=CONFIG.confirmed.sourceMilestones.filter(mark=>mark<=level).length;
+  return A(2).pow(completed);
+}
+function sourceOutputAtLevel(s,id,level){
   const v=s.sources[id];
   if(!v)throw Error("源IDが不正です");
   const plus=sourcePlusMultiplier(v.plus);
   const unit=sourceProductionPerLevel(id);
   const growth=CONFIG.provisional.source.productionGrowth;
-  const total=seriesCost(unit,growth,0,v.level);
-  return total.mul(plus).mul(ownsSourceFinal(s,"SOURCE_09")&&id==="SOURCE_09"?2:1).mul(ownsSourceFinal(s,"SOURCE_04")?2:1).mul(existenceMultiplier(s)).mul(engravingPlaytestFactor(s)).mul(engravingSourceFactor(s));
+  const total=seriesCost(unit,growth,0,level);
+  return total.mul(sourceMilestoneMultiplier(level)).mul(plus)
+    .mul(ownsSourceFinal(s,"SOURCE_09")&&id==="SOURCE_09"?2:1)
+    .mul(ownsSourceFinal(s,"SOURCE_04")?2:1)
+    .mul(existenceMultiplier(s)).mul(engravingPlaytestFactor(s)).mul(engravingSourceFactor(s));
 }
-/** Extra output from buying this Source's next one level, including all current bonuses. */
-export function sourceNextGain(s,id) {
-  const v=s.sources[id];
+/** Total Source output including each cumulative x2 milestone; no price change. */
+export function sourceProduction(s,id){
+  if(!s.sources?.[id])throw Error("源IDが不正です");
+  return sourceOutputAtLevel(s,id,s.sources[id].level);
+}
+/** Exact marginal output for the next level, including a milestone crossed by that purchase. */
+export function sourceNextGain(s,id){
+  const v=s.sources?.[id];
   if(!v)throw Error("源IDが不正です");
-  const plus=sourcePlusMultiplier(v.plus);
-  return sourceProductionPerLevel(id)
-    .mul(A(CONFIG.provisional.source.productionGrowth).pow(v.level))
-    .mul(plus).mul(ownsSourceFinal(s,"SOURCE_09")&&id==="SOURCE_09"?2:1).mul(ownsSourceFinal(s,"SOURCE_04")?2:1).mul(existenceMultiplier(s)).mul(engravingPlaytestFactor(s)).mul(engravingSourceFactor(s));
+  if(v.level>=CONFIG.confirmed.sourceMaxLevel)return A(0);
+  return sourceOutputAtLevel(s,id,v.level+1).sub(sourceOutputAtLevel(s,id,v.level));
 }
 export function production(s,now=Date.now()) {
   return baseProduction(s).mul(SETSUNA.sourceMultiplier(setsunaProjection(s,null,now),now));

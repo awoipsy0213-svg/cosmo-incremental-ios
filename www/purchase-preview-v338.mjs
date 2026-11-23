@@ -13,7 +13,8 @@ export function purchasePreview(state,kind,id,mode=state.purchaseMode){
     const projected={...state,sources:{...state.sources,[id]:{
       ...state.sources[id],level:state.sources[id].level+count
     }}};
-    // Increment for this Source alone; global milestone effects are excluded.
+    // Increment for this Source alone, including any new Source milestone bonus.
+    // Other Sources and their separate final abilities are not modified.
     const sourceGain=G.sourceProduction(projected,id).sub(G.sourceProduction(state,id));
     return {quote,count,sourceGain,afterEffect:null};
   }
