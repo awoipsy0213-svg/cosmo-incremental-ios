@@ -1018,7 +1018,15 @@ function renderPanel(force=false){
   cycle.hidden=!buyTabs;
   cycle.textContent=({"1":"×1","10":"×10","NEXT":"NEXT","MAX":"MAX"})[state.purchaseMode];
   cycle.setAttribute("aria-label",`購入数 ${cycle.textContent}。タップで切替`);
-  const order=$("bulkOrderButton");order.textContent=state.settings.bulkOrder==="grade"?"上位順":"安い順";order.title=state.settings.bulkOrder==="grade"?"今買える最高グレード順で一括購入":"次の1Lvの価格が安い順で一括購入";order.setAttribute("aria-label",order.title);
+  const order=$("bulkOrderButton");
+  const orderLabels={
+    cheap:["安い順","次の1Lvの価格が安い順で一括購入"],
+    grade:["上位順","今買える最高グレード順で一括購入（価格順ではありません）"],
+    efficient:["効率順","次の1Lvの効果増加量／価格で一括購入"],
+    auto:["自動順","自律最適化の取得後は効率優先、それ以前は安い順で一括購入"]
+  };
+  const [shortOrder,fullOrder]=orderLabels[state.settings.bulkOrder]||orderLabels.cheap;
+  order.textContent=shortOrder;order.title=fullOrder;order.setAttribute("aria-label",fullOrder);
   const scope=$("bulkScopeButton");if(scope){scope.textContent=bulkScope==="all"?"全件":"表示中";scope.title=bulkScope==="all"?"全件を対象に一括購入":"表示中を対象に一括購入";scope.setAttribute("aria-label",scope.title);}
   const body=$("sheetBody"),top=body.scrollTop,details=[...body.querySelectorAll("details[open][data-preserve]")].map(x=>x.dataset.preserve);
   const map={moment:momentHTML,sources:sourcesHTML,engraving:engravingHTML,flow:flowHTML,concepts:conceptHTML,miracles:miraclesHTML,
@@ -1307,7 +1315,8 @@ async function dispatchAction(action){
   }
   if(action==="toggle-bulk-order"){
     if(readOnly)return toast("読み取り専用のため変更できません");
-    state.settings.bulkOrder=state.settings.bulkOrder==="cheap"?"grade":"cheap";
+    const modes=["cheap","grade",...(engravingAutoEfficient(state)?["efficient"]:[]),"auto"];
+    state.settings.bulkOrder=modes[(modes.indexOf(state.settings.bulkOrder)+1)%modes.length];
     save();renderPanel(true);return;
   }
   if(action==="toggle-bulk-scope"){
