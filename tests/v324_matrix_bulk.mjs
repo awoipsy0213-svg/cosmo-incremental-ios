@@ -59,7 +59,7 @@ check("Quoted bulk and actual purchases preserve the same spend",()=>{
 check("Published SW and iOS copy include new CSS",()=>{
  const root=["app.mjs","index.html","balance-config.mjs","sw.js","stage-worlds.css","matrix-v324.css"];
  for(const name of root)assert.equal(text(name),text("www/"+name),name);
- assert.match(text("sw.js"),/3\.40\.0-source-milestones/);
+ assert.match(text("sw.js"),/3\.50\.0-time-residue/);
  assert.match(text("sw.js"),/matrix-v324\.css/);
  assert.match(text("index.html"),/3\.34 · ENGRAVING/);
 });
