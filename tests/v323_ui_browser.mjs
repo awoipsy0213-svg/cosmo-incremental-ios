@@ -89,7 +89,10 @@ try{
      await page.locator('[data-stage="'+id+'"]').click();
      assert.equal(await page.locator("body").getAttribute("data-cosmo-stage"),num);
      assert.match(await page.locator("#stageResourceLabel").textContent(),new RegExp(name));
-     if(id!=="existence")assert.equal(await page.locator(".stage-backdrop").evaluate(el=>getComputedStyle(el).display),"block");
+     if(id==="time"){
+       assert.equal(await page.locator("#timeHexRoot").isVisible(),true,"Time uses the hex scene");
+       assert.equal(await page.locator(".stage-backdrop").evaluate(el=>getComputedStyle(el).display),"none","Time no longer uses the old backdrop");
+     }else if(id!=="existence")assert.equal(await page.locator(".stage-backdrop").evaluate(el=>getComputedStyle(el).display),"block");
    }
    assert.equal(errors.length,0,label+" JS errors: "+errors.join("; "));
    console.log("PASS v323",label,width+"x"+height,"2-metric HUD, unique scenes, flexible text, bulk setting + save");
