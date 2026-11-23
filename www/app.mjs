@@ -578,17 +578,17 @@ function engravingHTML(){
     <div class="card-top"><strong>余剰存在 ${f(state.surplusExistence,3)}</strong><span class="badge confirmed">最初の存在1を保護</span></div>
     <small>取得済み ${e.owned.length} / 30 · 収束 ${state.convergenceCount} 回 · 取得済みの刻印は収束後も保持</small>
   </div>
-  ${[1,2,3].map(tier=>`<h3 class="engraving-tier-title">刻印 ${["初級","中級","上級"][tier-1]} · 初回費用 ${["0.005","0.025","0.125"][tier-1]} 存在 / 取得 ${count(tier)}/10</h3>
+  ${[1,2,3].map(tier=>`<h3 class="engraving-tier-title">刻印 ${["初級","中級","上級"][tier-1]} · 初回費用 ${["0.001","0.025","0.125"][tier-1]} 存在 / 取得 ${count(tier)}/10</h3>
     <div class="row-grid engraving-list">
     ${catalogue.filter(x=>x.tier===tier).map(item=>{
       const owned=e.owned.includes(item.id),level=e.levels?.[item.id],q=engravingPurchaseQuote(state,item.id),upgrade=G.engravingTrialUpgradeQuote(state,item.id);
       const levelText=!owned?"Lv.0":Number.isSafeInteger(level)?"Lv."+level.toLocaleString("ja-JP"):"Lv.―";
       const levelHint=!owned?"未取得":Number.isSafeInteger(level)?"現在のレベル："+level.toLocaleString("ja-JP"):"取得済み・レベルの記録なし";
       const price=owned?upgrade.price:q.price??item.cost;
-      const shownPrice=price===undefined||price===null?"—":f(price,3);
+      const shownPrice=price===undefined||price===null?"—":f(price,6);
       const purchasable=owned?upgrade.ok:q.ok;
       const verb=owned?"強化":"取得",action=owned?"data-engraving-trial-upgrade":"data-engraving-buy";
-      const gain=purchasable?"Lv. +1":"上昇 —",costInfo="費用 "+shownPrice+" 存在";
+      const gain=purchasable?"Lv. +1":owned&&upgrade.reason==="この刻印はLv1で完成しています"?"完成":"上昇 —",costInfo="費用 "+shownPrice+" 存在";
       const full=item.name+"："+costInfo+" / 購入 ×"+(purchasable?1:0)+" / "+gain;
       const button='<button type="button" class="wide-button engraving-purchase-button dense-purchase-button" '+
         action+'="'+esc(item.id)+'" '+(!purchasable||readOnly||store.blocked?"disabled":"")+
@@ -999,6 +999,17 @@ function renderPanel(force=false){
   $("childTabs").innerHTML=children.map(id=>`<button data-child="${id}" class="${currentSub===id?"active":""}" aria-pressed="${currentSub===id}">${childNames[id]}</button>`).join("");
   $("sheetHeading").textContent=(currentStage==="organizer"?"管理":currentStage==="automation"?"自動化":"強化")+" / "+childNames[currentSub];
   $("purchaseToolbar").hidden=currentStage!=="existence"||!["moment","sources"].includes(currentSub);
+  const bulkAllowed=Number(state.engraving.levels?.["ENG-05"]||0)>0&&state.engraving.owned.includes("ENG-05");
+  const bulkButton=$("bulkBuyButton");
+  if(bulkButton){
+    bulkButton.disabled=!bulkAllowed||readOnly||store.blocked;
+    bulkButton.title=bulkAllowed?"現在のタブを一括購入":"刻印「一括解放」を取得すると利用できます";
+    bulkButton.setAttribute("aria-label",bulkButton.title);
+  }
+  for(const id of ["bulkScopeButton","bulkOrderButton"]){
+    const control=$(id);
+    if(control)control.disabled=!bulkAllowed||readOnly||store.blocked;
+  }
   const cycle=$("purchaseCycle");
   const buyTabs=currentStage==="existence"&&["moment","sources"].includes(currentSub);
   cycle.hidden=!buyTabs;
@@ -1301,6 +1312,7 @@ async function dispatchAction(action){
     renderPanel(true);return;
   }
   if(action==="buy-all"){
+    if(!state.engraving.owned.includes("ENG-05")||!(state.engraving.levels?.["ENG-05"]>0))return toast("刻印「一括解放」で解放します");
     if(bulkPurchasePending)return;
     if(readOnly||store.blocked)return toast("この画面では購入できません");
     const kind=currentStage==="existence"?(currentSub==="moment"?"moment":currentSub==="sources"?"source":null):null;
