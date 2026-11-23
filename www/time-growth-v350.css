@@ -1,0 +1,33 @@
+/* 《理》v3.50: stable, compact, mobile-first concept growth cards. */
+.time-growth-card {
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  height:148px;
+  min-height:148px;
+  max-height:148px;
+  min-width:0;
+  overflow:hidden;
+  box-sizing:border-box;
+  padding:10px 11px;
+  gap:4px;
+}
+.time-growth-card .card-top {min-width:0;display:flex;align-items:center;gap:6px}
+.time-growth-card .card-top strong {
+  min-width:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  font-size:13px;
+}
+.time-growth-card small {
+  min-width:0;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  font-size:11px;line-height:1.25;
+}
+.time-growth-card .concept-icon {flex:none;width:26px;height:26px}
+.time-growth-card .slim-progress {flex:none;height:5px;margin:4px 0 0}
+.time-growth-card .slim-progress i {display:block;max-width:100%;min-height:5px}
+.time-hex-residue-row strong,.time-hex-residue-row small {
+  min-width:0;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+@media (max-width:359px) {
+  .time-growth-card {padding:8px 9px;height:142px;min-height:142px;max-height:142px}
+  .time-growth-card small {font-size:10px}
+}
