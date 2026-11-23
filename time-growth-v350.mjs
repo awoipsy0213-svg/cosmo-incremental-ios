@@ -237,39 +237,44 @@ function splitTotal(total,dist,rng){
   }
   return output;
 }
+function settleCommon(s,concepts,total,rng){
+  const t=s.time,g=ensureTimeGrowth(t,concepts),conversions=total/100n;
+  t.common=Number(total%100n);
+  if(!conversions)return[];
+  const recognized=[];
+  const all=concepts.map(c=>({id:c.id,prob:1/concepts.length}));
+  for(const x of splitTotal(conversions,all,rng))
+    if(x.count)recognized.push(...addTimeResidue(t,concepts[idIndex(x.id)],x.count,concepts));
+  g.converted=(toBig(g.converted)+conversions).toString();
+  if(s.counters)s.counters.conversions=Math.min(Number.MAX_SAFE_INTEGER,
+    (s.counters.conversions||0)+Number(conversions>BigInt(Number.MAX_SAFE_INTEGER)?BigInt(Number.MAX_SAFE_INTEGER):conversions));
+  return recognized;
+}
 export function advanceTimeResidues(s,concepts,gameSeconds,rng=Math.random){
   const t=s.time,g=ensureTimeGrowth(t,concepts);
-  if(!(gameSeconds>0))return {events:"0",converted:"0",recognized:[]};
+  const priorRecognized=settleCommon(s,concepts,toBig(t.common||0),rng);
+  if(!(gameSeconds>0))return {events:"0",converted:g.converted,recognized:priorRecognized};
   const interval=Math.max(GROWTH_TRIAL.minIntervalSeconds,
     GROWTH_TRIAL.firstIntervalSeconds/(1+29*growthProgress(t,concepts[1])));
   const elapsed=g.intervalProgress+gameSeconds;
   const cycles=Math.floor(elapsed/interval);
   g.intervalProgress=elapsed-cycles*interval;
-  if(!cycles)return {events:"0",converted:"0",recognized:[]};
+  if(!cycles)return {events:"0",converted:g.converted,recognized:priorRecognized};
   const e=A(s.totalExistenceEarned||"0").add(1);
   const logE=e.e+Math.log10(e.m);
   const rateLog=logE<=7?logE-7:(logE-7)*GROWTH_TRIAL.aboveKneePower;
   const eventBonus=growthBonuses(s,concepts).event;
   const expected=A.fromLog10(rateLog).mul(cycles).mul(1+eventBonus);
   const events=sampleEvents(expected,rng);
-  if(events===0n)return {events:"0",converted:"0",recognized:[]};
+  if(events===0n)return {events:"0",converted:g.converted,recognized:priorRecognized};
   const dist=growthWeights(t,concepts),draws=splitTotal(events,dist,rng);
-  const recognized=[];
+  const recognized=[...priorRecognized];
   let common=toBig(t.common||0);
   for(const d of draws){
     if(!d.count)continue;
     if(d.id==="common")common+=d.count;
     else recognized.push(...addTimeResidue(t,concepts[idIndex(d.id)],d.count,concepts));
   }
-  const conversions=common/100n;
-  t.common=Number(common%100n);
-  if(conversions>0n){
-    const all=concepts.map(c=>({id:c.id,prob:1/concepts.length}));
-    for(const x of splitTotal(conversions,all,rng))
-      if(x.count)recognized.push(...addTimeResidue(t,concepts[idIndex(x.id)],x.count,concepts));
-    g.converted=(toBig(g.converted)+conversions).toString();
-    if(s.counters)s.counters.conversions=Math.min(Number.MAX_SAFE_INTEGER,
-      (s.counters.conversions||0)+Number(conversions>BigInt(Number.MAX_SAFE_INTEGER)?BigInt(Number.MAX_SAFE_INTEGER):conversions));
-  }
+  recognized.push(...settleCommon(s,concepts,common,rng));
   return {events:events.toString(),converted:g.converted,recognized:[...new Set(recognized)]};
 }
