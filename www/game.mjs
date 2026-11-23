@@ -1343,6 +1343,7 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
     rememberSetsuna(s,proj);
     gained=A(report.source).mul(factor).add(base.mul(Math.max(0,gameSeconds-elapsedSeconds)));
     gained=engravingOrbAward(s,gained,rng);
+    if(s.time.unlocked)gained=gained.mul(1+growthBonuses(s,CONTENT.concepts).source);
     addOrbs(s,gained);
   }
   if(s.time.unlocked){
@@ -1358,7 +1359,7 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
   }
   if(s.universe.unlocked){
     const interference=s.universe.interference;
-    const growthBonuses=new Map(),growthBlocks=new Map();
+    const transferGrowthBonuses=new Map(),growthBlocks=new Map();
     for(const t of [...interference.transfers]){
       const from=planet(s,t.from),to=planet(s,t.to);
       if(!from||!to||t.remainingSeconds<=0)continue;
@@ -1366,7 +1367,7 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
       const factor=Math.min(2,1.01**Math.min(100,Math.floor(Number(from.stats.activity||0)/100)));
       const wouldGrow=A(active/60).mul(factor);
       growthBlocks.set(t.from,(growthBlocks.get(t.from)||A(0)).add(wouldGrow));
-      growthBonuses.set(t.to,(growthBonuses.get(t.to)||A(0)).add(wouldGrow.mul(.5)));
+      transferGrowthBonuses.set(t.to,(transferGrowthBonuses.get(t.to)||A(0)).add(wouldGrow.mul(.5)));
       t.remainingSeconds=Math.max(0,t.remainingSeconds-gameSeconds);
     }
     interference.transfers=interference.transfers.filter(t=>t.remainingSeconds>0&&planet(s,t.from)&&planet(s,t.to));
@@ -1374,10 +1375,12 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
       if(!planet(s,id))delete interference.stabilizeCooldowns[id];
       else interference.stabilizeCooldowns[id]=Math.max(0,cooldown-gameSeconds);
     }
+    const planetGrowthFactor=1+growthBonuses(s,CONTENT.concepts).planetGrowth;
+    const observationFactor=1+growthBonuses(s,CONTENT.concepts).observation;
     for(const p of [...s.universe.planets]){
       const activity=Math.min(2,1.01**Math.min(100,p.stats.activity?Math.floor(Number(p.stats.activity)/100):0));
-      const growth=A(gameSeconds/60).mul(activity).mul(1+growthBonuses(s,CONTENT.concepts).planetGrowth).sub(growthBlocks.get(p.id)||A(0))
-        .add(growthBonuses.get(p.id)||A(0));
+      const growth=A(gameSeconds/60).mul(activity).mul(planetGrowthFactor).sub(growthBlocks.get(p.id)||A(0))
+        .add(transferGrowthBonuses.get(p.id)||A(0));
       p.stats.mass=add(p.stats.mass,growth);
       if(!p.evidence||typeof p.evidence!=="object")p.evidence={};
       p.evidence.naturalTicks=(p.evidence.naturalTicks||0)+gameSeconds/60;
@@ -1388,11 +1391,11 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
         p.observed.push("age");event(s,"星齢：惑星が生まれてからの時間だと認識した。");
       }
       if(Number(p.stats.temperature)>=1&&Number(p.stats.energy)>=1){
-        if(addKnowledge(s.universe,"heat",Math.min(10,gameSeconds/60*10)))event(s,"熱の循環という現象を理解した。");
+        if(addKnowledge(s.universe,"heat",Math.min(10,gameSeconds/60*10*observationFactor)))event(s,"熱の循環という現象を理解した。");
         if(knowledgeLevel(s.universe,"heat")>=100&&!p.observed.includes("temperature"))p.observed.push("temperature");
       }
       if(Number(p.stats.pressure)>=1){
-        if(addKnowledge(s.universe,"pressure",Math.min(10,gameSeconds/60*10)))event(s,"惑星内部の圧力を理解した。");
+        if(addKnowledge(s.universe,"pressure",Math.min(10,gameSeconds/60*10*observationFactor)))event(s,"惑星内部の圧力を理解した。");
         if(knowledgeLevel(s.universe,"pressure")>=100&&!p.observed.includes("pressure"))p.observed.push("pressure");
       }
       if(p.core?.started||p.core?.formed){
