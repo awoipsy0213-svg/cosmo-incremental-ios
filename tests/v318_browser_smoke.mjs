@@ -80,6 +80,17 @@ try {
     assert.equal(await page.locator('button[data-interference="collision"]').isEnabled(),true);
     assert.equal(await page.locator('button[data-interference="transfer"]').isEnabled(),true);
     await page.locator('button[data-interference="collision"]').click();
+    if(!(await page.locator("#confirmDialog").evaluate(el=>el.open))){
+      console.log("DIAG v350 collision confirmation",JSON.stringify(await page.evaluate(()=>{
+        let parsed;try{parsed=JSON.parse(localStorage.getItem("kotowari_v31_normal")).data}catch{}
+        return {toast:document.querySelector("#toast")?.textContent,
+          notice:document.querySelector("#noticeText")?.textContent,
+          indicator:document.querySelector("#saveIndicator")?.textContent,
+          enabled:document.querySelector('button[data-interference="collision"]')?.disabled===false,
+          planets:parsed?.universe?.planets?.length,
+          confirm:parsed?.settings?.confirmInterference};
+      })),JSON.stringify(pageErrors));
+    }
     assert.equal(await page.locator("#confirmDialog").evaluate(el=>el.open),true);
     await page.locator("#confirmYes").click();
     await page.waitForFunction(()=>{
