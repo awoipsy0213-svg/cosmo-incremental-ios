@@ -65,7 +65,7 @@ try{
     for(const name of ["summary","moment"])before[name].forEach((v,i)=>{
       assert.ok(Math.abs(v-after[name][i])<.8,label+" geometry stable "+name+" "+i);
     });
-    await page.locator('[data-auto-buy-kind="moment"][data-auto-field="priority"]').selectOption("expensive");
+    await page.locator('[data-auto-buy-kind="moment"][data-auto-field="priority"]').selectOption("grade");
     await page.locator('[data-auto-buy-kind="moment"][data-auto-field="intervalSeconds"]').selectOption("10");
     await page.locator('[data-auto-buy-kind="source"][data-auto-field="enabled"]').uncheck();
     await page.locator('[data-auto-mode="minutes"]').click();
@@ -74,7 +74,7 @@ try{
     assert.equal(await page.locator(".automation-convergence").evaluate(el=>Math.round(el.getBoundingClientRect().height)),185);
     const saved=await page.evaluate(()=>window.KOTOWARI_DEBUG.state());
     assert.equal(saved.settings.automationEnabled,false);
-    assert.equal(saved.engraving.autoBuy.moment.priority,"expensive");
+    assert.equal(saved.engraving.autoBuy.moment.priority,"grade");
     assert.equal(saved.engraving.autoBuy.moment.intervalSeconds,10);
     assert.equal(saved.engraving.autoBuy.source.enabled,false);
     assert.equal(saved.engraving.autoConverge.mode,"minutes");
@@ -97,7 +97,7 @@ try{
     await page.locator('[data-auto-master]').check();
     assert.equal(await page.evaluate(()=>window.KOTOWARI_DEBUG.state().settings.automationEnabled),true);
     const resumed=await page.evaluate(()=>window.KOTOWARI_DEBUG.state());
-    assert.equal(resumed.engraving.autoBuy.moment.priority,"expensive",label+" preference restored after resume");
+    assert.equal(resumed.engraving.autoBuy.moment.priority,"grade",label+" preference restored after resume");
     assert.equal(resumed.engraving.autoBuy.source.enabled,false,label+" per-feature off remains off");
     assert.deepEqual(errors,[],label+" browser JS errors");
     console.log("PASS v337",label,"global pause / summary / fixed-size detail / four modes / reload");
