@@ -25,7 +25,8 @@ const run=(type,attrs={})=>{let p;registrations.get(type)({...attrs,waitUntil:v=
 await run('install');
 const match=code.match(/const VERSION = "([^"]+)";/);
 assert.ok(match,'SW version exists');
-const cache=await caches.open(prefix+match[1]);
+const revision=code.match(/const UI_REVISION = "([^"]+)";/);
+const cache=await caches.open(prefix+match[1]+(revision?.[1]||""));
 for(const path of ['index.html','game.mjs','app.mjs','design-proposals.mjs','RESEARCH_V35.md','sw.js']){
  if(path==='sw.js')continue;
  assert.ok(await cache.match(new URL(path,base).href),'Missing '+path);checks++
