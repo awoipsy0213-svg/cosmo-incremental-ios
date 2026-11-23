@@ -167,7 +167,7 @@ export function growthWeights(t,concepts){
   if(!positive.length)throw Error("方向配分率が0");
   if(positive.length===1&&positive[0]===0)
     return [{id:"TC001",prob:.25},{id:"TC002",prob:.25},{id:"common",prob:.5}];
-  const cardinality=positive.length,common=cardinality===1?.5:cardinality===2?GROWTH_TRIAL.commonTwo:GROWTH_TRIAL.commonThree;
+  const cardinality=positive.length,common=cardinality===1?0.5:cardinality===2?GROWTH_TRIAL.commonTwo:GROWTH_TRIAL.commonThree;
   const portions=cardinality===1?[1]:cardinality===2?[.6,.4]:[.55,.35,.1];
   const eligible=concepts.filter(c=>c.principles.every(p=>{
     const i=DIR.indexOf(p);return positive.includes(i);
@@ -255,26 +255,21 @@ export function advanceTimeResidues(s,concepts,gameSeconds,rng=Math.random){
   if(events===0n)return {events:"0",converted:"0",recognized:[]};
   const dist=growthWeights(t,concepts),draws=splitTotal(events,dist,rng);
   const recognized=[];
+  let common=toBig(t.common||0);
   for(const d of draws){
     if(!d.count)continue;
-    if(d.id==="common"){
-      const count=toBig(t.common||0)+d.count;
-      const convert=count/100n;t.common=Number(count%100n);
-      if(convert>0n){
-        const all=concepts.map(c=>({id:c.id,prob:1/concepts.length}));
-        for(const x of splitTotal(convert,all,rng)){
-          if(x.count){
-            const c=concepts[idIndex(x.id)];
-            recognized.push(...addTimeResidue(t,c,x.count,concepts));
-          }
-        }
-        g.converted=(toBig(g.converted)+convert).toString();
-        if(s.counters)s.counters.conversions=Math.min(Number.MAX_SAFE_INTEGER,(s.counters.conversions||0)+Number(convert>BigInt(Number.MAX_SAFE_INTEGER)?BigInt(Number.MAX_SAFE_INTEGER):convert));
-      }
-    }else{
-      const c=concepts[idIndex(d.id)];
-      recognized.push(...addTimeResidue(t,c,d.count,concepts));
-    }
+    if(d.id==="common")common+=d.count;
+    else recognized.push(...addTimeResidue(t,concepts[idIndex(d.id)],d.count,concepts));
+  }
+  const conversions=common/100n;
+  t.common=Number(common%100n);
+  if(conversions>0n){
+    const all=concepts.map(c=>({id:c.id,prob:1/concepts.length}));
+    for(const x of splitTotal(conversions,all,rng))
+      if(x.count)recognized.push(...addTimeResidue(t,concepts[idIndex(x.id)],x.count,concepts));
+    g.converted=(toBig(g.converted)+conversions).toString();
+    if(s.counters)s.counters.conversions=Math.min(Number.MAX_SAFE_INTEGER,
+      (s.counters.conversions||0)+Number(conversions>BigInt(Number.MAX_SAFE_INTEGER)?BigInt(Number.MAX_SAFE_INTEGER):conversions));
   }
   return {events:events.toString(),converted:g.converted,recognized:[...new Set(recognized)]};
 }
