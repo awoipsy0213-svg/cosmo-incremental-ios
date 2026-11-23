@@ -25,7 +25,7 @@ try{
    const fixture=await page.evaluate(async()=>{
      const G=await import("./game.mjs"),S=await import("./save.mjs");
      const s=G.createState(Date.now());
-     s.intro.complete=true;s.time.unlocked=true;s.universe.unlocked=true;
+     s.intro.complete=true;s.time.unlocked=true;s.universe.unlocked=true;s.time.revealedDirections=3;
      s.orbs="1e20";s.totalOrbs="1e20";
      return S.encode(s,"v323-browser");
    });
@@ -92,6 +92,19 @@ try{
      if(id==="time"){
        assert.equal(await page.locator("#timeHexRoot").isVisible(),true,"Time uses the hex scene");
        assert.equal(await page.locator(".stage-backdrop").evaluate(el=>getComputedStyle(el).display),"none","Time no longer uses the old backdrop");
+       const hexNodes=page.locator('button[data-time-direction]');
+       assert.equal(await hexNodes.count(),6,"six stable Time nodes");
+       assert.equal(await page.locator('[data-time-direction="3"]').isDisabled(),true,"unknown directions stay disabled");
+       assert.equal(await page.locator('[data-time-direction="3"] [data-hex-name]').textContent(),"？");
+       assert.equal(await page.locator('[data-time-direction="1"]').isEnabled(),true);
+       await page.locator('[data-time-direction="1"]').click();
+       assert.equal(await page.locator('[data-time-direction="1"]').getAttribute("aria-pressed"),"true");
+       assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem("kotowari_v31_normal")).data.time.selected.includes(1)),true,"direction persists");
+       await page.locator('[data-action="collapse-sheet"]').click();
+       await page.locator('[data-time-open="miracles"]').click();
+       assert.match(await page.locator("#sheetHeading").textContent(),/奇跡/);
+       await page.locator('[data-child="flow"]').click();
+       assert.equal(await page.locator('#sheetBody [data-weight]').count(),3,"large sliders remain accessible");
      }else if(id!=="existence")assert.equal(await page.locator(".stage-backdrop").evaluate(el=>getComputedStyle(el).display),"block");
    }
    assert.equal(errors.length,0,label+" JS errors: "+errors.join("; "));
