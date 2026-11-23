@@ -52,7 +52,14 @@ try{
     await page.locator("#automationQuick").click();
     await page.locator('[data-action="toggle-auto-details"]').click();
     const toggler=page.locator('[data-auto-engrave="enabled"]');
-    assert.equal(await toggler.isEnabled(),true,"ENG17 enables the auto-buy switch");
+    const debugEngrave=await page.evaluate(()=>({
+      owned:window.KOTOWARI_DEBUG?.state()?.engraving?.owned,
+      levels:window.KOTOWARI_DEBUG?.state()?.engraving?.levels,
+      disabled:document.querySelector('[data-auto-engrave="enabled"]')?.disabled,
+      backupWarnings:document.querySelector("#saveIndicator")?.textContent,
+      tab:document.querySelector("#sheetHeading")?.textContent
+    }));
+    assert.equal(await toggler.isEnabled(),true,"ENG17 enables the auto-buy switch: "+JSON.stringify(debugEngrave));
     assert.equal(await toggler.isChecked(),false,"engravings automation must start OFF");
     await page.locator('[data-auto-engrave="mode"]').selectOption("new");
     await page.locator('[data-auto-engrave="priority"]').selectOption("cheap");
