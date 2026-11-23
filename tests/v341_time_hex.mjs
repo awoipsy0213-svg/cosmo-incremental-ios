@@ -52,7 +52,7 @@ assert.equal(KEYS.normal,"kotowari_v31_normal");
 const restored=decode(encode(base,"time-hex-v341"),"normal");
 assert.deepEqual(restored.time.selected,base.time.selected);
 assert.equal(restored.time.revealedDirections,base.time.revealedDirections);
-assert.deepEqual(restored.time.weights,base.time.weights);
+assert.ok(restored.time.weights.every((value,i)=>Math.abs(value-base.time.weights[i])<1e-10),"existing normalization tolerates floating-point rounding on reload");
 
 const first=CONTENT.concepts[0];
 const unformed={...t,revealedDirections:1,selected:[0],weights:[100,0,0,0,0,0],
