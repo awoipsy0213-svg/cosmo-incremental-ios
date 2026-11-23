@@ -18,7 +18,7 @@ export function engravingAutomationHTML(s,readOnly=false){
    '<div class="automation-line automation-fields"><label>購入対象<select class="input-select" data-auto-engrave="mode"'+(off?' disabled':'')+'>'+
    options([["both","初回と強化"],["new","初回のみ"],["upgrade","追加強化のみ"]],a.mode)+'</select></label>'+
    '<label>購入優先<select class="input-select" data-auto-engrave="priority"'+(off?' disabled':'')+'>'+
-   options([["unowned","未取得優先"],["cheap","安い順"],["expensive","高い順"]],a.priority)+'</select></label></div>'+
+   options([["unowned","未取得優先"],["cheap","価格の安い順"],["grade","高グレード順"]],a.priority)+'</select></label></div>'+
    '<div class="automation-line automation-fields"><label>残しておく存在<select class="input-select" data-auto-engrave="minReserve"'+(off?' disabled':'')+'>'+
    options(minOptions,a.minReserve)+'</select></label></div>'+
    '<small>ONでも購入条件・所持存在の保護・Lv上限を優先。オフライン中は実行しません。</small>'+
