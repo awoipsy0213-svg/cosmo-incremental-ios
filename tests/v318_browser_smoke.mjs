@@ -35,7 +35,7 @@ try {
     const fixture=await page.evaluate(async ()=>{
       const G=await import("./game.mjs"),S=await import("./save.mjs");
       const state=G.createState(Date.now());
-      state.intro.complete=true;
+      state.intro.complete=true;state.engraving.owned.push("ENG-05");state.engraving.levels["ENG-05"]=1;
       state.time.unlocked=true;
       state.universe.unlocked=true;
       state.universe.maxPlanets=3;
