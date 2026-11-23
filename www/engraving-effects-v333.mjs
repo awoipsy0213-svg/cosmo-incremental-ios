@@ -102,7 +102,7 @@ export function engravingRetainedLevels(s,oldTap,oldSource){
 export const engravingAutoTapRate=s=>{const level=engravingLevel(s,"ENG-22");return level>0?1+0.4*(level-1):0;};
 export const engravingAutoMomentRate=s=>autoPurchaseRate(engravingLevel(s,"ENG-23"));
 export const engravingAutoSourceRate=s=>autoPurchaseRate(engravingLevel(s,"ENG-26"));
-export const engravingAutoEfficient=s=>engravingLevel(s,"ENG-27")>0;
-export const engravingConvergenceControl=s=>engravingLevel(s,"ENG-28")>0;
+export const engravingAutoEfficient=s=>s?.engraving?.owned?.includes("ENG-27")===true;
+export const engravingConvergenceControl=s=>s?.engraving?.owned?.includes("ENG-28")===true;
 export const ENGRAVING_AUTO_BATCH_LIMIT=20;
 export function freshEngravingRuntime(){return {autoTapCredit:0,autoMomentCredit:0,autoSourceCredit:0,autoMomentWait:0,autoSourceWait:0};}
