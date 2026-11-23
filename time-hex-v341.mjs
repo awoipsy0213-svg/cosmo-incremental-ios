@@ -109,7 +109,7 @@ export function timeHexFlowPanel(t,concepts,principles,icon,{readOnly=false}={})
   return '<p class="panel-intro">方向を選び、配分率を調整すると、発見する残滓の傾向が変わります。</p>'+
     '<h3 class="time-hex-section-title">方向の配分 · 最大3方向</h3>'+
     '<div class="kw-list">'+rows+'</div>'+
-    (t.revealedDirections===1?'<p class="tiny">流動のみ：衝突25%・移動25%・共通？？？50%（残滓発生後の内訳）</p>':'')+
+    (t.revealedDirections===1?'<p class="tiny">流動のみ：2種類の残滓が各25%・共通？？？50%（発生後の内訳）</p>':'')+
     '<h3 class="time-hex-section-title">発見した残滓 · '+known.length+'種類</h3>'+
     (known.length?'<div class="time-hex-residue-list">'+residueItems+'</div>':'<div class="empty-state"><p>残滓はまだ見つかっていません。</p></div>')+
     '<div class="kw-row"><span>共通の？？？ <strong>'+Number(t.common).toLocaleString('ja-JP')+' / 100</strong></span>'+
