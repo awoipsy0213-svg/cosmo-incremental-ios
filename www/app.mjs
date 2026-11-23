@@ -209,7 +209,7 @@ function renderWorld(){
   const stageScene=$("touchField");
   stageScene.setAttribute("role",isTime?"group":"button");
   stageScene.setAttribute("tabindex",isTime?"-1":"0");
-  stageScene.setAttribute("aria-label",isTime?"時の方向をタップして選択":"光へ干渉してオーブを生む");
+  stageScene.setAttribute("aria-label",isTime?"時の方向をタップして選択":stage.id==="existence"?"光へ干渉してオーブを生む":"この世界へ干渉してオーブを生む");
   $("stageTitle").textContent=stage.name;
   $("activeStageTitle").textContent=`ステージ · ${stage.name}`;
   const rate=G.production(state),tap=G.tapPower(state);
