@@ -46,7 +46,14 @@ try{
       state.engraving.levels=Object.fromEntries(state.engraving.owned.map(id=>[id,1]));
       return S.encode(state,"v342-auto-config");
     });
-    await page.evaluate(raw=>localStorage.setItem("kotowari_v31_normal",raw),config);
+    // Inject the fixture before page startup. A direct localStorage update
+    // immediately before reload can be overwritten by unload persistence.
+    await page.addInitScript(raw=>{
+      if(sessionStorage.getItem("v342-upgraded-fixture")!=="installed"){
+        localStorage.setItem("kotowari_v31_normal",raw);
+        sessionStorage.setItem("v342-upgraded-fixture","installed");
+      }
+    },config);
     await page.reload({waitUntil:"domcontentloaded"});
     await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
     await page.locator("#automationQuick").click();
