@@ -38,24 +38,19 @@ try{
     await page.locator('[data-child="moment"]').click();
     assert.equal(await page.locator("#bulkBuyButton").isEnabled(),true,"bulk unlock via real purchase");
     assert.equal(await page.evaluate(()=>window.KOTOWARI_DEBUG.state().engraving.levels["ENG-05"]),1);
-    const config=await page.evaluate(async()=>{
-      const G=await import("./game.mjs"),S=await import("./save.mjs");
-      const state=G.createState(Date.now());state.intro.complete=true;
+    // Switch to a separate isolated lab save. The app intentionally writes its
+    // old normal save during beforeunload, so raw localStorage replacement alone
+    // could be overwritten on reload.
+    await page.goto(root+"?lab=1&dev=1",{waitUntil:"domcontentloaded"});
+    await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
+    await page.evaluate(async()=>{
+      const G=await import("./game.mjs");
+      const state=G.createState(Date.now(),"lab");state.intro.complete=true;
       state.surplusExistence="100";state.orbs="1e20";
       state.engraving.owned=["ENG-05","ENG-17","ENG-30","ENG-27"];
       state.engraving.levels=Object.fromEntries(state.engraving.owned.map(id=>[id,1]));
-      return S.encode(state,"v342-auto-config");
+      window.KOTOWARI_DEBUG.setLabState(state);
     });
-    // Inject the fixture before page startup. A direct localStorage update
-    // immediately before reload can be overwritten by unload persistence.
-    await page.addInitScript(raw=>{
-      if(sessionStorage.getItem("v342-upgraded-fixture")!=="installed"){
-        localStorage.setItem("kotowari_v31_normal",raw);
-        sessionStorage.setItem("v342-upgraded-fixture","installed");
-      }
-    },config);
-    await page.reload({waitUntil:"domcontentloaded"});
-    await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
     await page.locator("#automationQuick").click();
     await page.locator('[data-action="toggle-auto-details"]').click();
     const toggler=page.locator('[data-auto-engrave="enabled"]');
