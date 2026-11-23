@@ -1689,7 +1689,7 @@ export function validateState(input,expectedMode=null) {
      typeof automatic.enabled!=="boolean"||!ENGRAVE_ORDER.includes(automatic.priority)||
      !ENGRAVE_MODES.includes(automatic.mode)||
      typeof automatic.minReserve!=="string"||
-     !/^(?:\\d+)(?:\\.\\d+)?(?:e\\+?\\d+)?$/i.test(automatic.minReserve)||
+     !/^(?:\d+)(?:\.\d+)?(?:e\+?\d+)?$/i.test(automatic.minReserve)||
      A(automatic.minReserve).cmp(0)<0||A(automatic.minReserve).cmp("1e100")>0||
      !Number.isFinite(automatic.credit)||automatic.credit<0||automatic.credit>1000)
     fail("刻印の自動購入設定");
