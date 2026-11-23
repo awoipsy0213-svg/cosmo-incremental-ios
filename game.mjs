@@ -1337,6 +1337,10 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
     }else s.boost.active=false; // BOOST-Q219: time x1 is OFF, consumes nothing
   }
   s.counters.onlineSeconds+=dt;
+  // FLOW augments time-dependent progress once, after BOOST has independently
+  // calculated its own spendable game seconds. Neither tap rewards nor BOOST
+  // charging receive an extra resource multiplier.
+  if(s.time.unlocked)gameSeconds*=1+growthBonuses(s,CONTENT.concepts).time;
   let gained=A(0);
   if(s.intro.complete){
     // Source production, autonomous taps and periodic effects use the same engine.
@@ -1354,7 +1358,7 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
   }
   if(s.time.unlocked){
     const mods=growthBonuses(s,CONTENT.concepts),timeSeconds=gameSeconds;
-    s.time.elapsed+=timeSeconds*(1+mods.time);
+    s.time.elapsed+=timeSeconds;
     const report=advanceTimeResidues(s,CONTENT.concepts,timeSeconds,rng);
     if(report.recognized.length)
       event(s,"新しい概念を認識した："+report.recognized.map(id=>CONTENT.concepts.find(c=>c.id===id)?.name).join("・"));
