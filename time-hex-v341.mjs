@@ -120,7 +120,7 @@ export function timeHexMiraclesPanel(t,principles){
   const rows=principles.map((name,i)=>{
     const isKnown=i<known;
     return '<div class="time-hex-miracle-item'+(isKnown?'':' is-hidden')+'"><strong>'+(i+1)+'. '+(isKnown?h(name):'？')+'</strong><small>'+
-      (isKnown?(i===0?'初めから認識':'奇跡で認識'):'未認識')+'</small></div>';
+      (isKnown?(i===0?'初めから認識':Array.isArray(t.miracles)&&t.miracles.includes(i+1)?'奇跡で認識':'認識済み'):'未認識')+'</small></div>';
   }).join('');
   const world=known===6?(t.eventHappened?
     '<p class="status-note">《無の終焉》を観測しました。《宇宙》へ進めます。</p>':
