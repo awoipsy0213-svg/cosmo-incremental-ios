@@ -84,6 +84,23 @@ export class SaveStore {
               warning:"刻印25効果導入前のセーブ原本を退避できません。既存データの上書きを停止しています。"};
           }
         }
+        // v3.42: exact backup before persisting new automation and
+        // current-run purchased-level evidence. Legacy saved levels are
+        // never back-filled from visible moment/source totals.
+        if(oldShape.engraving&&(
+          oldShape.engraving.runPurchases===undefined||
+          oldShape.engraving.autoEngraving===undefined||
+          oldShape.engraving.presetSystem===undefined)){
+          const key=this.key+".before-v342-engraving-automation";
+          try{
+            if(!this.read(key))this.storage.setItem(key,raw);
+            if(this.read(key)!==raw)throw Error("v342 original backup mismatch");
+          }catch(error){
+            this.blocked=true;
+            return {state:s,blocked:true,
+              warning:"刻印の自動化・継承機能の導入前に原本を退避できません。旧セーブを保護し書き込みを停止しています。"};
+          }
+        }
         // BOOST-CORE-004/Q469/499/501: save a byte-for-byte backup BEFORE
         // normalizing old active flags and preserving balances above capacity.
         // A failed backup blocks all writes to the only original save.
