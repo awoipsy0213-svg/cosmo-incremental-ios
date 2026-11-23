@@ -88,3 +88,45 @@ export function patchTimeHex(root,t,{readOnly=false}={}){
   update("[data-hex-world-status]",!known?"時間の先に、まだ知らない世界がある":
     (t.eventHappened?"《無の終焉》 · 宇宙への道が開いた":"世界時間 "+clamp(world,0,1).toFixed(6)+" / 1秒"));
 }
+
+const h=(value)=>String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
+export function timeHexFlowPanel(t,concepts,principles,icon,{readOnly=false}={}){
+  const selected=Array.isArray(t.selected)?t.selected:[0];
+  const rows=principles.slice(0,t.revealedDirections).map((name,i)=>{
+    const active=selected.includes(i);
+    const blocked=readOnly||(active?selected.length<=1:selected.length>=3);
+    const checkbox='<label><input type="checkbox" data-direction="'+i+'" '+(active?'checked ':'')+(blocked?'disabled ':'')+'>'+h(name)+'</label>';
+    const weight=t.revealedDirections>1?'<div class="princ-weight"><input type="range" min="0" max="100" step="1" data-weight="'+i+'" value="'+Math.round(t.weights[i]||0)+'" '+(!active||readOnly?'disabled ':'')+'aria-label="'+h(name)+'の配分"><output>'+Math.round(t.weights[i]||0)+'%</output></div>':'<small>100%</small>';
+    return '<div class="principle-row">'+checkbox+weight+'</div>';
+  }).join("");
+  const known=concepts.filter(c=>(t.residues[c.id]||0)>0);
+  const residueItems=known.map(c=>{
+    const lv=Number(t.concepts[c.id]||0);
+    return '<div class="time-hex-residue-row">'+icon(c)+
+      '<strong>'+h(lv>0?c.name:'？？？の残滓')+'</strong><small>'+
+      Number(t.residues[c.id]).toLocaleString('ja-JP')+' / '+((Math.min(100,lv+1))*10)+'個</small></div>';
+  }).join("");
+  return '<p class="panel-intro">方向を選び、配分率を調整すると、発見する残滓の傾向が変わります。</p>'+
+    '<h3 class="time-hex-section-title">方向の配分 · 最大3方向</h3>'+
+    '<div class="kw-list">'+rows+'</div>'+
+    (t.revealedDirections===1?'<p class="tiny">流動のみ：衝突25%・移動25%・共通？？？50%（残滓発生後の内訳）</p>':'')+
+    '<h3 class="time-hex-section-title">発見した残滓 · '+known.length+'種類</h3>'+
+    (known.length?'<div class="time-hex-residue-list">'+residueItems+'</div>':'<div class="empty-state"><p>残滓はまだ見つかっていません。</p></div>')+
+    '<div class="kw-row"><span>共通の？？？ <strong>'+Number(t.common).toLocaleString('ja-JP')+' / 100</strong></span>'+
+    '<button data-action="convert-common" '+(t.common<100||readOnly?'disabled':'')+'>100個で抽選</button></div>';
+}
+export function timeHexMiraclesPanel(t,principles){
+  const known=Math.min(6,t.revealedDirections);
+  const rows=principles.map((name,i)=>{
+    const isKnown=i<known;
+    return '<div class="time-hex-miracle-item'+(isKnown?'':' is-hidden')+'"><strong>'+(i+1)+'. '+(isKnown?h(name):'？')+'</strong><small>'+
+      (isKnown?(i===0?'初めから認識':'奇跡で認識'):'未認識')+'</small></div>';
+  }).join('');
+  const world=known===6?(t.eventHappened?
+    '<p class="status-note">《無の終焉》を観測しました。《宇宙》へ進めます。</p>':
+    '<p class="status-note">世界時間 '+Math.min(1,t.worldSeconds).toFixed(6)+' / 1秒</p>'):
+    '<p class="status-note">まだ、世界の全ての方向を認識していません。</p>';
+  return '<p class="panel-intro">奇跡は新しい方向を認識する特別な出来事です。</p>'+
+    '<h3 class="time-hex-section-title">認識した方向 '+known+' / 6</h3>'+
+    '<div class="time-hex-miracle-list">'+rows+'</div>'+world;
+}
