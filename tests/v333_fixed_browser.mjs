@@ -140,6 +140,8 @@ try{
      window.KOTOWARI_DEBUG.setLabState(s);
    });
    sameGeometry(source0,await page.evaluate(getGeometry),label+" source million-level and scientific cost");
+   const bulkState=await page.evaluate(()=>({owned:window.KOTOWARI_DEBUG.state().engraving.owned.includes("ENG-05"),level:window.KOTOWARI_DEBUG.state().engraving.levels?.["ENG-05"],bulkDisabled:document.querySelector("#bulkBuyButton").disabled,orderDisabled:document.querySelector("#bulkOrderButton").disabled}));
+   assert.equal(await page.locator("#bulkOrderButton").isEnabled(),true,label+" bulk order current "+JSON.stringify(bulkState));
    await page.locator('#bulkOrderButton').click();
    const srcSorted=await page.evaluate(getGeometry);
    sameGeometry(source0,srcSorted,label+" bulk order text");
