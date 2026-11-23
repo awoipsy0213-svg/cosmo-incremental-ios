@@ -4,7 +4,7 @@ import * as G from "../game.mjs";
 import {A} from "../numbers.mjs";
 import {CONFIG} from "../balance-config.mjs";
 import {ENGRAVING_EFFECTS,ENGRAVING_EFFECT_IDS,engravingTapFactor,engravingSourceFactor,
- engravingCriticalRate,engravingCriticalMultiplier,engravingPurchaseFactor,engravingLevel} from "../engraving-effects-v333.mjs";
+ engravingCriticalRate,engravingCriticalMultiplier,engravingPurchaseFactor,engravingLevel,engravingAutoEfficient,engravingConvergenceControl} from "../engraving-effects-v333.mjs";
 import {ENGRAVING_IDS,engravingCatalogue,engravingPrice,engravingPurchaseQuote,engravingTrialUpgradeQuote} from "../engraving-rules-v317.mjs";
 import {BULK_ENGRAVING_ID,AUTOMATIC_ENGRAVING_ID,RETAIN_MAX_LEVEL_PER_ITEM,freshRunPurchases,planAllows} from "../engraving-v342.mjs";
 import {KEYS,encode,decode,SaveStore,checksum} from "../save.mjs";
@@ -36,6 +36,15 @@ assert.equal(G.buyEngraving(noBulk,"ENG-05").ok,false,"funding requirement is st
 noBulk.surplusExistence=".001".replace(".","0.");
 assert.equal(G.buyEngraving(noBulk,"ENG-05").ok,true);
 assert.ok(G.buyAll(noBulk,"moment").ok);
+const legacyOneTime=started();legacyOneTime.orbs="150000";
+legacyOneTime.engraving.owned=["ENG-05","ENG-27","ENG-28","ENG-30"];
+legacyOneTime.engraving.levels={}; // Previously purchased ownership is proven; numeric Lv is not.
+assert.equal(engravingLevel(legacyOneTime,"ENG-05"),0);
+assert.equal(G.buyAll(legacyOneTime,"moment").ok,true,"owned one-shot unlock works without fabricated historic Lv");
+assert.equal(engravingAutoEfficient(legacyOneTime),true,"previous ownership of ENG27 unlocks optimizer");
+assert.equal(engravingConvergenceControl(legacyOneTime),true,"previous ownership of ENG28 unlocks control");
+assert.equal(G.savePurchasePreset(legacyOneTime,0).ok,true,"previous ENG30 ownership can use presets");
+assert.ok(G.validateState(legacyOneTime,"normal"),"legacy one-shot ownership preserves save validity");
 for(const id of ["ENG-05","ENG-24","ENG-27","ENG-28","ENG-30"]){
  const s=started();own(s,id);
  assert.match(engravingTrialUpgradeQuote(s,id).reason,/Lv1/);
