@@ -51,7 +51,7 @@ s.sources[first].level=50;
 assert.equal(G.sourceProduction(s,first).sub(before50).toString(),next50.toString(),
   "49->50 stacks another x2 on full production");
 s.sources[first].level=24;
-G.setPurchaseMode(s,"NEXT");G.addOrbs(s,"1e50");
+G.setPurchaseMode(s,"NEXT");s.orbs="1000000"; // keep spend visible within Amount precision
 const quote=G.purchaseQuote(s,"source",first);
 assert.equal(quote.count,1,"NEXT stops at 25 milestone");
 const preview=purchasePreview(s,"source",first);
@@ -61,7 +61,7 @@ const cash=A(s.orbs);
 const result=G.buy(s,"source",first);
 assert.equal(result.ok,true);
 assert.equal(s.sources[first].level,25);
-assert.equal(cash.sub(s.orbs).toString(),A(quote.cost).toString(),"unchanged purchase cost charged");
+close(cash.sub(s.orbs),quote.cost,"unchanged purchase cost charged");
 assert.equal(s.sources[first].effects.length,0,"no ordinary special effect at threshold");
 const copy=decode(encode(s,"source-milestone-v340"),"normal");
 assert.equal(copy.sources[first].level,25,"save roundtrip keeps original level");
