@@ -82,7 +82,7 @@ try{
     for(const id of ["auto-time","auto-universe","auto-life","auto-existence"]){
       await page.locator('[data-child="'+id+'"]').click();
       assert.equal(await page.locator('[data-child="'+id+'"]').getAttribute("aria-pressed"),"true");
-      assert.equal(await page.locator(".automation-status").count(),3,label+" status remains visible");
+      assert.equal(await page.locator(".automation-status").count(),4,label+" status remains visible");
     }
     assert.ok((await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth))<=1,
       label+" no horizontal overflow");
