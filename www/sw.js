@@ -1,6 +1,6 @@
 /* Versioned, scope-specific cache. Does not delete saves or another app's cache. */
 const VERSION = "3.50.0-time-residue";
-const UI_REVISION = "-engraving-v342";
+const UI_REVISION = "-engraving-v342-grade-v343";
 const PREFIX = "kotowari-handoff:" + new URL(self.registration.scope).pathname + ":";
 const CACHE = PREFIX + VERSION + UI_REVISION;
 const RELATIVE = [

@@ -26,6 +26,54 @@ const RESOURCE_IDS=CONTENT.resources.map(x=>x.id);
 const modeSet=new Set(["1","10","NEXT","MAX"]);
 export const MAX_LEVELS_PER_ACTION=3000; // U-06: MAX is repeatable in bounded transactions.
 const MOMENT_IDS=CONTENT.moment.map(x=>x.id);
+// Grade is the authored upgrade-series order, not its current (inflating) price.
+const PURCHASE_GRADE={moment:new Map(MOMENT_IDS.map((id,index)=>[id,index])),
+  source:new Map(SOURCE_IDS.map((id,index)=>[id,index])),
+  engraving:new Map(ENGRAVING_IDS.map((id,index)=>[id,index]))};
+function comparePurchasePriority(kind,priority,a,b){
+  const ranks=PURCHASE_GRADE[kind],ar=ranks.get(a.id)??-1,br=ranks.get(b.id)??-1;
+  if(priority==="grade"||priority==="expensive")return br-ar||a.cost.cmp(b.cost);
+  return a.cost.cmp(b.cost)||ar-br;
+}
+function sortAffordablePurchaseOffers(s,kind,priority,offers){
+  const chosen=priority==="auto"?(engravingAutoEfficient(s)?"efficient":"cheap"):priority;
+  if(chosen==="efficient"&&["moment","source"].includes(kind)){
+    if(kind==="source"){
+      for(const o of offers)o.score=sourceNextGain(s,o.id).div(o.cost);
+    }else{
+      const before=tapPower(s).add(production(s));
+      for(const o of offers){
+        s.moment[o.id]++;
+        try{
+          const after=tapPower(s).add(production(s));
+          o.score=after.cmp(before)>0?after.sub(before).div(o.cost):A(0);
+        }finally{s.moment[o.id]--;}
+      }
+    }
+    offers.sort((a,b)=>b.score.cmp(a.score)||comparePurchasePriority(kind,"cheap",a,b));
+  }else offers.sort((a,b)=>comparePurchasePriority(kind,chosen,a,b));
+  return offers;
+}
+// Shared sorting contract for manual bulk and unattended purchases.
+// Only affordable offers are passed; sorting neither changes prices nor levels.
+export function affordablePriorityOrder(s,kind,priority="cheap",selectedIds=null){
+  const ids=kind==="moment"?MOMENT_IDS:kind==="source"?SOURCE_IDS:kind==="engraving"?ENGRAVING_IDS:null;
+  if(!ids||!["cheap","grade","expensive","efficient","auto"].includes(priority)||
+    priority==="efficient"&&(kind==="engraving"||!engravingAutoEfficient(s)))return [];
+  const targets=selectedIds===null?ids:ids.filter(id=>selectedIds.includes(id));
+  const offers=[];
+  for(const id of targets){
+    if(kind==="engraving"){
+      const owned=s.engraving.owned.includes(id);
+      const q=owned?engravingTrialUpgradeQuote(s,id):engravingPurchaseQuote(s,id);
+      if(q.ok&&q.price!==undefined)offers.push({id,cost:A(q.price)});
+    }else{
+      const q=purchaseQuote(s,kind,id,"1");
+      if(q.enabled)offers.push({id,cost:A(q.cost)});
+    }
+  }
+  return sortAffordablePurchaseOffers(s,kind,priority,offers).map(o=>o.id);
+}
 const freshMoment=()=>Object.fromEntries(MOMENT_IDS.map(id=>[id,0]));
 const add=(a,b)=>A(a).add(b).toString();
 const sub=(a,b)=>A(a).sub(b).toString();
@@ -335,7 +383,9 @@ export function buy(s,kind,id) {
  * Capped to protect slow phones; another tap resumes the rest. Does not automate play. */
 export function buyAll(s,kind,order="cheap",selectedIds=null) {
   if(!s.engraving.owned.includes(BULK_ENGRAVING_ID))return {ok:false,reason:"一括解放の刻印が必要です"};
-  if(!["cheap","expensive"].includes(order))return {ok:false,reason:"購入順が不正"};
+  if(!["cheap","grade","expensive","efficient","auto"].includes(order))return {ok:false,reason:"購入順が不正"};
+  if(order==="efficient"&&!engravingAutoEfficient(s))
+    return {ok:false,reason:"効率優先には自律最適化の刻印が必要です"};
   if(!["moment","source"].includes(kind)||!s.intro.complete)return {ok:false,reason:"購入対象がありません"};
   const available=kind==="source"?SOURCE_IDS:MOMENT_IDS;
   if(selectedIds!==null&&(!Array.isArray(selectedIds)||!selectedIds.length||
@@ -354,7 +404,7 @@ export function buyAll(s,kind,order="cheap",selectedIds=null) {
         if(quote.enabled)offers.push({id,cost:A(quote.cost)});
       }
       if(!offers.length)break;
-      offers.sort((a,b)=>order==="cheap"?a.cost.cmp(b.cost):b.cost.cmp(a.cost));
+      sortAffordablePurchaseOffers(s,kind,order,offers);
       const result=buy(s,kind,offers[0].id);
       if(!result.ok)break;
       count++;
@@ -961,8 +1011,8 @@ export function configureEngravingAutoBuy(s,{enabled,priority,mode,minReserve}={
     next.enabled=enabled;
   }
   if(priority!==undefined){
-    if(!ENGRAVE_ORDER.includes(priority))return {ok:false,reason:"刻印の購入優先が不正です"};
-    next.priority=priority;
+    if(!ENGRAVE_ORDER.includes(priority)&&priority!=="expensive")return {ok:false,reason:"刻印の購入優先が不正です"};
+    next.priority=priority==="expensive"?"grade":priority;
   }
   if(mode!==undefined){
     if(!ENGRAVE_MODES.includes(mode))return {ok:false,reason:"刻印購入方式が不正です"};
@@ -1031,11 +1081,11 @@ export function configureAutoPurchase(s,kind,{enabled,priority,intervalSeconds}=
     next.enabled=enabled;
   }
   if(priority!==undefined){
-    if(!["auto","cheap","expensive","efficient"].includes(priority))
+    if(!["auto","cheap","grade","expensive","efficient"].includes(priority))
       return {ok:false,reason:"優先順が不正です"};
     if(priority==="efficient"&&!engravingAutoEfficient(s))
       return {ok:false,reason:"自律最適化の刻印が必要です"};
-    next.priority=priority;
+    next.priority=priority==="expensive"?"grade":priority;
   }
   if(intervalSeconds!==undefined){
     if(!Number.isSafeInteger(intervalSeconds)||intervalSeconds<1||intervalSeconds>60)
@@ -1183,7 +1233,6 @@ export function labBoostUpgrade(s,index){
  */
 function autoEngravingBuy(s,kind,quantity,priority){
   const ids=kind==="source"?SOURCE_IDS:MOMENT_IDS,previousMode=s.purchaseMode;
-  const efficient=priority==="efficient";
   let count=0;
   try{
     s.purchaseMode="1";
@@ -1191,24 +1240,11 @@ function autoEngravingBuy(s,kind,quantity,priority){
       const offers=[];
       for(const id of ids){
         const quote=purchaseQuote(s,kind,id,"1");
-        if(quote.enabled&&planAllows(s,kind,id,(kind==="source"?s.sources[id].level:s.moment[id])+1))offers.push({id,cost:A(quote.cost)});
+        if(quote.enabled&&planAllows(s,kind,id,(kind==="source"?s.sources[id].level:s.moment[id])+1))
+          offers.push({id,cost:A(quote.cost)});
       }
       if(!offers.length)break;
-      if(efficient){
-        if(kind==="source"){
-          for(const o of offers)o.score=sourceNextGain(s,o.id).div(o.cost);
-        }else{
-          const before=tapPower(s).add(production(s));
-          for(const o of offers){
-            s.moment[o.id]++;
-            try{
-              const after=tapPower(s).add(production(s));
-              o.score=after.cmp(before)>0?after.sub(before).div(o.cost):A(0);
-            }finally{s.moment[o.id]--;}
-          }
-        }
-        offers.sort((a,b)=>b.score.cmp(a.score)||a.cost.cmp(b.cost));
-      }else offers.sort((a,b)=>priority==="expensive"?b.cost.cmp(a.cost):a.cost.cmp(b.cost));
+      sortAffordablePurchaseOffers(s,kind,priority,offers);
       if(!buy(s,kind,offers[0].id).ok)break;
       count++;
     }
@@ -1262,7 +1298,7 @@ function runEngravingAutomation(s,seconds,now,rng){
       if(!offers.length)break;
       offers.sort((a,b)=>{
         if(auto.priority==="unowned"&&a.owned!==b.owned)return a.owned?1:-1;
-        return auto.priority==="expensive"?b.cost.cmp(a.cost):a.cost.cmp(b.cost);
+        return comparePurchasePriority("engraving",auto.priority,a,b);
       });
       const chosen=offers[0];
       const result=chosen.owned?buyEngravingTrialUpgrade(s,chosen.id):buyEngraving(s,chosen.id);
@@ -1708,6 +1744,7 @@ export function validateState(input,expectedMode=null) {
      !validateRunPurchaseMap(e.runPurchases.source,SOURCE_IDS))fail("周回別購入履歴");
   if(e.autoEngraving===undefined)e.autoEngraving=freshAutoEngraving();
   const automatic=e.autoEngraving;
+  if(automatic?.priority==="expensive")automatic.priority="grade";
   if(!automatic||typeof automatic!=="object"||Array.isArray(automatic)||
      typeof automatic.enabled!=="boolean"||!ENGRAVE_ORDER.includes(automatic.priority)||
      !ENGRAVE_MODES.includes(automatic.mode)||
@@ -1719,6 +1756,13 @@ export function validateState(input,expectedMode=null) {
   if(automatic.enabled&&engravingLevel(s,AUTOMATIC_ENGRAVING_ID)<1)fail("刻印自律の解放状態");
   automatic.minReserve=str(automatic.minReserve);
   if(e.presetSystem===undefined)e.presetSystem=freshPresetSystem();
+  // Historical "expensive" settings now mean highest affordable series grade.
+  for(const preset of e.presetSystem?.presets||[]){
+    if(!preset)continue;
+    for(const k of ["moment","source"]){
+      if(preset[k]?.priority==="expensive")preset[k].priority="grade";
+    }
+  }
   if(!validatePresets(e.presetSystem,MOMENT_IDS,SOURCE_IDS))fail("周回プリセット");
   if(e.presetSystem.activePreset!==null&&!s.engraving.owned.includes(PRESET_ENGRAVING_ID))
     fail("周回設計の解放状態");
@@ -1740,8 +1784,9 @@ export function validateState(input,expectedMode=null) {
   if(!e.autoBuy||typeof e.autoBuy!=="object"||Array.isArray(e.autoBuy))fail("自動購入設定");
   for(const k of ["moment","source"]){
     const a=e.autoBuy[k];
+    if(a?.priority==="expensive")a.priority="grade";
     if(!a||typeof a!=="object"||typeof a.enabled!=="boolean"||
-       !["auto","cheap","expensive","efficient"].includes(a.priority)||
+       !["auto","cheap","grade","efficient"].includes(a.priority)||
        !Number.isSafeInteger(a.intervalSeconds)||a.intervalSeconds<1||a.intervalSeconds>60)
       fail("自動購入の設定");
   }
@@ -1840,7 +1885,8 @@ export function validateState(input,expectedMode=null) {
   const defaults=createState();
   s.settings={...defaults.settings,...Object.fromEntries(Object.entries(s.settings).filter(([k,v])=>k in defaults.settings&&typeof v===typeof defaults.settings[k]))};
   if(!["auto","scientific","exponent","zeros"].includes(s.settings.notation))s.settings.notation="auto";
-  if(!["cheap","expensive"].includes(s.settings.bulkOrder))s.settings.bulkOrder="cheap";
+  if(s.settings.bulkOrder==="expensive")s.settings.bulkOrder="grade";
+  if(!["cheap","grade","auto","efficient"].includes(s.settings.bulkOrder))s.settings.bulkOrder="cheap";
   if(!["moment","sources","engraving"].includes(s.settings.existenceLastTab))s.settings.existenceLastTab="moment";
   if(!["existence","time","universe","life"].includes(s.settings.automationStage))s.settings.automationStage="existence";
   Object.assign(s.settings,cleanMomentPrefs(s.settings,MOMENT_IDS));

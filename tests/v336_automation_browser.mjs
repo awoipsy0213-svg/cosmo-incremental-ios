@@ -54,9 +54,9 @@ try{
     assert.equal(await page.evaluate(()=>window.KOTOWARI_DEBUG.state().engraving.autoBuy.moment.enabled),true);
     const after=await geometry();
     assert.ok(Math.abs(before.height-after.height)<1,"fixed row height when enabled");
-    await page.locator('[data-auto-buy-kind="moment"][data-auto-field="priority"]').selectOption("expensive");
+    await page.locator('[data-auto-buy-kind="moment"][data-auto-field="priority"]').selectOption("grade");
     await page.locator('[data-auto-buy-kind="moment"][data-auto-field="intervalSeconds"]').selectOption("5");
-    assert.equal(await page.evaluate(()=>window.KOTOWARI_DEBUG.state().engraving.autoBuy.moment.priority),"expensive");
+    assert.equal(await page.evaluate(()=>window.KOTOWARI_DEBUG.state().engraving.autoBuy.moment.priority),"grade");
     assert.equal(await page.evaluate(()=>window.KOTOWARI_DEBUG.state().engraving.autoBuy.moment.intervalSeconds),5);
     await page.locator('[data-auto-mode="seconds"]').click();
     const input=page.locator('[data-auto-converge="intervalSeconds"]');
@@ -85,7 +85,7 @@ try{
     await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
     const restored=await page.evaluate(()=>window.KOTOWARI_DEBUG.state());
     assert.equal(restored.settings.automationStage,"universe");
-    assert.equal(restored.engraving.autoBuy.moment.priority,"expensive");
+    assert.equal(restored.engraving.autoBuy.moment.priority,"grade");
     assert.equal(restored.engraving.autoBuy.moment.intervalSeconds,5);
     assert.equal(restored.engraving.autoConverge.mode,"seconds");
     assert.equal(restored.engraving.autoConverge.intervalSeconds,180);

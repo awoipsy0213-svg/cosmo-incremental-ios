@@ -14,7 +14,7 @@ export const RETAIN_MAX_LEVEL_PER_ITEM=100;
 export const ENGRAVING_AUTO_MIN_INTERVAL=0.5;
 export const ENGRAVING_AUTO_MAX_BATCH=20;
 export const PRICE_GROUPS=Object.freeze(["0.001","0.025","0.125"]);
-export const ENGRAVE_ORDER=Object.freeze(["cheap","expensive","unowned"]);
+export const ENGRAVE_ORDER=Object.freeze(["cheap","grade","unowned"]);
 export const ENGRAVE_MODES=Object.freeze(["new","upgrade","both"]);
 
 export const freshRunPurchases=()=>({moment:{},source:{}});
@@ -96,6 +96,6 @@ export function validatePresets(system,momentIds,sourceIds){
  return system.presets.every(p=>p===null||
    !!p&&validatePlan(p.plan,momentIds,sourceIds)&&
    ["moment","source"].every(kind=>p[kind]&&
-     ["auto","cheap","expensive","efficient"].includes(p[kind].priority)&&
+     ["auto","cheap","grade","efficient"].includes(p[kind].priority)&&
      Number.isSafeInteger(p[kind].intervalSeconds)&&p[kind].intervalSeconds>=1&&p[kind].intervalSeconds<=60));
 }
