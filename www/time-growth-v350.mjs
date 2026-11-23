@@ -4,7 +4,7 @@
  * All numerical constants below are PROVISIONAL PLAYTEST values.
  * Does not affect BOOST consumption, offline progression or resource drop RNG.
  */
-import {A} from "./numbers.mjs";
+import {A,Amount} from "./numbers.mjs";
 
 export const GROWTH_CAPS=Object.freeze([100000000n,10000000n,1000000n]);
 export const GROWTH_TRIAL=Object.freeze({
@@ -264,7 +264,7 @@ export function advanceTimeResidues(s,concepts,gameSeconds,rng=Math.random){
   const logE=e.e+Math.log10(e.m);
   const rateLog=logE<=7?logE-7:(logE-7)*GROWTH_TRIAL.aboveKneePower;
   const eventBonus=growthBonuses(s,concepts).event;
-  const expected=A.fromLog10(rateLog).mul(cycles).mul(1+eventBonus);
+  const expected=Amount.fromLog10(rateLog).mul(cycles).mul(1+eventBonus);
   const events=sampleEvents(expected,rng);
   if(events===0n)return {events:"0",converted:g.converted,recognized:priorRecognized};
   const dist=growthWeights(t,concepts),draws=splitTotal(events,dist,rng);
