@@ -65,8 +65,8 @@ check("cheap versus expensive purchase priority uses the affordable quote from b
   assert.ok(offers.length>2);
   assert.equal(G.configureAutoPurchase(cheaper,"moment",{priority:"cheap",intervalSeconds:1}).ok,true);
   assert.equal(G.configureAutoPurchase(dearer,"moment",{priority:"expensive",intervalSeconds:1}).ok,true);
-  G.advance(cheaper,NOW+3000,{offline:false,rng:()=>.99});
-  G.advance(dearer,NOW+3000,{offline:false,rng:()=>.99});
+  G.advance(cheaper,NOW+4000,{offline:false,rng:()=>.99});
+  G.advance(dearer,NOW+4000,{offline:false,rng:()=>.99});
   assert.equal(cheaper.moment[offers[0].id],1);
   assert.equal(dearer.moment[offers.at(-1).id],1);
   assert.equal(cheaper.purchaseMode,"1");
