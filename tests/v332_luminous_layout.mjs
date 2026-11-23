@@ -13,7 +13,7 @@ assert.ok(html.indexOf("matrix-v324.css")<html.indexOf("luminous-glass-v332.css"
   "new theme must override legacy theme");
 assert.match(html,/3\.34 · ENGRAVING/);
 assert.match(html,/name="theme-color" content="#f4f2ff"/);
-assert.match(sw,/const VERSION = "3\.39\.0-purchase-clarity"/);
+assert.match(sw,/const VERSION = "3\.40\.0-source-milestones"/);
 assert.equal((sw.match(/"luminous-glass-v332\.css"/g)||[]).length,2,
   "new theme must be core cached and available offline");
 assert.match(css,/--sheet-half-height:min\(51dvh,452px\)/);
