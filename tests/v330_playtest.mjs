@@ -60,7 +60,7 @@ check("ENG add-on upgrades never infer legacy owned Lv, and preserve equipment r
   s.engraving.owned=["ENG-01"];s.engraving.equipped=["ENG-01"];s.engraving.levels={};
   const old=JSON.stringify(s.engraving.equipped);
   const q=G.engravingTrialUpgradeQuote(s,"ENG-01");
-  assert.ok(q.ok);assert.equal(A(q.price).cmp("0.008"),0);
+  assert.ok(q.ok);assert.equal(A(q.price).cmp("0.0016"),0); // Tier1 0.001 × 1.6
   assert.ok(G.buyEngravingTrialUpgrade(s,"ENG-01").ok);
   assert.deepEqual(s.engraving.equipped,JSON.parse(old));
   assert.equal(s.engraving.levels["ENG-01"],1,"newly purchased upgrade now proves verified first effect level");
