@@ -10,8 +10,9 @@ import {A} from "./numbers.mjs";
 import {ENGRAVING_EFFECTS,engravingLevel} from "./engraving-effects-v333.mjs";
 
 export const ENGRAVING_IDS=Object.freeze(Array.from({length:30},(_,i)=>"ENG-"+String(i+1).padStart(2,"0")));
-export const ENGRAVING_GROUP_PRICES=Object.freeze(["0.005","0.025","0.125"]);
+export const ENGRAVING_GROUP_PRICES=Object.freeze(["0.001","0.025","0.125"]);
 export const ENGRAVING_AUTO_CONVERGE_ID="ENG-24";
+import {ONE_TIME_ENGRAVINGS} from "./engraving-v342.mjs";
 // Extra levels are reversible trial effects, independent of old equipment.
 export const ENGRAVING_TRIAL=Object.freeze({maxExtraLevels:15,costGrowth:1.6,sharedBonusPerExtraLevel:0.005});
 export const AUTO_CONVERGE_MIN_INTERVAL_MS=60000;
@@ -63,6 +64,7 @@ export function engravingPurchaseQuote(s,id){
 export function engravingTrialUpgradeQuote(s,id){
   if(!ENGRAVING_IDS.includes(id))return {ok:false,reason:"刻印IDが不正です"};
   if(!s.engraving?.owned?.includes(id))return {ok:false,reason:"最初に刻印を取得してください"};
+  if(ONE_TIME_ENGRAVINGS.includes(id))return {ok:false,price:null,reason:"この刻印はLv1で完成しています"};
   const current=s.engraving.trialLevels?.[id]||0;
   if(current>=ENGRAVING_TRIAL.maxExtraLevels)return {ok:false,reason:"強化上限に達しました",current};
   const price=A(engravingPrice(id)).mul(A(ENGRAVING_TRIAL.costGrowth).pow(current+1)).toString();
