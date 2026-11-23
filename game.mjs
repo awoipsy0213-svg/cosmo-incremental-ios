@@ -929,6 +929,74 @@ export function configureAutomationMaster(s,enabled){
   s.settings.automationEnabled=enabled;
   return {ok:true,enabled};
 }
+export function configureEngravingAutoBuy(s,{enabled,priority,mode,minReserve}={}){
+  const e=s.engraving,old=e.autoEngraving;
+  if(engravingLevel(s,AUTOMATIC_ENGRAVING_ID)<1)return {ok:false,reason:"刻印自律の刻印が必要です"};
+  const next={...old};
+  if(enabled!==undefined){
+    if(typeof enabled!=="boolean")return {ok:false,reason:"ON/OFFが不正です"};
+    next.enabled=enabled;
+  }
+  if(priority!==undefined){
+    if(!ENGRAVE_ORDER.includes(priority))return {ok:false,reason:"刻印の購入優先が不正です"};
+    next.priority=priority;
+  }
+  if(mode!==undefined){
+    if(!ENGRAVE_MODES.includes(mode))return {ok:false,reason:"刻印購入方式が不正です"};
+    next.mode=mode;
+  }
+  if(minReserve!==undefined){
+    try{
+      if(typeof minReserve!=="string"||!/^(?:\d+)(?:\.\d+)?(?:e\+?\d+)?$/i.test(minReserve)||
+         A(minReserve).cmp(0)<0||A(minReserve).cmp("1e100")>0)
+        return {ok:false,reason:"保留存在の値が不正です"};
+      next.minReserve=A(minReserve).toString();
+    }catch{return {ok:false,reason:"保留存在の値が不正です"};}
+  }
+  if(next.enabled===false)next.credit=0;
+  Object.assign(old,next);
+  return {ok:true};
+}
+export function savePurchasePreset(s,slot){
+  if(engravingLevel(s,PRESET_ENGRAVING_ID)<1)return {ok:false,reason:"周回設計の刻印が必要です"};
+  if(!Number.isInteger(slot)||slot<0||slot>=3)return {ok:false,reason:"プリセット番号が不正です"};
+  const sys=s.engraving.presetSystem;
+  sys.presets[slot]=snapshotPreset(s);
+  sys.activePreset=slot;
+  return {ok:true};
+}
+export function applyPurchasePreset(s,slot){
+  if(engravingLevel(s,PRESET_ENGRAVING_ID)<1)return {ok:false,reason:"周回設計の刻印が必要です"};
+  if(!Number.isInteger(slot)||slot<0||slot>=3)return {ok:false,reason:"プリセット番号が不正です"};
+  const sys=s.engraving.presetSystem,preset=sys.presets[slot];
+  if(!preset)return {ok:false,reason:"未保存のプリセットです"};
+  if((preset.moment.priority==="efficient"||preset.source.priority==="efficient")&&!engravingAutoEfficient(s))
+    return {ok:false,reason:"効率優先には自律最適化が必要です"};
+  for(const kind of ["moment","source"]){
+    const cfg=s.engraving.autoBuy[kind];
+    cfg.priority=preset[kind].priority;
+    cfg.intervalSeconds=preset[kind].intervalSeconds;
+  }
+  sys.plan=structuredClone(preset.plan);
+  sys.activePreset=slot;
+  return {ok:true};
+}
+export function editPurchasePlan(s,kind,id,{targetLevel,excluded}={}){
+  if(engravingLevel(s,PRESET_ENGRAVING_ID)<1)return {ok:false,reason:"周回設計の刻印が必要です"};
+  const ids=kind==="moment"?MOMENT_IDS:kind==="source"?SOURCE_IDS:null;
+  if(!ids||!ids.includes(id))return {ok:false,reason:"強化対象が不正です"};
+  if(targetLevel!==undefined&&(!Number.isSafeInteger(targetLevel)||targetLevel<0||targetLevel>1000000))
+    return {ok:false,reason:"目標レベルが不正です"};
+  if(excluded!==undefined&&typeof excluded!=="boolean")return {ok:false,reason:"購入対象の指定が不正です"};
+  const plan=s.engraving.presetSystem.plan[kind];
+  if(targetLevel!==undefined){
+    if(targetLevel===0)delete plan.targets[id];else plan.targets[id]=targetLevel;
+  }
+  if(excluded!==undefined){
+    plan.excluded=excluded?[...new Set([...plan.excluded,id])]:plan.excluded.filter(x=>x!==id);
+  }
+  return {ok:true};
+}
 export function configureAutoPurchase(s,kind,{enabled,priority,intervalSeconds}={}){
   if(!["moment","source"].includes(kind))return {ok:false,reason:"購入対象が不正です"};
   const a=s.engraving.autoBuy?.[kind];if(!a)return {ok:false,reason:"自動購入設定がありません"};
@@ -1100,7 +1168,7 @@ function autoEngravingBuy(s,kind,quantity,priority){
       const offers=[];
       for(const id of ids){
         const quote=purchaseQuote(s,kind,id,"1");
-        if(quote.enabled)offers.push({id,cost:A(quote.cost)});
+        if(quote.enabled&&planAllows(s,kind,id,(kind==="source"?s.sources[id].level:s.moment[id])+1))offers.push({id,cost:A(quote.cost)});
       }
       if(!offers.length)break;
       if(efficient){
@@ -1149,6 +1217,34 @@ function runEngravingAutomation(s,seconds,now,rng){
     const priority=config.priority==="auto"?
       (engravingAutoEfficient(s)?"efficient":"cheap"):config.priority;
     if(due>0)autoEngravingBuy(s,kind,due,priority);
+  }
+  // On-line only. The game loop calls this after the offline early-return,
+  // so missed real-world time cannot buy engravings while the app is closed.
+  const auto=s.engraving.autoEngraving;
+  if(engravingLevel(s,AUTOMATIC_ENGRAVING_ID)>0&&auto?.enabled){
+    auto.credit=Math.min(1000,auto.credit+seconds);
+    const interval=engravingInterval(engravingLevel(s,AUTOMATIC_ENGRAVING_ID));
+    const due=Math.min(ENGRAVING_AUTO_MAX_BATCH,Math.floor(auto.credit/interval));
+    auto.credit=Math.max(0,auto.credit-due*interval);
+    for(let i=0;i<due;i++){
+      const offers=[];
+      for(const id of ENGRAVING_IDS){
+        const owned=s.engraving.owned.includes(id);
+        if(owned&&auto.mode==="new"||!owned&&auto.mode==="upgrade")continue;
+        const quote=owned?engravingTrialUpgradeQuote(s,id):engravingPurchaseQuote(s,id);
+        if(!quote.ok||!quote.price)continue;
+        if(A(s.surplusExistence).sub(quote.price).cmp(auto.minReserve)<0)continue;
+        offers.push({id,owned,cost:A(quote.price)});
+      }
+      if(!offers.length)break;
+      offers.sort((a,b)=>{
+        if(auto.priority==="unowned"&&a.owned!==b.owned)return a.owned?1:-1;
+        return auto.priority==="expensive"?b.cost.cmp(a.cost):a.cost.cmp(b.cost);
+      });
+      const chosen=offers[0];
+      const result=chosen.owned?buyEngravingTrialUpgrade(s,chosen.id):buyEngraving(s,chosen.id);
+      if(!result.ok)break;
+    }
   }
 }
 export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
