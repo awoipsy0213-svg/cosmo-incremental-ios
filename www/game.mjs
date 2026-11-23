@@ -4,8 +4,9 @@ import {UNIVERSE_RESOURCE_RULES,eligibleResourceWeights,pickWeightedResource,inv
 import {KNOWLEDGE_IDS,addKnowledge,knowledgeLevel,coreRequirements,makeCoreState,advanceCore,autoPlanetAvailable} from "./universe-progression-v316.mjs";
 import {INTERFERENCE_RULES,R1_RESOURCE_IDS,STABILIZING_RESOURCES,resourceSpendPlan,induceResourceCost,interferenceKnowledgeReady} from "./universe-interference-v318.mjs";
 import {ENGRAVING_IDS,ENGRAVING_AUTO_CONVERGE_ID,AUTO_CONVERGE_MIN_INTERVAL_MS,AUTO_CONVERGE_DEFAULT_MIN_REWARD,engravingSlots,engravingPurchaseQuote,engravingTrialUpgradeQuote,engravingTrialTotal,ENGRAVING_TRIAL,validRewardThreshold} from "./engraving-rules-v317.mjs";
-import {ENGRAVING_EFFECTS,engravingTapFactor,engravingSourceFactor,engravingCriticalRate,engravingCriticalMultiplier,engravingPurchaseFactor,engravingTapSourceSeconds,engravingRepeatTaps,engravingRepeatEvery,engravingOrbAward,engravingConvergenceCostFactor,engravingConvergenceRewardFactor,engravingRetainedLevels,engravingAutoTapRate,engravingAutoMomentRate,engravingAutoSourceRate,engravingAutoEfficient,engravingConvergenceControl,ENGRAVING_AUTO_BATCH_LIMIT,freshEngravingRuntime} from "./engraving-effects-v333.mjs";
+import {ENGRAVING_EFFECTS,engravingTapFactor,engravingSourceFactor,engravingCriticalRate,engravingCriticalMultiplier,engravingSourceTuningFactor,engravingLevel,engravingPurchaseFactor,engravingTapSourceSeconds,engravingRepeatTaps,engravingRepeatEvery,engravingOrbAward,engravingConvergenceCostFactor,engravingConvergenceRewardFactor,engravingRetainedLevels,engravingAutoTapRate,engravingAutoMomentRate,engravingAutoSourceRate,engravingAutoEfficient,engravingConvergenceControl,ENGRAVING_AUTO_BATCH_LIMIT,freshEngravingRuntime} from "./engraving-effects-v333.mjs";
 import {FINAL_EFFECTS,ownsSourceFinal,sourceFinalMarker,sourcePlusMultiplier} from "./source-effects-v315.mjs";
+import {BULK_ENGRAVING_ID,AUTOMATIC_ENGRAVING_ID,PRESET_ENGRAVING_ID,ENGRAVING_AUTO_MAX_BATCH,ENGRAVE_ORDER,ENGRAVE_MODES,freshRunPurchases,freshAutoEngraving,freshPresetSystem,recordRunPurchase,retainedMap,engravingInterval,planAllows,verifyPlanEntry,snapshotPreset,validateRunPurchaseMap,validatePresets} from "./engraving-v342.mjs";
 export {engravingTrialUpgradeQuote};
 import {freshTelemetry,sampleActualOrbs,recordOfflineReport,recordConvergence,validateTelemetry} from "./telemetry-v319.mjs";
 import {cleanMomentPrefs} from "./moment-filter.mjs";
@@ -56,7 +57,7 @@ export function createState(now=Date.now(),mode="normal") {
         mode:"ready",intervalSeconds:60,intervalMinutes:1,targetRunOrbs:"1000"},
       autoBuy:{moment:{enabled:true,priority:"auto",intervalSeconds:1},
         source:{enabled:true,priority:"auto",intervalSeconds:1}},
-      runtime:freshEngravingRuntime()},
+      runtime:freshEngravingRuntime(),runPurchases:freshRunPurchases(),autoEngraving:freshAutoEngraving(),presetSystem:freshPresetSystem()},
     boost:{seconds:0,active:false,upgrades:[0,0,0,0,0],trialLevels:[0,0,0,0,0],accounting:freshBoostAccounting(),
       timeOnlyMigration:{version:1,at:now,previousActive:null,source:"new"}},
     counters:{taps:0,orbsSpent:"0",sourcePurchases:0,conversions:0,onlineSeconds:0,offlineSeconds:0},
@@ -116,7 +117,7 @@ export function tapPower(s,now=Date.now()) {
 }
 // Each convergence gives a persistent, additive +1% per 0.01 surplus existence.
 // First existence (the protected 1) is not counted: 0.02 surplus => x1.02; 1 => x2.
-export function existenceMultiplier(s) { return A(1).add(s.surplusExistence); }
+export function existenceMultiplier(s) { return A(1).add(s.totalExistenceEarned??"0"); }
 // 210 confirmed Setsuna decisions. Time-dependent state persists in schema 31.
 const SETSUNA_RUNTIME_KEYS=SETSUNA.RUNTIME_KEYS;
 export const freshMomentRuntime=()=>SETSUNA.runtimeDefaults();
@@ -214,6 +215,7 @@ function sourceOutputAtLevel(s,id,level){
   const growth=CONFIG.provisional.source.productionGrowth;
   const total=seriesCost(unit,growth,0,level);
   return total.mul(sourceMilestoneMultiplier(level)).mul(plus)
+    .mul(engravingSourceTuningFactor(s,id))
     .mul(ownsSourceFinal(s,"SOURCE_09")&&id==="SOURCE_09"?2:1)
     .mul(ownsSourceFinal(s,"SOURCE_04")?2:1)
     .mul(existenceMultiplier(s)).mul(engravingPlaytestFactor(s)).mul(engravingSourceFactor(s));
@@ -324,12 +326,14 @@ export function buy(s,kind,id) {
     if(id===MOMENT_IDS[4]&&wasZero)s.momentRuntime.lastManualActive=s.momentRuntime.activeSeconds||0;
     if(id===MOMENT_IDS[15]&&wasZero)s.momentRuntime.autoCredit=0;
   }
+  recordRunPurchase(s,kind,id,q.count);
   return {ok:true,...q};
 }
 /** Explicit, user-triggered bulk buy. Buys affordable individual levels in chosen price
  * priority order, so the first cheapest line cannot absorb the entire wallet via MAX.
  * Capped to protect slow phones; another tap resumes the rest. Does not automate play. */
 export function buyAll(s,kind,order="cheap",selectedIds=null) {
+  if(engravingLevel(s,BULK_ENGRAVING_ID)<1)return {ok:false,reason:"一括解放の刻印が必要です"};
   if(!["cheap","expensive"].includes(order))return {ok:false,reason:"購入順が不正"};
   if(!["moment","source"].includes(kind)||!s.intro.complete)return {ok:false,reason:"購入対象がありません"};
   const available=kind==="source"?SOURCE_IDS:MOMENT_IDS;
@@ -440,12 +444,19 @@ export function converge(s) {
   s.totalExistenceEarned=add(s.totalExistenceEarned,q.reward);
   const retain=s.mode==="lab"&&s.engraving.active.includes("retain");
   const preserved=engravingRetainedLevels(s,s.moment.tap||0,s.sources.SOURCE_01.level);
+  const nextMoment=retainedMap(s,"moment",engravingLevel(s,"ENG-29"),MOMENT_IDS);
+  const nextSources=retainedMap(s,"source",engravingLevel(s,"ENG-25"),SOURCE_IDS);
   if(!retain){
     s.moment=freshMoment();
     Object.values(s.sources).forEach(x=>x.level=0);
-    s.moment.tap=preserved.tap;
-    s.sources.SOURCE_01.level=preserved.source;
+    for(const [id,lv] of Object.entries(nextMoment))s.moment[id]=lv;
+    for(const [id,lv] of Object.entries(nextSources))s.sources[id].level=lv;
+    s.moment.tap=Math.max(s.moment.tap,preserved.tap);
+    s.sources.SOURCE_01.level=Math.max(s.sources.SOURCE_01.level,preserved.source);
   }
+  // Only purchases performed during the just-completed run count. Never roll
+  // the inherited seed into a second successive convergence.
+  s.engraving.runPurchases=freshRunPurchases();
   // 仮設定の全消費。源の+と能力はデータ保護のため維持し、正式保持規則と断定しない。
   spendOrbs(s,CONFIG.provisional.convergence.spend==="all"?s.orbs:q.spent);
   s.momentRuntime=freshMomentRuntime();
