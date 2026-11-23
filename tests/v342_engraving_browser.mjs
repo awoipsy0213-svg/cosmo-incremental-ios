@@ -22,7 +22,7 @@ try{
       return S.encode(state,"v342-browser");
     });
     await page.addInitScript(raw=>{
-      if(sessionStorage.getItem("engraving-v342-fixture")==="no"){
+      if(sessionStorage.getItem("engraving-v342-fixture")!=="initial"){
         localStorage.setItem("kotowari_v31_normal",raw);
         sessionStorage.setItem("engraving-v342-fixture","initial");
       }
