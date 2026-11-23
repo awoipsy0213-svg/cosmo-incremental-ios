@@ -111,7 +111,7 @@ check("automation UI, PWA cache and Capacitor www source files are identical",()
   assert.match(app,/function automationHTML/);
   assert.match(app,/class="automation-quick/);
   assert.match(app,/data-auto-mode/);
-  assert.match(sw,/3\.40\.0-source-milestones/);
+  assert.match(sw,/3\.50\.0-time-residue/);
   assert.ok(css.includes(".automation-convergence"));
   for(const f of ["app.mjs","game.mjs","engraving-effects-v333.mjs","sw.js","index.html","automation-center-v336.css"])
     assert.equal(read(f),read("www/"+f),"Web/iOS mismatch "+f);

@@ -2,6 +2,7 @@
  * 《理》3.41 Time hexagonal presentation.
  * UI projection only: reads existing Time state, never mutates game rules/save data.
  */
+import {formatGrowthInt,growthCap} from "./time-growth-v350.mjs";
 export const TIME_DIRECTIONS = Object.freeze(["流動","空間","変化","因果","秩序","可能性"]);
 const TONES = Object.freeze(["#75d9ff","#9da9ff","#ef9fd9","#f3c46f","#98e1b4","#cba4ff"]);
 const SLOTS = Object.freeze([
@@ -99,12 +100,14 @@ export function timeHexFlowPanel(t,concepts,principles,icon,{readOnly=false}={})
     const weight=t.revealedDirections>1?'<div class="princ-weight"><input type="range" min="0" max="100" step="1" data-weight="'+i+'" value="'+Math.round(t.weights[i]||0)+'" '+(!active||readOnly?'disabled ':'')+'aria-label="'+h(name)+'の配分"><output>'+Math.round(t.weights[i]||0)+'%</output></div>':'<small>100%</small>';
     return '<div class="principle-row">'+checkbox+weight+'</div>';
   }).join("");
-  const known=concepts.filter(c=>(t.residues[c.id]||0)>0);
+  const known=concepts.filter(c=>Boolean(t.growth?.totals?.[c.id]&&t.growth.totals[c.id]!=="0")||(t.residues[c.id]||0)>0);
   const residueItems=known.map(c=>{
-    const lv=Number(t.concepts[c.id]||0);
+    const total=t.growth?.totals?.[c.id]||String(t.residues[c.id]||0);
+    const recognized=Boolean(t.growth?.recognized?.[c.id]||t.concepts[c.id]>0);
+    const cap=growthCap(c),max=BigInt(total)>=cap;
+    const detail=recognized?(max?"MAX ・ 熟練度へ成長":"累計 "+formatGrowthInt(total)+" 個"):(formatGrowthInt(total)+" / 10個");
     return '<div class="time-hex-residue-row">'+icon(c)+
-      '<strong>'+h(lv>0?c.name:'？？？の残滓')+'</strong><small>'+
-      Number(t.residues[c.id]).toLocaleString('ja-JP')+' / '+((Math.min(100,lv+1))*10)+'個</small></div>';
+      '<strong>'+h(recognized?c.name:"？？？の残滓")+'</strong><small>'+h(detail)+'</small></div>';
   }).join("");
   return '<p class="panel-intro">方向を選び、配分率を調整すると、発見する残滓の傾向が変わります。</p>'+
     '<h3 class="time-hex-section-title">方向の配分 · 最大3方向</h3>'+
@@ -113,7 +116,7 @@ export function timeHexFlowPanel(t,concepts,principles,icon,{readOnly=false}={})
     '<h3 class="time-hex-section-title">発見した残滓 · '+known.length+'種類</h3>'+
     (known.length?'<div class="time-hex-residue-list">'+residueItems+'</div>':'<div class="empty-state"><p>残滓はまだ見つかっていません。</p></div>')+
     '<div class="kw-row"><span>共通の？？？ <strong>'+Number(t.common).toLocaleString('ja-JP')+' / 100</strong></span>'+
-    '<button data-action="convert-common" '+(t.common<100||readOnly?'disabled':'')+'>100個で抽選</button></div>';
+    '<small>100個で自動変換 · 全77種類</small></div>';
 }
 export function timeHexMiraclesPanel(t,principles){
   const known=Math.min(6,t.revealedDirections);

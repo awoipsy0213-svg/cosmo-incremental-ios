@@ -14,7 +14,7 @@ assert.match(html,/3\.34 · ENGRAVING/);
 assert.match(html,/id="childTabStrip"/);
 assert.match(html,/data-action="buy-all"/);
 assert.match(html,/id="bulkOrderButton"/);
-assert.match(sw,/const VERSION = "3\.40\.0-source-milestones"/);
+assert.match(sw,/const VERSION = "3\.50\.0-time-residue"/);
 assert.equal((sw.match(/"fixed-layout-v333\.css"/g)||[]).length,2,"PWA core cache");
 assert.match(css,/--fixed-card-h:76px/);
 assert.match(css,/height:var\(--fixed-card-h\)!important/);

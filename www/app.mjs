@@ -11,6 +11,7 @@ import {PROPOSED,PLANET_EFFECT_PROPOSALS,resourcePrototype,trialPreview,boostTri
 import {A,formatAmount,formatScientific3,formatOrbAmount} from "./numbers.mjs";
 import * as G from "./game.mjs";
 import {timeHexMarkup,patchTimeHex,timeHexFlowPanel,timeHexMiraclesPanel} from "./time-hex-v341.mjs";
+import {formatGrowthInt,growthCap} from "./time-growth-v350.mjs";
 import {engravingAutomationHTML,engravingPresetHTML} from "./engraving-v342-ui.mjs";
 import {SaveStore,KEYS,decode,encode} from "./save.mjs";
 import {shortDuration} from "./purchase-insights.mjs";
@@ -622,25 +623,33 @@ function icon(c){
   const points=Array.from({length:count},(_,i)=>{const a=(i/count*360+rot)*Math.PI/180;return `${16+10*Math.cos(a)},${16+10*Math.sin(a)}`;}).join(" ");
   return `<svg class="concept-icon" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="${4+Math.floor(n/8)%4}"/><polygon points="${points}"/><circle cx="${6+n%5*5}" cy="${6+Math.floor(n/5)%5*5}" r="1.4" fill="currentColor"/></svg>`;
 }
-const CONCEPT_EFFECT_NAMES={event:"残滓生成率",direction:"方向成長",weakest:"低成長方向",all:"方向成長",weight:"関連残滓重み",time:"TIME生成",world:"世界時間",balanced:"均衡配分",offlineEfficiency:"オフライン効率",offlineGrowth:"オフライン成長"};
+const CONCEPT_EFFECT_NAMES={event:"干渉発生",interval:"干渉周期",time:"時の進行",world:"世界時間",
+  source:"オーブ生成",planetGrowth:"惑星の成長",observation:"観測・理解",resource:"宇宙資源",
+  interference:"惑星間干渉",weight:"残滓抽選重み",auto:"自動化効率",pending:"条件整備待ち"};
 function conceptHTML(){
-  const t=state.time,visible=CONTENT.concepts.filter(c=>(t.residues[c.id]||0)>0||t.concepts[c.id]);
-  return `<p class="panel-intro">単独12・2方向45・3方向20。残滓を集めて永続的に概念を認識します。未発見の名称・効果は伏せられています。</p>
-    <div class="kw-row"><span>形成済み ${Object.values(t.concepts).filter(x=>x>0).length} / 77<small>共通の？？？ ${t.common}</small></span><button data-action="convert-common" ${t.common<100?"disabled":""}>100個 → 抽選1個</button></div>
-    <p class="tiny muted">共通？？？は全77種からランダム1個。解放していない方向の残滓も対象です。</p>
-    ${visible.length?`<div class="row-grid">${visible.map(c=>{
-      const level=t.concepts[c.id]||0,formed=level>0;
-      const effect=G.conceptEffect(state,c.id);
-      const next=level+1,need=next<=100?next*10:null;
-      const active=effect?.active;
-      const name=formed?c.name:"？？？の残滓";
-      const effectText=formed?CONCEPT_EFFECT_NAMES[effect?.rule?.type]||"固有補正":"未認識";
-      const current=formed?(effect?.bonus*100).toFixed(2)+"%":"";
-      return `<div class="kw-card concept-card"><div class="card-top">${icon(c)}<strong class="${formed?"":"unrecognized"}">${esc(name)}</strong></div>
-        <small>残滓 ${t.residues[c.id]||0} ${need===null?"· MAX":`/ ${need}`} ${formed?`· Lv.${level}`:""}</small>
-        <small>${formed?`${effectText} +${current} · ${active?"有効":"配分条件待ち"}`:"まだ、形を持たない。"}</small>
-        ${need!==null?`<div class="invest-choices"><button class="wide-button" data-form="${c.id}" ${(t.residues[c.id]||0)<need?"disabled":""}>${formed?"Lv＋1":"形成"}</button><button class="wide-button" data-form-max="${c.id}" ${(t.residues[c.id]||0)<need?"disabled":""}>MAX Lv</button></div>`:"<small>最大Lv100</small>"}</div>`;
-    }).join("")}</div>`:'<div class="empty-state"><div class="glyph">·</div><p>まだ残滓は見つかっていません。</p></div>'}`;
+  const t=state.time,known=CONTENT.concepts.filter(c=>
+    (t.growth?.totals?.[c.id]&&t.growth.totals[c.id]!=="0")||(t.residues[c.id]||0)>0||t.concepts[c.id]>0);
+  const count=CONTENT.concepts.filter(c=>t.growth?.recognized?.[c.id]||t.concepts[c.id]>0).length;
+  return `<p class="panel-intro">残滓の獲得に応じて概念が成長します。10個で認識し、固有効果は自動で強化されます。</p>
+    <div class="kw-row"><span>認識 ${count} / 77<small>共通の？？？ ${t.common} / 100</small></span><small>100個で自動抽選</small></div>
+    ${known.length?`<div class="row-grid">${known.map(c=>{
+      const total=t.growth?.totals?.[c.id]||String(t.residues[c.id]||0);
+      const recognized=Boolean(t.growth?.recognized?.[c.id]||t.concepts[c.id]>0);
+      const effect=G.conceptEffect(state,c.id),max=BigInt(total)>=growthCap(c);
+      const progress=Math.min(100,Math.max(0,(effect?.progress||0)*100));
+      const name=recognized?c.name:"？？？の残滓";
+      const effectName=CONCEPT_EFFECT_NAMES[effect?.rule?.type]||"固有効果";
+      const bonus=effect?.bonus?((effect.bonus)*100).toFixed(2)+"%":"0%";
+      const status=effect?.active?"発動中":"待機中";
+      const info=recognized?effectName+" +"+bonus+" · "+status:"認識すると効果が明らかになります";
+      return `<article class="kw-card concept-card time-growth-card" data-concept-id="${esc(c.id)}">
+        <div class="card-top">${icon(c)}<strong class="${recognized?"":"unrecognized"}" title="${esc(name)}">${esc(name)}</strong></div>
+        <small>累計 ${esc(formatGrowthInt(total))} / ${esc(formatGrowthInt(growthCap(c)))}</small>
+        <small title="${esc(info)}">${esc(info)}</small>
+        <div class="slim-progress" aria-label="効果成長 ${progress.toFixed(1)}%"><i style="width:${progress.toFixed(2)}%"></i></div>
+        <small>${max?"MAX · 超過分は永続熟練度へ":"累計に応じて自動成長"}</small>
+      </article>`;
+    }).join("")}</div>`:'<div class="empty-state"><p>まだ残滓は見つかっていません。</p></div>'}`;
 }
 function planetHTML(){
   const u=state.universe,p=G.planet(state);

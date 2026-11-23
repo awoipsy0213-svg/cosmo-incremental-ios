@@ -77,7 +77,7 @@ assert.match(app,/o\(preview\.sourceGain\)/,"button shows orb integers");
 assert.match(app,/o\(G\.sourceProduction\(state,id\)\)/,"button shows current orb integers");
 assert.match(app,/毎秒 \$\{esc\(o\(G\.sourceProduction\(state,x\.id\)\)\)\} オーブ/,"left Source production is numeric");
 assert.doesNotMatch(app,/毎秒オーブを生成/,"remove redundant fixed Source explanation");
-assert.match(sw,/3\.40\.0-source-milestones/);
+assert.match(sw,/3\.50\.0-time-residue/);
 for(const file of ["game.mjs","app.mjs","purchase-preview-v338.mjs","sw.js"]){
   assert.equal(read(file),read("www/"+file),file+" Web/Capacitor parity");
 }
