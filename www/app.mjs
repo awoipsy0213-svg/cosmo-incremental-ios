@@ -10,6 +10,7 @@ import {CONTENT} from "./content.mjs";
 import {PROPOSED,PLANET_EFFECT_PROPOSALS,resourcePrototype,trialPreview,boostTrialCost,proposedSourceSlots,FIRST_CONCEPT_PROPOSALS} from "./design-proposals.mjs";
 import {A,formatAmount,formatScientific3,formatOrbAmount} from "./numbers.mjs";
 import * as G from "./game.mjs";
+import {timeHexMarkup,patchTimeHex,timeHexFlowPanel,timeHexMiraclesPanel} from "./time-hex-v341.mjs";
 import {SaveStore,KEYS,decode,encode} from "./save.mjs";
 import {shortDuration} from "./purchase-insights.mjs";
 import {purchasePreview} from "./purchase-preview-v338.mjs";
@@ -20,7 +21,7 @@ const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 const params=new URLSearchParams(location.search);
 const mode=params.get("lab")==="1"?"lab":"normal";
 const dev=params.get("dev")==="1"||mode==="lab";
-const childNames={moment:"刹那",sources:"源",engraving:"刻印",flow:"流れ",concepts:"概念",
+const childNames={moment:"刹那",sources:"源",engraving:"刻印",flow:"残滓",concepts:"概念",miracles:"奇跡",
   planets:"惑星",resources:"資源",observations:"観測",life:"生命",
   boost:"BOOST",achievements:"実績",chronicle:"記録",statistics:"統計",collection:"コレクション",
   guide:"遊び方",settings:"設定",backup:"保存", "auto-existence":"存在","auto-time":"時","auto-universe":"宇宙","auto-life":"生命",spec:"設計状況",proposals:"研究・試案",lab:"開発テスト",priceLab:"価格試算"};
@@ -203,7 +204,12 @@ function renderWorld(){
   const stage=CONTENT.stages.find(x=>x.id===currentStage)||CONTENT.stages[0];
   document.body.dataset.cosmoStage=String(stage.number);
   $("stageKicker").textContent=`STAGE 0${stage.number}`;
-  $("touchField").setAttribute("aria-label",stage.id==="existence"?"光へ干渉してオーブを生む":"この世界へ干渉してオーブを生む");
+  const isTime=stage.id==="time";
+  document.body.classList.toggle("time-hex-world",isTime);
+  const stageScene=$("touchField");
+  stageScene.setAttribute("role",isTime?"group":"button");
+  stageScene.setAttribute("tabindex",isTime?"-1":"0");
+  stageScene.setAttribute("aria-label",isTime?"時の方向をタップして選択":"光へ干渉してオーブを生む");
   $("stageTitle").textContent=stage.name;
   $("activeStageTitle").textContent=`ステージ · ${stage.name}`;
   const rate=G.production(state),tap=G.tapPower(state);
@@ -254,9 +260,10 @@ function renderWorld(){
     if(mainConverge.getAttribute("aria-label")!==convergeInfo)mainConverge.setAttribute("aria-label",convergeInfo);
   }else if(currentStage==="time"){
     $("primaryValue").textContent=Math.floor(state.time.elapsed).toLocaleString("ja-JP");
-    $("worldDetails").innerHTML=`<span class="wallet">TIME · 継続する流れ</span><span>世界時間 ${Math.min(1,state.time.worldSeconds).toFixed(6)} / 1 秒 · 自動生成 +${o(rate)} オーブ / 秒</span>`;
-    $("worldHint").textContent=state.time.eventHappened?"《無の終焉》を観測した。":Object.keys(state.time.residues).length?"変化の中に、未知の残滓がある。":"世界は、触れなくても変わり始めた。";
-    if(state.time.eventHappened)$("worldDetails").innerHTML+=`<span class="wallet">世界時間 1秒に到達</span>`;
+    $("worldDetails").textContent=state.time.revealedDirections>=6?
+      "世界時間 "+Math.min(1,state.time.worldSeconds).toFixed(6)+" / 1秒":
+      "認識した方向 "+state.time.revealedDirections+" / 6";
+    $("worldHint").textContent="方向を選び、残滓から概念を認識する。";
   }else if(currentStage==="universe"){
     $("primaryValue").textContent=String(state.universe.planets.length);
     $("worldDetails").innerHTML=`<span class="wallet">宇宙資源 · 時間で蓄積</span><span>惑星 ${state.universe.planets.length} / ${state.universe.maxPlanets} · 資源 ${state.universe.discoveredResources.length} / 42</span>`;
@@ -270,9 +277,8 @@ function renderWorld(){
   $("worldHint").hidden=["existence","organizer","automation"].includes(currentStage);
   const selected=state.universe.planets.find(p=>p.id===state.universe.selectedPlanetId);
   const stageRows=currentStage==="time"?[
-    ["世界秒",Math.min(1,state.time.worldSeconds).toFixed(6)],
-    ["方向",state.time.selected.length+" / 6"],
-    ["概念",Object.keys(state.time.concepts).length+" / 77"],
+    ["方向",state.time.revealedDirections+" / 6"],
+    ["概念",Object.values(state.time.concepts).filter(x=>x>0).length+" / 77"],
     ["残滓",Object.values(state.time.residues).reduce((a,b)=>a+b,0).toLocaleString("ja-JP")]
   ]:currentStage==="universe"?[
     ["資源",state.universe.discoveredResources.length+" / 42"],
@@ -306,6 +312,14 @@ function renderWorld(){
   // DEC-20261122-005: the permanent “理の状態” sidebar is removed.
   // Game state and history remain intact; only redundant on-screen copy is hidden.
   $("heroSigil").textContent=currentStage==="time"?"時":currentStage==="universe"?"宇":currentStage==="life"?"生":"理";
+  const timeRoot=$("timeHexRoot");
+  if(timeRoot){
+    if(currentStage==="time"){
+      if(!timeRoot.firstElementChild)timeRoot.innerHTML=timeHexMarkup();
+      timeRoot.hidden=false;
+      patchTimeHex(timeRoot,state.time,{readOnly:readOnly||store.blocked});
+    }else timeRoot.hidden=true;
+  }
 }
 function quoteText(q){
   if(q.count) return `+${q.count.toLocaleString("ja-JP")} · ${o(q.cost,"ceil")}`;
@@ -594,12 +608,10 @@ function engravingHTML(){
   ${e.owned.some(id=>e.levels?.[id]===undefined)?'<p class="tiny muted">一部の刻印は以前の記録からレベルを確認できません。取得済みの状態は保持されています。</p>':""}`;
 }
 function flowHTML(){
-  const t=state.time;
-  return `<p class="panel-intro">存在を方向へ配分し、変化を見守ります。《時》に転生・リセットはありません。</p>
-    <div class="kw-card"><strong>認識した方向 ${t.revealedDirections} / 6</strong><p>${t.revealedDirections===1?"まだ、流れだけがある。":"最大3方向を選んで、流れの配分を調整できます。"}</p></div>
-    <div class="kw-list">${CONTENT.principles.slice(0,t.revealedDirections).map((name,i)=>`<div class="principle-row"><label><input type="checkbox" data-direction="${i}" ${t.selected.includes(i)?"checked":""}>${name}</label>${t.revealedDirections>1?`<div class="princ-weight"><input type="range" min="0" max="100" step="1" data-weight="${i}" value="${Math.round(t.weights[i])}" ${!t.selected.includes(i)?"disabled":""} aria-label="${name}の配分"><output>${t.weights[i].toFixed(0)}%</output></div>`:"<small>100%</small>"}</div>`).join("")}</div>
-    <div class="status-note">奇跡と残滓の変化を観測できます。</div>
-    ${t.revealedDirections===1?'<p class="tiny">生成が起きた後の結果は、衝突25%・移動25%・共通？？？50%。生成そのものの発生率とは別です。</p>':""}`;
+  return timeHexFlowPanel(state.time,CONTENT.concepts,CONTENT.principles,icon,{readOnly:readOnly||store.blocked});
+}
+function miraclesHTML(){
+  return timeHexMiraclesPanel(state.time,CONTENT.principles);
 }
 function icon(c){
   const n=c.iconIndex;
@@ -983,7 +995,7 @@ function renderPanel(force=false){
   if(!force&&(now-lastPanelRender<1700||now-lastInteraction<700||$("sheetBody").contains(document.activeElement)&&document.activeElement.matches("input,textarea,select")))return;
   lastPanelRender=now;
   const stage=CONTENT.stages.find(x=>x.id===currentStage);
-  const children=currentStage==="organizer"?organizerItems:currentStage==="automation"?["auto-existence","auto-time","auto-universe","auto-life"]:stage.children;
+  const children=currentStage==="organizer"?organizerItems:currentStage==="automation"?["auto-existence","auto-time","auto-universe","auto-life"]:currentStage==="time"?["flow","concepts","miracles"]:stage.children;
   $("childTabs").innerHTML=children.map(id=>`<button data-child="${id}" class="${currentSub===id?"active":""}" aria-pressed="${currentSub===id}">${childNames[id]}</button>`).join("");
   $("sheetHeading").textContent=(currentStage==="organizer"?"管理":currentStage==="automation"?"自動化":"強化")+" / "+childNames[currentSub];
   $("purchaseToolbar").hidden=currentStage!=="existence"||!["moment","sources"].includes(currentSub);
@@ -995,7 +1007,7 @@ function renderPanel(force=false){
   const order=$("bulkOrderButton");order.textContent=state.settings.bulkOrder==="expensive"?"高い順":"安い順";order.title=state.settings.bulkOrder==="expensive"?"高い順で一括購入":"安い順で一括購入";order.setAttribute("aria-label",order.title);
   const scope=$("bulkScopeButton");if(scope){scope.textContent=bulkScope==="all"?"全件":"表示中";scope.title=bulkScope==="all"?"全件を対象に一括購入":"表示中を対象に一括購入";scope.setAttribute("aria-label",scope.title);}
   const body=$("sheetBody"),top=body.scrollTop,details=[...body.querySelectorAll("details[open][data-preserve]")].map(x=>x.dataset.preserve);
-  const map={moment:momentHTML,sources:sourcesHTML,engraving:engravingHTML,flow:flowHTML,concepts:conceptHTML,
+  const map={moment:momentHTML,sources:sourcesHTML,engraving:engravingHTML,flow:flowHTML,concepts:conceptHTML,miracles:miraclesHTML,
     planets:planetHTML,resources:resourcesHTML,observations:observationsHTML,
     life:()=>'<div class="empty-state"><div class="glyph">◌</div><p>未知の変化から、生命を認識する。</p><p>まだ生命を観測できません。</p></div>',
     boost:boostHTML,achievements:achievementHTML,statistics:statisticsHTML,settings:settingsHTML,backup:backupHTML,spec:specHTML,proposals:proposalsHTML,lab:labHTML,priceLab:priceLabHTML,guide:guideHTML,
@@ -1150,12 +1162,13 @@ const activePointers=new Set();
 $("touchField").addEventListener("pointerdown",e=>{
   if(e.pointerType==="mouse"&&e.button!==0)return;
   if(activePointers.has(e.pointerId))return;
+  if(currentStage==="time"&&e.target.closest("#timeHexRoot"))return;
   activePointers.add(e.pointerId);e.preventDefault();
   handleTap(e.clientX,e.clientY);
 });
 for(const name of ["pointerup","pointercancel"])window.addEventListener(name,e=>activePointers.delete(e.pointerId));
 $("touchField").addEventListener("keydown",e=>{
-  if(e.key==="Enter"||e.key===" "){e.preventDefault();const r=$("touchField").getBoundingClientRect();handleTap(r.left+r.width/2,r.top+r.height/2);}
+  if(e.target===$("touchField")&&(e.key==="Enter"||e.key===" ")){e.preventDefault();const r=$("touchField").getBoundingClientRect();handleTap(r.left+r.width/2,r.top+r.height/2);}
 });
 let drag=null;
 $("sheetHandle").addEventListener("pointerdown",e=>{
@@ -1440,6 +1453,18 @@ document.addEventListener("click",async e=>{
   const b=e.target.closest("button,a");if(!b)return;
   try{
     if(b.dataset.stage){setStage(b.dataset.stage);return;}
+    if(b.dataset.timeDirection!==undefined){
+      if(currentStage!=="time"||readOnly||store.blocked)return;
+      const index=Number(b.dataset.timeDirection),active=state.time.selected.includes(index);
+      checkpoint();
+      resultDone(G.setDirection(state,index,!active));return;
+    }
+    if(b.dataset.timeOpen!==undefined){
+      if(currentStage!=="time"||!["flow","concepts","miracles"].includes(b.dataset.timeOpen))return;
+      stopHoldPurchase(null,true);
+      currentSub=b.dataset.timeOpen;infoPanelOpen=false;
+      setSheet("half");render(true);return;
+    }
     if(b.dataset.child){
       stopHoldPurchase(null,true);currentSub=b.dataset.child;
       if(currentStage==="automation"&&currentSub.startsWith("auto-")&&!readOnly&&!store.blocked){state.settings.automationStage=currentSub.slice(5);save();}
@@ -1657,8 +1682,16 @@ document.addEventListener("change",async e=>{
   if(t.dataset.pref){
     state.settings[t.dataset.pref]=t.type==="checkbox"?t.checked:t.value;applySettings();save();render(true);return;
   }
-  if(t.dataset.direction!==undefined){const r=G.setDirection(state,Number(t.dataset.direction),t.checked);resultDone(r);return;}
-  if(t.dataset.weight!==undefined){G.setWeight(state,Number(t.dataset.weight),Number(t.value));save();render(true);return;}
+  if(t.dataset.direction!==undefined){
+    if(readOnly||store.blocked){toast("読み取り専用です");renderPanel(true);return;}
+    checkpoint();resultDone(G.setDirection(state,Number(t.dataset.direction),t.checked));return;
+  }
+  if(t.dataset.weight!==undefined){
+    if(readOnly||store.blocked){toast("読み取り専用です");renderPanel(true);return;}
+    checkpoint();
+    if(!G.setWeight(state,Number(t.dataset.weight),Number(t.value))){toast("選択中の方向のみ配分できます");renderPanel(true);return;}
+    save();render(true);return;
+  }
   if(t.id==="planetSelect"){state.universe.selectedPlanetId=t.value;save();render(true);return;}
   if(t.id==="autoReserveSelect"){resultDone(G.setAutoPlanetReserve(state,Number(t.value)),"最低保有量を変更しました");return;}
   if(t.id==="interferencePartner"){interferencePartnerId=t.value;renderPanel(true);return;}
