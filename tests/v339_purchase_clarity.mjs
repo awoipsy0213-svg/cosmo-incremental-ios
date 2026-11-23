@@ -28,7 +28,7 @@ assert.match(css,/background:#552b9e!important/,"purple purchase");
 assert.match(css,/background:#ffffff!important/,"white cards");
 assert.match(css,/color:#fff!important/,"white-on-purple contrast");
 assert.match(html,/purchase-clarity-v339\.css/);
-assert.match(sw,/3\.40\.0-source-milestones/);
+assert.match(sw,/3\.50\.0-time-residue/);
 assert.equal((sw.match(/"purchase-clarity-v339\.css"/g)||[]).length,2);
 assert.equal((sw.match(/"purchase-clarity-v339\.mjs"/g)||[]).length,2);
 for(const p of ["app.mjs","index.html","sw.js","purchase-clarity-v339.css","purchase-clarity-v339.mjs"])
