@@ -25,7 +25,7 @@ try{
    const fixture=await page.evaluate(async()=>{
      const G=await import("./game.mjs"),S=await import("./save.mjs");
      const s=G.createState(Date.now());
-     s.intro.complete=true;s.time.unlocked=true;s.universe.unlocked=true;s.time.revealedDirections=3;
+     s.intro.complete=true;s.time.unlocked=true;s.universe.unlocked=true;s.time.revealedDirections=3;s.engraving.owned.push("ENG-05");s.engraving.levels["ENG-05"]=1;
      s.orbs="1e20";s.totalOrbs="1e20";
      return S.encode(s,"v323-browser");
    });
