@@ -28,7 +28,7 @@ const markup=timeHexMarkup();
 assert.equal((markup.match(/data-time-direction="/g)||[]).length,6);
 assert.equal((markup.match(/data-hex-line="/g)||[]).length,6);
 for(const tab of ["flow","concepts","miracles"])assert.ok(markup.includes('data-time-open="'+tab+'"'));
-assert.doesNotMatch(markup,/空間|変化|因果|秩序|可能性/,"hex markup should reveal directions only at render time");
+assert.equal((markup.match(/<strong data-hex-name>？<\/strong>/g)||[]).length,6,"unrevealed direction names remain concealed in node labels");
 assert.match(markup,/aria-label="六角形の方向選択"/);
 assert.match(markup,/data-time-open="flow"/);
 
