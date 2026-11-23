@@ -474,8 +474,8 @@ function automationHTML(){
     const buy=(kind,label,rate,engravingId)=>{
       const cfg=e.autoBuy[kind],unlocked=rate>0,off=disabled||!unlocked;
       const requirement='刻印「'+name(engravingId)+'」で解放';
-      const priorities=[["auto","自動選択"],["cheap","安い順"],["expensive","高い順"],
-        ["efficient","効率優先"]];
+      const priorities=[["auto","自動選択"],["cheap","価格の安い順"],["grade","高グレード順"],
+        ["efficient","費用対効果"]];
       const priorityOptions=priorities.map(([value,text])=>option(value,text,cfg.priority,
         value==="efficient"&&!engravingAutoEfficient(state)?" disabled":"")).join("");
       return '<section class="kw-card automation-row'+(unlocked?"":" is-locked")+'" data-automation-buy="'+kind+'">'+
@@ -1018,7 +1018,7 @@ function renderPanel(force=false){
   cycle.hidden=!buyTabs;
   cycle.textContent=({"1":"×1","10":"×10","NEXT":"NEXT","MAX":"MAX"})[state.purchaseMode];
   cycle.setAttribute("aria-label",`購入数 ${cycle.textContent}。タップで切替`);
-  const order=$("bulkOrderButton");order.textContent=state.settings.bulkOrder==="expensive"?"高い順":"安い順";order.title=state.settings.bulkOrder==="expensive"?"高い順で一括購入":"安い順で一括購入";order.setAttribute("aria-label",order.title);
+  const order=$("bulkOrderButton");order.textContent=state.settings.bulkOrder==="grade"?"上位順":"安い順";order.title=state.settings.bulkOrder==="grade"?"今買える最高グレード順で一括購入":"次の1Lvの価格が安い順で一括購入";order.setAttribute("aria-label",order.title);
   const scope=$("bulkScopeButton");if(scope){scope.textContent=bulkScope==="all"?"全件":"表示中";scope.title=bulkScope==="all"?"全件を対象に一括購入":"表示中を対象に一括購入";scope.setAttribute("aria-label",scope.title);}
   const body=$("sheetBody"),top=body.scrollTop,details=[...body.querySelectorAll("details[open][data-preserve]")].map(x=>x.dataset.preserve);
   const map={moment:momentHTML,sources:sourcesHTML,engraving:engravingHTML,flow:flowHTML,concepts:conceptHTML,miracles:miraclesHTML,
@@ -1307,7 +1307,7 @@ async function dispatchAction(action){
   }
   if(action==="toggle-bulk-order"){
     if(readOnly)return toast("読み取り専用のため変更できません");
-    state.settings.bulkOrder=state.settings.bulkOrder==="cheap"?"expensive":"cheap";
+    state.settings.bulkOrder=state.settings.bulkOrder==="cheap"?"grade":"cheap";
     save();renderPanel(true);return;
   }
   if(action==="toggle-bulk-scope"){
