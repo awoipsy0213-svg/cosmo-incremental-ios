@@ -45,7 +45,7 @@ assert.equal(BigInt(huge.time.growth.totals.TC001),hugeInt);
 assert.equal(formatGrowthInt(hugeInt),"1.00e+1000");
 const copy=decode(encode(huge,"time-v350"),"normal");
 assert.equal(copy.time.growth.totals.TC001,hugeInt.toString());
-assert.equal(copy.time.growth.masteryUnits[0],(hugeInt-100000000n).toString());
+assert.equal(copy.time.growth.masteryUnits[0],((hugeInt-100000000n)*6n).toString());
 const legacy=start();delete legacy.time.growth;
 legacy.time.residues.TC001=12;legacy.time.concepts.TC001=3;
 const old=G.validateState(legacy,"normal");
