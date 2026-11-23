@@ -1677,6 +1677,28 @@ export function validateState(input,expectedMode=null) {
         !Number.isSafeInteger(level)||level<1||level>1000000||!e.owned.includes(id)))fail("刻印Lv");
   if(e.autoConverge===undefined)e.autoConverge={enabled:false,minReward:AUTO_CONVERGE_DEFAULT_MIN_REWARD,lastAt:0};
   if(e.autoConverge.minSteps===undefined)e.autoConverge.minSteps=1;
+  // Verify additive per-run purchase evidence and automation preferences.
+  // Old saves have no trustworthy run purchase log; leave their historical
+  // levels untouched and start new verifiable counters at zero.
+  if(e.runPurchases===undefined)e.runPurchases=freshRunPurchases();
+  if(!e.runPurchases||!validateRunPurchaseMap(e.runPurchases.moment,MOMENT_IDS)||
+     !validateRunPurchaseMap(e.runPurchases.source,SOURCE_IDS))fail("周回別購入履歴");
+  if(e.autoEngraving===undefined)e.autoEngraving=freshAutoEngraving();
+  const automatic=e.autoEngraving;
+  if(!automatic||typeof automatic!=="object"||Array.isArray(automatic)||
+     typeof automatic.enabled!=="boolean"||!ENGRAVE_ORDER.includes(automatic.priority)||
+     !ENGRAVE_MODES.includes(automatic.mode)||
+     typeof automatic.minReserve!=="string"||
+     !/^(?:\\d+)(?:\\.\\d+)?(?:e\\+?\\d+)?$/i.test(automatic.minReserve)||
+     A(automatic.minReserve).cmp(0)<0||A(automatic.minReserve).cmp("1e100")>0||
+     !Number.isFinite(automatic.credit)||automatic.credit<0||automatic.credit>1000)
+    fail("刻印の自動購入設定");
+  if(automatic.enabled&&engravingLevel(s,AUTOMATIC_ENGRAVING_ID)<1)fail("刻印自律の解放状態");
+  automatic.minReserve=str(automatic.minReserve);
+  if(e.presetSystem===undefined)e.presetSystem=freshPresetSystem();
+  if(!validatePresets(e.presetSystem,MOMENT_IDS,SOURCE_IDS))fail("周回プリセット");
+  if(e.presetSystem.activePreset!==null&&engravingLevel(s,PRESET_ENGRAVING_ID)<1)
+    fail("周回設計の解放状態");
   const defaultAuto=createState().engraving;
   // Upgrade old saves without altering verified ownership, purchased levels or saved credits.
   if(e.autoBuy===undefined)e.autoBuy=structuredClone(defaultAuto.autoBuy);
