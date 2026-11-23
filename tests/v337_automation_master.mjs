@@ -48,7 +48,7 @@ check("paused automation performs no purchased levels or autonomous taps, stores
   assert.deepEqual(s.engraving.runtime,snapshot,"paused credit and interval clocks must not advance");
   assert.ok(A(s.totalOrbs).cmp(before)>=0,"normal online income may continue");
   assert.ok(G.configureAutomationMaster(s,true).ok);
-  G.advance(s,NOW+11000,{offline:false,rng:()=>.99});
+  G.advance(s,NOW+14000,{offline:false,rng:()=>.99}); // ENG-23 Lv1 now buys at 1 / 3 game seconds
   assert.ok(Object.values(s.moment).reduce((a,b)=>a+b,0)>0,"existing enabled purchased automation resumes");
 });
 check("global pause prevents auto convergence even above threshold and 60s",()=>{

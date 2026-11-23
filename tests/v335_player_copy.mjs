@@ -5,13 +5,13 @@ import {engravingCatalogue} from "../engraving-rules-v317.mjs";
 const read=p=>readFileSync(new URL("../"+p,import.meta.url),"utf8");
 let n=0;
 const check=(name,fn)=>{fn();console.log("PASS player copy",name);n++;};
-check("25 engraving effects show names; unknown effects never leak debug statuses",()=>{
+check("all 30 engraving effects show player names without debug statuses",()=>{
   const arr=engravingCatalogue();
   assert.equal(arr.length,30);
   assert.equal(arr.find(x=>x.id==="ENG-01").name,"干渉増幅");
   assert.equal(arr.find(x=>x.id==="ENG-24").name,"自動収束");
   const unknown=arr.find(x=>x.id==="ENG-05");
-  assert.ok(unknown.name.includes("未知"));
+  assert.equal(unknown.name,"一括解放");
   assert.doesNotMatch(unknown.name+unknown.description,/ENG-|未照合|原文|未適用|実装|試験/);
 });
 check("engraving receipts produce only player-facing event names; engine IDs survive",()=>{

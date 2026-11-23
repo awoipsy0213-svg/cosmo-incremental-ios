@@ -14,12 +14,12 @@ const check=(name,fn)=>{fn();count++;console.log("PASS v333",name);};
 const started=()=>{const s=G.createState(NOW);s.intro.complete=true;return s;};
 const owned=(s,id,lv=1)=>{if(!s.engraving.owned.includes(id))s.engraving.owned.push(id);s.engraving.levels[id]=lv;return s;};
 const ratio=(a,b)=>A(a).div(b).toNumber();
-check("all 25 A-D effects unique, 30 reserved IDs retained",()=>{
-  assert.equal(ENGRAVING_EFFECT_IDS.length,25);
-  assert.equal(new Set(ENGRAVING_EFFECT_IDS).size,25);
-  assert.deepEqual(ENGRAVING_EFFECT_IDS.map(id=>ENGRAVING_EFFECTS[id].group).reduce((v,x)=>(v[x]=(v[x]||0)+1,v),{}),{A:6,B:8,C:5,D:6});
+check("all 30 effects are assigned with immutable IDs",()=>{
+  assert.equal(ENGRAVING_EFFECT_IDS.length,30);
+  assert.equal(new Set(ENGRAVING_EFFECT_IDS).size,30);
+  assert.deepEqual(ENGRAVING_EFFECT_IDS.map(id=>ENGRAVING_EFFECTS[id].group).reduce((v,x)=>(v[x]=(v[x]||0)+1,v),{}),{A:6,B:8,C:7,D:9});
   assert.equal(engravingCatalogue().length,30);
-  for(const id of ["ENG-05","ENG-17","ENG-25","ENG-29","ENG-30"])assert.equal(ENGRAVING_EFFECTS[id],undefined);
+  for(const id of ["ENG-05","ENG-17","ENG-25","ENG-29","ENG-30"])assert.equal(ENGRAVING_EFFECTS[id].status,"implemented");
   for(const id of ENGRAVING_EFFECT_IDS)assert.equal(engravingEffectStatus(id).status,"implemented");
 });
 check("unverified legacy levels do not become effect-bearing levels",()=>{
@@ -37,9 +37,9 @@ check("A: tap and source multipliers, critic rate/multi and purchase discount",(
   s.sources.SOURCE_01.level=1;
   assert.ok(ratio(G.tapPower(s),tap)>1.05);
   assert.ok(G.sourceProduction(s,"SOURCE_01").cmp(sourceBefore)>0);
-  assert.equal(engravingCriticalRate(s),0.01);
-  assert.equal(engravingCriticalMultiplier(s),1.03);
-  assert.equal(engravingPurchaseFactor(s),0.994);
+  assert.equal(engravingCriticalRate(s),0.18);
+  assert.equal(engravingCriticalMultiplier(s),1.6);
+  assert.equal(engravingPurchaseFactor(s),0.964);
   assert.ok(G.purchaseQuote(s,"moment","tap","1").cost!=="10");
 });
 check("B: collection, total levels, balanced production and tap/source resonance",()=>{
@@ -69,8 +69,8 @@ check("C: reward boosts and cost reduction preserve earned-orb basis",()=>{
   assert.ok(A(current.reward).cmp(old.reward)>0);
   assert.ok(A(current.nextRequired).cmp(old.nextRequired)<0);
   assert.equal(current.basis,"run-earned");
-  assert.equal(engravingConvergenceRewardFactor(s),1.04);
-  assert.equal(engravingConvergenceCostFactor(s),0.97);
+  assert.equal(engravingConvergenceRewardFactor(s),1.08);
+  assert.equal(engravingConvergenceCostFactor(s),0.955);
 });
 check("C: explicit retention and initial benefits survive convergence without touching legacy evidence",()=>{
   const s=started();s.sources.SOURCE_01.level=25;s.moment.tap=50;
@@ -88,14 +88,14 @@ check("D: autotyping works online and refuses offline stage progress",()=>{
   const beforeTap=G.tapPower(s),beforeTotal=s.totalOrbs;
   const countBefore=s.counters.sourcePurchases;
   const mode=s.purchaseMode;
-  G.advance(s,NOW+2000,{offline:false,rng:()=>0.99});
+  G.advance(s,NOW+4000,{offline:false,rng:()=>0.99});
   assert.ok(A(s.totalOrbs).cmp(beforeTotal)>0);
   assert.ok(A(s.totalOrbs).cmp(beforeTap)>0);
   assert.ok(s.moment.tap>0);
   assert.ok(s.counters.sourcePurchases>countBefore);
   assert.equal(s.purchaseMode,mode);
   const prev=JSON.stringify({orbs:s.orbs,total:s.totalOrbs,moment:s.moment,sources:s.sources});
-  G.advance(s,NOW+3602000,{offline:true,rng:()=>0});
+  G.advance(s,NOW+3604000,{offline:true,rng:()=>0});
   assert.equal(JSON.stringify({orbs:s.orbs,total:s.totalOrbs,moment:s.moment,sources:s.sources}),prev);
 });
 check("D: ENG-27 optimal automated purchasing and ENG-28 configurable convergence stages",()=>{
@@ -103,7 +103,7 @@ check("D: ENG-27 optimal automated purchasing and ENG-28 configurable convergenc
   owned(s,"ENG-26",1);owned(s,"ENG-27",1);owned(s,"ENG-28",1);owned(s,"ENG-24",1);
   assert.equal(engravingConvergenceControl(s),true);
   assert.ok(G.configureAutoConvergence(s,{minSteps:3}).ok);
-  G.advance(s,NOW+1000,{offline:false,rng:()=>0.99});
+  G.advance(s,NOW+4000,{offline:false,rng:()=>0.99});
   assert.ok(s.counters.sourcePurchases>=1);
   const old=started();owned(old,"ENG-24",1);
   assert.equal(G.configureAutoConvergence(old,{minSteps:3}).ok,false);

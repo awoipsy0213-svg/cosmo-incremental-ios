@@ -1,0 +1,24 @@
+/* 《理》刻印 v3.42: compact, accessible automation and saved plans. */
+.engraving-preset-slots{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:9px 0}
+.engraving-preset-slot{border:1px solid #9f94c7a1;border-radius:9px;padding:6px 4px;display:flex;flex-direction:column;align-items:stretch;gap:4px;min-width:0;background:#26213d18}
+.engraving-preset-slot strong{font-size:11px;line-height:1.3;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;text-align:center}
+.engraving-preset-slot button{font-size:11px;border-radius:6px;min-height:35px;border:1px solid #a796d8;background:#59429c;color:#fff}
+.engraving-preset-slot button:disabled{background:#87818e;color:#e2dfea;border-color:#a9a5ab}
+.engraving-plan-details{border-radius:9px;border:1px solid #b2a3d2aa;margin:7px 0;overflow:hidden}
+.engraving-plan-details summary{padding:12px;cursor:pointer;font-size:12px;font-weight:700;min-height:42px;box-sizing:border-box}
+.engraving-plan-details[open] summary{border-bottom:1px solid #a69bc57a}
+.engraving-plan-details .tiny{margin:7px 9px}
+.engraving-plan-list{max-height:38dvh;overflow-y:auto;overscroll-behavior:contain;padding:5px}
+.engraving-plan-row{display:grid;grid-template-columns:minmax(74px,1fr) minmax(80px,100px) 58px;align-items:center;gap:5px;padding:5px;min-height:50px;box-sizing:border-box;border-bottom:1px solid #8f88ac35;font-size:11px}
+.engraving-plan-row:last-child{border:0}
+.engraving-plan-row>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.engraving-plan-row label{display:flex;align-items:center;gap:4px;font-size:10px}
+.engraving-plan-row input[type=number]{width:100%;max-width:68px;height:34px;box-sizing:border-box;background:#fff;color:#1b1433;border:1px solid #a58dce;border-radius:6px;font-size:12px;padding:3px}
+.engraving-plan-exclude{justify-content:flex-end;flex-wrap:wrap;gap:1px!important}
+.engraving-plan-exclude input{width:17px;height:17px;accent-color:#7551b9}
+.engraving-preset-slot button:focus-visible,.engraving-plan-row input:focus-visible{outline:2px solid #9886fa;outline-offset:2px}
+@media(max-width:350px){
+ .engraving-plan-row{grid-template-columns:minmax(58px,1fr) minmax(80px,90px) 50px;gap:3px;font-size:10px}
+ .engraving-plan-exclude{font-size:9px!important}
+}
+@media(prefers-reduced-motion:reduce){.engraving-plan-details,.engraving-preset-slot{animation:none;transition:none}}

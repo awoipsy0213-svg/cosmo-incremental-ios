@@ -30,7 +30,7 @@ try{
       window.KOTOWARI_DEBUG.setLabState(s);
     });
     await page.locator("#automationQuick").click();
-    assert.equal(await page.locator(".automation-status").count(),3,label+" status summaries");
+    assert.equal(await page.locator(".automation-status").count(),4,label+" status summaries");
     assert.equal(await page.locator(".automation-row[data-automation-buy]").count(),0,label+" detail collapsed by default");
     assert.equal(await page.locator('[data-auto-master]').isChecked(),true);
     const switchVisual=await page.locator('[data-auto-master]').evaluate(el=>({
@@ -82,7 +82,7 @@ try{
     for(const id of ["auto-time","auto-universe","auto-life","auto-existence"]){
       await page.locator('[data-child="'+id+'"]').click();
       assert.equal(await page.locator('[data-child="'+id+'"]').getAttribute("aria-pressed"),"true");
-      assert.equal(await page.locator(".automation-status").count(),3,label+" status remains visible");
+      assert.equal(await page.locator(".automation-status").count(),4,label+" status remains visible");
     }
     assert.ok((await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth))<=1,
       label+" no horizontal overflow");

@@ -11,6 +11,7 @@ import {PROPOSED,PLANET_EFFECT_PROPOSALS,resourcePrototype,trialPreview,boostTri
 import {A,formatAmount,formatScientific3,formatOrbAmount} from "./numbers.mjs";
 import * as G from "./game.mjs";
 import {timeHexMarkup,patchTimeHex,timeHexFlowPanel,timeHexMiraclesPanel} from "./time-hex-v341.mjs";
+import {engravingAutomationHTML,engravingPresetHTML} from "./engraving-v342-ui.mjs";
 import {SaveStore,KEYS,decode,encode} from "./save.mjs";
 import {shortDuration} from "./purchase-insights.mjs";
 import {purchasePreview} from "./purchase-preview-v338.mjs";
@@ -464,6 +465,7 @@ function automationHTML(){
     '<div class="automation-status-line" aria-label="存在の自動化状態">'+
     status("刹那",momentRate>0,e.autoBuy.moment.enabled)+
     status("源",sourceRate>0,e.autoBuy.source.enabled)+
+    status("刻印",e.owned.includes("ENG-17")&&e.levels?.["ENG-17"]>0,e.autoEngraving.enabled)+
     status("収束",convergeOwned,e.autoConverge.enabled)+'</div>'+
     '<button type="button" class="automation-details-button" data-action="toggle-auto-details" aria-expanded="'+
     String(automationDetailsOpen)+'">'+(automationDetailsOpen?"設定を閉じる":"設定を開く")+'</button></section>';
@@ -528,7 +530,8 @@ function automationHTML(){
       (off?' disabled':'')+'>'+rewardOptions+'</select></label>'+
       '<label>最低段階<select class="input-select" data-auto-converge="minSteps"'+
       (off||!engravingConvergenceControl(state)?' disabled title="循環制御の刻印で解放"':'')+
-      '>'+stepsOptions+'</select></label></div></section>';
+      '>'+stepsOptions+'</select></label></div></section>'+
+      engravingAutomationHTML(state,disabled)+engravingPresetHTML(state,CONTENT,disabled);
   }
   if(tab==="universe"){
     const u=state.universe,unlocked=u.unlocked&&autoPlanetAvailable(u),off=disabled||!unlocked;
@@ -578,17 +581,17 @@ function engravingHTML(){
     <div class="card-top"><strong>余剰存在 ${f(state.surplusExistence,3)}</strong><span class="badge confirmed">最初の存在1を保護</span></div>
     <small>取得済み ${e.owned.length} / 30 · 収束 ${state.convergenceCount} 回 · 取得済みの刻印は収束後も保持</small>
   </div>
-  ${[1,2,3].map(tier=>`<h3 class="engraving-tier-title">刻印 ${["初級","中級","上級"][tier-1]} · 初回費用 ${["0.005","0.025","0.125"][tier-1]} 存在 / 取得 ${count(tier)}/10</h3>
+  ${[1,2,3].map(tier=>`<h3 class="engraving-tier-title">刻印 ${["初級","中級","上級"][tier-1]} · 初回費用 ${["0.001","0.025","0.125"][tier-1]} 存在 / 取得 ${count(tier)}/10</h3>
     <div class="row-grid engraving-list">
     ${catalogue.filter(x=>x.tier===tier).map(item=>{
       const owned=e.owned.includes(item.id),level=e.levels?.[item.id],q=engravingPurchaseQuote(state,item.id),upgrade=G.engravingTrialUpgradeQuote(state,item.id);
       const levelText=!owned?"Lv.0":Number.isSafeInteger(level)?"Lv."+level.toLocaleString("ja-JP"):"Lv.―";
       const levelHint=!owned?"未取得":Number.isSafeInteger(level)?"現在のレベル："+level.toLocaleString("ja-JP"):"取得済み・レベルの記録なし";
       const price=owned?upgrade.price:q.price??item.cost;
-      const shownPrice=price===undefined||price===null?"—":f(price,3);
+      const shownPrice=price===undefined||price===null?"—":f(price,6);
       const purchasable=owned?upgrade.ok:q.ok;
       const verb=owned?"強化":"取得",action=owned?"data-engraving-trial-upgrade":"data-engraving-buy";
-      const gain=purchasable?"Lv. +1":"上昇 —",costInfo="費用 "+shownPrice+" 存在";
+      const gain=purchasable?"Lv. +1":owned&&upgrade.reason==="この刻印はLv1で完成しています"?"完成":"上昇 —",costInfo="費用 "+shownPrice+" 存在";
       const full=item.name+"："+costInfo+" / 購入 ×"+(purchasable?1:0)+" / "+gain;
       const button='<button type="button" class="wide-button engraving-purchase-button dense-purchase-button" '+
         action+'="'+esc(item.id)+'" '+(!purchasable||readOnly||store.blocked?"disabled":"")+
@@ -999,6 +1002,17 @@ function renderPanel(force=false){
   $("childTabs").innerHTML=children.map(id=>`<button data-child="${id}" class="${currentSub===id?"active":""}" aria-pressed="${currentSub===id}">${childNames[id]}</button>`).join("");
   $("sheetHeading").textContent=(currentStage==="organizer"?"管理":currentStage==="automation"?"自動化":"強化")+" / "+childNames[currentSub];
   $("purchaseToolbar").hidden=currentStage!=="existence"||!["moment","sources"].includes(currentSub);
+  const bulkAllowed=state.engraving.owned.includes("ENG-05");
+  const bulkButton=$("bulkBuyButton");
+  if(bulkButton){
+    bulkButton.disabled=!bulkAllowed||readOnly||store.blocked;
+    bulkButton.title=bulkAllowed?"現在のタブを一括購入":"刻印「一括解放」を取得すると利用できます";
+    bulkButton.setAttribute("aria-label",bulkButton.title);
+  }
+  for(const id of ["bulkScopeButton","bulkOrderButton"]){
+    const control=$(id);
+    if(control)control.disabled=!bulkAllowed||readOnly||store.blocked;
+  }
   const cycle=$("purchaseCycle");
   const buyTabs=currentStage==="existence"&&["moment","sources"].includes(currentSub);
   cycle.hidden=!buyTabs;
@@ -1301,6 +1315,7 @@ async function dispatchAction(action){
     renderPanel(true);return;
   }
   if(action==="buy-all"){
+    if(!state.engraving.owned.includes("ENG-05"))return toast("刻印「一括解放」で解放します");
     if(bulkPurchasePending)return;
     if(readOnly||store.blocked)return toast("この画面では購入できません");
     const kind=currentStage==="existence"?(currentSub==="moment"?"moment":currentSub==="sources"?"source":null):null;
@@ -1389,7 +1404,7 @@ async function dispatchAction(action){
   if(action==="converge"){
     const q=G.convergenceQuote(state);
     if(!q.steps){toast("必要なオーブを集めてください");return;}
-    const newRate=A(G.existenceMultiplier(state)).add(q.reward);
+    const newRate=A(1).add(A(state.totalExistenceEarned||"0")).add(q.reward);
     const text=`存在 +${f(q.reward,3)} を獲得します。\n以後のタップ・源生産は ×${f(newRate,3)}になります。\nオーブと刹那・源の周回内Lvをリセットします。\n最初の存在1・時・概念は残ります。`;
     if(state.settings.confirmConvergence&&!await ask("収束する",text,"収束する"))return;
     if(resultDone(G.converge(state))){
@@ -1508,6 +1523,14 @@ document.addEventListener("click",async e=>{
         save();renderPanel(true);$("sheetBody").querySelector(`[data-moment-entry="${entry.id}"]`)?.scrollIntoView({block:"center"});}
       return;
     }
+    if(b.dataset.presetSave!==undefined){
+      if(readOnly||store.blocked)return toast("保存できません");
+      checkpoint();resultDone(G.savePurchasePreset(state,Number(b.dataset.presetSave)));return;
+    }
+    if(b.dataset.presetApply!==undefined){
+      if(readOnly||store.blocked)return toast("保存できません");
+      checkpoint();resultDone(G.applyPurchasePreset(state,Number(b.dataset.presetApply)));return;
+    }
     if(b.dataset.action){await dispatchAction(b.dataset.action);return;}
     if(b.matches("[data-legacy-link]")){save(true);return;}
     if(b.dataset.momentDetail){
@@ -1530,7 +1553,7 @@ document.addEventListener("click",async e=>{
       const level=state.engraving.levels?.[id];
       const status=!owned?"Lv.0（未取得）":Number.isSafeInteger(level)?"Lv."+level.toLocaleString("ja-JP"):"Lv.―（以前のレベル情報がありません）";
       await ask(item.name,"現在 "+status+"\n"+item.description+
-        "\n必要存在："+(price===null||price===undefined?"—":f(price,3)),"閉じる");
+        "\n必要存在："+(price===null||price===undefined?"—":f(price,6)),"閉じる");
       return;
     }
     if(b.dataset.sourceSummary!==undefined){
@@ -1605,14 +1628,14 @@ document.addEventListener("click",async e=>{
     if(b.dataset.engravingBuy){
       const id=b.dataset.engravingBuy,quote=engravingPurchaseQuote(state,id);
       if(!quote.ok)return toast(quote.reason||"購入できません");
-      if(state.settings.confirmEngravingPurchase&&!await ask("刻印の初回購入",`${engravingCatalogue().find(x=>x.id===id)?.name||"刻印"} を余剰存在 ${quote.price} で初回購入します。残り存在：${f(A(state.surplusExistence).sub(quote.price),3)}。有効な固有効果は購入後から常時適用します。`,"購入する"))return;
+      if(state.settings.confirmEngravingPurchase&&!await ask("刻印の初回購入",`${engravingCatalogue().find(x=>x.id===id)?.name||"刻印"} を余剰存在 ${quote.price} で初回購入します。残り存在：${f(A(state.surplusExistence).sub(quote.price),6)}。有効な固有効果は購入後から常時適用します。`,"購入する"))return;
       checkpoint();
       return resultDone(G.buyEngraving(state,id));
     }
     if(b.dataset.engravingTrialUpgrade){
       const id=b.dataset.engravingTrialUpgrade,q=G.engravingTrialUpgradeQuote(state,id);
       if(!q.ok)return toast(q.reason);
-      if(state.settings.confirmEngravingUpgrade&&!await ask("刻印の強化",`${engravingCatalogue().find(x=>x.id===id)?.name||"刻印"} のLvを上げます。費用 ${f(q.price,3)} 余剰存在。`,"購入する"))return;
+      if(state.settings.confirmEngravingUpgrade&&!await ask("刻印の強化",`${engravingCatalogue().find(x=>x.id===id)?.name||"刻印"} のLvを上げます。費用 ${f(q.price,6)} 余剰存在。`,"購入する"))return;
       checkpoint();return resultDone(G.buyEngravingTrialUpgrade(state,id));
     }
     if(b.dataset.draft){resultDone(G.toggleDraft(state,b.dataset.draft));return;}
@@ -1660,6 +1683,18 @@ document.addEventListener("change",async e=>{
     if(!["enabled","priority","intervalSeconds"].includes(field))return;
     const value=field==="enabled"?t.checked:field==="intervalSeconds"?Number(t.value):t.value;
     resultDone(G.configureAutoPurchase(state,kind,{[field]:value}));return;
+  }
+  if(t.dataset.autoEngrave!==undefined){
+    const field=t.dataset.autoEngrave;
+    if(!["enabled","priority","mode","minReserve"].includes(field))return;
+    const value=field==="enabled"?t.checked:t.value;
+    resultDone(G.configureEngravingAutoBuy(state,{[field]:value}));return;
+  }
+  if(t.dataset.planField!==undefined){
+    const field=t.dataset.planField;
+    if(!["targetLevel","excluded"].includes(field))return;
+    const value=field==="excluded"?t.checked:Number(t.value);
+    resultDone(G.editPurchasePlan(state,t.dataset.planKind,t.dataset.planId,{[field]:value}));return;
   }
   if(t.dataset.autoConverge!==undefined){
     const field=t.dataset.autoConverge;

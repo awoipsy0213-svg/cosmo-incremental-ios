@@ -86,7 +86,8 @@ assert.ok(html.includes('time-hex-v341.css'));
 assert.ok(style.includes("body.time-hex-world"));
 assert.ok(style.includes("prefers-reduced-motion"));
 assert.ok(style.includes("body.sheet-open.time-hex-world"));
-assert.ok(sw.includes('const UI_REVISION = "-time-hex-v341"'));
+assert.ok(sw.includes('const UI_REVISION = "-engraving-v342"'));
+for(const asset of ["engraving-v342.css","engraving-v342.mjs","engraving-v342-ui.mjs"])assert.ok(sw.includes('"'+asset+'"'),"cache v342 "+asset);
 for(const asset of ["time-hex-v341.css","time-hex-v341.mjs"])
   assert.equal((sw.match(new RegExp('"'+asset.replaceAll(".","\\.")+'"',"g"))||[]).length,2,"precache core and relative list");
 for(const file of ["index.html","app.mjs","sw.js","time-hex-v341.css","time-hex-v341.mjs"])

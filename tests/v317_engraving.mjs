@@ -16,9 +16,9 @@ test("30 stable IDs, retained initial costs and historical slot data",()=>{
   assert.deepEqual([0,1,4,5,19,20,99,100].map(engravingSlots),[2,3,3,4,4,5,5,6]);
 });
 test("first purchase becomes Lv.1, upper levels stay unavailable; first existence protected",()=>{
-  const s=state();s.surplusExistence="0.0049";
+  const s=state();s.surplusExistence="0.0009";
   assert.equal(buyEngraving(s,"ENG-01").ok,false);
-  s.surplusExistence="0.005";assert.ok(buyEngraving(s,"ENG-01").ok);
+  s.surplusExistence="0.001";assert.ok(buyEngraving(s,"ENG-01").ok);
   assert.equal(A(s.surplusExistence).cmp(0),0);
   assert.deepEqual(s.engraving.owned,["ENG-01"]);assert.equal(s.engraving.levels["ENG-01"],1);
   assert.equal(buyEngraving(s,"ENG-01").ok,false);assert.deepEqual(s.engraving.equipped,[]);
