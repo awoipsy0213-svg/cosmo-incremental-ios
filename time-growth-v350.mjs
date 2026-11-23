@@ -157,7 +157,7 @@ export function growthBonuses(s,concepts){
 export function growthEffect(s,c){
   const index=idIndex(c.id),t=s.time;
   if(index<0||index>76)return null;
-  const type=CATEGORIES[index],progress=growthProgress(t,c),max=c.id==="TC001"?.5:INDIVIDUAL[type]||0;
+  const type=CATEGORIES[index],progress=growthProgress(t,c),max=c.id==="TC001"?0.5:(INDIVIDUAL[type]||0);
   const stage=["planetGrowth","observation","resource","interference","pending"].includes(type)?"宇宙":"時";
   return {type,progress,max,bonus:progress*max,recognized:conceptRecognized(t,c),
     active:type!=="pending"&&(stage!=="宇宙"||s.universe.unlocked),stage};
@@ -249,7 +249,8 @@ export function advanceTimeResidues(s,concepts,gameSeconds,rng=Math.random){
   const e=A(s.totalExistenceEarned||"0").add(1);
   const logE=e.e+Math.log10(e.m);
   const rateLog=logE<=7?logE-7:(logE-7)*GROWTH_TRIAL.aboveKneePower;
-  const expected=A.fromLog10(rateLog).mul(cycles);
+  const eventBonus=growthBonuses(s,concepts).event;
+  const expected=A.fromLog10(rateLog).mul(cycles).mul(1+eventBonus);
   const events=sampleEvents(expected,rng);
   if(events===0n)return {events:"0",converted:"0",recognized:[]};
   const dist=growthWeights(t,concepts),draws=splitTotal(events,dist,rng);
