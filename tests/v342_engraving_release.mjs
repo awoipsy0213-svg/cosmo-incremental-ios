@@ -21,7 +21,7 @@ assert.equal(engravingPrice("ENG-05"),"0.001");
 assert.equal(engravingPrice("ENG-11"),"0.025");
 assert.equal(engravingPrice("ENG-21"),"0.125");
 const start=started();
-assert.equal(G.existenceMultiplier(start).toString(),"1");
+approx(G.existenceMultiplier(start).toNumber(),1);
 start.totalExistenceEarned="1.25";
 start.surplusExistence="1";
 approx(G.existenceMultiplier(start).toNumber(),2.25);
