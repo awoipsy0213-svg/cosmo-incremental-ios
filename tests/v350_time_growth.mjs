@@ -57,13 +57,13 @@ assert.deepEqual(growthWeights(flow.time,CONTENT.concepts),
  [{id:"TC001",prob:.25},{id:"TC002",prob:.25},{id:"common",prob:.5}]);
 flow.time.selected=[0,1];flow.time.revealedDirections=2;flow.time.weights=[50,50,0,0,0,0];
 const both=growthWeights(flow.time,CONTENT.concepts);
-const pct=(n)=>both.filter(x=>n===0?x.id==="common":concept(Number(x.id.slice(2))).principles.length===n).reduce((a,v)=>a+v.prob,0);
+const pct=(n)=>both.filter(x=>n===0?x.id==="common":x.id!=="common"&&concept(Number(x.id.slice(2))).principles.length===n).reduce((a,v)=>a+v.prob,0);
 assert.ok(Math.abs(pct(0)-.4)<1e-12);
 assert.ok(Math.abs(pct(1)-.36)<1e-12);
 assert.ok(Math.abs(pct(2)-.24)<1e-12);
 flow.time.selected=[0,1,2];flow.time.revealedDirections=3;flow.time.weights=[34,33,33,0,0,0];
 const trip=growthWeights(flow.time,CONTENT.concepts);
-const group=n=>trip.filter(x=>n===0?x.id==="common":concept(Number(x.id.slice(2))).principles.length===n).reduce((a,v)=>a+v.prob,0);
+const group=n=>trip.filter(x=>n===0?x.id==="common":x.id!=="common"&&concept(Number(x.id.slice(2))).principles.length===n).reduce((a,v)=>a+v.prob,0);
 assert.ok(Math.abs(group(0)-.30)<1e-12);
 assert.ok(Math.abs(group(1)-.385)<1e-12);
 assert.ok(Math.abs(group(2)-.245)<1e-12);
