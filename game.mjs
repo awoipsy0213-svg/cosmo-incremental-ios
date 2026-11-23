@@ -947,7 +947,7 @@ export function configureEngravingAutoBuy(s,{enabled,priority,mode,minReserve}={
   }
   if(minReserve!==undefined){
     try{
-      if(typeof minReserve!=="string"||!/^(?:\d+)(?:\.\d+)?(?:e\+?\d+)?$/i.test(minReserve)||
+      if(typeof minReserve!=="string"||!/^(?:\d+)(?:\.\d+)?(?:e[+-]?\d+)?$/i.test(minReserve)||
          A(minReserve).cmp(0)<0||A(minReserve).cmp("1e100")>0)
         return {ok:false,reason:"保留存在の値が不正です"};
       next.minReserve=A(minReserve).toString();
@@ -1689,10 +1689,10 @@ export function validateState(input,expectedMode=null) {
      typeof automatic.enabled!=="boolean"||!ENGRAVE_ORDER.includes(automatic.priority)||
      !ENGRAVE_MODES.includes(automatic.mode)||
      typeof automatic.minReserve!=="string"||
-     !/^(?:\d+)(?:\.\d+)?(?:e\+?\d+)?$/i.test(automatic.minReserve)||
+     !/^(?:\d+)(?:\.\d+)?(?:e[+-]?\d+)?$/i.test(automatic.minReserve)||
      A(automatic.minReserve).cmp(0)<0||A(automatic.minReserve).cmp("1e100")>0||
      !Number.isFinite(automatic.credit)||automatic.credit<0||automatic.credit>1000)
-    fail("刻印の自動購入設定 ["+JSON.stringify(automatic)+", order="+ENGRAVE_ORDER.join(",")+", modes="+ENGRAVE_MODES.join(",")+", regex="+(/^(?:\d+)(?:\.\d+)?(?:e\+?\d+)?$/i.test(automatic.minReserve))+"]");
+    fail("刻印の自動購入設定");
   if(automatic.enabled&&engravingLevel(s,AUTOMATIC_ENGRAVING_ID)<1)fail("刻印自律の解放状態");
   automatic.minReserve=str(automatic.minReserve);
   if(e.presetSystem===undefined)e.presetSystem=freshPresetSystem();
