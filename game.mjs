@@ -333,7 +333,7 @@ export function buy(s,kind,id) {
  * priority order, so the first cheapest line cannot absorb the entire wallet via MAX.
  * Capped to protect slow phones; another tap resumes the rest. Does not automate play. */
 export function buyAll(s,kind,order="cheap",selectedIds=null) {
-  if(engravingLevel(s,BULK_ENGRAVING_ID)<1)return {ok:false,reason:"一括解放の刻印が必要です"};
+  if(!s.engraving.owned.includes(BULK_ENGRAVING_ID))return {ok:false,reason:"一括解放の刻印が必要です"};
   if(!["cheap","expensive"].includes(order))return {ok:false,reason:"購入順が不正"};
   if(!["moment","source"].includes(kind)||!s.intro.complete)return {ok:false,reason:"購入対象がありません"};
   const available=kind==="source"?SOURCE_IDS:MOMENT_IDS;
@@ -958,7 +958,7 @@ export function configureEngravingAutoBuy(s,{enabled,priority,mode,minReserve}={
   return {ok:true};
 }
 export function savePurchasePreset(s,slot){
-  if(engravingLevel(s,PRESET_ENGRAVING_ID)<1)return {ok:false,reason:"周回設計の刻印が必要です"};
+  if(!s.engraving.owned.includes(PRESET_ENGRAVING_ID))return {ok:false,reason:"周回設計の刻印が必要です"};
   if(!Number.isInteger(slot)||slot<0||slot>=3)return {ok:false,reason:"プリセット番号が不正です"};
   const sys=s.engraving.presetSystem;
   sys.presets[slot]=snapshotPreset(s);
@@ -966,7 +966,7 @@ export function savePurchasePreset(s,slot){
   return {ok:true};
 }
 export function applyPurchasePreset(s,slot){
-  if(engravingLevel(s,PRESET_ENGRAVING_ID)<1)return {ok:false,reason:"周回設計の刻印が必要です"};
+  if(!s.engraving.owned.includes(PRESET_ENGRAVING_ID))return {ok:false,reason:"周回設計の刻印が必要です"};
   if(!Number.isInteger(slot)||slot<0||slot>=3)return {ok:false,reason:"プリセット番号が不正です"};
   const sys=s.engraving.presetSystem,preset=sys.presets[slot];
   if(!preset)return {ok:false,reason:"未保存のプリセットです"};
@@ -982,7 +982,7 @@ export function applyPurchasePreset(s,slot){
   return {ok:true};
 }
 export function editPurchasePlan(s,kind,id,{targetLevel,excluded}={}){
-  if(engravingLevel(s,PRESET_ENGRAVING_ID)<1)return {ok:false,reason:"周回設計の刻印が必要です"};
+  if(!s.engraving.owned.includes(PRESET_ENGRAVING_ID))return {ok:false,reason:"周回設計の刻印が必要です"};
   const ids=kind==="moment"?MOMENT_IDS:kind==="source"?SOURCE_IDS:null;
   if(!ids||!ids.includes(id))return {ok:false,reason:"強化対象が不正です"};
   if(targetLevel!==undefined&&(!Number.isSafeInteger(targetLevel)||targetLevel<0||targetLevel>1000000))
@@ -1697,7 +1697,7 @@ export function validateState(input,expectedMode=null) {
   automatic.minReserve=str(automatic.minReserve);
   if(e.presetSystem===undefined)e.presetSystem=freshPresetSystem();
   if(!validatePresets(e.presetSystem,MOMENT_IDS,SOURCE_IDS))fail("周回プリセット");
-  if(e.presetSystem.activePreset!==null&&engravingLevel(s,PRESET_ENGRAVING_ID)<1)
+  if(e.presetSystem.activePreset!==null&&!s.engraving.owned.includes(PRESET_ENGRAVING_ID))
     fail("周回設計の解放状態");
   const defaultAuto=createState().engraving;
   // Upgrade old saves without altering verified ownership, purchased levels or saved credits.
