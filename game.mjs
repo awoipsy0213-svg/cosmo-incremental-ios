@@ -1,5 +1,6 @@
 import {CONFIG} from "./balance-config.mjs";
 import {TIME_EFFECTS,conceptLevelCost,conceptBonuses,conceptActive,residueWeights} from "./time-confirmed-v4.mjs";
+import {freshTimeGrowth,ensureTimeGrowth,addTimeResidue,resolveRecognitions,growthWeights,growthBonuses,growthEffect,advanceTimeResidues} from "./time-growth-v350.mjs";
 import {UNIVERSE_RESOURCE_RULES,eligibleResourceWeights,pickWeightedResource,investmentDelta,collapsePressureFactor,collapseHazardPerMinute} from "./universe-confirmed-v4.mjs";
 import {KNOWLEDGE_IDS,addKnowledge,knowledgeLevel,coreRequirements,makeCoreState,advanceCore,autoPlanetAvailable} from "./universe-progression-v316.mjs";
 import {INTERFERENCE_RULES,R1_RESOURCE_IDS,STABILIZING_RESOURCES,resourceSpendPlan,induceResourceCost,interferenceKnowledgeReady} from "./universe-interference-v318.mjs";
@@ -45,7 +46,7 @@ export function createState(now=Date.now(),mode="normal") {
     convergenceCount:0,purchaseMode:"1",
     time:{unlocked:false,revealedDirections:1,selected:[0],weights:[100,0,0,0,0,0],
       elapsed:0,worldSeconds:0,eventHappened:false,residues:{},concepts:{},common:0,
-      residueAccumulator:0,miracles:[]},
+      residueAccumulator:0,miracles:[],growth:freshTimeGrowth()},
     universe:{unlocked:false,planets:[],nextPlanetId:1,selectedPlanetId:null,
       maxPlanets:1,collapseCount:0,resources:{},discoveredResources:[],
       receiptMode:null,resourceAccumulator:0,unlockedRanks:[1],autoGenerate:false,autoAccumulator:0,autoReserve:0,knowledge:{},interference:{transfers:[],nextTransferId:1,lastInduceAt:0,stabilizeCooldowns:{}}},
@@ -477,7 +478,7 @@ export function setDirection(s,index,on) {
   const a=s.time.selected;
   if(on&&!a.includes(index)){
     if(a.length>=CONFIG.confirmed.maxDirections)return {ok:false,reason:"同時に選べる方向は3つまでです"};
-    a.push(index);s.time.weights[index]=20;
+    a.push(index);s.time.weights[index]=10;
   } else if(!on&&a.includes(index)){
     if(a.length===1)return {ok:false,reason:"少なくとも1方向を残してください"};
     s.time.selected=a.filter(x=>x!==index);s.time.weights[index]=0;
@@ -491,20 +492,28 @@ export function normalizeWeights(s) {
 }
 export function setWeight(s,index,value){
   if(!s.time.selected.includes(index)||!Number.isFinite(value)||value<0||value>100)return false;
-  s.time.weights[index]=value;normalizeWeights(s);return true;
+  const others=s.time.selected.filter(i=>i!==index);
+  if(!others.length){s.time.weights[index]=100;return true;}
+  const total=others.reduce((a,i)=>a+s.time.weights[i],0),left=100-value;
+  if(total<=0&&left>0)return false;
+  for(const i of others)s.time.weights[i]=left*(s.time.weights[i]/(total||1));
+  s.time.weights[index]=value;
+  normalizeWeights(s);return true;
 }
 export function residueDistribution(s) {
-  return residueWeights(s,CONTENT.concepts);
+  return growthWeights(s.time,CONTENT.concepts);
 }
 export function rollResidue(s,rng=Math.random) {
   const dist=residueDistribution(s);
   if(!dist)return {ok:false,reason:"この配分の確率表は？？？"};
   let r=rng(),pick=dist.at(-1).id;
   for(const x of dist){r-=x.prob;if(r<0){pick=x.id;break;}}
-  if(pick==="common")s.time.common++;
-  else {
-    const first=!s.time.residues[pick]&&!s.time.concepts[pick];
-    s.time.residues[pick]=(s.time.residues[pick]||0)+1;
+  if(pick==="common"){
+    s.time.common++;
+    if(s.time.common>=100)convertCommon(s,rng);
+  }else {
+    const first=!s.time.growth?.totals?.[pick]&&!s.time.concepts[pick];
+    addTimeResidue(s.time,CONTENT.concepts.find(c=>c.id===pick),1,CONTENT.concepts);
     if(first)event(s,"？？？の残滓が発見されました。同じものが集まると、何かが起こるようです。");
   }
   return {ok:true,id:pick};
@@ -535,6 +544,10 @@ export function formConceptMax(s,id) {
 export function conceptEffect(s,id) {
   const c=CONTENT.concepts.find(x=>x.id===id),rule=TIME_EFFECTS[id];
   if(!c||!rule)return null;
+  const native=growthEffect(s,c);
+  if(native && s.time.growth?.totals?.[id])
+    return {level:s.time.concepts[id]||0,bonus:native.bonus,rule:{type:native.type,max:native.max},
+      active:native.active,recognized:native.recognized,progress:native.progress,stage:native.stage};
   const level=s.time.concepts[id]||0,bonus=Math.min(rule.max,level*rule.perLevel);
   return {level,bonus,rule,active:level>0&&conceptActive(s,c)};
 }
@@ -553,6 +566,7 @@ export function tryDirectionMiracle(s,elapsed,rng=Math.random) {
   const next=s.time.revealedDirections++;
   if(!Array.isArray(s.time.miracles))s.time.miracles=[];
   s.time.miracles.push(next);
+  resolveRecognitions(s.time,CONTENT.concepts);
   event(s,`《奇跡》：${CONTENT.principles[next]}を認識した。配分できる方向が増えた。`);
   return true;
 }
@@ -560,7 +574,10 @@ export function convertCommon(s,rng=Math.random) {
   if(s.time.common<100)return {ok:false,reason:"共通の？？？が100個必要です"};
   // Equal weighting/manual trigger are configurable trial choices, NOT approved game balance.
   const id=CONCEPT_IDS[Math.min(76,Math.floor(rng()*77))];
-  s.time.common-=100;s.time.residues[id]=(s.time.residues[id]||0)+1;s.counters.conversions++;
+  s.time.common-=100;
+  addTimeResidue(s.time,CONTENT.concepts.find(c=>c.id===id),1,CONTENT.concepts);
+  s.time.growth.converted=(BigInt(s.time.growth.converted)+1n).toString();
+  s.counters.conversions=Math.min(Number.MAX_SAFE_INTEGER,s.counters.conversions+1);
   event(s,"形になれなかった？？？から、ひとつの残滓が生まれた。");
   return {ok:true,id};
 }
@@ -1329,22 +1346,14 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
     addOrbs(s,gained);
   }
   if(s.time.unlocked){
-    const mods=conceptBonuses(s,CONTENT.concepts);
-    const weightedDirection=s.time.selected.reduce((sum,i)=>sum+(s.time.weights[i]||0)/100*(mods.directions[i]||0),0);
-    const timeSeconds=gameSeconds;
-    s.time.elapsed+=timeSeconds*(1+mods.time)*(1+mods.all+weightedDirection);
-    // Calibrated initial trial coefficient to be balance-tested (TE-31/32).
-    const existenceScore=Math.max(0,Math.log10(1+Math.min(1e300,Number(s.surplusExistence)||0)));
-    const chancePerSecond=.00055*(1+Math.min(100,existenceScore))*(1+mods.event);
-    const expected=timeSeconds*(s.mode==="lab"?CONFIG.lab.residueEventsPerSecond:chancePerSecond);
-    const events=Math.min(5000,Math.floor(expected)+(rng()<expected%1?1:0));
-    for(let i=0;i<events;i++)rollResidue(s,rng);
-    // Per-tick Bernoulli fraction prevents biased over-awards at 150ms refresh.
-    s.time.residueAccumulator=0;
+    const mods=growthBonuses(s,CONTENT.concepts),timeSeconds=gameSeconds;
+    s.time.elapsed+=timeSeconds*(1+mods.time);
+    const report=advanceTimeResidues(s,CONTENT.concepts,timeSeconds,rng);
+    if(report.recognized.length)
+      event(s,"新しい概念を認識した："+report.recognized.map(id=>CONTENT.concepts.find(c=>c.id===id)?.name).join("・"));
     tryDirectionMiracle(s,timeSeconds,rng);
-    // TIME is never spent by world-clock progression.
     s.time.worldSeconds=Math.min(1,s.time.worldSeconds+
-      timeSeconds*(1+mods.world)/(24*3600));
+      timeSeconds*(1+mods.world)/(48*3600)); // PROVISIONAL trial: 48h vs former 24h.
     checkUniverse(s);
   }
   if(s.universe.unlocked){
@@ -1367,7 +1376,7 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
     }
     for(const p of [...s.universe.planets]){
       const activity=Math.min(2,1.01**Math.min(100,p.stats.activity?Math.floor(Number(p.stats.activity)/100):0));
-      const growth=A(gameSeconds/60).mul(activity).sub(growthBlocks.get(p.id)||A(0))
+      const growth=A(gameSeconds/60).mul(activity).mul(1+growthBonuses(s,CONTENT.concepts).planetGrowth).sub(growthBlocks.get(p.id)||A(0))
         .add(growthBonuses.get(p.id)||A(0));
       p.stats.mass=add(p.stats.mass,growth);
       if(!p.evidence||typeof p.evidence!=="object")p.evidence={};
@@ -1599,6 +1608,7 @@ export function validateState(input,expectedMode=null) {
     if(!t[key]||typeof t[key]!=="object"||Array.isArray(t[key]))fail("概念データ");
     for(const [id,v] of Object.entries(t[key]))if(!CONCEPT_IDS.includes(id)||!Number.isSafeInteger(v)||v<0)fail("概念ID・数量");
   }
+  try {ensureTimeGrowth(t,CONTENT.concepts);}catch(error){fail("累計残滓・熟練度："+error.message);}
   const u=s.universe;if(u){
     if(u.autoGenerate===undefined)u.autoGenerate=false;
     if(u.autoAccumulator===undefined)u.autoAccumulator=0;
