@@ -20,7 +20,7 @@ try{
   const fixture=await page.evaluate(async()=>{
    const G=await import("./game.mjs"),S=await import("./save.mjs");
    const s=G.createState(Date.now());
-   s.intro.complete=true;s.time.unlocked=true;s.universe.unlocked=true;
+   s.intro.complete=true;s.time.unlocked=true;s.universe.unlocked=true;s.engraving.owned.push("ENG-05");s.engraving.levels["ENG-05"]=1;
    s.sources.SOURCE_01.level=8;
    s.orbs="250000";s.totalOrbs="250000";
    return S.encode(s,"v324-ui");
