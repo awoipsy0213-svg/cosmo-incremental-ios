@@ -319,17 +319,17 @@ function costLabel(q){
 }
 function purchaseGainLabel(kind,id,preview){
   if(!preview.count)return "→ —";
-  return kind==="source"?"+"+f(preview.sourceGain,3)+"/秒":"→ "+compactEffectValue(preview.afterEffect);
+  return kind==="source"?"+"+o(preview.sourceGain)+"/秒":"→ "+compactEffectValue(preview.afterEffect);
 }
 function purchaseCurrentLabel(kind,id){
-  if(kind==="source")return "現 "+f(G.sourceProduction(state,id),3)+"/秒";
+  if(kind==="source")return "現 "+o(G.sourceProduction(state,id))+"/秒";
   const i=CONTENT.moment.findIndex(item=>item.id===id);
   return "現 "+compactEffectValue(G.momentEffects(state)[i]?.current);
 }
 function sourceMilestoneLabel(id){
   const level=state.sources[id].level;
   const next=CONFIG.confirmed.sourceMilestones.find(n=>n>level);
-  return next?"次の節目 Lv."+next.toLocaleString("ja-JP"):"全節目に到達";
+  return next?"次 Lv."+next.toLocaleString("ja-JP")+" · 生産×2":"全21節目達成";
 }
 function cardQuote(kind,id){
   const preview=purchasePreview(state,kind,id),q=preview.quote;
@@ -424,7 +424,7 @@ function sourcesHTML(){
       <div class="card-top"><strong title="${esc(x.name)}">${String(i+1).padStart(2,"0")} ${esc(x.name)} ＋${v.plus.toLocaleString("ja-JP")}</strong><small data-source-level="${x.id}">Lv.${v.level.toLocaleString("ja-JP")}</small></div>
       <button type="button" class="more-button source-detail-button" data-source-detail="${x.id}" aria-label="${esc(x.name)}の詳細" title="効果の詳細">⋯</button>
       <button type="button" class="source-cycle-button" data-breakthrough="${x.id}" ${!cycleReady?"disabled":""} aria-label="${esc(x.name)}の＋循環" title="${cycleReady?"＋循環を実行":v.level===1000000?"全30源一巡まで未解放":"Lv.1,000,000で＋循環が解放"}">↻</button>
-      <div class="source-rates" title="オーブを毎秒自動生成。源の生成量と購入差分は右側で確認"><span data-source-next="${x.id}">毎秒オーブを生成</span><span data-source-total="${x.id}">${esc(sourceMilestoneLabel(x.id))}</span></div>
+      <div class="source-rates" title="この源の現在の毎秒オーブ生成量と、次の節目での生産2倍効果"><span data-source-next="${x.id}" title="毎秒 ${esc(o(G.sourceProduction(state,x.id)))} オーブ">毎秒 ${esc(o(G.sourceProduction(state,x.id)))} オーブ</span><span data-source-total="${x.id}">${esc(sourceMilestoneLabel(x.id))}</span></div>
       ${cardQuote("source",x.id)}
     </article>`;
   }).join("")}</div>`;
@@ -1045,8 +1045,8 @@ function refreshPurchaseButtons(){
       const sum=sourceMilestoneLabel(id);
       if(total&&total.textContent!==sum)total.textContent=sum;
       const next=card?.querySelector(`[data-source-next="${id}"]`);
-      const nextText="毎秒オーブを生成";
-      if(next&&next.textContent!==nextText)next.textContent=nextText;
+      const nextText=`毎秒 ${o(G.sourceProduction(state,id))} オーブ`;
+      if(next&&next.textContent!==nextText){next.textContent=nextText;next.title=nextText;}
       const cycle=card?.querySelector("[data-breakthrough]");
       if(cycle)cycle.disabled=state.sources[id].level!==1000000||!G.sourceCycleStatus(state).unlocked||readOnly||store.blocked;
     }
@@ -1520,7 +1520,8 @@ document.addEventListener("click",async e=>{
       const x=CONTENT.sources.find(x=>x.id===b.dataset.sourceDetail);
       const status=G.sourceFinalEffectStatus(state,x.id);
       const v=state.sources[x.id],ms=CONFIG.confirmed.sourceMilestones,done=ms.filter(k=>k<=v.level).length,next=ms.find(k=>k>v.level);
-      await ask(x.name,`現在 Lv.${v.level.toLocaleString("ja-JP")} / ＋${v.plus}\n節目 ${done}/21 / 次 ${next||"MAX"}\n＋倍率 ×${f(G.sourcePlusGain(v.plus))}\n合計 ${o(G.sourceProduction(state,x.id))} オーブ/秒\n次Lv増加 ${o(G.sourceNextGain(state,x.id))} オーブ/秒\n\n特性：${x.role}\n特別な効果：${status?.unlocked&&status?.implemented?status.label:"？？？"}\n次の効果節目：25／1,000／10,000／50,000／100,000／500,000／1,000,000`,"閉じる");return;
+      const special=status?.unlocked&&status?.implemented?"\n＋循環の固有効果："+status.label:"";
+      await ask(x.name,`現在 Lv.${v.level.toLocaleString("ja-JP")} / ＋${v.plus}\n節目 ${done}/${ms.length} / 次 ${next||"MAX"}\n節目達成ごとに生産×2（累積 ×${o(G.sourceMilestoneMultiplier(v.level))}）\n＋倍率 ×${f(G.sourcePlusGain(v.plus))}\n現在 ${o(G.sourceProduction(state,x.id))} オーブ/秒\n次Lv増加 ${o(G.sourceNextGain(state,x.id))} オーブ/秒\n※節目で購入価格は変化しません。${special}`,"閉じる");return;
     }
     if(readOnly){toast("別タブの書き込みを保護中です");return;}
     if(store.blocked && b.dataset.restore===undefined){toast("元セーブを保護中です。「保存」から復元してください。");return;}

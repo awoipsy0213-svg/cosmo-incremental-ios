@@ -77,8 +77,8 @@ try{
     await stable("bulk mode");
     await page.locator('[data-child="sources"]').click();
     const source=page.locator('[data-purchase="source"][data-id="SOURCE_01"]');
-    assert.equal(await page.locator('[data-source-next="SOURCE_01"]').textContent(),"毎秒オーブを生成");
-    assert.match(await page.locator('[data-source-total="SOURCE_01"]').textContent(),/次の節目 Lv\./);
+    assert.match(await page.locator('[data-source-next="SOURCE_01"]').textContent(),/^毎秒 [^.]*(?: オーブ)$/);
+    assert.match(await page.locator('[data-source-total="SOURCE_01"]').textContent(),/次 Lv\..*生産×2/);
     const sourceCurrent=await source.locator('[data-quote-current]').textContent();
     const sourceGain=await source.locator('[data-quote-gain]').textContent();
     assert.match(sourceCurrent,/^現 /);
