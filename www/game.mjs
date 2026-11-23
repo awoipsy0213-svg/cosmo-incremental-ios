@@ -478,7 +478,13 @@ export function setDirection(s,index,on) {
   const a=s.time.selected;
   if(on&&!a.includes(index)){
     if(a.length>=CONFIG.confirmed.maxDirections)return {ok:false,reason:"同時に選べる方向は3つまでです"};
-    a.push(index);s.time.weights[index]=10;
+    if(a.length===1){
+      s.time.weights[a[0]]=50;
+      a.push(index);s.time.weights[index]=50;
+    }else{
+      for(const i of a)s.time.weights[i]*=.9;
+      a.push(index);s.time.weights[index]=10;
+    }
   } else if(!on&&a.includes(index)){
     if(a.length===1)return {ok:false,reason:"少なくとも1方向を残してください"};
     s.time.selected=a.filter(x=>x!==index);s.time.weights[index]=0;
