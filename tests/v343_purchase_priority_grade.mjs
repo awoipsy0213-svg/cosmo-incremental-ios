@@ -76,7 +76,9 @@ check("moment grade picks the highest affordable authored rank, not a lower infl
 });
 
 check("engraving auto highest-grade order uses the engraving series rather than its price",()=>{
-  const s=state();own(s,"ENG-17");s.surplusExistence="0.125";
+  const s=state();for(const id of ["ENG-01","ENG-02","ENG-03","ENG-11","ENG-12","ENG-13","ENG-17"])own(s,id);
+  // Tier 3 is actually unlocked: three owned Tier-2 engravings are mandatory.
+  s.surplusExistence="0.125";
   assert.equal(G.configureEngravingAutoBuy(s,{enabled:true,priority:"grade",mode:"new",minReserve:"0"}).ok,true);
   G.advance(s,NOW+4000,{offline:false,rng:()=>.99});
   assert.ok(s.engraving.owned.includes("ENG-30"),"highest unowned engraving grade must win");
