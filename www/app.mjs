@@ -1002,7 +1002,7 @@ function renderPanel(force=false){
   $("childTabs").innerHTML=children.map(id=>`<button data-child="${id}" class="${currentSub===id?"active":""}" aria-pressed="${currentSub===id}">${childNames[id]}</button>`).join("");
   $("sheetHeading").textContent=(currentStage==="organizer"?"管理":currentStage==="automation"?"自動化":"強化")+" / "+childNames[currentSub];
   $("purchaseToolbar").hidden=currentStage!=="existence"||!["moment","sources"].includes(currentSub);
-  const bulkAllowed=Number(state.engraving.levels?.["ENG-05"]||0)>0&&state.engraving.owned.includes("ENG-05");
+  const bulkAllowed=state.engraving.owned.includes("ENG-05");
   const bulkButton=$("bulkBuyButton");
   if(bulkButton){
     bulkButton.disabled=!bulkAllowed||readOnly||store.blocked;
@@ -1315,7 +1315,7 @@ async function dispatchAction(action){
     renderPanel(true);return;
   }
   if(action==="buy-all"){
-    if(!state.engraving.owned.includes("ENG-05")||!(state.engraving.levels?.["ENG-05"]>0))return toast("刻印「一括解放」で解放します");
+    if(!state.engraving.owned.includes("ENG-05"))return toast("刻印「一括解放」で解放します");
     if(bulkPurchasePending)return;
     if(readOnly||store.blocked)return toast("この画面では購入できません");
     const kind=currentStage==="existence"?(currentSub==="moment"?"moment":currentSub==="sources"?"source":null):null;
