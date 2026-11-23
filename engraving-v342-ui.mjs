@@ -25,7 +25,7 @@ export function engravingAutomationHTML(s,readOnly=false){
    '</section>';
 }
 export function engravingPresetHTML(s,content,readOnly=false){
- const e=s.engraving,has=e.owned.includes("ENG-30")&&Number(e.levels?.["ENG-30"])>0;
+ const e=s.engraving,has=e.owned.includes("ENG-30");
  const off=readOnly||!has,system=e.presetSystem,selected=system.activePreset;
  const slots=system.presets.map((preset,i)=>'<div class="engraving-preset-slot">'+
    '<strong>設定 '+(i+1)+(selected===i?' · 使用中':'')+'</strong>'+
