@@ -1597,8 +1597,9 @@ document.addEventListener("click",async e=>{
       setSheet("half");render(true);return;
     }
     if(b.dataset.child){
+      stopHoldPurchase(null,true);
       if(currentStage==="existence"&&b.dataset.child==="sources"&&!state.time.unlocked)return;
-      stopHoldPurchase(null,true);currentSub=b.dataset.child;
+      currentSub=b.dataset.child;
       if(currentStage==="automation"&&currentSub.startsWith("auto-")&&!readOnly&&!store.blocked){state.settings.automationStage=currentSub.slice(5);save();}
       if(currentStage==="existence"&&["moment","sources","engraving"].includes(currentSub)&&!readOnly&&!store.blocked){
         state.settings.existenceLastTab=currentSub;save();
