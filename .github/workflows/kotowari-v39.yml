@@ -34,6 +34,8 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -43,6 +45,7 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Smoke-test Web UI in desktop and mobile Chromium
         run: |
+          node tests/v3541_pwa_upgrade_browser.mjs
           node tests/v354_stage_unlock_browser.mjs
           node tests/v353_save_reset_browser.mjs
           node tests/v344_existence_display_browser.mjs
