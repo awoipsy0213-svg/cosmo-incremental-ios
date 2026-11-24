@@ -56,6 +56,7 @@ try{
     await page.locator('[data-action="enter-test"]').click();
     await page.waitForURL(/lab=1/);await saved();
     assert.equal(await page.evaluate(()=>window.KOTOWARI_DEBUG.state().mode),"lab");
+    assert.match(await page.locator(".brand-caption").innerText(),/TEST MODE/);
     const normalBefore=await page.evaluate(()=>localStorage.getItem("kotowari_v31_normal"));
     await open("lab");
     await page.locator("#testGrantAmount").fill("1e1000000");
@@ -70,8 +71,11 @@ try{
     await page.waitForFunction(()=>!window.KOTOWARI_DEBUG.state().intro.complete);
     assert.equal(await page.evaluate(()=>localStorage.getItem("kotowari_v31_normal")),normalBefore,"lab reset/grants must not write normal");
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth)<=1);
-    await page.goto(base+"?dev=1",{waitUntil:"domcontentloaded"});await saved();
-    assert.equal(await page.evaluate(()=>window.KOTOWARI_DEBUG.state().convergenceCount),5);
+    await open("lab");await page.locator('[data-action="exit-test"]').click();
+    await page.waitForURL(url=>!url.searchParams.has("lab"));await saved();
+    // Ordinary mode does not expose debug methods without ?dev=1.
+    const returned=await page.evaluate(()=>JSON.parse(localStorage.getItem("kotowari_v31_normal")).data);
+    assert.equal(returned.convergenceCount,5);
     await open("statistics");assert.equal(await cumulative().textContent(),"1,234.567");
     assert.deepEqual(errors,[],width+" browser errors");
     console.log("PASS v353",width,"manual archive, two cancellations, full reset, restore, lab grants and isolation, lifetime stat");
