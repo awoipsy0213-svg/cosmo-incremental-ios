@@ -773,3 +773,10 @@ body.kw-app #appRoot{height:100%;min-height:0}
 .locked-stage-menu strong{font-size:14px}
 .locked-stage-menu span,.locked-stage-menu small{font-size:11px;font-variant-numeric:tabular-nums}
 @media(max-width:360px){.locked-stage-tab small{font-size:8px}}
+
+/* DEC-20261124-019: presentation-only suppression, without a spacer. */
+.world-sideboards{display:none!important}
+/* Keep controls inside the top edge in both sheet states. */
+#sheet[data-state="full"]{inset-block-start:calc(var(--safe-top) + 6px);inset-block-end:calc(var(--nav-h) + var(--safe-bottom));height:auto;max-height:none}
+#sheetHandle .sheet-buttons{min-width:max-content;flex-shrink:0;z-index:4}
+#sheetHandle .sheet-buttons .icon-button{height:34px;min-height:34px;max-height:34px;touch-action:manipulation;pointer-events:auto}
