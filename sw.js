@@ -153,7 +153,7 @@ const CORE_HASHES = [
   "d9941f8ef3570618aa72b25f018f7970a67b1141",
   "2ef4a4c8902665a2d7345426dc51a4a22079ee30",
   "cdded330240c0e3753a2065af8a9a7bee3ac7c72",
-  "baa710aa127274f265fdfe6599074062ea6cdd3d",
+  "aa84b5f73e09c8cc7714f5e9e85594000303484b",
   "30f6626cc056810975070bea1a77569affca700c"
 ];
 const CORE_BLOBS=Object.fromEntries(CORE_FILES.map((path,i)=>[path,CORE_HASHES[i]]));

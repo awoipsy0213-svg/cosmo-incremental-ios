@@ -246,7 +246,7 @@ function feedbackUX(kind,signal=false){
 }
 function uxNoticeBlocked(){return sheetState==="full"||document.hidden||$("confirmDialog").open||$("organizerDrawer").open;}
 function syncUXNotice(){
-  if(!state)return;
+  if(!state||uxStateRef!==state)return;
   if(uxActive){
     const node=$("uxNotice");
     if(uxNoticeBlocked()){node.hidden=true;node.classList.remove("ux-enter");}
@@ -298,7 +298,7 @@ function closeUX(open=false,override=null){
 $("uxNoticeLater").addEventListener("click",()=>closeUX(false));
 $("uxNoticeOpen").addEventListener("click",()=>closeUX(true));
 $("uxNoticeSource").addEventListener("click",()=>{if(uxActive==="time")closeUX(true,"sources");});
-document.addEventListener("keydown",e=>{if(e.key==="Escape"&&uxActive&&!$("confirmDialog").open&&!$("organizerDrawer").open)closeUX(false);});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&uxActive&&!$("uxNotice").hidden&&!$("confirmDialog").open&&!$("organizerDrawer").open)closeUX(false);});
 function updateUX(){
   if(uxStateRef!==state){resetUX();}
   const next=readUXSnapshot(),changes=uxChanges(uxPrevious,next);uxPrevious=next;
@@ -1494,8 +1494,8 @@ function download(text,name,type="application/json"){
   a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),15000);
 }
 async function dispatchAction(action){
-  if(action==="organizer"){if(uxActive)closeUX(false);openOrganizer();return;}
-  if(action==="open-automation"){if(uxActive)closeUX(false);openAutomation();return;}
+  if(action==="organizer"){if(uxActive&&!$("uxNotice").hidden)closeUX(false);openOrganizer();return;}
+  if(action==="open-automation"){if(uxActive&&!$("uxNotice").hidden)closeUX(false);openAutomation();return;}
   if(action==="toggle-auto-details"){automationDetailsOpen=!automationDetailsOpen;renderPanel(true);return;}
   if(action==="open-common-info"){
     stopHoldPurchase(null,true);
@@ -1756,7 +1756,7 @@ async function dispatchAction(action){
 document.addEventListener("click",async e=>{
   const b=e.target.closest("button,a");if(!b)return;
   try{
-    if(b.dataset.stage){if(uxActive)closeUX(false);setStage(b.dataset.stage);return;}
+    if(b.dataset.stage){if(uxActive&&!$("uxNotice").hidden)closeUX(false);setStage(b.dataset.stage);return;}
     if(b.dataset.timeDirection!==undefined){
       if(currentStage!=="time"||readOnly||store.blocked)return;
       const index=Number(b.dataset.timeDirection),active=state.time.selected.includes(index);
@@ -1771,7 +1771,7 @@ document.addEventListener("click",async e=>{
     }
     if(b.dataset.child){
       stopHoldPurchase(null,true);
-      if(uxActive)closeUX(false);
+      if(uxActive&&!$("uxNotice").hidden)closeUX(false);
       if(currentStage==="existence"&&b.dataset.child==="sources"&&!state.time.unlocked)return;
       currentSub=b.dataset.child;
       if(currentStage==="automation"&&currentSub.startsWith("auto-")&&!readOnly&&!store.blocked){state.settings.automationStage=currentSub.slice(5);save();}
@@ -1780,7 +1780,7 @@ document.addEventListener("click",async e=>{
       }
       renderPanel(true);return;
     }
-    if(b.dataset.uxTarget){if(uxActive)closeUX(false);openUXTarget(b.dataset.uxTarget);return;}
+    if(b.dataset.uxTarget){if(uxActive&&!$("uxNotice").hidden)closeUX(false);openUXTarget(b.dataset.uxTarget);return;}
     if(b.dataset.organizer){openOrganizerPage(b.dataset.organizer);return;}
     if(b.dataset.autoMode!==undefined){
       if(readOnly||store.blocked)return toast("読み取り専用です");
