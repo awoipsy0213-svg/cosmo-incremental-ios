@@ -21,7 +21,7 @@ try{
     assert.match(await p.locator("#uxNoticeTitle").innerText(),/時.*源/);
     assert.equal(await p.locator("#uxNoticeSource").isVisible(),true);
     assert.equal(await p.locator("#uxGain").isVisible(),true,"reduced motion retains numeric gain");
-    assert.match(await p.locator("#uxGainValue").textContent(),/^\\+/);
+    assert.ok((await p.locator("#uxGainValue").textContent()).startsWith("+"));
     assert.equal(await p.locator("#waves").locator(".wave").count(),0);
     const tapCount=await p.evaluate(()=>window.KOTOWARI_DEBUG.state().counters.taps);
     await p.locator("#uxNoticeTitle").click();
