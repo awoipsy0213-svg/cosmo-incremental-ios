@@ -1727,8 +1727,8 @@ document.addEventListener("click",async e=>{
       setSheet("half");render(true);return;
     }
     if(b.dataset.child){
-      if(uxActive)closeUX(false);
       stopHoldPurchase(null,true);
+      if(uxActive)closeUX(false);
       if(currentStage==="existence"&&b.dataset.child==="sources"&&!state.time.unlocked)return;
       currentSub=b.dataset.child;
       if(currentStage==="automation"&&currentSub.startsWith("auto-")&&!readOnly&&!store.blocked){state.settings.automationStage=currentSub.slice(5);save();}
