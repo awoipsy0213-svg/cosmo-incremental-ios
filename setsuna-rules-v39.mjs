@@ -49,8 +49,10 @@ export function baseSource(s){return A(s.sourceBase===undefined?"0":s.sourceBase
 export function sourceMilestoneCount(s){return Math.max(0,Math.min(630,Math.floor(s.sourceMilestones||0)))}
 export function tapBase(s){
  const l0=lv(s,0),l1=lv(s,1),l22=lv(s,22),l29=lv(s,29);
- let flat=1+boosted(s,0,fixedTotal(l0));
- let base=A(flat).mul(A(1.02).pow(l1*resonance(s,1)));
+ // Runtime trial base income is projected by game.mjs; standalone rules,
+ // named effects and saved runtime fields remain unchanged.
+ let flat=A(1+boosted(s,0,fixedTotal(l0))).add(s.economicTapBase??"0");
+ let base=flat.mul(A(1.02).pow(l1*resonance(s,1)));
  if(active(s,20))base=base.add(baseSource(s).mul(clamp(boosted(s,20,.0002*lv(s,20)),.25)));
  if(l22)base=base.mul(1+clamp(boosted(s,22,.002*sourceMilestoneCount(s)*root(l22)),2));
  if(l29)base=base.mul(1+.002*(s.cycles||0)*root(s.levels.reduce((a,b)=>a+b,0))*root(l29)*resonance(s,29));
