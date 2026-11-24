@@ -337,12 +337,12 @@ function renderWorld(){
   const progress=currentStage==="time"?{done:conceptsCount,total:77,title:"認識した概念"}:
     currentStage==="universe"?{done:state.universe.discoveredResources.length,total:42,title:"発見した資源"}:
     currentStage==="life"?{done:0,total:0,title:"未知"}:
-    {done:unlockedSourceCount+unlockedMomentCount,total:60,title:"強化した種類"};
+    {done:(state.time.unlocked?unlockedSourceCount:0)+unlockedMomentCount,total:state.time.unlocked?60:30,title:"強化した種類"};
   $("matrixCaption").textContent=`${stage.name} のマトリクス`;
   $("matrixSummary").textContent=progress.total?`${progress.title} ${progress.done} / ${progress.total}`:"まだ観測できません";
   $("matrixFill").style.width=progress.total?`${Math.min(100,100*progress.done/progress.total).toFixed(1)}%`:"0%";
   const observeRows=currentStage==="existence"||currentStage==="organizer"?[
-    ["源の生成/秒",o(rate),`源の生成 ${o(rate)} オーブ/秒`],
+    ...(state.time.unlocked?[["源の生成/秒",o(rate),`源の生成 ${o(rate)} オーブ/秒`]]:[]),
     ["干渉1タップ",o(tap),`干渉1タップ ${o(tap)} オーブ/タップ`]
   ]:stageRows.slice(0,3).map(([name,value])=>[name,value,`${name} ${value}`]);
   $("worldObserve").innerHTML=observeRows.map(([label,value,full])=>`<div class="scene-stat" title="${esc(full)}"><span>${esc(label)}</span><strong title="${esc(full)}">${esc(value)}</strong></div>`).join("");
@@ -850,7 +850,7 @@ function achievementHTML(){
   return `<p class="panel-intro">これまでの達成と発見を確認できます。</p><div class="kw-list">${CONTENT.achievements.map(x=>`<div class="kw-card"><div class="card-top"><strong>${state.achievements.includes(x.id)?"✦":"◇"} ${x.name}</strong><span class="badge">${state.achievements.includes(x.id)?"達成":"未達成"}</span></div><p>${x.description}</p><small>${state.achievements.includes(x.id)?"達成済み":x.id==="engravingObservation"?"条件：？？？":"未達成"}</small></div>`).join("")}</div>`;
 }
 function statisticsHTML(){
-  const values=[["タップ入力",state.counters.taps.toLocaleString("ja-JP")],["収束",state.convergenceCount.toLocaleString("ja-JP")+"回"],["累計オーブ",orbDisplay(state.totalOrbs)],["累計獲得存在",formatExistenceDisplay(state.totalExistenceEarned)],["余剰存在",formatExistenceDisplay(state.surplusExistence)],["源総Lv.",Object.values(state.sources).reduce((v,x)=>v+x.level,0).toLocaleString("ja-JP")],["概念形成",Object.values(state.time.concepts).filter(x=>x>0).length+" / 77"],["オンライン",duration(state.counters.onlineSeconds)],["オフライン",duration(state.counters.offlineSeconds)]];
+  const values=[["タップ入力",state.counters.taps.toLocaleString("ja-JP")],["収束",state.convergenceCount.toLocaleString("ja-JP")+"回"],["累計オーブ",orbDisplay(state.totalOrbs)],["累計獲得存在",formatExistenceDisplay(state.totalExistenceEarned)],["余剰存在",formatExistenceDisplay(state.surplusExistence)],...(state.time.unlocked?[["源総Lv.",Object.values(state.sources).reduce((v,x)=>v+x.level,0).toLocaleString("ja-JP")],["概念形成",Object.values(state.time.concepts).filter(x=>x>0).length+" / 77"]]:[]),["オンライン",duration(state.counters.onlineSeconds)],["オフライン",duration(state.counters.offlineSeconds)]];
   const t=state.telemetry,rows=consecutiveOrbGains(t);
   const logarithmic=v=>{const a=A(v);return a.m>0?Math.max(0,a.e+Math.log10(a.m)+1):0;};
   const max=Math.max(1,...rows.filter(r=>r.gain!==null).map(r=>logarithmic(r.gain)));
@@ -876,14 +876,14 @@ function statisticsHTML(){
 }
 function guideHTML(){
   return `<div class="kw-list"><div class="kw-card"><strong>世界を生み、変化を観測する</strong><p>《無》は序章です。光に干渉すると最初の存在が成立します。存在1は失われません。</p></div>
-  ${state.intro.complete?'<div class="kw-card"><strong>刹那・源・刻印</strong><p>タップと源は通常資源のオーブを生みます。任意のタイミングで収束して、余剰の存在を得ます。刻印は余剰分だけを使う設計です。</p></div>':""}
+  ${state.intro.complete?'<div class="kw-card"><strong>'+(state.time.unlocked?'刹那・源・刻印':'刹那・刻印')+'</strong><p>'+(state.time.unlocked?'タップと源は':'タップは')+'通常資源のオーブを生みます。任意のタイミングで収束して、余剰の存在を得ます。刻印は余剰分だけを使う設計です。</p></div>':""}
   ${state.time.unlocked?'<div class="kw-card"><strong>流れと概念</strong><p>時は自律成長を見守る場所です。同じ残滓10個で最初の概念を認識し、確定した概念効果が有効になります。</p></div>':""}
   </div>`;
 }
 function settingsHTML(){
   const labels=[["confirmEngravingPurchase","刻印の初回購入を確認","OFFならワンタップで取得"],["confirmEngravingUpgrade","刻印の追加強化を確認","OFFならワンタップで強化"],["confirmBoostUpgrade","BOOST強化を確認","OFFならワンタップで強化"],["confirmSourceBreakthrough","源の＋循環を確認","最大レベルから再開始する操作"],["confirmInterference","惑星への干渉を確認","衝突・移転・崩壊・安定化"],["confirmCoreFormation","コア形成を確認","資源消費を伴う操作"],["confirmSaveImport","セーブ読込前に確認","現在の進行を入れ替えるため初期ON推奨"],["confirmSaveRestore","履歴復元前に確認","過去の保存状態へ戻るため初期ON推奨"],["confirmBulkPurchase","一括購入前に確認","OFF：タップですぐ購入。ON：数量・費用を確認してから購入します"],["confirmMaxPurchase","MAX購入前に確認","ON：所持資源の90%以上を使うMAX購入を確認します"],["compact","コンパクト表示","ほかの一覧の密度を調整"],["holdToBuy","長押しで連続購入","押している間だけ通常購入を繰り返します"],["hapticTap","タップ時の振動","対応端末のみ。初期設定はOFFです"],["reducedMotion","動きを減らす","発光・波紋・開閉演出を抑える"],["highContrast","読みやすい境界線","文字と境界のコントラストを調整"],["lowPower","省電力","背景アニメーションを停止"],["confirmConvergence","収束前に確認","収束で失われる内容を確認する"],["showOffline","復帰時に報告","オフラインの進行とBOOSTを表示"]];
   return `<p class="panel-intro">表示や購入時の確認方法を変更できます。</p>
-  ${labels.map(([id,name,desc])=>`<label class="kw-row"><span>${name}<small>${desc}</small></span><input type="checkbox" data-pref="${id}" ${state.settings[id]?"checked":""}></label>`).join("")}
+  ${labels.filter(([id])=>id!=="confirmSourceBreakthrough"||state.time.unlocked).map(([id,name,desc])=>`<label class="kw-row"><span>${name}<small>${desc}</small></span><input type="checkbox" data-pref="${id}" ${state.settings[id]?"checked":""}></label>`).join("")}
   <label class="kw-row">数値表記<select class="input-select" data-pref="notation"><option value="auto" ${state.settings.notation==="auto"?"selected":""}>標準（100万以降e）</option><option value="scientific" ${state.settings.notation==="scientific"?"selected":""}>指数 e（1.23e12）</option><option value="exponent" ${state.settings.notation==="exponent"?"selected":""}>指数 E（1.23E+12）</option><option value="zeros" ${state.settings.notation==="zeros"?"selected":""}>0の個数（10^12）</option></select></label>
   <div class="kw-row"><span>通信<small>クラウド・課金は未接続</small></span><strong>${navigator.onLine?"オンライン":"オフライン"}</strong></div>
   <button class="wide-button" data-organizer="backup">保存・バックアップ・完全リセット</button>
