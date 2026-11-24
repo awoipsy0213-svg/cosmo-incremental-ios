@@ -1178,7 +1178,7 @@ export function configureAutoConvergence(s,{enabled,minReward,minSteps,mode,inte
     intervalSeconds:a.intervalSeconds,intervalMinutes:a.intervalMinutes,targetRunOrbs:a.targetRunOrbs};
 }
 export function autoConvergenceTick(s,now=Date.now(),offline=false) {
-  if(offline||s.settings.automationEnabled===false||!s.intro.complete||!s.engraving.autoConverge.enabled ||
+  if(offline||s.settings.automationEnabled===false||!s.intro.complete||s.convergenceCount===0||!s.engraving.autoConverge.enabled ||
     !s.engraving.owned.includes(ENGRAVING_AUTO_CONVERGE_ID))
     return {ok:false,reason:"自動収束の条件を満たしていません"};
   const a=s.engraving.autoConverge;
@@ -1513,7 +1513,7 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
       const ids=[...SOURCE_IDS].sort((a,b)=>A(purchaseQuote(s,"source",a).cost).cmp(purchaseQuote(s,"source",b).cost));
       if(ids[0])buy(s,"source",ids[0]);s.purchaseMode=mode;
     }
-    if(s.engraving.active.includes("autoConverge")&&A(s.runOrbsEarned??"0").cmp(CONFIG.lab.autoConvergeOrbs)>=0)converge(s);
+    if(s.convergenceCount>0&&s.engraving.active.includes("autoConverge")&&A(s.runOrbsEarned??"0").cmp(CONFIG.lab.autoConvergeOrbs)>=0)converge(s);
   }
   sampleActualOrbs(s.telemetry,now,s.totalOrbs);
   return {elapsed:dt,gameSeconds,orbs:gained.toString(),boost:s.boost.seconds-boostBefore};
@@ -1948,6 +1948,8 @@ export function validateState(input,expectedMode=null) {
   // BOOST-Q469/499/500: verified legacy seconds may exceed the new cap.
   // Do not trim on decode, encode, save, restore or offline settlement.
   normalizeWeights(s);
+  // Preserve previously purchased Sources as evidence of the old unlock.
+  if(s.intro.complete && Object.values(s.sources).some(x=>x.level>0||x.plus>0||x.effects.length>0))s.time.unlocked=true;
   checkTimeUnlock(s,s.lastWall);
   return s;
 }
