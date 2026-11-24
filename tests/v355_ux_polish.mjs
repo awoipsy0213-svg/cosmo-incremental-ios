@@ -1,0 +1,26 @@
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+import * as G from "../game.mjs";
+import {engravingUnlocked} from "../engraving-rules-v317.mjs";
+import {CONFIG} from "../balance-config.mjs";
+import {uxSnapshot,uxChanges,unlockRatio,UNLOCK_COPY} from "../ux-polish-v355.mjs";
+import {encode,decode} from "../save.mjs";
+const s=G.createState(Date.now());s.intro.complete=true;
+const snap=()=>uxSnapshot(s,engravingUnlocked(s),CONFIG.confirmed.sourceMilestones,false);
+let before=snap();
+G.addOrbs(s,999999);assert.deepEqual(uxChanges(before,snap()).unlocks,[]);
+assert.equal(unlockRatio("9.99999e5","1e6"),.999999);
+G.addOrbs(s,1);let after=snap();
+assert.deepEqual(uxChanges(before,after).unlocks,["time"]);
+assert.deepEqual(uxChanges(after,after).unlocks,[]);
+assert.deepEqual(uxChanges(null,after).unlocks,[]);
+assert.ok(G.converge(s).ok);before=after;after=snap();
+assert.deepEqual(uxChanges(before,after).unlocks,["engraving"]);
+assert.equal(uxChanges(before,after).feedback,"convergence");
+assert.equal(s.settings.feedbackSound,false);s.settings.feedbackSound=true;
+assert.equal(decode(encode(s,"test"),"normal").settings.feedbackSound,true);
+assert.ok(UNLOCK_COPY.time.lines.length<=3);
+assert.equal(unlockRatio("1e1000000","1e6"),1);
+for(const p of ["app.mjs","game.mjs","index.html","update.html","sw.js","ux-polish-v355.mjs","ux-polish-v355.css"])
+ assert.equal(readFileSync(new URL("../"+p,import.meta.url),"utf8"),readFileSync(new URL("../www/"+p,import.meta.url),"utf8"),p);
+console.log("PASS v355 unlock transition, unchanged engine threshold, save option, wrapper parity");

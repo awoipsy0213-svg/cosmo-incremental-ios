@@ -9,7 +9,7 @@ import {chromium} from "@playwright/test";
 
 const root=fileURLToPath(new URL("../",import.meta.url));
 const old=mkdtempSync(join(tmpdir(),"kotowari-old-"));
-const OLD="c915a3732444b7189bc8fe516e78556e8c486eac",release="3.54.1";
+const OLD="c915a3732444b7189bc8fe516e78556e8c486eac",release="3.55";
 const oldSW=execFileSync("git",["show",OLD+":sw.js"],{cwd:root,encoding:"utf8"});
 const files=[...oldSW.match(/const CORE_FILES = \[([\s\S]*?)\];/)[1].matchAll(/"([^"]+)"/g)].map(m=>m[1]);
 const archive=execFileSync("git",["archive","--format=tar",OLD,"sw.js",...files],{cwd:root,maxBuffer:32*1024*1024});
@@ -120,5 +120,5 @@ try{
   assert.equal(await recovery.locator("#buildLabel").textContent(),release);
   assert.deepEqual(errors,[]);
   await ctx.close();
-  console.log("PASS v3541 actual v3.53 PWA -> coherent v3.54.1; mixed release rejection, open-tab guard, saves, 1M threshold and offline reload");
+  console.log("PASS v3541 actual v3.53 PWA -> coherent v3.55; mixed release rejection, open-tab guard, saves, 1M threshold and offline reload");
 }finally{await browser?.close();if(server)await new Promise(resolve=>server.close(resolve));rmSync(old,{recursive:true,force:true});}
