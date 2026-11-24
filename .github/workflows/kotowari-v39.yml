@@ -45,6 +45,7 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Smoke-test Web UI in desktop and mobile Chromium
         run: |
+          node tests/v355_ux_polish_browser.mjs
           node tests/v3541_pwa_upgrade_browser.mjs
           node tests/v354_stage_unlock_browser.mjs
           node tests/v353_save_reset_browser.mjs

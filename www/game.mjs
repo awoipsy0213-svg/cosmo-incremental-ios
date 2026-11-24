@@ -110,7 +110,7 @@ export function createState(now=Date.now(),mode="normal") {
     boost:{seconds:0,active:false,upgrades:[0,0,0,0,0],trialLevels:[0,0,0,0,0],accounting:freshBoostAccounting(),
       timeOnlyMigration:{version:1,at:now,previousActive:null,source:"new"}},
     counters:{taps:0,orbsSpent:"0",sourcePurchases:0,conversions:0,onlineSeconds:0,offlineSeconds:0},
-    achievements:[],events:[],telemetry:freshTelemetry(),settings:{compact:true,showPurchaseHints:true,affordableOnly:false,bulkOrder:"cheap",holdToBuy:true,hapticTap:false,reducedMotion:false,highContrast:false,
+    achievements:[],events:[],telemetry:freshTelemetry(),settings:{compact:true,showPurchaseHints:true,affordableOnly:false,bulkOrder:"cheap",holdToBuy:true,hapticTap:false,feedbackSound:false,reducedMotion:false,highContrast:false,
       lowPower:false,confirmConvergence:true,confirmBulkPurchase:false,confirmMaxPurchase:true,showOffline:true,notation:"auto",
       existenceLastTab:"moment",automationStage:"existence",automationEnabled:true,confirmEngravingPurchase:false,confirmEngravingUpgrade:false,
       confirmBoostUpgrade:false,confirmSourceBreakthrough:true,confirmInterference:true,
