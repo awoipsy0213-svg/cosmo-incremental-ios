@@ -62,7 +62,7 @@ check("B: every 20th manual tap and rare extra orb award have observable effect"
   assert.equal(b.runOrbsEarned,b.totalOrbs);
 });
 check("C: reward boosts and cost reduction preserve earned-orb basis",()=>{
-  const s=started();G.addOrbs(s,1000);
+  const s=started();G.addOrbs(s,3000);
   const old=G.convergenceQuote(s);
   owned(s,"ENG-16",2);owned(s,"ENG-18",3);
   const current=G.convergenceQuote(s);
@@ -75,7 +75,7 @@ check("C: reward boosts and cost reduction preserve earned-orb basis",()=>{
 check("C: explicit retention and initial benefits survive convergence without touching legacy evidence",()=>{
   const s=started();s.sources.SOURCE_01.level=25;s.moment.tap=50;
   owned(s,"ENG-19",2);owned(s,"ENG-20",1);
-  G.addOrbs(s,1000);
+  G.addOrbs(s,3000);
   assert.ok(G.converge(s).ok);
   assert.equal(s.moment.tap,2);
   assert.equal(s.sources.SOURCE_01.level,2);
