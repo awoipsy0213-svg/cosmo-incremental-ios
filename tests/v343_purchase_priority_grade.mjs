@@ -7,7 +7,7 @@ import {encode,decode} from "../save.mjs";
 import {ENGRAVE_ORDER} from "../engraving-v342.mjs";
 
 const NOW=1800000000000;
-const state=()=>{const s=G.createState(NOW);s.intro.complete=true;return s;};
+const state=()=>{const s=G.createState(NOW);s.intro.complete=true;s.time.unlocked=true;return s;};
 const own=(s,id,lv=1)=>{
   if(!s.engraving.owned.includes(id))s.engraving.owned.push(id);
   s.engraving.levels[id]=lv;
