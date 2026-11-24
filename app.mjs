@@ -1,7 +1,7 @@
 import {CONFIG} from "./balance-config.mjs";
 import {UNIVERSE_RESOURCE_RULES,resourceEligible} from "./universe-confirmed-v4.mjs";
 import {KNOWLEDGE_IDS,KNOWLEDGE_NAMES,knowledgeLevel,coreRequirements,autoPlanetAvailable} from "./universe-progression-v316.mjs";
-import {engravingCatalogue,engravingSlots,engravingPurchaseQuote,ENGRAVING_AUTO_CONVERGE_ID} from "./engraving-rules-v317.mjs";
+import {engravingCatalogue,engravingSlots,engravingPurchaseQuote,engravingUnlocked,ENGRAVING_AUTO_CONVERGE_ID} from "./engraving-rules-v317.mjs";
 import {engravingConvergenceControl,engravingAutoMomentRate,engravingAutoSourceRate,engravingAutoEfficient} from "./engraving-effects-v333.mjs";
 import {TELEMETRY_LIMITS,consecutiveOrbGains} from "./telemetry-v319.mjs";
 import {compareMomentPrice,compareMomentPriceProfiles,exportPriceReport,PRICE_MODEL_VERSION} from "./price-lab.mjs";
@@ -182,6 +182,9 @@ function openAutomation(){
   currentSub="auto-"+(state.settings.automationStage||"existence");
   setSheet("half");render(true);
 }
+function childLabel(id){
+  return id==="engraving"&&!engravingUnlocked(state)?"？？？":childNames[id];
+}
 function availableStages(){
   return CONTENT.stages.filter(x=>x.id==="existence"?state.intro.complete:x.id==="time"?state.time.unlocked:x.id==="universe"?state.universe.unlocked:state.life.unlocked);
 }
@@ -224,7 +227,7 @@ function openOrganizerPage(id){
 }
 function renderNav(){
   const a=availableStages();
-  const digest=JSON.stringify([a.map(x=>x.id),currentStage,state.intro.complete]);
+  const digest=JSON.stringify([a.map(x=>x.id),currentStage,state.intro.complete,engravingUnlocked(state)]);
   if(navDigest===digest){refreshTimeUnlockUI();return false;}navDigest=digest;
   $("stageNav").hidden=!state.intro.complete;
   // Keep BOOST in its own fixed-size slot at the left of the stage bar.
@@ -277,7 +280,7 @@ function renderWorld(){
   $("convergeMain").hidden=!state.intro.complete||!["existence","organizer","automation"].includes(currentStage);
   if(["existence","organizer","automation"].includes(currentStage)){
     $("primaryValue").textContent=orbDisplay(state.orbs);
-    $("worldDetails").innerHTML=`<span class="wallet">オーブ <b>${orbDisplay(state.orbs)}</b></span><span>${state.runOrbsEvidence==="verified"?"周回獲得 "+orbDisplay(state.runOrbsEarned)+" オーブ":"旧周回・確認済獲得 "+orbDisplay(state.runOrbsEarned)+" オーブ"}</span><span>干渉 +${o(tap)}${state.time.unlocked?" / 源 +"+o(rate)+" 毎秒":""}</span>${comboHtml}${storedHtml}`;
+    $("worldDetails").innerHTML=`<span class="wallet">オーブ <b>${orbDisplay(state.orbs)}</b></span><span>${state.runOrbsEvidence==="verified"?"周回獲得 "+orbDisplay(state.runOrbsEarned)+" オーブ":"旧周回・確認済獲得 "+orbDisplay(state.runOrbsEarned)+" オーブ"}</span><span>干渉 +${o(tap)}</span>${comboHtml}${storedHtml}`;
     $("worldHint").textContent="";
     const q=G.convergenceQuote(state);
     $("convergeMain").disabled=!q.steps||readOnly||store.blocked;
@@ -325,7 +328,6 @@ function renderWorld(){
   ]:currentStage==="life"?[
     ["段階","観測準備"],["状態","未知"]
   ]:[
-    ...(state.time.unlocked?[["源の生成",o(rate)+" オーブ/秒"]]:[]),
     ["干渉1タップ",o(tap)+" オーブ/タップ"],
     ["コンボ",combo.combo.toLocaleString("ja-JP")]
   ];
@@ -501,7 +503,7 @@ function automationHTML(){
     '<div class="automation-status-line" aria-label="存在の自動化状態">'+
     status("刹那",momentRate>0,e.autoBuy.moment.enabled)+
     (state.time.unlocked?status("源",sourceRate>0,e.autoBuy.source.enabled):"")+
-    status("刻印",e.owned.includes("ENG-17")&&e.levels?.["ENG-17"]>0,e.autoEngraving.enabled)+
+    (engravingUnlocked(state)?status("刻印",e.owned.includes("ENG-17")&&e.levels?.["ENG-17"]>0,e.autoEngraving.enabled):"")+
     status("収束",convergeOwned,e.autoConverge.enabled)+'</div>'+
     '<button type="button" class="automation-details-button" data-action="toggle-auto-details" aria-expanded="'+
     String(automationDetailsOpen)+'">'+(automationDetailsOpen?"設定を閉じる":"設定を開く")+'</button></section>';
@@ -567,7 +569,7 @@ function automationHTML(){
       '<label>最低段階<select class="input-select" data-auto-converge="minSteps"'+
       (off||!engravingConvergenceControl(state)?' disabled title="循環制御の刻印で解放"':'')+
       '>'+stepsOptions+'</select></label></div></section>'+
-      engravingAutomationHTML(state,disabled)+engravingPresetHTML(state,CONTENT,disabled);
+      (engravingUnlocked(state)?engravingAutomationHTML(state,disabled)+engravingPresetHTML(state,CONTENT,disabled):"");
   }
   if(tab==="universe"){
     const u=state.universe,unlocked=u.unlocked&&autoPlanetAvailable(u),off=disabled||!unlocked;
@@ -596,6 +598,7 @@ function automationHTML(){
     '</small></section>';
 }
 function engravingHTML(){
+  if(!engravingUnlocked(state))return '<div class="empty-state" data-engraving-locked><strong>？？？</strong><p>初回収束で解放</p></div>';
   const e=state.engraving,catalogue=engravingCatalogue();
   const count=tier=>catalogue.filter(x=>x.tier===tier&&e.owned.includes(x.id)).length;
   const options=["0.025","0.05","0.1","0.5","1"];
@@ -617,7 +620,7 @@ function engravingHTML(){
     <div class="card-top"><strong>余剰存在 ${f(state.surplusExistence,3)}</strong><span class="badge confirmed">最初の存在1を保護</span></div>
     <small>取得済み ${e.owned.length} / 30 · 収束 ${state.convergenceCount} 回 · 取得済みの刻印は収束後も保持</small>
   </div>
-  ${[1,2,3].map(tier=>`<h3 class="engraving-tier-title">刻印 ${["初級","中級","上級"][tier-1]} · 初回費用 ${["0.001","0.025","0.125"][tier-1]} 存在 / 取得 ${count(tier)}/10</h3>
+  ${[1,2,3].map(tier=>`<h3 class="engraving-tier-title">刻印 ${["初級","中級","上級"][tier-1]} / 取得 ${count(tier)}/10</h3>
     <div class="row-grid engraving-list">
     ${catalogue.filter(x=>x.tier===tier).map(item=>{
       const owned=e.owned.includes(item.id),level=e.levels?.[item.id],q=engravingPurchaseQuote(state,item.id),upgrade=G.engravingTrialUpgradeQuote(state,item.id);
@@ -1065,8 +1068,8 @@ function renderPanel(force=false){
   lastPanelRender=now;
   const stage=CONTENT.stages.find(x=>x.id===currentStage);
   const children=currentStage==="organizer"?organizerItems:currentStage==="automation"?["auto-existence","auto-time","auto-universe","auto-life"]:currentStage==="time"?["flow","concepts","miracles"]:stage.children.filter(id=>id!=="sources"||state.time.unlocked);
-  $("childTabs").innerHTML=children.map(id=>`<button data-child="${id}" class="${currentSub===id?"active":""}" aria-pressed="${currentSub===id}">${childNames[id]}</button>`).join("");
-  $("sheetHeading").textContent=(currentStage==="organizer"?"管理":currentStage==="automation"?"自動化":"強化")+" / "+childNames[currentSub];
+  $("childTabs").innerHTML=children.map(id=>`<button data-child="${id}" class="${currentSub===id?"active":""}" aria-pressed="${currentSub===id}">${esc(childLabel(id))}</button>`).join("");
+  $("sheetHeading").textContent=(currentStage==="organizer"?"管理":currentStage==="automation"?"自動化":"強化")+" / "+childLabel(currentSub);
   $("purchaseToolbar").hidden=currentStage!=="existence"||!["moment","sources"].includes(currentSub);
   const bulkAllowed=state.engraving.owned.includes("ENG-05");
   const bulkButton=$("bulkBuyButton");
