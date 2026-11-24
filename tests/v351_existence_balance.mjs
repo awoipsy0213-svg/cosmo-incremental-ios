@@ -52,42 +52,13 @@ const q=G.purchaseQuote(restored,"source",ids[0],"10");assert.equal(q.count,10);
 restored.purchaseMode="10";assert.equal(G.buy(restored,"source",ids[0]).ok,true);
 assert.equal(restored.sources.SOURCE_01.level,109);
 near(A(s.orbs).sub(restored.orbs),q.cost,1e-6);
-const max=state();const cost=seriesCost(CONFIG.provisional.source.baseCosts[0],BAL.sourceCurve,0,3005);
+const max=state();const cost=seriesCost(CONFIG.provisional.source.baseCosts[0],CONFIG.provisional.source.costGrowth,0,3005);
 max.orbs=cost.toString();assert.equal(G.purchaseQuote(max,"source",ids[0],"MAX").count,3000);
 assert.equal(G.purchaseQuote(max,"source",ids[0],"MAX").limitReached,true);
 const cap=state();for(const id of ids){cap.sources[id].level=1000000;}
 assert.equal(G.sourceCycleStatus(cap).unlocked,true);
-// Real engine quotes and output. Deterministic constant-tap approximation,
-// no proc simulation, no time advancement, no auto-convergence.
-function project(taps,seconds,permanent=false){
-  const s=state();
-  if(permanent){
-    s.totalExistenceEarned="10";s.surplusExistence="10";
-    for(const id of ["ENG-01","ENG-02","ENG-06","ENG-07","ENG-08","ENG-09","ENG-10","ENG-12","ENG-16","ENG-21","ENG-22"])own(s,id,5);
-  }
-  let elapsed=0,source3=null,count=0;
-  const offers=[...m.map(id=>["moment",id]),...ids.map(id=>["source",id])];
-  while(elapsed<seconds&&count<3500){
-    const income=G.tapPower(s,NOW).mul(taps).add(G.production(s,NOW));
-    const a=offers.map(([kind,id])=>({kind,id,q:G.purchaseQuote(s,kind,id,"1")}))
-      .filter(x=>A(x.q.cost).cmp(0)>0).sort((a,b)=>A(a.q.cost).cmp(b.q.cost))[0];
-    const need=A(a.q.cost).sub(s.orbs),dt=need.div(income).toNumber();
-    if(elapsed+dt>seconds)break;
-    elapsed+=dt;G.addOrbs(s,need);
-    if(A(s.orbs).cmp(a.q.cost)<0)G.addOrbs(s,A(a.q.cost).mul(1e-12));
-    assert.equal(G.buy(s,a.kind,a.id).ok,true);count++;
-    if(!source3&&s.sources.SOURCE_03.level>0)
-      source3={seconds:Math.round(elapsed),levels:ids.slice(0,3).map(id=>s.sources[id].level)};
-  }
-  return {source3,sourceGrades:ids.filter(id=>s.sources[id].level>0).length,
-    momentGrades:m.filter(id=>s.moment[id]>0).length,iterations:count,elapsed:Math.round(elapsed)};
-}
-const early=project(5,7200),later=project(5,300,true);
-assert.deepEqual(early.source3.levels,[100,10,1]);
-assert.ok(early.source3.seconds>600&&early.source3.seconds<3600);
-assert.ok(early.sourceGrades<10&&early.momentGrades<10);
-assert.ok(later.source3.seconds<early.source3.seconds/5);
-console.log("V351 deterministic playtest",JSON.stringify({early,later}));
+// Historical v3.51 timing estimates are retained in BALANCE_V351.md.
+// Current-scale routes and timing assertions are covered by v352_existence_balance.mjs.
 for(const p of ["numbers.mjs","balance-config.mjs","game.mjs","price-lab.mjs","sw.js"])
   assert.equal(readFileSync(new URL("../"+p,import.meta.url),"utf8"),readFileSync(new URL("../www/"+p,import.meta.url),"utf8"),p);
 console.log("PASS v351 all 60 grade prices, high-level sums, milestones, MAX, save and synergy");

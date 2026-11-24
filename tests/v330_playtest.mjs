@@ -84,7 +84,7 @@ check("ENG confirmed initial purchase plus provisional extra levels persist acro
 });
 check("convergence progress is based on earned orbs even after spending",()=>{
   const s=started();
-  G.addOrbs(s,"1500");
+  G.addOrbs(s,"4500");
   const q=G.convergenceProgress(s);
   assert.equal(q.basis,"run-earned");
   assert.ok(q.percent>0&&q.percent<100);
@@ -92,7 +92,7 @@ check("convergence progress is based on earned orbs even after spending",()=>{
   assert.ok(spent.ok);
   assert.equal(G.convergenceProgress(s).percent,q.percent);
   assert.equal(G.convergenceProgress(s).steps,q.steps);
-  assert.equal(s.runOrbsEarned,"1.5e3");
+  assert.equal(s.runOrbsEarned,"4.5e3");
   assert.ok(G.converge(s).ok);
   assert.equal(s.runOrbsEarned,"0");
   assert.equal(G.convergenceProgress(s).percent,0);

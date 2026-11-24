@@ -184,9 +184,18 @@ function earnSourceFinal(s,id){
  if(x.effects.includes(marker)||x.effects.length>=7)return false;
  x.effects.push(marker);return true;
 }
+// Common trial gain for every Setsuna grade. The original 30 named effects
+// remain separate and keep their own rules and caps.
+export function momentEconomicGain(id,level){
+  const cfg=CONFIG.provisional.moment[id];
+  if(!cfg)throw Error("刹那IDが不正です");
+  return cfg.gainCurve?seriesCost(cfg.gainBase,cfg.gainCurve,0,level):A(0);
+}
 function setsunaProjection(s,rawSource=null,now=Date.now()){
   const t=SETSUNA.fresh(now);
   t.levels=MOMENT_IDS.map(id=>s.moment[id]||0);t.earned=[...t.levels];
+  t.economicTapBase=MOMENT_IDS.reduce((sum,id,i)=>t.levels[i]>0?
+    sum.add(momentEconomicGain(id,t.levels[i])):sum,A(0)).toString();
   t.cycles=s.convergenceCount;t.taps=s.counters.taps;
   t.sourceLevel=Object.values(s.sources).reduce((n,v)=>n+v.level,0);
   t.sourceMilestones=Object.values(s.sources).reduce((sum,v)=>sum+
@@ -204,6 +213,11 @@ export function momentEffects(s){
     const info={...SETSUNA.effectInfo(p,i),id,level:s.moment[id]};
     if(i===16 && s.moment[id]>0)info.current+=" / 1回 "+(s.moment[MOMENT_IDS[15]]>0?
       formatOrbAmount(SETSUNA.autoExpected(p).mul(existenceMultiplier(s)))+" オーブ":"自動接触が必要");
+    if(info.level>0){
+      const gain=momentEconomicGain(id,info.level);
+      info.current+=" / 基礎+"+formatOrbAmount(gain)+"/tap";
+      info.detail+="。基礎タップ加算 "+formatOrbAmount(gain)+" オーブ";
+    }
     if(i===14)info.detail+="。奇跡の記録："+(s.momentRuntime?.miracleHistory||[]).length+"件（直近10件まで保持）";
     return info;
   });
@@ -213,7 +227,9 @@ export function momentAfterQuote(s,i,count){
   const t=setsunaProjection(s);
   t.levels[i]=Math.min(CONFIG.provisional.moment[MOMENT_IDS[i]].maxLevel,
     t.levels[i]+Math.max(0,Math.floor(count)||0));
-  return SETSUNA.effectInfo(t,i).current;
+  const effect=SETSUNA.effectInfo(t,i).current;
+  const gain=momentEconomicGain(MOMENT_IDS[i],t.levels[i]);
+  return gain.cmp(0)>0?effect+" / 基礎+"+formatOrbAmount(gain)+"/tap":effect;
 }
 export function momentComboView(s,now=Date.now()){
   const p=setsunaProjection(s,null,now),expires=p.comboExpire||p.comboUntil||0;
@@ -237,7 +253,7 @@ export function sourceResonanceProgress(s){
   return {completed,total:SOURCE_IDS.length*marks.length,next};
 }
 
-// Base output from the first level of this Source. Subsequent levels compound by productionGrowth.
+// First-level base output; later levels follow each grade's cumulative gain curve.
 // Returns Amount to avoid precision/overflow problems for late source tiers.
 export function sourcePlusGain(plus){return sourcePlusMultiplier(plus);}
 export function sourceProductionPerLevel(id) {
@@ -261,7 +277,8 @@ function sourceOutputAtLevel(s,id,level){
   if(!v)throw Error("源IDが不正です");
   const plus=sourcePlusMultiplier(v.plus);
   const unit=sourceProductionPerLevel(id);
-  const growth=CONFIG.provisional.source.productionGrowth;
+  const cfg=CONFIG.provisional.source;
+  const growth=cfg.outputCurves?.[SOURCE_IDS.indexOf(id)]??cfg.productionGrowth;
   const total=seriesCost(unit,growth,0,level);
   return total.mul(sourceMilestoneMultiplier(level)).mul(plus)
     .mul(engravingSourceTuningFactor(s,id))
@@ -322,7 +339,7 @@ function purchaseData(s,kind,id) {
     const i=SOURCE_IDS.indexOf(id);if(i<0)throw Error("源IDが不正です");
     const cfg=CONFIG.provisional.source;
     return {level:s.sources[id].level,max:CONFIG.confirmed.sourceMaxLevel,
-      base:A(cfg.baseCosts[i]),growth:cfg.costGrowth,
+      base:A(cfg.baseCosts[i]),growth:cfg.costCurves?.[i]??cfg.costGrowth,
       milestones:CONFIG.confirmed.sourceMilestones};
   }
   const c=CONFIG.provisional.moment[id];
