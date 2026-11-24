@@ -28,7 +28,7 @@ const completed=G.buy(current,"moment","tap");
 ok(completed.ok&&completed.count===again.count,"second explicit MAX call buys remaining levels");
 const noMore=G.purchaseQuote(current,"moment","tap");
 ok(noMore.count<=3000,"all later MAX quotes bounded");
-const unchanged=G.createState(when,"normal");unchanged.intro.complete=true;
+const unchanged=G.createState(when,"normal");unchanged.intro.complete=true;unchanged.time.unlocked=true;
 unchanged.orbs="100000";unchanged.purchaseMode="NEXT";
 equal(G.purchaseQuote(unchanged,"source",CONTENT.sources[0].id).count,25,"NEXT still seeks next source milestone");
 unchanged.purchaseMode="10";equal(G.purchaseQuote(unchanged,"moment","tap").count,10,"x10 behavior unchanged");
