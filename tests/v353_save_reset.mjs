@@ -68,7 +68,7 @@ for(const failure of ["quota","readback","primary","stale","archive-malformed"])
   if(failure==="stale"){
     const other=fixture();other.revision=99;expected=encode(other,"other");write(KEYS.normal,expected);
   }
-  assert.throws(()=>store.reset(s,NOW+5),failure);
+  assert.throws(()=>store.reset(s,NOW+5),error=>error instanceof Error,failure);
   assert.equal(read(KEYS.normal),expected,failure+" primary preserved");
   assert.equal(read(KEYS.lab),lab);
   assert.equal(JSON.stringify(s),initial);
