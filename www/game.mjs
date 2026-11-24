@@ -151,7 +151,10 @@ export function existence(s) {
 export function timeUnlockProgress(s){
   const target=A(CONFIG.provisional.timeUnlockRunOrbs);
   const earned=A(s.runOrbsEarned??"0");
-  const remaining=s.time.unlocked||earned.cmp(target)>=0?A(0):target.sub(earned);
+  // This threshold is bounded at 1e6. Decimal conversion avoids the
+  // mantissa-subtraction cancellation error near integer boundaries.
+  const remaining=s.time.unlocked||earned.cmp(target)>=0?A(0):
+    A(Math.max(0,Number(target.toString())-Number(earned.toString())));
   return {unlocked:s.time.unlocked,earned:earned.toString(),target:target.toString(),remaining:remaining.toString()};
 }
 export function checkTimeUnlock(s,now=Date.now()){
