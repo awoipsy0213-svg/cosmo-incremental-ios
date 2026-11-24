@@ -11,7 +11,7 @@ import {SaveStore,KEYS,encode,decode,checksum} from "../save.mjs";
 const NOW=1800000000000;
 let count=0;
 const check=(name,fn)=>{fn();count++;console.log("PASS v333",name);};
-const started=()=>{const s=G.createState(NOW);s.intro.complete=true;return s;};
+const started=()=>{const s=G.createState(NOW);s.intro.complete=true;s.time.unlocked=true;return s;};
 const owned=(s,id,lv=1)=>{if(!s.engraving.owned.includes(id))s.engraving.owned.push(id);s.engraving.levels[id]=lv;return s;};
 const ratio=(a,b)=>A(a).div(b).toNumber();
 check("all 30 effects are assigned with immutable IDs",()=>{
