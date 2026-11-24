@@ -80,7 +80,7 @@ test("legacy owned/equipment remains exact and run-earned history is never fabri
   assert.equal(convergenceQuote(old).basis,"run-earned");
   assert.equal(convergenceQuote(old).steps,0,"unverified prior wallet is not earned history");
   assert.equal(converge(old).ok,false);
-  addOrbs(old,"1500");assert.ok(converge(old).ok);assert.equal(old.runOrbsEvidence,"verified");
+  addOrbs(old,convergenceQuote(old).nextRequired);assert.ok(converge(old).ok);assert.equal(old.runOrbsEvidence,"verified");
 });
 test("old save backed up byte-for-byte; failure blocks rewrite",()=>{
   const s=state();delete s.runOrbsEarned;delete s.runOrbsEvidence;delete s.engraving.levels;
