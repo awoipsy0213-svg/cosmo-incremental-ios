@@ -97,8 +97,14 @@ export function formatExistenceDisplay(value,{roundUp=false}={}){
   if(n.cmp("1000000")<=0){
     const amount=n.toNumber();
     // Prices are conservatively shown in 0.001-Existence units.
-    const shown=roundUp?Math.ceil(amount*1000-1e-9)/1000:amount;
+    const shown=roundUp?Math.ceil(Number((amount*1000).toPrecision(14)))/1000:amount;
     return shown.toLocaleString("ja-JP",{maximumFractionDigits:3});
+  }
+  if(roundUp){
+    // Preserve conservative price display even for very large Existence costs.
+    let mantissa=Math.ceil(Number((n.m*100).toPrecision(14)))/100,exponent=n.e;
+    if(mantissa>=10){mantissa=1;exponent++;}
+    return `${mantissa.toFixed(2)}e${exponent>=0?"+":""}${exponent}`;
   }
   return formatScientific3(n);
 }
