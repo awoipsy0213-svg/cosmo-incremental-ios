@@ -116,9 +116,38 @@ export function formatScientific3(value) {
   if(mantissa>=10){mantissa/=10;exponent++;}
   return `${mantissa.toFixed(2)}e${exponent>=0?"+":""}${exponent}`;
 }
+// V3.51 Existence trial curves. Numeric geometric series remain unchanged.
+const existencePrefix=[0];
+for(let n=1;n<=100;n++)existencePrefix.push(existencePrefix[n-1]+n**1.5);
+const fourthSum=n=>{const x=BigInt(n);return x*(x+1n)*(2n*x+1n)*(3n*x*x+3n*x-1n)/30n;};
+function existenceCurveCost(base,curve,start,count){
+  const end=start+count;
+  if(end>1000000)throw RangeError("存在Lv範囲外");
+  if(curve==="source-output-v351"){
+    const f=n=>n<=100?n**1.15:100**1.15*(n/100)**2.8;
+    return A(base).mul(f(end)-f(start));
+  }
+  const earlyEnd=Math.min(end,100),earlyStart=Math.min(start,100);
+  const early=earlyEnd>earlyStart?(count===1?end**1.5:existencePrefix[earlyEnd]-existencePrefix[earlyStart]):0;
+  let result=A(base).mul(early);
+  if(end>100){
+    const a=Math.max(start,100),n=end-a;
+    if(curve==="source-price-v351"){
+      const factor=n===1?end**4/100000:Number(fourthSum(end)-fourthSum(a))/100000;
+      result=result.add(A(base).mul(factor));
+    }else if(curve==="moment-price-v351"){
+      result=result.add(seriesCost(A(base).mul(1045),1.045,a-100,n));
+    }else throw Error("価格曲線が不正");
+  }
+  return result;
+}
 export function seriesCost(base,growth,start,count) {
   if(count<=0)return A(0);
   if(!Number.isInteger(start)||start<0||!Number.isInteger(count)||count<0||growth<1)throw Error("価格設定が不正");
+  if(typeof growth==="string"){
+    if(!["source-output-v351","source-price-v351","moment-price-v351"].includes(growth))throw Error("価格曲線が不正");
+    return existenceCurveCost(base,growth,start,count);
+  }
   const first=A(base).mul(A(growth).pow(start));
   return growth===1?first.mul(count):first.mul(A(growth).pow(count).sub(1)).div(growth-1);
 }

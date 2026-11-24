@@ -17,7 +17,7 @@ const read=p=>readFileSync(new URL("../"+p,import.meta.url),"utf8");
 const check=(name,fn)=>{fn();console.log("PASS v343",name);};
 
 check("authored 30-grade positions are independent of current resource prices",()=>{
-  const s=state();s.orbs="30000";s.sources.SOURCE_01.level=100;
+  const s=state();s.orbs=G.purchaseQuote(s,"source","SOURCE_06","1").cost;s.sources.SOURCE_01.level=5000;
   const lowQuote=G.purchaseQuote(s,"source","SOURCE_01","1");
   assert.equal(lowQuote.enabled,false,"inflated low-grade source is unaffordable");
   const highQuote=G.purchaseQuote(s,"source","SOURCE_06","1");
@@ -29,7 +29,7 @@ check("authored 30-grade positions are independent of current resource prices",(
 });
 
 check("one-click bulk spends available wallet on the highest affordable grade before cheaper rows",()=>{
-  const s=state();own(s,"ENG-05");s.orbs="30000";s.sources.SOURCE_01.level=100;
+  const s=state();own(s,"ENG-05");s.orbs=G.purchaseQuote(s,"source","SOURCE_06","1").cost;s.sources.SOURCE_01.level=5000;
   const initial=G.affordablePriorityOrder(s,"source","grade");
   assert.equal(initial[0],"SOURCE_06");
   const r=G.buyAll(s,"source","grade");
@@ -37,12 +37,12 @@ check("one-click bulk spends available wallet on the highest affordable grade be
   assert.equal(r.count,1,"exact high-tier cost should allow only one purchase");
   assert.equal(s.sources.SOURCE_06.level,1);
   assert.equal(s.sources.SOURCE_05.level,0);
-  assert.equal(s.sources.SOURCE_01.level,100);
+  assert.equal(s.sources.SOURCE_01.level,5000);
   assert.equal(A(s.orbs).cmp(0),0);
 });
 
 check("manual bulk retains low-price, grade and auto modes with independent scope",()=>{
-  const s=state();own(s,"ENG-05");s.orbs="30000";
+  const s=state();own(s,"ENG-05");s.orbs=G.purchaseQuote(s,"source","SOURCE_06","1").cost;
   assert.equal(G.affordablePriorityOrder(s,"source","cheap")[0],"SOURCE_01");
   assert.equal(G.affordablePriorityOrder(s,"source","grade")[0],"SOURCE_06");
   assert.equal(G.affordablePriorityOrder(s,"source","auto")[0],"SOURCE_01");
@@ -55,7 +55,7 @@ check("manual bulk retains low-price, grade and auto modes with independent scop
 });
 
 check("new auto purchase honors grade and saves the selector unchanged",()=>{
-  const s=state();own(s,"ENG-26");s.orbs="30000";
+  const s=state();own(s,"ENG-26");s.orbs=G.purchaseQuote(s,"source","SOURCE_06","1").cost;
   assert.equal(G.configureAutoPurchase(s,"source",{priority:"grade",intervalSeconds:1}).ok,true);
   assert.equal(s.engraving.autoBuy.source.priority,"grade");
   G.advance(s,NOW+4000,{offline:false,rng:()=>.99});

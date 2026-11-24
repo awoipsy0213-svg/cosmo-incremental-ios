@@ -1,6 +1,11 @@
 // 《理》3.1.0 — 設計値と試験値を分離する。
 // null = 未決定。nullを汎用倍率で埋めない。
 // provisionalの値は遊べる基盤の動作確認用で、正式な採用値ではない。
+// DEC-20261124-010/011/012: progression direction; trial coefficients.
+export const EXISTENCE_BALANCE_V351 = Object.freeze({gradeLevelRatio:10,earlyPricePower:1.5,
+  momentCurve:"moment-price-v351",sourceCurve:"source-price-v351",outputCurve:"source-output-v351"});
+// Small tie-break lets the previous grade reach Lv10 before the next first purchase.
+const gradeBase=(first,index)=>(first*10**(1.5*index)*(1+1e-11)**index).toPrecision(14);
 export const CONFIG = {
   version: "3.30.1",
   schemaVersion: 31,
@@ -34,67 +39,47 @@ export const CONFIG = {
     introFadeMs: 1100,
     tapBase: 1,
     moment: {
-      // 30 distinct approved Setsuna effects; old six purchase costs are preserved for save migration.
-      // The old baseCost/growth are price-only. Effect values live in setsuna-rules-v39.mjs.
-      tap: {baseCost:10, growth:1.42, amount:1, maxLevel:1000000},
-      tap2: {baseCost:75, growth:1.50, amount:3, maxLevel:1000000},
-      tap3: {baseCost:450, growth:1.58, amount:9, maxLevel:1000000},
-      tap4: {baseCost:2700, growth:1.66, amount:27, maxLevel:1000000},
-      tap5: {baseCost:16200, growth:1.74, amount:81, maxLevel:1000000},
-      amplify: {baseCost:200, growth:2, multiplier:1.5, maxLevel:1000000},
-      setsuna07: {baseCost:"14753.57142857143", growth:1.75, maxLevel:1000000},
-      setsuna08: {baseCost:"72321.42857142858", growth:1.75, maxLevel:1000000},
-      setsuna09: {baseCost:"354375.00000000006", growth:1.75, maxLevel:1000000},
-      setsuna10: {baseCost:"1735714.2857142857", growth:1.75, maxLevel:1000000},
-      setsuna11: {baseCost:"11896875.000000002", growth:1.75, maxLevel:1000000},
-      setsuna12: {baseCost:"81506250.00000001", growth:1.75, maxLevel:1000000},
-      setsuna13: {baseCost:"558140625", growth:1.75, maxLevel:1000000},
-      setsuna14: {baseCost:"3820162500", growth:1.75, maxLevel:1000000},
-      setsuna15: {baseCost:"26133384375", growth:1.75, maxLevel:1000000},
-      setsuna16: {baseCost:"178679418750.00003", growth:1.75, maxLevel:1000000},
-      setsuna17: {baseCost:"1220976028125", growth:1.75, maxLevel:1000000},
-      setsuna18: {baseCost:"8338372875000", growth:1.75, maxLevel:1000000},
-      setsuna19: {baseCost:"56909394871875", growth:1.75, maxLevel:1000000},
-      setsuna20: {baseCost:"388151257331250.06", growth:1.75, maxLevel:1000000},
-      setsuna21: {baseCost:"3779367505593750", growth:1.75, maxLevel:1000000},
-      setsuna22: {baseCost:"36772224378750010", growth:1.75, maxLevel:1000000},
-      setsuna23: {baseCost:"357507737015625000", growth:1.75, maxLevel:1000000},
-      setsuna24: {baseCost:"3472932302437500000", growth:1.75, maxLevel:1000000},
-      setsuna25: {baseCost:"33707872347187500000", growth:1.75, maxLevel:1000000},
-      setsuna26: {baseCost:"326864216700000000000", growth:1.75, maxLevel:1000000},
-      setsuna27: {baseCost:"3.16649709928125e+21", growth:1.75, maxLevel:1000000},
-      setsuna28: {baseCost:"3.0643520315625e+22", growth:1.75, maxLevel:1000000},
-      setsuna29: {baseCost:"2.96220696384375e+23", growth:1.75, maxLevel:1000000},
-      setsuna30: {baseCost:"2.8600618961249997e+24", growth:1.75, maxLevel:1000000}
+      // All 30 prices follow authored grade order. Approved effect rules and IDs stay intact.
+      tap: {baseCost:gradeBase(10,0), growth:EXISTENCE_BALANCE_V351.momentCurve, amount:1, maxLevel:1000000},
+      tap2: {baseCost:gradeBase(10,1), growth:EXISTENCE_BALANCE_V351.momentCurve, amount:3, maxLevel:1000000},
+      tap3: {baseCost:gradeBase(10,2), growth:EXISTENCE_BALANCE_V351.momentCurve, amount:9, maxLevel:1000000},
+      tap4: {baseCost:gradeBase(10,3), growth:EXISTENCE_BALANCE_V351.momentCurve, amount:27, maxLevel:1000000},
+      tap5: {baseCost:gradeBase(10,4), growth:EXISTENCE_BALANCE_V351.momentCurve, amount:81, maxLevel:1000000},
+      amplify: {baseCost:gradeBase(10,5), growth:EXISTENCE_BALANCE_V351.momentCurve, multiplier:1.5, maxLevel:1000000},
+      setsuna07: {baseCost:gradeBase(10,6), growth:EXISTENCE_BALANCE_V351.momentCurve, maxLevel:1000000},
+      setsuna08: {baseCost:gradeBase(10,7), growth:EXISTENCE_BALANCE_V351.momentCurve, maxLevel:1000000},
+      setsuna09: {baseCost:gradeBase(10,8), growth:EXISTENCE_BALANCE_V351.momentCurve, maxLevel:1000000},
+      setsuna10: {baseCost:gradeBase(10,9), growth:EXISTENCE_BALANCE_V351.momentCurve, maxLevel:1000000},
+      setsuna11: {baseCost:gradeBase(10,10), growth:EXISTENCE_BALANCE_V351.momentCurve, maxLevel:1000000},
+      setsuna12: {baseCost:gradeBase(10,11), growth:EXISTENCE_BALANCE_V351.momentCurve, maxLevel:1000000},
+      setsuna13: {baseCost:gradeBase(10,12), growth:EXISTENCE_BALANCE_V351.momentCurve, maxLevel:1000000},
+      setsuna14: {baseCost:gradeBase(10,13), growth:EXISTENCE_BALANCE_V351.momentCurve, maxLevel:1000000},
+      setsuna15: {baseCost:gradeBase(10,14), growth:EXISTENCE_BALANCE_V351.momentCurve, maxLevel:1000000},
+      setsuna16: {baseCost:gradeBase(10,15), growth:EXISTENCE_BALANCE_V351.momentCurve, maxLevel:1000000},
+      setsuna17: {baseCost:gradeBase(10,16), growth:EXISTENCE_BALANCE_V351.momentCurve, maxLevel:1000000},
+      setsuna18: {baseCost:gradeBase(10,17), growth:EXISTENCE_BALANCE_V351.momentCurve, maxLevel:1000000},
+      setsuna19: {baseCost:gradeBase(10,18), growth:EXISTENCE_BALANCE_V351.momentCurve, maxLevel:1000000},
+      setsuna20: {baseCost:gradeBase(10,19), growth:EXISTENCE_BALANCE_V351.momentCurve, maxLevel:1000000},
+      setsuna21: {baseCost:gradeBase(10,20), growth:EXISTENCE_BALANCE_V351.momentCurve, maxLevel:1000000},
+      setsuna22: {baseCost:gradeBase(10,21), growth:EXISTENCE_BALANCE_V351.momentCurve, maxLevel:1000000},
+      setsuna23: {baseCost:gradeBase(10,22), growth:EXISTENCE_BALANCE_V351.momentCurve, maxLevel:1000000},
+      setsuna24: {baseCost:gradeBase(10,23), growth:EXISTENCE_BALANCE_V351.momentCurve, maxLevel:1000000},
+      setsuna25: {baseCost:gradeBase(10,24), growth:EXISTENCE_BALANCE_V351.momentCurve, maxLevel:1000000},
+      setsuna26: {baseCost:gradeBase(10,25), growth:EXISTENCE_BALANCE_V351.momentCurve, maxLevel:1000000},
+      setsuna27: {baseCost:gradeBase(10,26), growth:EXISTENCE_BALANCE_V351.momentCurve, maxLevel:1000000},
+      setsuna28: {baseCost:gradeBase(10,27), growth:EXISTENCE_BALANCE_V351.momentCurve, maxLevel:1000000},
+      setsuna29: {baseCost:gradeBase(10,28), growth:EXISTENCE_BALANCE_V351.momentCurve, maxLevel:1000000},
+      setsuna30: {baseCost:gradeBase(10,29), growth:EXISTENCE_BALANCE_V351.momentCurve, maxLevel:1000000}
     },
     // NEXT targets trial landmarks; these are not final game design milestones.
     momentMilestones: [10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000,250000,500000,1000000],
-    // 3.6 PLAYTEST: per-level production increases across all 30 sources.
-    // Production and base costs are independent arrays indexed SOURCE_01..SOURCE_30.
-    // Each level adds a fixed /second amount; the nth next purchase costs
-    // baseCosts[index] * (costGrowth ** currentLevel). All numbers are provisional.
-    // Source01..06: player-suggested 0.1,0.5,1,5,25,100/sec; after 06, x4 per tier.
-    // Base cost aims for 240-300s simple payback at level 0; NOT the unlock wait.
-    // 1.35 is steep; higher milestones need future stage synergies (unresolved).
+    // V3.51 trial: ten-level spacing for all grades, no hard Lv gate.
+    // Existing milestone x2, engraving and existence bonuses apply in game.mjs.
     source: {
-      costGrowth: 1.35,
-      // Per-level output also grows exponentially; old v3.6 source base rates stay intact.
-      // Next Lv output = baseRate * 1.30^(current Level). Trial value, not a fixed design decision.
-      productionGrowth: 1.30,
-      perSecondPerLevel: [
-      "0.1", "0.5", "1", "5", "25", "100",
-      "400", "1600", "6400", "25600", "102400", "409600",
-      "1638400", "6553600", "26214400", "104857600", "419430400", "1677721600",
-      "6710886400", "26843545600", "107374182400", "429496729600", "1717986918400", "6871947673600",
-      "27487790694400", "109951162777600", "439804651110400", "1759218604441600", "7036874417766400", "28147497671065600"
-    ],
-      baseCosts: [
-      "30", "120", "300", "1500", "7500", "30000",
-      "120000", "480000", "1920000", "7680000", "30720000", "122880000",
-      "491520000", "1966080000", "7864320000", "31457280000", "125829120000", "503316480000",
-      "2013265920000", "8053063680000", "32212254720000", "128849018880000", "515396075520000", "2061584302080000",
-      "8246337208320000", "32985348833280000", "131941395333120000", "527765581332480000", "2111062325329920000", "8444249301319680000"
-    ]
+      costGrowth: EXISTENCE_BALANCE_V351.sourceCurve,
+      productionGrowth: EXISTENCE_BALANCE_V351.outputCurve,
+      baseCosts:Array.from({length:30},(_,i)=>gradeBase(15,i)),
+      perSecondPerLevel:Array.from({length:30},(_,i)=>i===0?"0.5":i===1?"12":i===2?"500":(Number(gradeBase(15,i))/30).toPrecision(14))
     },
     ui: {refreshMs:150, holdStartMs:480, holdRepeatMs:180},
     convergence: {baseCost:1000, costGrowth:1.1, existencePerStep:0.001, spend:"all"},

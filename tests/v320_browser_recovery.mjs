@@ -66,8 +66,14 @@ try{
   await online.waitForFunction(()=>!!navigator.serviceWorker.controller,{timeout:30000});
   const cached=await online.evaluate(async()=>{
     const registration=await navigator.serviceWorker.ready;
-    const cache=await caches.open("kotowari-handoff:"+new URL(registration.scope).pathname+":3.50.0-time-residue-engraving-v342-grade-v343-existence-v344");
-    return !!(await cache.match(new URL("./source-effects-v315.mjs",registration.scope).href));
+    const prefix="kotowari-handoff:"+new URL(registration.scope).pathname+":";
+    const keys=(await caches.keys()).filter(key=>key.startsWith(prefix));
+    if(keys.length!==1)return false;
+    const cache=await caches.open(keys[0]);
+    for(const path of ["./source-effects-v315.mjs","./numbers.mjs","./balance-config.mjs"]){
+      if(!(await cache.match(new URL(path,registration.scope).href)))return false;
+    }
+    return true;
   });
   assert.equal(cached,true,"a required transitive module missing from offline app cache");
   await context.setOffline(true);

@@ -3,7 +3,7 @@
 import * as G from "./game.mjs";
 import {CONFIG} from "./balance-config.mjs";
 import {CONTENT} from "./content.mjs";
-import {A,formatAmount} from "./numbers.mjs";
+import {A,formatAmount,seriesCost} from "./numbers.mjs";
 
 export const PRICE_DURATIONS=[300,1800,7200];
 export const PRICE_TAP_RATES=[2,5,10];
@@ -63,7 +63,7 @@ export function compareMomentPrice(snapshot,{momentId,profile="current",duration
  const after=earnings(upgraded,now,durationSeconds,tapsPerSecond);
  const delta=after.total.cmp(before.total)>0?after.total.sub(before.total):A(0);
  const rate=delta.div(durationSeconds);
- const trialCost=A(cfg.baseCost).mul(A(cfg.growth).pow(level));
+ const trialCost=seriesCost(cfg.baseCost,cfg.growth,level,1);
  const priceCandidates=factors.map(factor=>{
    const price=trialCost.mul(factor);
    const recovery=rate.cmp(0)>0?price.div(rate).toNumber():null;

@@ -75,6 +75,6 @@ check("all player-facing engraving costs and upper HUD use compact formatter",()
 check("Web/iOS mirrors are identical and PWA revision reflects the new formatter",()=>{
   for(const path of ["app.mjs","numbers.mjs","sw.js"])
     assert.equal(read(path),read("www/"+path),path+" web/iOS mismatch");
-  assert.match(read("sw.js"),/const UI_REVISION = "-engraving-v342-grade-v343-existence-v344"/);
+  assert.match(read("sw.js"),/const UI_REVISION = "-engraving-v342-grade-v343-existence-v344(?:-[a-z0-9]+)*"/);
 });
 console.log("PASS v344 all Existence UI format tests");
