@@ -58,7 +58,6 @@ try{
     });
     assert.equal(await top.textContent(),"1.00e+6");
     await checkRect("scientific");
-    await page.locator('[data-stage="existence"]').click();
     await page.locator('[data-child="engraving"]').click();
     const cost=page.locator('[data-engraving-entry="ENG-01"] .engraving-cost strong');
     assert.equal(await cost.textContent(),"0.002",label+" trial cost shown to 3 decimals");
