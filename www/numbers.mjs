@@ -141,10 +141,55 @@ function existenceCurveCost(base,curve,start,count){
   }
   return result;
 }
+// V3.52: price segments expressed as base-10 log slopes, not Number-sized
+// geometric ratios. Bulk/NEXT/MAX cost in O(three segments), even at Lv1M.
+const gradeCurveCache=new Map();
+function gradeCurveV352(growth){
+  let curve=gradeCurveCache.get(growth);
+  if(curve)return curve;
+  const [kind,...values]=growth.split(":");
+  const [d1,d2,tail]=values.map(Number);
+  if(!["grade-price-v352","grade-output-v352"].includes(kind)||values.length!==3||
+      ![d1,d2,tail].every(x=>Number.isFinite(x)&&x>0))throw Error("成長曲線が不正です");
+  const s1=d1/9,s2=d2/90;
+  curve={kind,parts:[[1,10,0,s1],[11,100,d1+s2,s2],[101,1000001,d1+d2+tail,tail]]};
+  gradeCurveCache.set(growth,curve);
+  return curve;
+}
+function gradeLogAt(curve,level){
+  if(!Number.isSafeInteger(level)||level<1||level>1000001)throw RangeError("存在Lv範囲外");
+  const [first,,offset,slope]=curve.parts[level<=10?0:level<=100?1:2];
+  return offset+slope*(level-first);
+}
+function gradeSeriesV352(base,growth,start,count){
+  const end=start+count;
+  if(end>1000000)throw RangeError("存在Lv範囲外");
+  const c=gradeCurveV352(growth);
+  if(c.kind==="grade-output-v352"){
+    // Cumulative gain for a level, calibrated against the following quote.
+    // Positive marginal gains; late-Lv recovery gradually accelerates.
+    const total=lv=>lv===0?A(0):A(base)
+      .mul(Amount.fromLog10(gradeLogAt(c,lv+1)-gradeLogAt(c,2)))
+      .mul(1+(lv-1)/1000);
+    return total(end).sub(total(start));
+  }
+  let sum=A(0);
+  for(const [first,last,offset,slope] of c.parts){
+    const lo=Math.max(first,start+1),hi=Math.min(last,end);
+    if(hi<lo)continue;
+    const n=hi-lo+1,logLast=offset+slope*(hi-first);
+    // Factor out the largest term; expm1 stays stable for tiny slopes,
+    // while huge negative exponentials naturally tend to zero.
+    const ratioSum=n===1?1:Math.expm1(-Math.LN10*slope*n)/Math.expm1(-Math.LN10*slope);
+    sum=sum.add(A(base).mul(Amount.fromLog10(logLast)).mul(ratioSum));
+  }
+  return sum;
+}
 export function seriesCost(base,growth,start,count) {
   if(count<=0)return A(0);
   if(!Number.isInteger(start)||start<0||!Number.isInteger(count)||count<0||growth<1)throw Error("価格設定が不正");
   if(typeof growth==="string"){
+    if(growth.startsWith("grade-price-v352:")||growth.startsWith("grade-output-v352:"))return gradeSeriesV352(base,growth,start,count);
     if(!["source-output-v351","source-price-v351","moment-price-v351"].includes(growth))throw Error("価格曲線が不正");
     return existenceCurveCost(base,growth,start,count);
   }
