@@ -65,7 +65,7 @@ try {
     await page.locator("#commonInfoBar").waitFor({state:"visible"});
     assert.equal(await page.locator("#commonInfoBar button").count(),2);
     assert.equal(await page.locator("#stageResourceList .stage-stat").count(),3);
-    assert.match(await page.locator('[data-common-value="existence"]').textContent(),/^[0-9]+[.][0-9]{2}e[+-][0-9]+$/);
+    assert.equal(await page.locator('[data-common-value="existence"]').textContent(),"1","initial protected Existence uses ordinary numeric display");
     await page.locator("#commonInfoBar button").first().click();
     assert.equal(await page.locator("#sheetHeading").textContent(),"共通情報");
     assert.match(await page.locator("#sheetBody").textContent(),/時間の経過速度/);
