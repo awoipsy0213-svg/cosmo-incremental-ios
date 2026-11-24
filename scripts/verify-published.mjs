@@ -18,7 +18,7 @@ const match=coreText.match(/const CORE_FILES\s*=\s*\[([\s\S]*?)\];/);
 if(!match)throw Error("Cannot locate PWA CORE_FILES; fail closed instead of skipping verification");
 const core=[...match[1].matchAll(/"([^"]+)"/g)].map(m=>m[1]);
 const links=[...htmlText.matchAll(/(?:src|href)="\.\/([^"?#]+)"/g)].map(m=>m[1]);
-const files=[...new Set(["index.html","sw.js",...core,...links])].sort();
+const files=[...new Set(["index.html","sw.js","update.html",...core,...links])].sort();
 if(files.length<18)throw Error("Unexpectedly small PWA graph: "+files.length);
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const digest=data=>createHash("sha256").update(data).digest("hex").slice(0,16);
