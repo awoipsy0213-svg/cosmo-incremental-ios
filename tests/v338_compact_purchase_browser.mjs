@@ -40,7 +40,7 @@ try{
     assert.equal(await tap.locator("[data-quote-count]").textContent(),"0");
     await page.evaluate(async()=>{
       const G=await import("./game.mjs"),s=window.KOTOWARI_DEBUG.state();
-      G.addOrbs(s,"1e55");window.KOTOWARI_DEBUG.setLabState(s);
+      G.addOrbs(s,"1e1000000");window.KOTOWARI_DEBUG.setLabState(s);
     });
     assert.equal(await tap.isEnabled(),true);
     assert.equal(await tap.locator("[data-quote-count]").textContent(),"1");
@@ -52,6 +52,10 @@ try{
       assert.ok(b.overflow<=1,label+" horizontal overflow "+phase);
     };
     await stable("affordable");
+    const huge=await page.evaluate(async()=>{const G=await import("./game.mjs");const s=window.KOTOWARI_DEBUG.state();return {source:G.purchaseQuote(s,"source","SOURCE_30","1"),text:document.querySelector("#sheetBody")?.textContent};});
+    assert.equal(huge.source.enabled,true,"million-exponent final grade quote is affordable");
+    assert.equal(huge.source.cost,"1e1000000");
+    assert.ok(!/Infinity|NaN/.test(huge.text),"million-exponent UI stays finite");
     await page.locator("#purchaseCycle").click(); // x10
     assert.equal(await tap.locator("[data-quote-count]").textContent(),"10");
     await stable("x10");
