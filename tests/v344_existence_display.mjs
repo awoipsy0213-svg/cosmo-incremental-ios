@@ -35,7 +35,7 @@ check("Engraving Existence costs display three decimals, conservatively rounded 
     ["0","0"],["0.001","0.001"],["0.0010001","0.002"],
     ["0.0016","0.002"],["0.0021","0.003"],["0.025","0.025"],
     ["0.125","0.125"],["0.1251","0.126"],["1.234567","1.235"],
-    ["0.00001","0.001未満"]
+    ["0.00001","0.001未満"],["1234567","1.24e+6"],["9999999.999","1.00e+7"]
   ])assert.equal(formatExistenceDisplay(input,{roundUp:true}),expected,input);
 });
 
