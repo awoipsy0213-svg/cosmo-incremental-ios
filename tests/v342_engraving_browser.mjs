@@ -18,7 +18,7 @@ try{
     await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
     const basic=await page.evaluate(async()=>{
       const G=await import("./game.mjs"),S=await import("./save.mjs");
-      const state=G.createState(Date.now());state.intro.complete=true;state.surplusExistence="10";
+      const state=G.createState(Date.now());state.intro.complete=true;state.time.unlocked=true;state.convergenceCount=1;state.surplusExistence="10";
       return S.encode(state,"v342-browser");
     });
     await page.addInitScript(raw=>{
@@ -45,7 +45,7 @@ try{
     await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
     await page.evaluate(async()=>{
       const G=await import("./game.mjs");
-      const state=G.createState(Date.now(),"lab");state.intro.complete=true;
+      const state=G.createState(Date.now(),"lab");state.intro.complete=true;state.time.unlocked=true;
       state.surplusExistence="100";state.orbs="1e20";
       state.engraving.owned=["ENG-05","ENG-17","ENG-30","ENG-27"];
       state.engraving.levels=Object.fromEntries(state.engraving.owned.map(id=>[id,1]));
