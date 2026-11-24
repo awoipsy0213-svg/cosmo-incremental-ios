@@ -8,7 +8,7 @@ import {compareMomentPrice,compareMomentPriceProfiles,exportPriceReport,PRICE_MO
 import {MOMENT_GROUP_NAMES,cleanMomentPrefs,toggleMomentFavorite,moveMomentFavorite,momentVisible} from "./moment-filter.mjs";
 import {CONTENT} from "./content.mjs";
 import {PROPOSED,PLANET_EFFECT_PROPOSALS,resourcePrototype,trialPreview,boostTrialCost,proposedSourceSlots,FIRST_CONCEPT_PROPOSALS} from "./design-proposals.mjs";
-import {A,formatAmount,formatScientific3,formatOrbAmount} from "./numbers.mjs";
+import {A,formatAmount,formatExistenceDisplay,formatOrbAmount} from "./numbers.mjs";
 import * as G from "./game.mjs";
 import {timeHexMarkup,patchTimeHex,timeHexFlowPanel,timeHexMiraclesPanel} from "./time-hex-v341.mjs";
 import {formatGrowthInt,growthCap} from "./time-growth-v350.mjs";
@@ -221,7 +221,7 @@ function renderWorld(){
   if(showShared){
     const timeSpeed=state.boost.active&&state.boost.seconds>0?G.boostTimeMultiplier(state):1;
     const metrics=[
-      ["existence",formatScientific3(G.existence(state)),"存在",""],
+      ["existence",formatExistenceDisplay(G.existence(state)),"存在",""],
       ["timeSpeed","×"+timeSpeed,"時間の経過速度",""]
     ];
     for(const [id,formatted,label,unit] of metrics){
@@ -589,7 +589,7 @@ function engravingHTML(){
       const levelText=!owned?"Lv.0":Number.isSafeInteger(level)?"Lv."+level.toLocaleString("ja-JP"):"Lv.―";
       const levelHint=!owned?"未取得":Number.isSafeInteger(level)?"現在のレベル："+level.toLocaleString("ja-JP"):"取得済み・レベルの記録なし";
       const price=owned?upgrade.price:q.price??item.cost;
-      const shownPrice=price===undefined||price===null?"—":f(price,6);
+      const shownPrice=price===undefined||price===null?"—":formatExistenceDisplay(price,{roundUp:true});
       const purchasable=owned?upgrade.ok:q.ok;
       const verb=owned?"強化":"取得",action=owned?"data-engraving-trial-upgrade":"data-engraving-buy";
       const gain=purchasable?"Lv. +1":owned&&upgrade.reason==="この刻印はLv1で完成しています"?"完成":"上昇 —",costInfo="費用 "+shownPrice+" 存在";
@@ -966,7 +966,7 @@ function commonInfoHTML(){
   const timeSpeed=state.boost.active&&state.boost.seconds>0?G.boostTimeMultiplier(state):1;
   return '<section class="common-info-detail" aria-label="全ステージ共通情報の詳細">' +
     '<p class="panel-intro">存在と時間の流れを確認できます。</p>' +
-    '<div class="kw-card"><span>存在</span><strong>'+esc(formatScientific3(G.existence(state)))+'</strong></div>' +
+    '<div class="kw-card"><span>存在</span><strong>'+esc(formatExistenceDisplay(G.existence(state)))+'</strong></div>' +
     '<div class="kw-card"><span>時間の経過速度</span><strong>×'+esc(timeSpeed)+'</strong><small>BOOST使用中は時間が加速します。</small></div>' +
     '<button type="button" class="wide-button" data-action="return-stage-panel">ステージ操作に戻る</button></section>';
 }
@@ -1571,7 +1571,7 @@ document.addEventListener("click",async e=>{
       const level=state.engraving.levels?.[id];
       const status=!owned?"Lv.0（未取得）":Number.isSafeInteger(level)?"Lv."+level.toLocaleString("ja-JP"):"Lv.―（以前のレベル情報がありません）";
       await ask(item.name,"現在 "+status+"\n"+item.description+
-        "\n必要存在："+(price===null||price===undefined?"—":f(price,6)),"閉じる");
+        "\n必要存在："+(price===null||price===undefined?"—":formatExistenceDisplay(price,{roundUp:true})),"閉じる");
       return;
     }
     if(b.dataset.sourceSummary!==undefined){
@@ -1646,14 +1646,14 @@ document.addEventListener("click",async e=>{
     if(b.dataset.engravingBuy){
       const id=b.dataset.engravingBuy,quote=engravingPurchaseQuote(state,id);
       if(!quote.ok)return toast(quote.reason||"購入できません");
-      if(state.settings.confirmEngravingPurchase&&!await ask("刻印の初回購入",`${engravingCatalogue().find(x=>x.id===id)?.name||"刻印"} を余剰存在 ${quote.price} で初回購入します。残り存在：${f(A(state.surplusExistence).sub(quote.price),6)}。有効な固有効果は購入後から常時適用します。`,"購入する"))return;
+      if(state.settings.confirmEngravingPurchase&&!await ask("刻印の初回購入",`${engravingCatalogue().find(x=>x.id===id)?.name||"刻印"} を余剰存在 ${formatExistenceDisplay(quote.price,{roundUp:true})} で初回購入します。残り存在：${formatExistenceDisplay(A(state.surplusExistence).sub(quote.price))}。有効な固有効果は購入後から常時適用します。`,"購入する"))return;
       checkpoint();
       return resultDone(G.buyEngraving(state,id));
     }
     if(b.dataset.engravingTrialUpgrade){
       const id=b.dataset.engravingTrialUpgrade,q=G.engravingTrialUpgradeQuote(state,id);
       if(!q.ok)return toast(q.reason);
-      if(state.settings.confirmEngravingUpgrade&&!await ask("刻印の強化",`${engravingCatalogue().find(x=>x.id===id)?.name||"刻印"} のLvを上げます。費用 ${f(q.price,6)} 余剰存在。`,"購入する"))return;
+      if(state.settings.confirmEngravingUpgrade&&!await ask("刻印の強化",`${engravingCatalogue().find(x=>x.id===id)?.name||"刻印"} のLvを上げます。費用 ${formatExistenceDisplay(q.price,{roundUp:true})} 余剰存在。`,"購入する"))return;
       checkpoint();return resultDone(G.buyEngravingTrialUpgrade(state,id));
     }
     if(b.dataset.draft){resultDone(G.toggleDraft(state,b.dataset.draft));return;}
