@@ -76,6 +76,7 @@
       <div id="uxGrowthAura" aria-hidden="true"></div><div id="uxPulse" aria-hidden="true"></div>
       <div id="timeHexRoot" class="time-hex-root" hidden></div>
        <div id="waves" aria-hidden="true"></div>
+      <div id="uxGain" aria-hidden="true" hidden><strong id="uxGainValue"></strong><small id="uxGainEffects"></small></div>
     </div>
     <div class="world-bottom"><p id="worldHint" class="world-hint" hidden></p><button id="convergeMain" class="converge-button" data-action="converge" hidden></button></div>
   </main>
@@ -97,7 +98,7 @@
   <dialog id="confirmDialog" class="confirm-dialog" aria-labelledby="confirmTitle" aria-describedby="confirmText"><h2 id="confirmTitle"></h2><p id="confirmText" tabindex="0"></p><div class="dialog-actions"><button id="confirmNo" type="button" autofocus>戻る</button><button id="confirmYes" type="button">実行する</button></div></dialog>
   <div id="birthOverlay" class="birth-overlay" aria-hidden="true"><span>存在 <b>1</b></span></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <section id="uxNotice" aria-labelledby="uxNoticeTitle" hidden><div class="ux-notice-head"><span id="uxNoticeIcon" aria-hidden="true"></span><div><h2 id="uxNoticeTitle" role="status"></h2><p id="uxNoticeCondition"></p></div></div><ul id="uxNoticeLines"></ul><div class="ux-notice-actions"><button id="uxNoticeLater" type="button">あとで</button><button id="uxNoticeOpen" type="button">開く</button></div></section>
+  <section id="uxNotice" aria-labelledby="uxNoticeTitle" hidden><div class="ux-notice-head"><span id="uxNoticeIcon" aria-hidden="true"></span><div><h2 id="uxNoticeTitle" role="status"></h2><p id="uxNoticeCondition"></p></div></div><ul id="uxNoticeLines"></ul><div class="ux-notice-actions"><button id="uxNoticeLater" type="button">あとで</button><button id="uxNoticeSource" type="button" hidden>源を開く</button><button id="uxNoticeOpen" type="button">開く</button></div></section>
   <noscript>このゲームにはJavaScriptが必要です。</noscript>
 </div>
 <script type="module" src="./app.mjs"></script>

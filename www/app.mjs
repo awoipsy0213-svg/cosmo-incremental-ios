@@ -17,7 +17,7 @@ import {SaveStore,KEYS,decode,encode} from "./save.mjs";
 import {shortDuration} from "./purchase-insights.mjs";
 import {purchasePreview} from "./purchase-preview-v338.mjs";
 import {momentBrief,compactEffectValue} from "./purchase-clarity-v339.mjs";
-import {UNLOCK_COPY,uxSnapshot,uxChanges,unlockRatio} from "./ux-polish-v355.mjs";
+import {UNLOCK_COPY,uxSnapshot,uxChanges,unlockRatio,accumulateTapGain,guideSteps} from "./ux-polish-v355.mjs";
 
 const APP_RELEASE="3.55";
 const $=id=>document.getElementById(id);
@@ -42,6 +42,7 @@ let navDigest="",notice="",busyBirth=false,automationDetailsOpen=false;
 let testGrantDraft="1e12",resetPending=false;
 let pwaRegistration=null,lastUpdateCheck=0,updateRequested=false,reloadForUpdate=false;
 let uxStateRef=null,uxPrevious=null,uxQueue=[],uxActive=null,uxPulseTimer=null,uxLastPulse=0,uxAudio=null;
+let uxGainBatch=null,uxGainTimer=null;
 const updatePath=()=> "./update.html"+(mode==="lab"?"?lab=1":"");
 const BOOST_QUICK_ICON=`<svg class="boost-quick-symbol" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M13 2 5 13h6l-1 9 9-12h-6V2z" fill="currentColor"/></svg>`;
 const HOLD_LEVEL_LIMIT=3000; // BOOST-Q673/674: one continuous long press, total acquired Lv
@@ -166,6 +167,7 @@ function setSheet(which){
   $("expandButton").textContent=which==="full"?"↙":"↗";
   $("expandButton").setAttribute("aria-label",which==="full"?"半分表示に戻す":"リストを全表示");
   if(which!=="closed")renderPanel(true);
+  syncUXNotice();
 }
 function setStage(id){
   if(!availableStages().some(x=>x.id===id))return;
@@ -201,7 +203,8 @@ function readUXSnapshot(){
 function quietUX(){return state.settings.reducedMotion||state.settings.lowPower||window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;}
 function resetUX(){
   uxStateRef=state;uxPrevious=readUXSnapshot();uxQueue=[];uxActive=null;
-  $("uxNotice").hidden=true;
+  $("uxNotice").hidden=true;clearUXGain();
+  clearTimeout(uxPulseTimer);delete $("touchField").dataset.uxFeedback;
 }
 function prepareUXAudio(){
   if(!state?.settings.feedbackSound)return;
@@ -241,31 +244,60 @@ function feedbackUX(kind,signal=false){
     }catch{}
   }
 }
+function uxNoticeBlocked(){return sheetState==="full"||document.hidden||$("confirmDialog").open||$("organizerDrawer").open;}
+function syncUXNotice(){
+  if(!state)return;
+  if(uxActive){
+    const node=$("uxNotice");
+    if(uxNoticeBlocked()){node.hidden=true;node.classList.remove("ux-enter");}
+    else node.hidden=false;
+  }else showNextUX();
+}
 function showNextUX(){
-  if(uxActive||!uxQueue.length||document.hidden||$("confirmDialog").open||$("organizerDrawer").open||busyBirth)return;
+  if(uxActive||!uxQueue.length||uxNoticeBlocked()||busyBirth)return;
   uxActive=uxQueue.shift();const copy=UNLOCK_COPY[uxActive];if(!copy)return;
   const notice=$("uxNotice");notice.dataset.uxTheme=uxActive;
   $("uxNoticeIcon").textContent=copy.icon;$("uxNoticeTitle").textContent=copy.title;
   $("uxNoticeCondition").textContent=copy.condition;
+  $("uxNoticeSource").hidden=uxActive!=="time";
+  $("uxNoticeOpen").textContent=uxActive==="time"?"時を開く":"開く";
   $("uxNoticeLines").replaceChildren(...copy.lines.map(line=>{const li=document.createElement("li");li.textContent=line;return li;}));
   notice.hidden=false;notice.classList.remove("ux-enter");
   if(!quietUX()){void notice.offsetWidth;notice.classList.add("ux-enter");}
   feedbackUX("milestone",true);
 }
-function closeUX(open=false){
-  if(!uxActive)return;
-  const target=UNLOCK_COPY[uxActive].target;
-  $("uxNotice").hidden=true;uxActive=null;
-  if(open&&state.intro.complete){
-    if(target==="automation"){currentStage="automation";currentSub="auto-existence";}
-    else if(target==="engraving"||target==="moment"){currentStage="existence";currentSub=target;}
-    else if(availableStages().some(x=>x.id===target)){currentStage=target;currentSub=CONTENT.stages.find(x=>x.id===target).children[0];}
-    infoPanelOpen=false;setSheet("half");render(true);
+function openUXTarget(target){
+  if(!state)return;
+  stopHoldPurchase(null,true);
+  if(target==="touch"||target==="convergence"){
+    if(target==="convergence"&&(!state.intro.complete||!G.convergenceQuote(state).steps))return;
+    currentStage="existence";currentSub="moment";infoPanelOpen=false;
+    setSheet("closed");render(true);
+    $(target==="touch"?"touchField":"convergeMain").focus({preventScroll:true});
+    return;
   }
-  showNextUX();
+  if(!state.intro.complete)return;
+  if(target==="automation"){
+    currentStage="automation";currentSub="auto-existence";
+  }else if(["moment","sources","engraving"].includes(target)){
+    if(target==="sources"&&!state.time.unlocked)return;
+    if(target==="engraving"&&!engravingUnlocked(state))return;
+    currentStage="existence";currentSub=target;
+  }else if(availableStages().some(x=>x.id===target)){
+    currentStage=target;currentSub=CONTENT.stages.find(x=>x.id===target).children[0];
+  }else return;
+  infoPanelOpen=false;setSheet("half");render(true);
+}
+function closeUX(open=false,override=null){
+  if(!uxActive)return;
+  const target=override||UNLOCK_COPY[uxActive].target;
+  $("uxNotice").hidden=true;uxActive=null;
+  if(open)openUXTarget(target);
+  syncUXNotice();
 }
 $("uxNoticeLater").addEventListener("click",()=>closeUX(false));
 $("uxNoticeOpen").addEventListener("click",()=>closeUX(true));
+$("uxNoticeSource").addEventListener("click",()=>{if(uxActive==="time")closeUX(true,"sources");});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&uxActive&&!$("confirmDialog").open&&!$("organizerDrawer").open)closeUX(false);});
 function updateUX(){
   if(uxStateRef!==state){resetUX();}
@@ -275,9 +307,10 @@ function updateUX(){
     // Unlock notices cannot be inferred from a loaded/restored state. Only
     // false-to-true transitions within the same live state are new events.
     uxQueue.push(...changes.unlocks.filter(id=>id!==uxActive&&!uxQueue.includes(id)));
+    if(changes.feedback==="convergence")clearUXGain();
     if(changes.feedback)feedbackUX(changes.feedback,changes.feedback!=="purchase"||Date.now()-lastInteraction<550);
   }
-  showNextUX();
+  syncUXNotice();
 }
 function unlockProgressText(){
   const q=G.timeUnlockProgress(state);
@@ -988,7 +1021,8 @@ function guideHTML(){
   if(u.universe)chapters.push(["宇宙","惑星を生み、観測し、獲得した資源で干渉します。"]);
   if(u.life)chapters.push(["生命","新たな生命の段階を観測します。"]);
   if(state.intro.complete)chapters.push(["BOOST","アプリを閉じている間はBOOSTだけが蓄積します。使用するとゲーム内時間が加速します。"]);
-  return '<div class="kw-list">'+chapters.map(([title,body])=>'<div class="kw-card"><strong>'+esc(title)+'</strong><p>'+esc(body)+'</p></div>').join("")+'</div>';
+  const next=guideSteps(state,engravingUnlocked(state),G.convergenceQuote(state).steps>0);
+  return '<div class="kw-list"><section class="kw-card ux-next-steps" aria-label="次の一歩"><strong>次の一歩</strong>'+next.map(x=>'<div class="ux-next-step"><span><strong>'+esc(x.title)+'</strong><small>'+esc(x.description)+'</small></span><button type="button" data-ux-target="'+esc(x.target)+'" aria-label="'+esc(x.title)+'へ">開く</button></div>').join("")+'</section>'+chapters.map(([title,body])=>'<div class="kw-card"><strong>'+esc(title)+'</strong><p>'+esc(body)+'</p></div>').join("")+'</div>';
 }
 function settingsHTML(){
   const labels=[["confirmEngravingPurchase","刻印の初回購入を確認","OFFならワンタップで取得"],["confirmEngravingUpgrade","刻印の追加強化を確認","OFFならワンタップで強化"],["confirmBoostUpgrade","BOOST強化を確認","OFFならワンタップで強化"],["confirmSourceBreakthrough","源の＋循環を確認","最大レベルから再開始する操作"],["confirmInterference","惑星への干渉を確認","衝突・移転・崩壊・安定化"],["confirmCoreFormation","コア形成を確認","資源消費を伴う操作"],["confirmSaveImport","セーブ読込前に確認","現在の進行を入れ替えるため初期ON推奨"],["confirmSaveRestore","履歴復元前に確認","過去の保存状態へ戻るため初期ON推奨"],["confirmBulkPurchase","一括購入前に確認","OFF：タップですぐ購入。ON：数量・費用を確認してから購入します"],["confirmMaxPurchase","MAX購入前に確認","ON：所持資源の90%以上を使うMAX購入を確認します"],["compact","コンパクト表示","ほかの一覧の密度を調整"],["holdToBuy","長押しで連続購入","押している間だけ通常購入を繰り返します"],["hapticTap","操作時の振動","タップ・購入・節目・解放。対応端末のみ、初期OFF"],["feedbackSound","効果音","購入・節目・収束・解放。初期OFF"],["reducedMotion","動きを減らす","発光・波紋・開閉演出を抑える"],["highContrast","読みやすい境界線","文字と境界のコントラストを調整"],["lowPower","省電力","背景アニメーションを停止"],["confirmConvergence","収束前に確認","収束で失われる内容を確認する"],["showOffline","復帰時に報告","オフラインの進行とBOOSTを表示"]];
@@ -1325,25 +1359,34 @@ function render(force=false){
   if(!state)return;
   const navChanged=renderNav();renderWorld();renderPanel(force||navChanged);refreshPurchaseButtons();refreshBoostShortcut();updateUX();
 }
+function clearUXGain(){
+  clearTimeout(uxGainTimer);uxGainBatch=null;
+  $("uxGain").hidden=true;$("uxGainValue").textContent="";$("uxGainEffects").textContent="";
+  $("waves").replaceChildren();
+}
 function wave(x,y,gain,meta=null){
-  if(quietUX())return;
-  // Cap visual nodes only; all taps still earn their full rewards.
-  while($("waves").children.length>45)$("waves").firstElementChild.remove();
-  const rect=$("touchField").getBoundingClientRect();
-  const span=document.createElement("span");span.className="wave";
-  span.style.left=(x-rect.left)+"px";span.style.top=(y-rect.top)+"px";$("waves").appendChild(span);
-  const text=document.createElement("span");text.className="wave-gain";text.style.left=span.style.left;text.style.top=span.style.top;
-  if(gain&&A(gain).cmp(0)>0){text.textContent="+"+o(gain);$("waves").appendChild(text);}
+  // Visual caps only; G.tap has already applied the full reward.
+  if(!quietUX()){
+    const root=$("waves");
+    while(root.children.length>=45)root.firstElementChild.remove();
+    const rect=$("touchField").getBoundingClientRect();
+    const span=document.createElement("span");span.className="wave";
+    span.style.left=(x-rect.left)+"px";span.style.top=(y-rect.top)+"px";root.appendChild(span);
+    setTimeout(()=>span.remove(),850);
+  }
+  if(!state.intro.complete||!gain||A(gain).cmp(0)<=0)return;
   const labels=[];
   for(const [id,name] of [["wave","余波"],["echo","反響"],["chain","連鎖"],["double","二重"],["released","蓄積放出"]]){
-    if(meta?.components?.[id]&&A(meta.components[id]).cmp(0)>0)labels.push(name+" +"+o(meta.components[id]));
+    if(meta?.components?.[id]&&A(meta.components[id]).cmp(0)>0)labels.push(name);
   }
-  if(meta?.crit)labels.push("CRIT"+(meta.chain?" ×"+(meta.chain+1):""));
-  if(meta?.miracle)labels.push("奇跡 ×200");
-  const more=document.createElement("span");
-  more.className="wave-special";more.style.left=span.style.left;more.style.top=span.style.top;
-  if(labels.length){more.textContent=labels.slice(0,3).join(" · ");$("waves").appendChild(more);}
-  setTimeout(()=>{span.remove();text.remove();more.remove();},850);
+  if(meta?.crit)labels.push("CRIT");
+  if(meta?.miracle)labels.push("奇跡");
+  uxGainBatch=accumulateTapGain(uxGainBatch,gain,Date.now(),labels);
+  $("uxGainValue").textContent="+"+o(uxGainBatch.amount)+(uxGainBatch.count>1?" · "+uxGainBatch.count+"回":"");
+  $("uxGainEffects").textContent=uxGainBatch.labels.slice(0,3).join(" · ");
+  $("uxGain").hidden=false;
+  clearTimeout(uxGainTimer);
+  uxGainTimer=setTimeout(()=>{$("uxGain").hidden=true;uxGainBatch=null;},900);
 }
 function birth(){
   busyBirth=true;$("birthOverlay").classList.add("visible");
@@ -1737,6 +1780,7 @@ document.addEventListener("click",async e=>{
       }
       renderPanel(true);return;
     }
+    if(b.dataset.uxTarget){if(uxActive)closeUX(false);openUXTarget(b.dataset.uxTarget);return;}
     if(b.dataset.organizer){openOrganizerPage(b.dataset.organizer);return;}
     if(b.dataset.autoMode!==undefined){
       if(readOnly||store.blocked)return toast("読み取り専用です");
@@ -2008,7 +2052,7 @@ document.addEventListener("input",e=>{lastInteraction=Date.now();if(e.target.id=
   if(e.target.id==="momentSearch"){momentSearch=e.target.value.slice(0,60);refreshMomentVisibility();}
 });
 function hidePage(){
-  stopHoldPurchase(null,true);
+  stopHoldPurchase(null,true);clearUXGain();
   if(!state||readOnly||store.blocked)return;
   const now=Date.now();
   if($("confirmDialog").open)state.lastWall=now;else G.advance(state,now,{offline:false});

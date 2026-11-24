@@ -1,3 +1,4 @@
+import {A} from "./numbers.mjs";
 // Presentation only. Read engine state; never grant resources or modify progression.
 export const UNLOCK_COPY=Object.freeze({
   time:{title:"《時》と《源》解放",condition:"当周回の累計獲得オーブ 1,000,000 に到達",lines:["《源》を購入すると、時間経過でオーブを生み出せます。","《時》では方向を選択し、残滓から概念を認識します。","収束しても解放した機能は残ります。"],target:"time",icon:"時"},
@@ -31,4 +32,42 @@ export function uxChanges(before,after){
 export function unlockRatio(earned,target){
   const n=Number(earned),d=Number(target);
   return Number.isFinite(d)&&d>0?Math.max(0,Math.min(1,Number.isNaN(n)?0:n/d)):0;
+}
+
+/** UI-only grouping: resource accounting is already committed by the engine. */
+export function accumulateTapGain(previous,gain,at,labels=[]){
+  const value=A(gain);
+  if(value.cmp(0)<=0)return previous;
+  const same=previous&&at>=previous.startedAt&&at-previous.startedAt<250;
+  return {
+    startedAt:same?previous.startedAt:at,
+    amount:(same?A(previous.amount).add(value):value).toString(),
+    count:same?previous.count+1:1,
+    labels:[...new Set([...(same?previous.labels:[]),...labels])]
+  };
+}
+/** Optional next actions. Never change state, promise an optimal route or reveal locked names. */
+export function guideSteps(s,engravingReady,canConverge){
+  const items=[];
+  const add=(target,title,description)=>items.push({target,title,description});
+  if(!s.intro?.complete){
+    add("touch","光に触れる","最初の存在を生み出す。");
+    return items;
+  }
+  if(!s.time?.unlocked){
+    add("moment","刹那を確認","購入できる強化からタップの効果を高める。");
+    add("touch","？？？の解放を目指す","当周回の累計獲得オーブを増やす。強化に使っても累計は減らない。");
+    if(canConverge)add("convergence","収束を確認","獲得予定の存在を確認する。");
+    return items;
+  }
+  const owned=s.engraving?.owned||[];
+  if(engravingReady&&!owned.length)add("engraving","刻印を確認","余剰存在で永続的な強化を取得できる。");
+  if(!Object.values(s.sources||{}).some(x=>x.level>0))add("sources","源を確認","購入できる源から自動生成を始める。");
+  if(s.life?.unlocked)add("life","生命を観測","解放された世界を確認する。");
+  else if(s.universe?.unlocked)add("universe","宇宙を観測","惑星と資源の進行を確認する。");
+  else add("time","時を観測","六角形の方向を選び、残滓から概念を認識する。");
+  if(canConverge)add("convergence","収束を確認","獲得予定の存在とリセット内容を確認する。実行は任意。");
+  if(!items.some(x=>x.target==="sources"))add("sources","源を強化","現在の生成能力と購入できる強化を確認する。");
+  if(engravingReady&&owned.length)add("engraving","刻印を確認","永続強化と便利機能を確認する。");
+  return items.slice(0,3);
 }

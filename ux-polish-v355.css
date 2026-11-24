@@ -35,3 +35,22 @@ body:not([data-cosmo-stage="1"]) #uxGrowthAura,body.is-intro #uxGrowthAura{displ
 body.reduced-motion #uxNotice,body.low-power #uxNotice,body.reduced-motion #uxPulse::after,body.low-power #uxPulse::after{animation:none!important}
 body.reduced-motion #uxGrowthAura,body.low-power #uxGrowthAura{transition:none!important}
 @media(prefers-reduced-motion:reduce){#uxNotice,#uxPulse::after{animation:none!important}#uxGrowthAura{transition:none!important}}
+
+/* Additional polish: touch-safe notices and static, grouped reward text. */
+#uxNotice{pointer-events:auto}
+#uxNoticeSource[hidden]{display:none!important}
+.ux-notice-actions{flex-wrap:wrap}
+.ux-notice-actions button{padding:7px 9px}
+.ux-notice-actions #uxNoticeSource{background:#dcecff;color:#202f48;border-color:#fff}
+#uxGain{position:absolute;z-index:5;left:50%;top:17%;transform:translateX(-50%);pointer-events:none;max-width:90%;width:max-content;text-align:center;line-height:1.15;color:#352960;text-shadow:0 1px 7px #fff;white-space:nowrap;font-variant-numeric:tabular-nums}
+#uxGain[hidden]{display:none!important}
+#uxGainValue{display:block;font-size:clamp(13px,4vw,19px);overflow:hidden;text-overflow:ellipsis}
+#uxGainEffects{display:block;color:#574a80;font-size:10px;min-height:11px;overflow:hidden;text-overflow:ellipsis}
+body:not([data-cosmo-stage="1"]) #uxGain,body.is-intro #uxGain{display:none!important}
+.ux-next-steps{display:grid;gap:7px}
+.ux-next-step{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;padding:7px 0;border-top:1px solid #9690b535}
+.ux-next-step span{min-width:0}
+.ux-next-step strong,.ux-next-step small{display:block;overflow-wrap:anywhere}
+.ux-next-step small{margin-top:3px;font-size:11px;line-height:1.45}
+.ux-next-step button{min-width:64px;min-height:36px;border:1px solid #aaa1d1;border-radius:8px;background:#e8e3fa;color:#42346a;padding:6px 8px;font-size:12px;font-weight:650;touch-action:manipulation}
+.ux-next-step button:focus-visible{outline:2px solid #7059bb;outline-offset:2px}
