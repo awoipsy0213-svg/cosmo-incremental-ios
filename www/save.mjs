@@ -320,11 +320,85 @@ export class SaveStore {
       return Array.isArray(x)?x.filter(y=>y&&typeof y.raw==="string"&&Number.isFinite(y.at)).slice(0,3):[];
     }catch(e){return [];}
   }
+  // Explicit backups and pre-reset snapshots never rotate out with the
+  // ordinary three-generation history. Quota/corruption must stop replacement.
+  protectedBackups(){
+    const raw=this.read(this.key+".protected-backups");
+    if(raw===null)return [];
+    const rows=JSON.parse(raw);
+    if(!Array.isArray(rows)||rows.some(x=>!x||typeof x.raw!=="string"||
+      !Number.isFinite(x.at)||!["manual","reset"].includes(x.reason)))
+      throw Error("保護バックアップ一覧が不正です。上書きしません。");
+    return rows;
+  }
+  assertCurrentWriter(raw){
+    if(raw===null)return;
+    const other=JSON.parse(raw);
+    const revision=(other.data??other).revision||0;
+    if(other.writer!==this.writer&&revision>this.expectedRevision)
+      throw Error("別タブの新しい保存を検出しました。この画面からは上書きしません。");
+  }
+  protect(state,reason="manual",now=Date.now()){
+    if(this.blocked)throw Error("元セーブを保護中です");
+    if(!["manual","reset"].includes(reason)||!Number.isFinite(now)||now<0)
+      throw Error("バックアップの指定が不正です");
+    validateState(state,this.mode);
+    const before=this.read(this.key);
+    this.assertCurrentWriter(before);
+    // Retain both the live state and original stored bytes if they differ.
+    const raw=encode(state,this.writer);
+    decode(raw,this.mode);
+    const entry={at:now,reason,raw};
+    if(before!==null&&before!==raw)entry.originalRaw=before;
+    const rows=this.protectedBackups();
+    rows.push(entry);
+    const history=JSON.stringify(rows),key=this.key+".protected-backups";
+    this.storage.setItem(key,history);
+    if(this.read(key)!==history)throw Error("保護バックアップを読み戻せません。元データを変更しません。");
+    decode(this.protectedBackups().at(-1).raw,this.mode);
+    return {index:rows.length-1,entry,before};
+  }
+  reset(state,now=Date.now()){
+    // Archive first; no deletion of primary keys, legacy or the other mode.
+    const saved=this.protect(state,"reset",now);
+    if(this.read(this.key)!==saved.before)throw Error("別タブで保存が変化しました。リセットを中止します。");
+    const next=createState(now,this.mode);
+    const oldRev=saved.before===null?0:(JSON.parse(saved.before).data??JSON.parse(saved.before)).revision||0;
+    next.revision=Math.max(state.revision||0,this.expectedRevision,oldRev)+1;
+    const encoded=encode(next,this.writer);
+    let primaryWritten=false;
+    try{
+      this.storage.setItem(this.key,encoded);
+      primaryWritten=true;
+      if(this.read(this.key)!==encoded)throw Error("初期セーブの読み戻しに失敗しました");
+      decode(encoded,this.mode);
+    }catch(error){
+      // localStorage setItem is atomic on failure. A failed post-write
+      // read-back must block autosave, and the verified archive remains.
+      if(primaryWritten){
+        try{
+          if(this.read(this.key)===encoded){
+            if(saved.before!==null)this.storage.setItem(this.key,saved.before);
+            else this.storage.removeItem(this.key);
+          }
+          if(this.read(this.key)!==saved.before)throw Error("元の保存を確認できません");
+        }catch(recoveryError){this.blocked=true;}
+      }
+      throw error;
+    }
+    this.expectedRevision=next.revision;this.lastSnapshot=now;this.lastError="";
+    return next;
+  }
+  restoreProtectedBackup(index,now=Date.now()){
+    const row=this.protectedBackups()[index];
+    if(!row)throw Error("保護バックアップが見つかりません");
+    return this.import(row.raw,now);
+  }
   export(state){
     if(this.blocked)throw Error("元セーブ保護中です。未保存の仮データを通常バックアップとして出力できません");
     const data=validateState(state,this.mode);
     let legacy=null;
-    try{legacy=JSON.parse(this.read(KEYS.legacyArchive)||"null");}catch(e){}
+    try{if(this.mode==="normal")legacy=JSON.parse(this.read(KEYS.legacyArchive)||"null");}catch(e){}
     return JSON.stringify({kind:"kotowari-backup-v31",version:31,exportedAt:new Date().toISOString(),
       checksum:checksum(JSON.stringify(data)),data,legacyArchive:legacy},null,2);
   }
@@ -342,6 +416,7 @@ export class SaveStore {
     // Never grant offline progress on import/repeated re-import.
     state.lastWall=now;state.boost.active=false;state.engraving.draft=null;
     const before=this.read(this.key);
+    if(!this.blocked)this.assertCurrentWriter(before);
     if(before){
       // Never overwrite the only pre-import copy. A second import keeps the
       // first snapshot and creates an additional timestamped recovery point.
@@ -353,7 +428,7 @@ export class SaveStore {
       if(existing!==before)this.storage.setItem(key,before);
       if(this.read(key)!==before)throw Error("復元前の元データを検証できません。復元を中止しました");
     }
-    if(legacy)this.storage.setItem(KEYS.legacyArchive,JSON.stringify(legacy));
+    if(legacy&&this.mode==="normal")this.storage.setItem(KEYS.legacyArchive,JSON.stringify(legacy));
     let revision=0;
     try{revision=JSON.parse(before||"{}").data?.revision||0;}catch(e){}
     state.revision=Math.max(0,revision)+1;
@@ -362,9 +437,14 @@ export class SaveStore {
     if(this.storage.getItem(this.key)!==encoded)throw Error("復元データの保存を確認できません");
     this.expectedRevision=state.revision;
     this.blocked=false;
-    const list=this.backups();list.unshift({at:now,raw:encoded});
-    this.storage.setItem(this.key+".backups",JSON.stringify(list.slice(0,3)));
-    this.lastSnapshot=now;this.lastError="";
+    this.lastError="";
+    try{
+      const list=this.backups();list.unshift({at:now,raw:encoded});
+      const history=JSON.stringify(list.slice(0,3));
+      this.storage.setItem(this.key+".backups",history);
+      if(this.read(this.key+".backups")!==history)throw Error("保存履歴の読み戻しに失敗しました");
+      this.lastSnapshot=now;
+    }catch(error){this.lastError="復元は保存済みですが履歴の更新に失敗しました："+error.message;}
     return state;
   }
   restoreBackup(index,now=Date.now()){

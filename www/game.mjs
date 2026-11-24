@@ -1501,6 +1501,26 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
   sampleActualOrbs(s.telemetry,now,s.totalOrbs);
   return {elapsed:dt,gameSeconds,orbs:gained.toString(),boost:s.boost.seconds-boostBefore};
 }
+// Explicit test-mode-only grants. Do not mint resources or achievements in
+// normal saves. Keep test cumulative existence consistent with its balance.
+export function labGrant(s,kind,value){
+  if(s.mode!=="lab")return {ok:false,reason:"テストモード専用です"};
+  if(!["orbs","existence"].includes(kind))return {ok:false,reason:"対象が不正です"};
+  try{
+    const amount=A(String(value).trim());
+    const limit=kind==="orbs"?"1e2000000":"1e6";
+    if(amount.cmp(0)<=0||amount.cmp(limit)>0)return {ok:false,reason:"入力範囲外です（上限 "+limit+"）"};
+    if(kind==="orbs"){
+      const wallet=A(s.orbs).add(amount),total=A(s.totalOrbs).add(amount),run=A(s.runOrbsEarned??"0").add(amount);
+      s.orbs=wallet.toString();s.totalOrbs=total.toString();s.runOrbsEarned=run.toString();
+    }else{
+      const wallet=A(s.surplusExistence).add(amount),total=A(s.totalExistenceEarned).add(amount);
+      s.surplusExistence=wallet.toString();s.totalExistenceEarned=total.toString();
+    }
+    if(!s.intro.complete){s.intro.complete=true;s.intro.touches=CONFIG.provisional.introTouches;}
+    return {ok:true};
+  }catch(error){return {ok:false,reason:"正の数値を入力してください（例：1e1000000）"};}
+}
 export function labAction(s,action,now=Date.now()) {
   if(s.mode!=="lab")return {ok:false,reason:"検証用セーブでのみ利用できます"};
   if(action==="orbs"){addOrbs(s,"1e12");return {ok:true};}

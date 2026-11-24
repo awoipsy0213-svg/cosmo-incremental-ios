@@ -24,9 +24,9 @@ check("engraving receipts produce only player-facing event names; engine IDs sur
   assert.ok(s.events.some(e=>e.text.includes("干渉増幅")));
   assert.doesNotMatch(s.events.map(e=>e.text).join(" "),/ENG-\d\d|暫定バランス|試験強化/);
 });
-check("normal menu hides development workspace without removing research source files",()=>{
+check("normal menu exposes test entry but hides internal research and design pages",()=>{
   const app=read("app.mjs");
-  assert.ok(app.includes('...(mode==="lab"?["spec","proposals","priceLab","lab"]:[])'));
+  assert.ok(app.includes('...(mode==="lab"?["spec","proposals","priceLab","lab"]:["lab"])'));
   assert.ok(app.includes('const levelText=!owned?"Lv.0"'));
   assert.ok(app.includes('class="badge engraving-level'));
   assert.ok(app.includes('title="${esc(item.name)}">${esc(item.name)}</strong>'));
