@@ -4,7 +4,7 @@ import {A} from "../numbers.mjs";
 import {createState,buyAll,quoteBuyAll,validateState} from "../game.mjs";
 let n=0;const test=(name,fn)=>{fn();n++;console.log("✓",name);};
 const now=1763600000000;
-const fixture=()=>{const s=createState(now);s.intro.complete=true;s.orbs="1500";s.engraving.owned.push("ENG-05");s.engraving.levels["ENG-05"]=1;return s;};
+const fixture=()=>{const s=createState(now);s.intro.complete=true;s.time.unlocked=true;s.orbs="1500";s.engraving.owned.push("ENG-05");s.engraving.levels["ENG-05"]=1;return s;};
 
 test("quoted all/visible purchase never mutates real wallet or state",()=>{
   const s=fixture(),initial=JSON.stringify(s);
