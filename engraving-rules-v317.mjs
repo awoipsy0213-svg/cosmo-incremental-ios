@@ -23,6 +23,7 @@ export function engravingTier(id) {
   return index<0?0:Math.floor(index/10)+1;
 }
 export function engravingPrice(id){
+  if(id==="ENG-05")return "0.05"; // DEC-20261124-019
   const tier=engravingTier(id);
   return tier?ENGRAVING_GROUP_PRICES[tier-1]:null;
 }
@@ -51,10 +52,18 @@ export function engravingCatalogue(){
     ...engravingEffectStatus(id)
   }));
 }
+// Existing owned engravings and completed convergences are permanent evidence.
+// Lab-only explicit surplus grants remain useful without changing normal saves.
+export function engravingUnlocked(s){
+  return !!s.intro?.complete && ((s.convergenceCount||0)>0 ||
+    (s.engraving?.owned?.length||0)>0 ||
+    (s.mode==="lab" && A(s.surplusExistence??"0").cmp(0)>0));
+}
 export function engravingPurchaseQuote(s,id){
   if(!ENGRAVING_IDS.includes(id))return {ok:false,reason:"刻印IDが不正です"};
   if(s.engraving.owned.includes(id))return {ok:false,reason:"すでに取得しています"};
   if(!s.intro.complete)return {ok:false,reason:"最初の存在を認識してください"};
+  if(!engravingUnlocked(s))return {ok:false,reason:"初回収束で解放"};
   const tier=engravingTier(id),price=engravingPrice(id),prerequisite=engravingPrerequisite(tier,s.engraving.owned);
   if(!prerequisite.ok)return {ok:false,tier,price,prerequisite,
     reason:"前段階の刻印を3種所有する必要があります（残り"+prerequisite.needed+"種）"};
@@ -62,6 +71,7 @@ export function engravingPurchaseQuote(s,id){
   return {ok:true,tier,price,prerequisite};
 }
 export function engravingTrialUpgradeQuote(s,id){
+  if(!engravingUnlocked(s))return {ok:false,reason:"初回収束で解放"};
   if(!ENGRAVING_IDS.includes(id))return {ok:false,reason:"刻印IDが不正です"};
   if(!s.engraving?.owned?.includes(id))return {ok:false,reason:"最初に刻印を取得してください"};
   if(ONE_TIME_ENGRAVINGS.includes(id))return {ok:false,price:null,reason:"この刻印はLv1で完成しています"};
