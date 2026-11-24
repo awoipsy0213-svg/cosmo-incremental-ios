@@ -21,7 +21,7 @@ try{
    const G=await import("./game.mjs"),S=await import("./save.mjs");
    const s=G.createState(Date.now(),"normal");
    s.intro.complete=true;s.settings.confirmConvergence=false;s.surplusExistence="20";
-   s.boost.seconds=3600;G.addOrbs(s,"1500");
+   s.boost.seconds=3600;G.addOrbs(s,"4500");
    if(!G.buyEngraving(s,"ENG-01").ok)throw Error("engraving fixture failed");
    return S.encode(s,"v330-fixture");
   });
