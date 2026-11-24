@@ -146,12 +146,29 @@ function achievement(s,id,text) {
 export function existence(s) {
   return s.intro.complete?A(1).add(s.surplusExistence):A(0);
 }
+// DEC-20261124-017: only earned orbs in the active run count. The
+// existing persisted Time flag is also the permanent Source unlock.
+export function timeUnlockProgress(s){
+  const target=A(CONFIG.provisional.timeUnlockRunOrbs);
+  const earned=A(s.runOrbsEarned??"0");
+  // This threshold is bounded at 1e6. Decimal conversion avoids the
+  // mantissa-subtraction cancellation error near integer boundaries.
+  const remaining=s.time.unlocked||earned.cmp(target)>=0?A(0):
+    A(Math.max(0,Number(target.toString())-Number(earned.toString())));
+  return {unlocked:s.time.unlocked,earned:earned.toString(),target:target.toString(),remaining:remaining.toString()};
+}
+export function checkTimeUnlock(s,now=Date.now()){
+  if(!s.intro.complete||s.time.unlocked||A(s.runOrbsEarned??"0").cmp(CONFIG.provisional.timeUnlockRunOrbs)<0)return false;
+  s.time.unlocked=true;event(s,"《時》と《源》を解放した。",now);
+  return true;
+}
 export function addOrbs(s,amount) {
   if(A(amount).cmp(0)<=0)return;
   s.orbs=add(s.orbs,amount);s.totalOrbs=add(s.totalOrbs,amount);
   // Count every confirmed earning once, separately from spendable orbs.
   // Old saves may remain legacy-unverified until their first new convergence.
   s.runOrbsEarned=add(s.runOrbsEarned??"0",amount);
+  checkTimeUnlock(s);
 }
 function spendOrbs(s,amount) {
   if(A(s.orbs).cmp(amount)<0)return false;
@@ -351,6 +368,7 @@ function purchaseData(s,kind,id) {
 export function purchaseQuote(s,kind,id,mode=s.purchaseMode) {
   if(!modeSet.has(mode))throw Error("購入モードが不正です");
   const p=purchaseData(s,kind,id),remain=Math.max(0,p.max-p.level);
+  if(kind==="source"&&!s.time.unlocked)return {count:0,cost:"0",enabled:false,reason:"未解放"};
   p.base=p.base.mul(engravingPurchaseFactor(s));
   let n=mode==="MAX"?maxAffordable(s.orbs,p.base,p.growth,p.level,Math.min(remain,MAX_LEVELS_PER_ACTION))
     :mode==="10"?maxAffordable(s.orbs,p.base,p.growth,p.level,Math.min(10,remain))
@@ -381,9 +399,6 @@ export function buy(s,kind,id) {
     if(s.sources[id].level>=CONFIG.confirmed.sourceMaxLevel){
       recordSourceMax(s);
       if(earnSourceFinal(s,id))event(s,"源の固有最終効果を解放："+id);
-    }
-    if(!s.time.unlocked && CONFIG.provisional.timeUnlock==="firstSource"){
-      s.time.unlocked=true;event(s,"操作しなくても、光が生まれ始めた。《時》の兆しを観測した。");
     }
   } else {
     const wasZero=s.moment[id]===0;
@@ -463,6 +478,7 @@ function recordSourceMax(s){
   if(!previous&&status.unlocked)event(s,"源30種の一巡を達成。各源のLv.1,000,000から＋循環を選べるようになった。");
 }
 export function breakthrough(s,id) {
+  if(!s.time.unlocked)return {ok:false,reason:"未解放"};
   if(!s.sources?.[id])return {ok:false,reason:"源IDが不正です"};
   if(s.sources[id].level<CONFIG.confirmed.sourceMaxLevel)return {ok:false,reason:"Lv.1,000,000で限界突破"};
   const status=sourceCycleStatus(s);
@@ -506,6 +522,7 @@ export function convergenceProgress(s){
 }
 export function converge(s) {
   if(!s.intro.complete)return {ok:false,reason:"最初の存在は失えません"};
+  checkTimeUnlock(s);
   const q=convergenceQuote(s);
   if(!q.steps)return {ok:false,reason:"収束に必要なオーブが不足しています"};
   s.surplusExistence=add(s.surplusExistence,q.reward);
@@ -1164,7 +1181,7 @@ export function configureAutoConvergence(s,{enabled,minReward,minSteps,mode,inte
     intervalSeconds:a.intervalSeconds,intervalMinutes:a.intervalMinutes,targetRunOrbs:a.targetRunOrbs};
 }
 export function autoConvergenceTick(s,now=Date.now(),offline=false) {
-  if(offline||s.settings.automationEnabled===false||!s.intro.complete||!s.engraving.autoConverge.enabled ||
+  if(offline||s.settings.automationEnabled===false||!s.intro.complete||s.convergenceCount===0||!s.engraving.autoConverge.enabled ||
     !s.engraving.owned.includes(ENGRAVING_AUTO_CONVERGE_ID))
     return {ok:false,reason:"自動収束の条件を満たしていません"};
   const a=s.engraving.autoConverge;
@@ -1282,7 +1299,7 @@ function runEngravingAutomation(s,seconds,now,rng){
   ]){
     const config=s.engraving.autoBuy[kind];
     // Automation never bypasses engraved unlocks and never runs while disabled.
-    if(rate<=0||!config.enabled)continue;
+    if(rate<=0||!config.enabled||kind==="source"&&!s.time.unlocked)continue;
     const total=Math.min(1000,runtime[key]+seconds*rate);
     runtime[key]=total;
     runtime[waitKey]=Math.min(config.intervalSeconds,(runtime[waitKey]||0)+seconds);
@@ -1390,6 +1407,9 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
     }else s.boost.active=false; // BOOST-Q219: time x1 is OFF, consumes nothing
   }
   s.counters.onlineSeconds+=dt;
+  // Unlock at the end of the earning tick; do not credit its elapsed time
+  // to the new stage retroactively. Subsequent ticks advance Time normally.
+  const timeWasUnlocked=s.time.unlocked;
   // FLOW augments time-dependent progress once, after BOOST has independently
   // calculated its own spendable game seconds. Neither tap rewards nor BOOST
   // charging receive an extra resource multiplier.
@@ -1409,7 +1429,7 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
     if(s.time.unlocked)gained=gained.mul(1+growthBonuses(s,CONTENT.concepts).source);
     addOrbs(s,gained);
   }
-  if(s.time.unlocked){
+  if(timeWasUnlocked){
     const mods=growthBonuses(s,CONTENT.concepts),timeSeconds=gameSeconds;
     s.time.elapsed+=timeSeconds;
     const report=advanceTimeResidues(s,CONTENT.concepts,timeSeconds,rng);
@@ -1496,7 +1516,7 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
       const ids=[...SOURCE_IDS].sort((a,b)=>A(purchaseQuote(s,"source",a).cost).cmp(purchaseQuote(s,"source",b).cost));
       if(ids[0])buy(s,"source",ids[0]);s.purchaseMode=mode;
     }
-    if(s.engraving.active.includes("autoConverge")&&A(s.runOrbsEarned??"0").cmp(CONFIG.lab.autoConvergeOrbs)>=0)converge(s);
+    if(s.convergenceCount>0&&s.engraving.active.includes("autoConverge")&&A(s.runOrbsEarned??"0").cmp(CONFIG.lab.autoConvergeOrbs)>=0)converge(s);
   }
   sampleActualOrbs(s.telemetry,now,s.totalOrbs);
   return {elapsed:dt,gameSeconds,orbs:gained.toString(),boost:s.boost.seconds-boostBefore};
@@ -1518,6 +1538,7 @@ export function labGrant(s,kind,value){
       s.surplusExistence=wallet.toString();s.totalExistenceEarned=total.toString();
     }
     if(!s.intro.complete){s.intro.complete=true;s.intro.touches=CONFIG.provisional.introTouches;}
+    checkTimeUnlock(s);
     return {ok:true};
   }catch(error){return {ok:false,reason:"正の数値を入力してください（例：1e1000000）"};}
 }
@@ -1529,7 +1550,7 @@ export function labAction(s,action,now=Date.now()) {
   if(action==="common"){s.time.common+=100;return {ok:true};}
   if(action==="concept"){s.time.residues.TC001=(s.time.residues.TC001||0)+10;return {ok:true};}
   if(action==="world"){s.time.unlocked=true;s.time.revealedDirections=6;s.time.worldSeconds=1;checkUniverse(s);return {ok:true};}
-  if(action==="sourceMax"){s.sources.SOURCE_01.level=1000000;return {ok:true};}
+  if(action==="sourceMax"){s.time.unlocked=true;s.sources.SOURCE_01.level=1000000;return {ok:true};}
   if(action==="observe"){const p=planet(s);if(p)p.observed=[...STAT_IDS];s.engraving.observationUnlocked=true;achievement(s,"engravingObservation","【検証】《刻印の観測》表示を解放した。");return {ok:true};}
   if(action==="resources"){CONTENT.resources.forEach(x=>{s.universe.resources[x.id]=add(s.universe.resources[x.id]||0,100);if(!s.universe.discoveredResources.includes(x.id))s.universe.discoveredResources.push(x.id);});return {ok:true};}
   if(action==="mass"){const p=planet(s);if(!p)return {ok:false,reason:"先に惑星を生成してください"};p.stats.mass="1e2";p.stats.pressure="0";return {ok:true};}
@@ -1930,5 +1951,8 @@ export function validateState(input,expectedMode=null) {
   // BOOST-Q469/499/500: verified legacy seconds may exceed the new cap.
   // Do not trim on decode, encode, save, restore or offline settlement.
   normalizeWeights(s);
+  // Preserve previously purchased Sources as evidence of the old unlock.
+  if(s.intro.complete && Object.values(s.sources).some(x=>x.level>0||x.plus>0||x.effects.length>0))s.time.unlocked=true;
+  checkTimeUnlock(s,s.lastWall);
   return s;
 }

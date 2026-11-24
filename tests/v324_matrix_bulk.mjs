@@ -45,7 +45,7 @@ check("One-tap bulk uses a single live buy without a second state-advance",()=>{
 });
 check("Quoted bulk and actual purchases preserve the same spend",()=>{
  const s=createState(1800000000000);
- s.intro.complete=true;s.orbs="250000";s.totalOrbs="250000";
+ s.intro.complete=true;s.time.unlocked=true;s.orbs="250000";s.totalOrbs="250000";
  s.engraving.owned.push("ENG-05");s.engraving.levels["ENG-05"]=1; // v342 bulk unlock
  s.sources.SOURCE_01.level=6;
  const q=quoteBuyAll(s,"source","cheap",["SOURCE_01","SOURCE_02"]);

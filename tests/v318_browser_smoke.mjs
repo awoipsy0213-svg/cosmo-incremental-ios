@@ -64,7 +64,10 @@ try {
     assert.ok(await page.locator('[data-stage="universe"]').count(),label+" fixture stage absent: "+JSON.stringify(diagnostics));
     await page.locator("#commonInfoBar").waitFor({state:"visible"});
     assert.equal(await page.locator("#commonInfoBar button").count(),2);
-    assert.equal(await page.locator("#stageResourceList .stage-stat").count(),3);
+    // DEC-20261124-019 removes the independent Source acquisition row.
+    assert.equal(await page.locator("#stageResourceList .stage-stat").count(),2);
+    assert.doesNotMatch(await page.locator("#stageResourceList").innerText(),/源の生成|源の獲得/);
+    assert.equal(await page.locator(".world-sideboards").isVisible(),false);
     assert.equal(await page.locator('[data-common-value="existence"]').textContent(),"1","initial protected Existence uses ordinary numeric display");
     await page.locator("#commonInfoBar button").first().click();
     assert.equal(await page.locator("#sheetHeading").textContent(),"共通情報");

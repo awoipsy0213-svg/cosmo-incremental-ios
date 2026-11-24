@@ -52,15 +52,15 @@ check("paused automation performs no purchased levels or autonomous taps, stores
   assert.ok(Object.values(s.moment).reduce((a,b)=>a+b,0)>0,"existing enabled purchased automation resumes");
 });
 check("global pause prevents auto convergence even above threshold and 60s",()=>{
-  const s=fresh();own(s,"ENG-24");G.addOrbs(s,"1e80");
+  const s=fresh();s.convergenceCount=1;own(s,"ENG-24");G.addOrbs(s,"1e80");
   assert.ok(G.convergenceQuote(s).steps>0);
   assert.ok(G.configureAutoConvergence(s,{enabled:true,mode:"ready"},NOW).ok);
   G.configureAutomationMaster(s,false);
   assert.equal(G.autoConvergenceTick(s,NOW+70000,false).ok,false);
-  assert.equal(s.convergenceCount,0);
+  assert.equal(s.convergenceCount,1);
   G.configureAutomationMaster(s,true);
   assert.equal(G.autoConvergenceTick(s,NOW+70001,false).ok,true);
-  assert.equal(s.convergenceCount,1);
+  assert.equal(s.convergenceCount,2);
 });
 check("offline mode still never progresses automatic purchases or game resources",()=>{
   const s=fresh();own(s,"ENG-23");G.addOrbs(s,"1e50");

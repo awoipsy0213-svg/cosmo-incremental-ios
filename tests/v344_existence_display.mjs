@@ -40,7 +40,7 @@ check("Engraving Existence costs display three decimals, conservatively rounded 
 });
 
 check("display rounding never changes actual purchase price, orb quantities or saved state",()=>{
-  const s=G.createState(1800000000000);s.intro.complete=true;s.surplusExistence="0.02";
+  const s=G.createState(1800000000000);s.intro.complete=true;s.convergenceCount=1;s.surplusExistence="0.02";
   const first=engravingPurchaseQuote(s,"ENG-01");
   assert.equal(formatExistenceDisplay(first.price,{roundUp:true}),"0.001");
   const beforeInitial=A(s.surplusExistence);

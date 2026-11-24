@@ -40,7 +40,10 @@ try{
      rowCount:document.querySelectorAll("#stageResourceList .stage-stat").length
    }));
    assert.ok(layout.scroll<=width+2,label+" page width overflow "+JSON.stringify(layout));
-   assert.equal(layout.rowCount,3);
+   // DEC-20261124-019: independent Source gain HUD row is intentionally hidden.
+   assert.equal(layout.rowCount,2);
+   assert.doesNotMatch(await page.locator("#stageResourceList").innerText(),/源の生成|源の獲得/);
+   assert.equal(await page.locator(".world-sideboards").isVisible(),false);
    await page.locator('[data-stage="existence"]').click();
    await page.locator('[data-child="moment"]').click();
    assert.equal(await page.locator(".moment-card .compact-stat").count(),60);

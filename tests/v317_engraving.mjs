@@ -7,11 +7,11 @@ import {checksum,SaveStore,KEYS,encode,decode} from "../save.mjs";
 const now=1763600000000;
 let count=0;
 const test=(name,fn)=>{fn();count++;console.log("PASS",name);};
-const state=()=>{const s=createState(now,"normal");s.intro.complete=true;s.surplusExistence="10";return s;};
+const state=()=>{const s=createState(now,"normal");s.intro.complete=true;s.convergenceCount=1;s.time.unlocked=true;s.surplusExistence="10";return s;};
 test("30 stable IDs, retained initial costs and historical slot data",()=>{
   assert.equal(ENGRAVING_IDS.length,30);
   for(let i=0;i<30;i++){const id=ENGRAVING_IDS[i],tier=Math.floor(i/10)+1;
-    assert.equal(engravingTier(id),tier);assert.equal(engravingPrice(id),ENGRAVING_GROUP_PRICES[tier-1]);}
+    assert.equal(engravingTier(id),tier);assert.equal(engravingPrice(id),id==="ENG-05"?"0.05":ENGRAVING_GROUP_PRICES[tier-1]);}
   assert.equal(engravingCatalogue().length,30);
   assert.deepEqual([0,1,4,5,19,20,99,100].map(engravingSlots),[2,3,3,4,4,5,5,6]);
 });
@@ -66,7 +66,7 @@ test("ENG-24 runs when owned and opted-in without equipping, interval and offlin
   addOrbs(s,"1e20");
   assert.equal(autoConvergenceTick(s,now+119000,false).ok,false);
   assert.ok(autoConvergenceTick(s,now+120000,false).ok);
-  assert.equal(s.convergenceCount,2);
+  assert.equal(s.convergenceCount,3);
   assert.ok(configureAutoConvergence(s,{enabled:false},now+120001).ok);
   addOrbs(s,"1e20");assert.equal(autoConvergenceTick(s,now+300000,false).ok,false);
 });

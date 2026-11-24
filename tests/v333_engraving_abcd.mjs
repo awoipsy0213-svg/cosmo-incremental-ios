@@ -11,7 +11,7 @@ import {SaveStore,KEYS,encode,decode,checksum} from "../save.mjs";
 const NOW=1800000000000;
 let count=0;
 const check=(name,fn)=>{fn();count++;console.log("PASS v333",name);};
-const started=()=>{const s=G.createState(NOW);s.intro.complete=true;return s;};
+const started=()=>{const s=G.createState(NOW);s.intro.complete=true;s.time.unlocked=true;return s;};
 const owned=(s,id,lv=1)=>{if(!s.engraving.owned.includes(id))s.engraving.owned.push(id);s.engraving.levels[id]=lv;return s;};
 const ratio=(a,b)=>A(a).div(b).toNumber();
 check("all 30 effects are assigned with immutable IDs",()=>{
@@ -62,7 +62,7 @@ check("B: every 20th manual tap and rare extra orb award have observable effect"
   assert.equal(b.runOrbsEarned,b.totalOrbs);
 });
 check("C: reward boosts and cost reduction preserve earned-orb basis",()=>{
-  const s=started();G.addOrbs(s,3000);
+  const s=started();G.addOrbs(s,1000000);
   const old=G.convergenceQuote(s);
   owned(s,"ENG-16",2);owned(s,"ENG-18",3);
   const current=G.convergenceQuote(s);
@@ -75,7 +75,7 @@ check("C: reward boosts and cost reduction preserve earned-orb basis",()=>{
 check("C: explicit retention and initial benefits survive convergence without touching legacy evidence",()=>{
   const s=started();s.sources.SOURCE_01.level=25;s.moment.tap=50;
   owned(s,"ENG-19",2);owned(s,"ENG-20",1);
-  G.addOrbs(s,3000);
+  G.addOrbs(s,1000000);
   assert.ok(G.converge(s).ok);
   assert.equal(s.moment.tap,2);
   assert.equal(s.sources.SOURCE_01.level,2);

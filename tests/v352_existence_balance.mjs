@@ -7,7 +7,7 @@ import * as G from "../game.mjs";
 import {encode,decode,KEYS} from "../save.mjs";
 
 const NOW=1800000000000;
-const fresh=()=>{const s=G.createState(NOW);s.intro.complete=true;return s};
+const fresh=()=>{const s=G.createState(NOW);s.intro.complete=true;s.time.unlocked=true;return s};
 const near=(a,b,rel=1e-7)=>assert.ok(Math.abs(A(a).div(b).toNumber()-1)<rel,`${a} vs ${b}`);
 const sources=CONTENT.sources.map(x=>x.id),moments=CONTENT.moment.map(x=>x.id);
 const source=CONFIG.provisional.source,moment=CONFIG.provisional.moment;
@@ -75,10 +75,10 @@ assert.equal(restored.moment[finalMoment],3000);
 near(restored.orbs,high.orbs);
 near(G.production(restored,NOW),G.production(high,NOW));
 assert.ok(G.momentEffects(restored)[29].current.includes("基礎+"));
-const c=fresh();assert.equal(A(G.convergenceQuote(c).nextRequired).cmp(3000),0);
-G.addOrbs(c,"2999");assert.equal(G.convergenceQuote(c).steps,0);
+const c=fresh();assert.equal(A(G.convergenceQuote(c).nextRequired).cmp(1000000),0);
+G.addOrbs(c,"999999");assert.equal(G.convergenceQuote(c).steps,0);
 G.addOrbs(c,1);assert.equal(G.convergenceQuote(c).steps,1);
-assert.equal(A(G.convergenceQuote(c).nextRequired).cmp(6600),0);
+assert.equal(A(G.convergenceQuote(c).nextRequired).cmp(2200000),0);
 G.addOrbs(c,"1e1000000");
 const cq=G.convergenceQuote(c);
 assert.ok(cq.steps>10000000&&cq.steps<1000000000);
@@ -93,8 +93,8 @@ assert.equal(G.sourceCycleStatus(cap).unlocked,true);
 assert.equal(G.breakthrough(cap,sources[0]).ok,true);
 assert.equal(cap.sources[sources[0]].level,1);
 
-// Deterministic constant-rate routes using the actual game quotes and outputs.
-// These are illustrative strategies, not forecasts for every playstyle.
+// Post-unlock deterministic constant-rate routes using actual quotes and outputs.
+// These isolate the post-unlock economy, not the new pre-unlock game.
 // No proc RNG, automatic convergence or wall-clock advancement.
 function route(kind,permanent=false){
   const s=fresh();

@@ -26,7 +26,7 @@ assert.equal(G.sourceMilestoneMultiplier(100).cmp(8),0);
 assert.equal(G.sourceMilestoneMultiplier(1000000).cmp(2097152),0);
 assert.throws(()=>G.sourceMilestoneMultiplier(-1),/源Lv/);
 const first=CONTENT.sources[0].id;
-const s=G.createState(1800000000000);s.intro.complete=true;
+const s=G.createState(1800000000000);s.intro.complete=true;s.time.unlocked=true;
 const unit=CONFIG.provisional.source.perSecondPerLevel[0];
 for(const lv of [1,24,25,26,49,50,51,100,250,1000,1000000]){
   s.sources[first].level=lv;

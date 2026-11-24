@@ -748,3 +748,41 @@ body.low-power .kw-sheet-body .purchase-card{transition:none!important}
   height:12px;line-height:12px;font-size:clamp(9px,2.45vw,11px);
   font-variant-numeric:tabular-nums;letter-spacing:-.02em;
 }
+
+/* DEC-20261124-017: the expanded sheet is bounded by its container, not
+ * by an independent viewport-height calculation that can clip the handle. */
+body.kw-app{height:100dvh;min-height:0}
+body.kw-app #appRoot{height:100%;min-height:0}
+#sheet[data-state="full"]{
+  top:calc(var(--safe-top) + 6px);
+  bottom:calc(var(--nav-h) + var(--safe-bottom));
+  height:auto;max-height:none;min-height:0;
+  transition:none;
+}
+#sheetHandle{position:relative;z-index:3;flex:0 0 40px;height:40px;min-height:40px;overflow:visible}
+#sheetHandle>div:first-child{flex:1 1 0;min-width:0;overflow:hidden}
+#sheetHeading{white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+#sheetHandle .sheet-buttons{position:relative;flex:0 0 auto;flex-shrink:0;align-items:center;gap:3px}
+#sheetHandle .sheet-buttons .icon-button{flex:0 0 34px;width:34px;min-width:34px;max-width:34px;display:inline-grid;place-items:center;visibility:visible;opacity:1}
+#sheetHandle #expandButton{color:#6955a9!important;background:#fff!important;touch-action:manipulation}
+#sheetBody{min-height:0;flex:1 1 0;overflow-y:auto}
+.stage-nav .locked-stage-tab{flex:1 1 0;min-width:0;padding:2px 1px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;overflow:hidden;color:#667092;opacity:1;cursor:default;white-space:nowrap}
+.locked-stage-tab strong{font-size:13px;line-height:17px;font-weight:750}
+.locked-stage-tab small{font-size:9px;line-height:13px;font-variant-numeric:tabular-nums;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.locked-stage-menu{padding:8px 14px;border-radius:8px;background:#9288c513;color:inherit;display:grid;gap:3px;line-height:1.35}
+.locked-stage-menu strong{font-size:14px}
+.locked-stage-menu span,.locked-stage-menu small{font-size:11px;font-variant-numeric:tabular-nums}
+@media(max-width:360px){.locked-stage-tab small{font-size:8px}}
+
+/* DEC-20261124-019: presentation-only suppression, without a spacer. */
+.world-sideboards{display:none!important}
+/* Keep controls inside the top edge in both sheet states. */
+#sheet[data-state="full"]{inset-block-start:calc(var(--safe-top) + 6px);inset-block-end:calc(var(--nav-h) + var(--safe-bottom));height:auto;max-height:none}
+#sheetHandle .sheet-buttons{min-width:max-content;flex-shrink:0;z-index:4}
+#sheetHandle .sheet-buttons .icon-button{height:34px;min-height:34px;max-height:34px;touch-action:manipulation;pointer-events:auto}
+
+/* Full sheet must sit above the app header (matrix-v324 z-index:65).
+ * The notice controls remain accessible below its fixed header. */
+#sheet[data-state="full"]{z-index:66}
+body:has(#sheet[data-state="full"]) #noticeBar,
+body:has(#sheet[data-state="full"]) #updateBar{z-index:67}

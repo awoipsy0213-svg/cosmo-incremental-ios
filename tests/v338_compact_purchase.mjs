@@ -6,7 +6,7 @@ import {CONTENT} from "../content.mjs";
 import {A} from "../numbers.mjs";
 import {CONFIG} from "../balance-config.mjs";
 const read=p=>readFileSync(new URL("../"+p,import.meta.url),"utf8");
-const s=G.createState(1800000000000);s.intro.complete=true;
+const s=G.createState(1800000000000);s.intro.complete=true;s.time.unlocked=true;
 const source=CONTENT.sources[0].id,moment=CONTENT.moment[0].id;
 G.setPurchaseMode(s,"MAX");
 const unavailable=purchasePreview(s,"source",source);

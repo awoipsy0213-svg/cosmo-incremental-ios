@@ -20,8 +20,8 @@ try{
   const raw=await page.evaluate(async()=>{
    const G=await import("./game.mjs"),S=await import("./save.mjs");
    const s=G.createState(Date.now(),"normal");
-   s.intro.complete=true;s.settings.confirmConvergence=false;s.surplusExistence="20";
-   s.boost.seconds=3600;G.addOrbs(s,"4500");
+   s.intro.complete=true;s.time.unlocked=true;s.convergenceCount=1;s.settings.confirmConvergence=false;s.surplusExistence="20";
+   s.boost.seconds=3600;G.addOrbs(s,"1500000");
    if(!G.buyEngraving(s,"ENG-01").ok)throw Error("engraving fixture failed");
    return S.encode(s,"v330-fixture");
   });
@@ -35,9 +35,9 @@ try{
   await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
   assert.match(await page.locator("#buildLabel").textContent(),/3\.34/);
   assert.equal(await page.locator("#worldStatus").count(),0,"status panel should be removed");
-  assert.equal(await page.locator("#worldObserve .scene-stat").count(),2);
+  assert.equal(await page.locator(".world-sideboards").isVisible(),false);
   const obs=await page.locator("#worldObserve").textContent();
-  assert.ok(obs.includes("源の生成")&&obs.includes("干渉"));
+  assert.ok(obs.includes("源の生成")&&obs.includes("干渉"),"hidden history node remains intact");
   assert.ok(!obs.includes("累計オーブ"));
   assert.equal(await page.locator("#worldHint").isVisible(),false);
   assert.equal(await page.locator("#convergeMain .converge-gauge i").count(),1);

@@ -108,7 +108,7 @@ export const CONFIG = {
       perSecondPerLevel:Array.from({length:30},(_,i)=>i===0?"0.5":gradeYield(15,i))
     },
     ui: {refreshMs:150, holdStartMs:480, holdRepeatMs:180},
-    convergence: {baseCost:3000, costGrowth:1.2, existencePerStep:0.001, spend:"all"},
+    convergence: {baseCost:1000000, costGrowth:1.2, existencePerStep:0.001, spend:"all"},
     // 2026-11-22 user-approved A-D engraving effect provisional balance.
     // Keep in one place for retuning; not an independent BOOST multiplier.
     engravingEffects:{
@@ -130,7 +130,8 @@ export const CONFIG = {
       minimumConvergenceFactor:0.75
     },
     // firstSourceは時導入と自動生産の接続を確認するための仮ルール。
-    timeUnlock: "firstSource",
+    timeUnlock: "runEarned",
+    timeUnlockRunOrbs: "1000000",
     universe: {startingMass:10, massGrowthPerSecond:1/60, massPerResource:1, ageClock:"real"},
     boost: {multiplier:2, consumptionRule:"additional-time"},
     // Explicit balance-test values, not canonical specification.

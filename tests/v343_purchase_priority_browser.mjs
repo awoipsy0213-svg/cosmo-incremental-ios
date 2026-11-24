@@ -22,7 +22,7 @@ try {
     const encoded=await page.evaluate(async()=>{
       const G=await import("./game.mjs"),Save=await import("./save.mjs");
       const s=G.createState(Date.now(),"normal");
-      s.intro.complete=true;s.orbs=G.purchaseQuote(s,"source","SOURCE_06","1").cost;s.runOrbsEarned=s.orbs;s.totalOrbs=s.orbs;
+      s.intro.complete=true;s.time.unlocked=true;s.orbs=G.purchaseQuote(s,"source","SOURCE_06","1").cost;s.runOrbsEarned=s.orbs;s.totalOrbs=s.orbs;
       s.engraving.owned=["ENG-05","ENG-17","ENG-23","ENG-26","ENG-27"];
       s.engraving.levels=Object.fromEntries(s.engraving.owned.map(id=>[id,1]));
       s.settings.automationEnabled=false;

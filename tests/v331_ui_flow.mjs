@@ -52,7 +52,7 @@ check("prior saves get new settings without modifying history",()=>{
   assert.equal(G.validateState(restored).settings.existenceLastTab,"moment");
 });
 check("verified earned orbs, not spendable balance, drive all convergence math",()=>{
-  const s=started();G.addOrbs(s,"4500");
+  const s=started();G.addOrbs(s,"1500000");
   const p=G.convergenceProgress(s);
   assert.equal(p.basis,"run-earned");
   assert.ok(p.steps>0);
@@ -70,7 +70,7 @@ check("unverified old saves never silently use current wallet as convergence inc
   assert.equal(s.runOrbsEvidence,"legacy-unverified");
   assert.equal(G.convergenceQuote(s).steps,0);
   assert.equal(G.convergenceProgress(s).percent,0);
-  G.addOrbs(s,"4500");
+  G.addOrbs(s,"1500000");
   const q=G.convergenceQuote(s);
   assert.equal(q.basis,"run-earned");
   assert.equal(q.historyVerified,false);

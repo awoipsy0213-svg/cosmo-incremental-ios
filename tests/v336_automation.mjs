@@ -87,8 +87,8 @@ check("automation switches and configured game-second interval stop or schedule 
   assert.equal(Object.values(s.moment).reduce((a,b)=>a+b,0),before);
 });
 check("all four auto-convergence modes obey actual earned orbs and the minimum real 60s guard",()=>{
-  const run=(mode,extra,early,late,orbs="1e8")=>{
-    const s=state();own(s,"ENG-24");G.addOrbs(s,orbs);
+  const run=(mode,extra,early,late,orbs="1e10")=>{
+    const s=state();s.convergenceCount=1;own(s,"ENG-24");G.addOrbs(s,orbs);
     assert.ok(G.convergenceQuote(s).steps>0);
     const cfg=G.configureAutoConvergence(s,{mode,enabled:true,...extra},NOW);
     assert.equal(cfg.ok,true,mode+" setting");
@@ -98,11 +98,11 @@ check("all four auto-convergence modes obey actual earned orbs and the minimum r
   run("ready",{},59000,60000);
   run("seconds",{intervalSeconds:180},120000,180000);
   run("minutes",{intervalMinutes:3},170000,180000);
-  run("earned",{targetRunOrbs:"1e8"},59000,60000);
-  const s=state();own(s,"ENG-24");G.addOrbs(s,"1e6");
-  assert.equal(G.configureAutoConvergence(s,{mode:"earned",targetRunOrbs:"1e8",enabled:true},NOW).ok,true);
+  run("earned",{targetRunOrbs:"1e10"},59000,60000);
+  const s=state();s.convergenceCount=1;own(s,"ENG-24");G.addOrbs(s,"1e6");
+  assert.equal(G.configureAutoConvergence(s,{mode:"earned",targetRunOrbs:"1e10",enabled:true},NOW).ok,true);
   assert.equal(G.autoConvergenceTick(s,NOW+200000).ok,false,"wallet is not the threshold");
-  G.addOrbs(s,"1e8");
+  G.addOrbs(s,"1e10");
   assert.equal(G.autoConvergenceTick(s,NOW+200001).ok,true);
 });
 check("automation UI, PWA cache and Capacitor www source files are identical",()=>{

@@ -1,7 +1,7 @@
 import {CONFIG} from "./balance-config.mjs";
 import {UNIVERSE_RESOURCE_RULES,resourceEligible} from "./universe-confirmed-v4.mjs";
 import {KNOWLEDGE_IDS,KNOWLEDGE_NAMES,knowledgeLevel,coreRequirements,autoPlanetAvailable} from "./universe-progression-v316.mjs";
-import {engravingCatalogue,engravingSlots,engravingPurchaseQuote,ENGRAVING_AUTO_CONVERGE_ID} from "./engraving-rules-v317.mjs";
+import {engravingCatalogue,engravingSlots,engravingPurchaseQuote,engravingUnlocked,ENGRAVING_AUTO_CONVERGE_ID} from "./engraving-rules-v317.mjs";
 import {engravingConvergenceControl,engravingAutoMomentRate,engravingAutoSourceRate,engravingAutoEfficient} from "./engraving-effects-v333.mjs";
 import {TELEMETRY_LIMITS,consecutiveOrbGains} from "./telemetry-v319.mjs";
 import {compareMomentPrice,compareMomentPriceProfiles,exportPriceReport,PRICE_MODEL_VERSION} from "./price-lab.mjs";
@@ -169,6 +169,7 @@ function setStage(id){
   if(currentStage===id&&sheetState!=="closed"){setSheet("closed");return;}
   currentStage=id;
   currentSub=id==="existence"?state.settings.existenceLastTab:CONTENT.stages.find(x=>x.id===id).children[0];
+  if(currentSub==="sources"&&!state.time.unlocked)currentSub="moment";
   setSheet("half");render(true);
 }
 function openAutomation(){
@@ -181,13 +182,42 @@ function openAutomation(){
   currentSub="auto-"+(state.settings.automationStage||"existence");
   setSheet("half");render(true);
 }
+function childLabel(id){
+  return id==="engraving"&&!engravingUnlocked(state)?"？？？":childNames[id];
+}
 function availableStages(){
   return CONTENT.stages.filter(x=>x.id==="existence"?state.intro.complete:x.id==="time"?state.time.unlocked:x.id==="universe"?state.universe.unlocked:state.life.unlocked);
 }
+function unlockProgressText(){
+  const q=G.timeUnlockProgress(state);
+  return {remaining:Math.ceil(Number(q.remaining)).toLocaleString("ja-JP"),
+    current:Math.floor(Math.min(Number(q.target),Number(q.earned))).toLocaleString("ja-JP"),
+    target:A(q.target).toNumber().toLocaleString("ja-JP")};
+}
+function refreshTimeUnlockUI(){
+  if(state.time.unlocked){
+    $("organizerLinks").querySelector("[data-time-unlock-menu]")?.remove();
+    return;
+  }
+  const {remaining,current,target}=unlockProgressText();
+  const tab=$("stageNav").querySelector("[data-time-locked]");
+  if(tab){
+    const label="解放まで "+remaining;
+    if(tab.querySelector("small").textContent!==label)tab.querySelector("small").textContent=label;
+    tab.setAttribute("aria-label","？？？ "+label+" オーブ。当周回の累計獲得 "+current+" / "+target);
+    tab.title="当周回の累計獲得 "+current+" / "+target+" オーブ";
+  }
+  const menu=$("organizerLinks").querySelector("[data-time-unlock-menu]");
+  if(menu){
+    const label="解放まで "+remaining+" オーブ";
+    menu.querySelector("[data-unlock-remaining]").textContent=label;
+    menu.querySelector("[data-unlock-earned]").textContent="当周回の累計獲得 "+current+" / "+target;
+  }
+}
 function openOrganizer(){
   stopHoldPurchase(null,true);
-  $("organizerLinks").innerHTML=organizerItems.map(id=>`<button data-organizer="${id}">${esc(childNames[id])}<span>›</span></button>`).join("");
-  $("organizerDrawer").showModal();
+  $("organizerLinks").innerHTML=(state.intro.complete&&!state.time.unlocked?`<div class="locked-stage-menu" data-time-unlock-menu><strong>？？？</strong><span data-unlock-remaining></span><small data-unlock-earned></small></div>`:"")+organizerItems.map(id=>`<button data-organizer="${id}">${esc(childNames[id])}<span>›</span></button>`).join("");
+  refreshTimeUnlockUI();$("organizerDrawer").showModal();
 }
 function openOrganizerPage(id){
   stopHoldPurchase(null,true);
@@ -197,14 +227,16 @@ function openOrganizerPage(id){
 }
 function renderNav(){
   const a=availableStages();
-  const digest=JSON.stringify([a.map(x=>x.id),currentStage,state.intro.complete]);
-  if(navDigest===digest)return;navDigest=digest;
+  const digest=JSON.stringify([a.map(x=>x.id),currentStage,state.intro.complete,engravingUnlocked(state)]);
+  if(navDigest===digest){refreshTimeUnlockUI();return false;}navDigest=digest;
   $("stageNav").hidden=!state.intro.complete;
   // Keep BOOST in its own fixed-size slot at the left of the stage bar.
   // It is accessible even when the stage sheet is fully expanded.
   const shortcut=`<button id="boostQuick" type="button" class="boost-quick" data-action="toggle-boost" aria-pressed="false" aria-label="BOOSTを操作する" title="BOOST：タップで加速を切り替える">${BOOST_QUICK_ICON}<span id="boostQuickTime" class="boost-quick-time" aria-hidden="true">--</span><span id="boostQuickFill" class="boost-quick-fill" aria-hidden="true"></span></button>`;
   const automation='<button id="automationQuick" type="button" class="automation-quick'+(currentStage==="automation"?' active':'')+'" data-action="open-automation" aria-pressed="'+(currentStage==="automation")+'" aria-label="全ステージのオートメーションを開く" title="オートメーション">⟳</button>';
-  $("stageNav").innerHTML=shortcut+a.map(x=>`<button data-stage="${x.id}" class="${currentStage===x.id?"active":""}" aria-pressed="${currentStage===x.id}">${x.name}</button>`).join("")+automation;
+  const locked=state.intro.complete&&!state.time.unlocked?`<button class="locked-stage-tab" type="button" data-time-locked disabled><strong>？？？</strong><small>解放まで 1,000,000</small></button>`:"";
+  $("stageNav").innerHTML=shortcut+a.map(x=>`<button data-stage="${x.id}" class="${currentStage===x.id?"active":""}" aria-pressed="${currentStage===x.id}">${x.name}</button>`).join("")+locked+automation;
+  refreshTimeUnlockUI();return true;
 }
 function renderWorld(){
   document.body.classList.toggle("is-intro",!state.intro.complete);
@@ -248,7 +280,7 @@ function renderWorld(){
   $("convergeMain").hidden=!state.intro.complete||!["existence","organizer","automation"].includes(currentStage);
   if(["existence","organizer","automation"].includes(currentStage)){
     $("primaryValue").textContent=orbDisplay(state.orbs);
-    $("worldDetails").innerHTML=`<span class="wallet">オーブ <b>${orbDisplay(state.orbs)}</b></span><span>${state.runOrbsEvidence==="verified"?"周回獲得 "+orbDisplay(state.runOrbsEarned)+" オーブ":"旧周回・確認済獲得 "+orbDisplay(state.runOrbsEarned)+" オーブ"}</span><span>干渉 +${o(tap)} / 源 +${o(rate)} 毎秒</span>${comboHtml}${storedHtml}`;
+    $("worldDetails").innerHTML=`<span class="wallet">オーブ <b>${orbDisplay(state.orbs)}</b></span><span>${state.runOrbsEvidence==="verified"?"周回獲得 "+orbDisplay(state.runOrbsEarned)+" オーブ":"旧周回・確認済獲得 "+orbDisplay(state.runOrbsEarned)+" オーブ"}</span><span>干渉 +${o(tap)}</span>${comboHtml}${storedHtml}`;
     $("worldHint").textContent="";
     const q=G.convergenceQuote(state);
     $("convergeMain").disabled=!q.steps||readOnly||store.blocked;
@@ -296,7 +328,6 @@ function renderWorld(){
   ]:currentStage==="life"?[
     ["段階","観測準備"],["状態","未知"]
   ]:[
-    ["源の生成",o(rate)+" オーブ/秒"],
     ["干渉1タップ",o(tap)+" オーブ/タップ"],
     ["コンボ",combo.combo.toLocaleString("ja-JP")]
   ];
@@ -308,12 +339,12 @@ function renderWorld(){
   const progress=currentStage==="time"?{done:conceptsCount,total:77,title:"認識した概念"}:
     currentStage==="universe"?{done:state.universe.discoveredResources.length,total:42,title:"発見した資源"}:
     currentStage==="life"?{done:0,total:0,title:"未知"}:
-    {done:unlockedSourceCount+unlockedMomentCount,total:60,title:"強化した種類"};
+    {done:(state.time.unlocked?unlockedSourceCount:0)+unlockedMomentCount,total:state.time.unlocked?60:30,title:"強化した種類"};
   $("matrixCaption").textContent=`${stage.name} のマトリクス`;
   $("matrixSummary").textContent=progress.total?`${progress.title} ${progress.done} / ${progress.total}`:"まだ観測できません";
   $("matrixFill").style.width=progress.total?`${Math.min(100,100*progress.done/progress.total).toFixed(1)}%`:"0%";
   const observeRows=currentStage==="existence"||currentStage==="organizer"?[
-    ["源の生成/秒",o(rate),`源の生成 ${o(rate)} オーブ/秒`],
+    ...(state.time.unlocked?[["源の生成/秒",o(rate),`源の生成 ${o(rate)} オーブ/秒`]]:[]),
     ["干渉1タップ",o(tap),`干渉1タップ ${o(tap)} オーブ/タップ`]
   ]:stageRows.slice(0,3).map(([name,value])=>[name,value,`${name} ${value}`]);
   $("worldObserve").innerHTML=observeRows.map(([label,value,full])=>`<div class="scene-stat" title="${esc(full)}"><span>${esc(label)}</span><strong title="${esc(full)}">${esc(value)}</strong></div>`).join("");
@@ -471,8 +502,8 @@ function automationHTML(){
     ' aria-label="全ステージの自動化をまとめてON/OFF"><span>ON</span></label></div>'+
     '<div class="automation-status-line" aria-label="存在の自動化状態">'+
     status("刹那",momentRate>0,e.autoBuy.moment.enabled)+
-    status("源",sourceRate>0,e.autoBuy.source.enabled)+
-    status("刻印",e.owned.includes("ENG-17")&&e.levels?.["ENG-17"]>0,e.autoEngraving.enabled)+
+    (state.time.unlocked?status("源",sourceRate>0,e.autoBuy.source.enabled):"")+
+    (engravingUnlocked(state)?status("刻印",e.owned.includes("ENG-17")&&e.levels?.["ENG-17"]>0,e.autoEngraving.enabled):"")+
     status("収束",convergeOwned,e.autoConverge.enabled)+'</div>'+
     '<button type="button" class="automation-details-button" data-action="toggle-auto-details" aria-expanded="'+
     String(automationDetailsOpen)+'">'+(automationDetailsOpen?"設定を閉じる":"設定を開く")+'</button></section>';
@@ -525,7 +556,7 @@ function automationHTML(){
       .map(v=>option(v,v+' 段階',a.minSteps)).join("");
     const thresholdInfo='刻印「'+name("ENG-24")+'」で解放';
     return overview+buy("moment","刹那・自動購入",momentRate,"ENG-23")+
-      buy("source","源・自動購入",sourceRate,"ENG-26")+
+      (state.time.unlocked?buy("source","源・自動購入",sourceRate,"ENG-26"):"")+
       '<section class="kw-card automation-convergence'+(on?"":" is-locked")+'">'+
       '<div class="automation-line"><strong>自動収束</strong><small title="'+esc(thresholdInfo)+'">'+
       (on?'最短60秒の安全間隔':esc(thresholdInfo))+'</small>'+
@@ -538,7 +569,7 @@ function automationHTML(){
       '<label>最低段階<select class="input-select" data-auto-converge="minSteps"'+
       (off||!engravingConvergenceControl(state)?' disabled title="循環制御の刻印で解放"':'')+
       '>'+stepsOptions+'</select></label></div></section>'+
-      engravingAutomationHTML(state,disabled)+engravingPresetHTML(state,CONTENT,disabled);
+      (engravingUnlocked(state)?engravingAutomationHTML(state,disabled)+engravingPresetHTML(state,CONTENT,disabled):"");
   }
   if(tab==="universe"){
     const u=state.universe,unlocked=u.unlocked&&autoPlanetAvailable(u),off=disabled||!unlocked;
@@ -567,6 +598,7 @@ function automationHTML(){
     '</small></section>';
 }
 function engravingHTML(){
+  if(!engravingUnlocked(state))return '<div class="empty-state" data-engraving-locked><strong>？？？</strong><p>初回収束で解放</p></div>';
   const e=state.engraving,catalogue=engravingCatalogue();
   const count=tier=>catalogue.filter(x=>x.tier===tier&&e.owned.includes(x.id)).length;
   const options=["0.025","0.05","0.1","0.5","1"];
@@ -588,7 +620,7 @@ function engravingHTML(){
     <div class="card-top"><strong>余剰存在 ${f(state.surplusExistence,3)}</strong><span class="badge confirmed">最初の存在1を保護</span></div>
     <small>取得済み ${e.owned.length} / 30 · 収束 ${state.convergenceCount} 回 · 取得済みの刻印は収束後も保持</small>
   </div>
-  ${[1,2,3].map(tier=>`<h3 class="engraving-tier-title">刻印 ${["初級","中級","上級"][tier-1]} · 初回費用 ${["0.001","0.025","0.125"][tier-1]} 存在 / 取得 ${count(tier)}/10</h3>
+  ${[1,2,3].map(tier=>`<h3 class="engraving-tier-title">刻印 ${["初級","中級","上級"][tier-1]} / 取得 ${count(tier)}/10</h3>
     <div class="row-grid engraving-list">
     ${catalogue.filter(x=>x.tier===tier).map(item=>{
       const owned=e.owned.includes(item.id),level=e.levels?.[item.id],q=engravingPurchaseQuote(state,item.id),upgrade=G.engravingTrialUpgradeQuote(state,item.id);
@@ -821,7 +853,7 @@ function achievementHTML(){
   return `<p class="panel-intro">これまでの達成と発見を確認できます。</p><div class="kw-list">${CONTENT.achievements.map(x=>`<div class="kw-card"><div class="card-top"><strong>${state.achievements.includes(x.id)?"✦":"◇"} ${x.name}</strong><span class="badge">${state.achievements.includes(x.id)?"達成":"未達成"}</span></div><p>${x.description}</p><small>${state.achievements.includes(x.id)?"達成済み":x.id==="engravingObservation"?"条件：？？？":"未達成"}</small></div>`).join("")}</div>`;
 }
 function statisticsHTML(){
-  const values=[["タップ入力",state.counters.taps.toLocaleString("ja-JP")],["収束",state.convergenceCount.toLocaleString("ja-JP")+"回"],["累計オーブ",orbDisplay(state.totalOrbs)],["累計獲得存在",formatExistenceDisplay(state.totalExistenceEarned)],["余剰存在",formatExistenceDisplay(state.surplusExistence)],["源総Lv.",Object.values(state.sources).reduce((v,x)=>v+x.level,0).toLocaleString("ja-JP")],["概念形成",Object.values(state.time.concepts).filter(x=>x>0).length+" / 77"],["オンライン",duration(state.counters.onlineSeconds)],["オフライン",duration(state.counters.offlineSeconds)]];
+  const values=[["タップ入力",state.counters.taps.toLocaleString("ja-JP")],["収束",state.convergenceCount.toLocaleString("ja-JP")+"回"],["累計オーブ",orbDisplay(state.totalOrbs)],["累計獲得存在",formatExistenceDisplay(state.totalExistenceEarned)],["余剰存在",formatExistenceDisplay(state.surplusExistence)],...(state.time.unlocked?[["源総Lv.",Object.values(state.sources).reduce((v,x)=>v+x.level,0).toLocaleString("ja-JP")],["概念形成",Object.values(state.time.concepts).filter(x=>x>0).length+" / 77"]]:[]),["オンライン",duration(state.counters.onlineSeconds)],["オフライン",duration(state.counters.offlineSeconds)]];
   const t=state.telemetry,rows=consecutiveOrbGains(t);
   const logarithmic=v=>{const a=A(v);return a.m>0?Math.max(0,a.e+Math.log10(a.m)+1):0;};
   const max=Math.max(1,...rows.filter(r=>r.gain!==null).map(r=>logarithmic(r.gain)));
@@ -847,14 +879,14 @@ function statisticsHTML(){
 }
 function guideHTML(){
   return `<div class="kw-list"><div class="kw-card"><strong>世界を生み、変化を観測する</strong><p>《無》は序章です。光に干渉すると最初の存在が成立します。存在1は失われません。</p></div>
-  ${state.intro.complete?'<div class="kw-card"><strong>刹那・源・刻印</strong><p>タップと源は通常資源のオーブを生みます。任意のタイミングで収束して、余剰の存在を得ます。刻印は余剰分だけを使う設計です。</p></div>':""}
+  ${state.intro.complete?'<div class="kw-card"><strong>'+(state.time.unlocked?'刹那・源・刻印':'刹那・刻印')+'</strong><p>'+(state.time.unlocked?'タップと源は':'タップは')+'通常資源のオーブを生みます。任意のタイミングで収束して、余剰の存在を得ます。刻印は余剰分だけを使う設計です。</p></div>':""}
   ${state.time.unlocked?'<div class="kw-card"><strong>流れと概念</strong><p>時は自律成長を見守る場所です。同じ残滓10個で最初の概念を認識し、確定した概念効果が有効になります。</p></div>':""}
   </div>`;
 }
 function settingsHTML(){
   const labels=[["confirmEngravingPurchase","刻印の初回購入を確認","OFFならワンタップで取得"],["confirmEngravingUpgrade","刻印の追加強化を確認","OFFならワンタップで強化"],["confirmBoostUpgrade","BOOST強化を確認","OFFならワンタップで強化"],["confirmSourceBreakthrough","源の＋循環を確認","最大レベルから再開始する操作"],["confirmInterference","惑星への干渉を確認","衝突・移転・崩壊・安定化"],["confirmCoreFormation","コア形成を確認","資源消費を伴う操作"],["confirmSaveImport","セーブ読込前に確認","現在の進行を入れ替えるため初期ON推奨"],["confirmSaveRestore","履歴復元前に確認","過去の保存状態へ戻るため初期ON推奨"],["confirmBulkPurchase","一括購入前に確認","OFF：タップですぐ購入。ON：数量・費用を確認してから購入します"],["confirmMaxPurchase","MAX購入前に確認","ON：所持資源の90%以上を使うMAX購入を確認します"],["compact","コンパクト表示","ほかの一覧の密度を調整"],["holdToBuy","長押しで連続購入","押している間だけ通常購入を繰り返します"],["hapticTap","タップ時の振動","対応端末のみ。初期設定はOFFです"],["reducedMotion","動きを減らす","発光・波紋・開閉演出を抑える"],["highContrast","読みやすい境界線","文字と境界のコントラストを調整"],["lowPower","省電力","背景アニメーションを停止"],["confirmConvergence","収束前に確認","収束で失われる内容を確認する"],["showOffline","復帰時に報告","オフラインの進行とBOOSTを表示"]];
   return `<p class="panel-intro">表示や購入時の確認方法を変更できます。</p>
-  ${labels.map(([id,name,desc])=>`<label class="kw-row"><span>${name}<small>${desc}</small></span><input type="checkbox" data-pref="${id}" ${state.settings[id]?"checked":""}></label>`).join("")}
+  ${labels.filter(([id])=>id!=="confirmSourceBreakthrough"||state.time.unlocked).map(([id,name,desc])=>`<label class="kw-row"><span>${name}<small>${desc}</small></span><input type="checkbox" data-pref="${id}" ${state.settings[id]?"checked":""}></label>`).join("")}
   <label class="kw-row">数値表記<select class="input-select" data-pref="notation"><option value="auto" ${state.settings.notation==="auto"?"selected":""}>標準（100万以降e）</option><option value="scientific" ${state.settings.notation==="scientific"?"selected":""}>指数 e（1.23e12）</option><option value="exponent" ${state.settings.notation==="exponent"?"selected":""}>指数 E（1.23E+12）</option><option value="zeros" ${state.settings.notation==="zeros"?"selected":""}>0の個数（10^12）</option></select></label>
   <div class="kw-row"><span>通信<small>クラウド・課金は未接続</small></span><strong>${navigator.onLine?"オンライン":"オフライン"}</strong></div>
   <button class="wide-button" data-organizer="backup">保存・バックアップ・完全リセット</button>
@@ -1011,6 +1043,7 @@ function chronicleHTML(){
 }
 function renderPanel(force=false){
   if(sheetState==="closed")return;
+  if(currentStage==="existence"&&currentSub==="sources"&&!state.time.unlocked){currentSub="moment";force=true;}
   const now=Date.now();
   if(infoPanelOpen){
     if(!force&&(now-lastPanelRender<1700||now-lastInteraction<700))return;
@@ -1034,9 +1067,9 @@ function renderPanel(force=false){
   if(!force&&(now-lastPanelRender<1700||now-lastInteraction<700||$("sheetBody").contains(document.activeElement)&&document.activeElement.matches("input,textarea,select")))return;
   lastPanelRender=now;
   const stage=CONTENT.stages.find(x=>x.id===currentStage);
-  const children=currentStage==="organizer"?organizerItems:currentStage==="automation"?["auto-existence","auto-time","auto-universe","auto-life"]:currentStage==="time"?["flow","concepts","miracles"]:stage.children;
-  $("childTabs").innerHTML=children.map(id=>`<button data-child="${id}" class="${currentSub===id?"active":""}" aria-pressed="${currentSub===id}">${childNames[id]}</button>`).join("");
-  $("sheetHeading").textContent=(currentStage==="organizer"?"管理":currentStage==="automation"?"自動化":"強化")+" / "+childNames[currentSub];
+  const children=currentStage==="organizer"?organizerItems:currentStage==="automation"?["auto-existence","auto-time","auto-universe","auto-life"]:currentStage==="time"?["flow","concepts","miracles"]:stage.children.filter(id=>id!=="sources"||state.time.unlocked);
+  $("childTabs").innerHTML=children.map(id=>`<button data-child="${id}" class="${currentSub===id?"active":""}" aria-pressed="${currentSub===id}">${esc(childLabel(id))}</button>`).join("");
+  $("sheetHeading").textContent=(currentStage==="organizer"?"管理":currentStage==="automation"?"自動化":"強化")+" / "+childLabel(currentSub);
   $("purchaseToolbar").hidden=currentStage!=="existence"||!["moment","sources"].includes(currentSub);
   const bulkAllowed=state.engraving.owned.includes("ENG-05");
   const bulkButton=$("bulkBuyButton");
@@ -1181,7 +1214,7 @@ function refreshBoostShortcut(){
 }
 function render(force=false){
   if(!state)return;
-  renderNav();renderWorld();renderPanel(force);refreshPurchaseButtons();refreshBoostShortcut();
+  const navChanged=renderNav();renderWorld();renderPanel(force||navChanged);refreshPurchaseButtons();refreshBoostShortcut();
 }
 function wave(x,y,gain,meta=null){
   if(state.settings.reducedMotion||state.settings.lowPower)return;
@@ -1275,7 +1308,7 @@ function buyWhileHeld(h){
     const level=h.kind==="source"?state.sources[h.id].level:state.moment[h.id];
     node.textContent=`Lv.${level.toLocaleString("ja-JP")}`+(h.kind==="source"?` / ＋${state.sources[h.id].plus}`:"");
   }
-  renderNav();renderWorld();refreshPurchaseButtons();
+  const navChanged=renderNav();renderWorld();if(navChanged)renderPanel(true);refreshPurchaseButtons();
 }
 document.addEventListener("pointerdown",e=>{
   const b=e.target.closest?.('button[data-purchase]');
@@ -1567,7 +1600,9 @@ document.addEventListener("click",async e=>{
       setSheet("half");render(true);return;
     }
     if(b.dataset.child){
-      stopHoldPurchase(null,true);currentSub=b.dataset.child;
+      stopHoldPurchase(null,true);
+      if(currentStage==="existence"&&b.dataset.child==="sources"&&!state.time.unlocked)return;
+      currentSub=b.dataset.child;
       if(currentStage==="automation"&&currentSub.startsWith("auto-")&&!readOnly&&!store.blocked){state.settings.automationStage=currentSub.slice(5);save();}
       if(currentStage==="existence"&&["moment","sources","engraving"].includes(currentSub)&&!readOnly&&!store.blocked){
         state.settings.existenceLastTab=currentSub;save();
@@ -1890,6 +1925,7 @@ await acquireLock();
 const loaded=store.load();
 state=loaded.state;storageUnavailable=storageFallback||!!loaded.storageUnavailable;
 currentSub=state.settings.existenceLastTab||"moment";
+if(currentSub==="sources"&&!state.time.unlocked)currentSub="moment";
 if(loaded.warning)showNotice(loaded.warning,{autoDismiss:!loaded.blocked&&!loaded.storageUnavailable});
 if(readOnly)showNotice("ほかのタブがプレイ中のため閲覧専用です。そのタブを閉じてから再読み込みしてください。");
 if(!readOnly&&!store.blocked){

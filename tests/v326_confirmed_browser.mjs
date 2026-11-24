@@ -21,7 +21,7 @@ try{
   const fixture=await page.evaluate(async()=>{
     const G=await import("./game.mjs"),S=await import("./save.mjs");
     const at=Date.now(),s=G.createState(at,"normal");
-    s.intro.complete=true;
+    s.intro.complete=true;s.time.unlocked=true;
     s.sources.SOURCE_01.level=25;s.sources.SOURCE_02.level=50;
     s.moment.setsuna23=5;
     s.momentRuntime.combo=9;
