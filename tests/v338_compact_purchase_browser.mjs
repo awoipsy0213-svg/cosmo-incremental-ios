@@ -26,7 +26,7 @@ try{
     await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
     await page.evaluate(async()=>{
       const G=await import("./game.mjs"),s=G.createState(Date.now(),"lab");
-      s.intro.complete=true;s.surplusExistence="5";
+      s.intro.complete=true;s.time.unlocked=true;s.surplusExistence="5";
       s.settings.confirmMaxPurchase=false;
       window.KOTOWARI_DEBUG.setLabState(s);
     });
