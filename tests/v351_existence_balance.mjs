@@ -6,7 +6,7 @@ import {CONTENT} from "../content.mjs";
 import * as G from "../game.mjs";
 import {encode,decode,KEYS} from "../save.mjs";
 const NOW=1800000000000;
-const state=()=>{const s=G.createState(NOW);s.intro.complete=true;return s};
+const state=()=>{const s=G.createState(NOW);s.intro.complete=true;s.time.unlocked=true;return s};
 const near=(a,b,rel=1e-9)=>assert.ok(Math.abs(A(a).div(b).toNumber()-1)<rel,`${a} vs ${b}`);
 const m=CONTENT.moment.map(x=>x.id),ids=CONTENT.sources.map(x=>x.id);
 const own=(s,id,lv=1)=>{s.engraving.owned.push(id);s.engraving.levels[id]=lv};
