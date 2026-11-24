@@ -10,7 +10,7 @@ for(const path of ["app.mjs","index.html","sw.js","fixed-layout-v333.css","game.
   assert.equal(read(path),read("www/"+path),path+" Web/Capacitor mismatch");
 }
 assert.ok(html.indexOf('luminous-glass-v332.css')<html.indexOf('fixed-layout-v333.css'),"cascade final");
-assert.match(html,/3\.34 · ENGRAVING/);
+assert.match(html,/3\.54\.1/);
 assert.match(html,/id="childTabStrip"/);
 assert.match(html,/data-action="buy-all"/);
 assert.match(html,/id="bulkOrderButton"/);

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#060c24"><title>理 — 更新確認</title><style>
+*{box-sizing:border-box}body{margin:0;padding:24px 18px;background:#eef2f8;color:#202b45;font:16px/1.65 -apple-system,BlinkMacSystemFont,sans-serif}main{max-width:540px;margin:auto;background:white;padding:24px;border-radius:16px}h1{font-size:22px;margin:0 0 10px}p{margin:12px 0}button,a{display:block;width:100%;text-align:center;padding:14px;margin:12px 0;border:1px solid #a9b5d0;border-radius:10px;font:inherit;color:inherit;background:white}button:not(:disabled){background:#293c71;color:white}button:disabled{opacity:.55}small{color:#596784}#status{white-space:pre-line}strong{font-variant-numeric:tabular-nums}
+</style></head><body><main>
+<h1>理 — 更新確認</h1><p>配信バージョン：<strong id="release">3.54.1</strong></p>
+<p id="status" role="status" aria-live="polite">最新版を確認しています。</p>
+<p>ゲーム画面で保存を済ませ、他のゲーム画面を閉じてから更新してください。セーブデータやバックアップを削除する操作は行いません。</p>
+<button id="apply" disabled>最新版へ更新</button><button id="retry">もう一度確認</button>
+<a id="back" href="./">ゲームへ戻る</a>
+<small>ホーム画面に追加したアプリとブラウザは、端末によって保存領域が異なる場合があります。いつも遊んでいる環境で操作してください。</small>
+</main><script>
+"use strict";
+const RELEASE="3.54.1",status=document.getElementById("status"),apply=document.getElementById("apply"),retry=document.getElementById("retry"),back=document.getElementById("back");
+const mode=new URLSearchParams(location.search).get("lab")==="1"?"lab":"normal";
+back.href="./"+(mode==="lab"?"?lab=1":"");
+let registration,selected=null,checking=false,activating=false;
+const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+function query(worker,type="GET_RELEASE"){
+  if(!worker)return Promise.resolve(null);
+  return new Promise(resolve=>{
+    const channel=new MessageChannel(),timer=setTimeout(()=>{channel.port1.close();resolve(null);},1200);
+    channel.port1.onmessage=event=>{clearTimeout(timer);channel.port1.close();resolve(event.data);};
+    try{worker.postMessage({type},[channel.port2]);}catch(error){clearTimeout(timer);channel.port1.close();resolve(null);}
+  });
+}
+async function check(){
+  if(checking||activating)return;
+  checking=true;retry.disabled=true;apply.disabled=true;selected=null;
+  status.textContent="最新版を確認しています。";
+  try{
+    if(!("serviceWorker" in navigator))throw Error("この環境はブラウザ更新に対応していません。");
+    if(!navigator.onLine)throw Error("オンラインで更新を確認してください。");
+    registration=await navigator.serviceWorker.register("./sw.js",{updateViaCache:"none"});
+    await registration.update();
+    for(let i=0;i<70;i++){
+      const waiting=registration.waiting,active=registration.active;
+      if(waiting){
+        const info=await query(waiting);
+        if(info?.release===RELEASE){
+          selected=waiting;status.textContent="最新版のファイルを検証済みです。\n保存を済ませたら更新してください。";apply.disabled=false;return;
+        }
+      }
+      if(active&&!registration.installing&&!waiting){
+        const info=await query(active);
+        if(info?.release===RELEASE){
+          status.textContent="最新版に更新済みです。ゲームへ戻ってください。";return;
+        }
+      }
+      await sleep(350);
+    }
+    throw Error("最新版の準備を確認できませんでした。通信状態を確認し、もう一度確認してください。");
+  }catch(error){status.textContent=error.message;}finally{checking=false;retry.disabled=false;}
+}
+retry.addEventListener("click",check);
+apply.addEventListener("click",async()=>{
+  if(!selected||selected!==registration?.waiting||activating)return check();
+  activating=true;apply.disabled=true;retry.disabled=true;
+  status.textContent="更新を確認しています。";
+  try{
+    const result=await query(selected,"ACTIVATE_RELEASE");
+    if(!result?.ok)throw Error(result?.reason||"更新を開始できませんでした。もう一度確認してください。");
+    for(let i=0;i<70;i++){
+      const info=await query(registration.active);
+      if(info?.release===RELEASE&&registration.active?.state==="activated"){
+        status.textContent="更新完了。ゲームへ戻ってください。";return;
+      }
+      await sleep(350);
+    }
+    throw Error("更新完了を確認できません。もう一度確認してください。");
+  }catch(error){status.textContent=error.message;apply.disabled=!registration?.waiting;}
+  finally{activating=false;retry.disabled=false;}
+});
+check();
+</script></body></html>

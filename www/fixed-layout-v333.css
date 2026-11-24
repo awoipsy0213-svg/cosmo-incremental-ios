@@ -786,3 +786,7 @@ body.kw-app #appRoot{height:100%;min-height:0}
 #sheet[data-state="full"]{z-index:66}
 body:has(#sheet[data-state="full"]) #noticeBar,
 body:has(#sheet[data-state="full"]) #updateBar{z-index:67}
+
+/* Keep explicit update approval reachable even when the full sheet is open. */
+#updateBar:not([hidden]){z-index:80;position:fixed;top:calc(var(--safe-top) + 8px);bottom:auto;left:12px;right:12px;max-width:none;pointer-events:auto}
+#updateBar button{flex:none;min-height:44px;white-space:nowrap}

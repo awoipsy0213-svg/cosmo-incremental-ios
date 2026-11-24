@@ -18,6 +18,7 @@ import {shortDuration} from "./purchase-insights.mjs";
 import {purchasePreview} from "./purchase-preview-v338.mjs";
 import {momentBrief,compactEffectValue} from "./purchase-clarity-v339.mjs";
 
+const APP_RELEASE="3.54.1";
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const params=new URLSearchParams(location.search);
@@ -38,6 +39,8 @@ let toastTimer,noticeFadeTimer,noticeDismissTimer,importDraft="",offlineReport=n
 let interferencePartnerId=null,bulkScope="all",bulkPurchasePending=false;
 let navDigest="",notice="",busyBirth=false,automationDetailsOpen=false;
 let testGrantDraft="1e12",resetPending=false;
+let pwaRegistration=null,lastUpdateCheck=0,updateRequested=false,reloadForUpdate=false;
+const updatePath=()=> "./update.html"+(mode==="lab"?"?lab=1":"");
 const BOOST_QUICK_ICON=`<svg class="boost-quick-symbol" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M13 2 5 13h6l-1 9 9-12h-6V2z" fill="currentColor"/></svg>`;
 const HOLD_LEVEL_LIMIT=3000; // BOOST-Q673/674: one continuous long press, total acquired Lv
 let holdPurchase=null,skipClickFor=null;
@@ -893,6 +896,8 @@ function settingsHTML(){
   <button class="wide-button" data-organizer="lab">テストモード</button>
   <a class="link-button" href="./privacy.html">プライバシー・データ保存について</a>
   ${mode==="lab"?'<button class="wide-button" data-action="exit-test">通常プレイに戻る</button>':""}
+  <div class="kw-row"><span>バージョン</span><strong data-app-release>${APP_RELEASE}</strong></div>
+  ${window.Capacitor?"":'<button class="wide-button" data-action="check-update">最新版を確認・更新</button>'}
   `;
 }
 function backupHTML(){
@@ -1578,9 +1583,25 @@ async function dispatchAction(action){
       render(true);showNotice("バックアップを読み込みました。読み込み時の経過時間の報酬は重複付与しません。");
     }catch(e){toast("読込中止："+e.message);}return;
   }
+  if(action==="check-update"){
+    if(readOnly||store.blocked||storageUnavailable||!save(true)){
+      toast("保存を確認できません。別画面や保存エラーを解決してください");return;
+    }
+    location.assign(updatePath());return;
+  }
   if(action==="update"){
-    if(!save(true)){toast("先に保存エラーを解決してください");return;}
-    updateWorker?.postMessage({type:"SKIP_WAITING"});return;
+    if(updateRequested)return;
+    if(readOnly||store.blocked||storageUnavailable||!save(true)){
+      toast("先に保存エラーを解決してください");return;
+    }
+    const worker=pwaRegistration?.waiting||updateWorker;
+    if(!worker||worker.state!=="installed"){await checkPWAUpdate(true);return;}
+    stopHoldPurchase(null,true);
+    updateRequested=true;
+    worker.postMessage({type:"SKIP_WAITING"});
+    // Retry is possible if a worker was replaced or activation did not finish.
+    setTimeout(()=>{if(!reloadForUpdate){updateRequested=false;checkPWAUpdate(true);}},15000);
+    return;
   }
 }
 document.addEventListener("click",async e=>{
@@ -1905,20 +1926,48 @@ window.addEventListener("storage",e=>{
     try{const d=JSON.parse(e.newValue);if(d.writer!==store.writer&&(d.data?.revision||0)>store.expectedRevision){readOnly=true;applySettings();showNotice("別画面の新しい保存を検出したため、この画面からの上書きを止めました。");}}catch(x){}
   }
 });
+async function checkPWAUpdate(force=false){
+  const registration=pwaRegistration;
+  if(!registration||!navigator.onLine)return;
+  if(registration.waiting){updateWorker=registration.waiting;$("updateBar").hidden=false;}
+  if(!force&&Date.now()-lastUpdateCheck<60000)return;
+  lastUpdateCheck=Date.now();
+  try{await registration.update();}catch(error){console.warn("更新確認:",error);}
+}
 async function setupPWA(){
   if(!("serviceWorker"in navigator)||!location.protocol.startsWith("http")||window.Capacitor)return;
+  const offer=worker=>{
+    if(!worker||worker.state!=="installed"||!navigator.serviceWorker.controller)return;
+    updateWorker=worker;$("updateBar").hidden=false;
+  };
+  const watch=worker=>{
+    if(!worker)return;
+    const changed=()=>{if(worker.state==="installed")offer(worker);};
+    worker.addEventListener("statechange",changed);
+    changed();
+  };
+  let previousController=navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener("controllerchange",()=>{
+    const active=navigator.serviceWorker.controller;
+    // First install must not reload. A version switch is accepted only after
+    // saving this page; read-only pages cannot overwrite the primary save.
+    if(previousController&&active&&active!==previousController&&!reloadForUpdate){
+      if(!readOnly&&!store.blocked&&!save(true)){
+        showNotice("新しい版を検出しました。保存を確認してから更新画面を開いてください。");
+      }else{reloadForUpdate=true;location.reload();}
+    }
+    previousController=active;
+  });
   try{
     const registration=await navigator.serviceWorker.register("./sw.js",{updateViaCache:"none"});
-    const offer=worker=>{updateWorker=worker;$("updateBar").hidden=false;};
-    if(registration.waiting)offer(registration.waiting);
-    registration.addEventListener("updatefound",()=>{
-      const w=registration.installing;
-      w?.addEventListener("statechange",()=>{if(w.state==="installed"&&navigator.serviceWorker.controller)offer(w);});
-    });
-    let reloading=false;
-    navigator.serviceWorker.addEventListener("controllerchange",()=>{
-      if(updateWorker&&!reloading){reloading=true;location.reload();}
-    });
+    pwaRegistration=registration;
+    registration.addEventListener("updatefound",()=>watch(registration.installing));
+    watch(registration.installing);
+    offer(registration.waiting);
+    document.addEventListener("visibilitychange",()=>{if(!document.hidden)checkPWAUpdate();});
+    window.addEventListener("pageshow",()=>checkPWAUpdate());
+    window.addEventListener("online",()=>checkPWAUpdate(true));
+    await checkPWAUpdate(true);
   }catch(e){showNotice("オフライン用の準備が未完了です。オンラインでは遊べます。");console.warn(e);}
 }
 await acquireLock();
