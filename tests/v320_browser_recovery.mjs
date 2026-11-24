@@ -79,7 +79,7 @@ try{
   await context.setOffline(true);
   await online.reload({waitUntil:"domcontentloaded",timeout:30000});
   await online.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中",{timeout:30000});
-  assert.match(await online.locator("#buildLabel").textContent(),/3\.34/);
+  assert.match(await online.locator("#buildLabel").textContent(),/^3\.54\.1$/);
   await online.locator('button[data-action="organizer"]').first().click();
   assert.equal(await online.locator("#organizerDrawer").evaluate(el=>el.open),true);
   assert.deepEqual(offlineErrors,[]);
