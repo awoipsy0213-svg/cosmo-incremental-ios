@@ -190,8 +190,8 @@ function availableStages(){
 }
 function unlockProgressText(){
   const q=G.timeUnlockProgress(state);
-  return {remaining:Math.ceil(A(q.remaining).toNumber()).toLocaleString("ja-JP"),
-    current:Math.floor(Math.min(1000000,A(q.earned).toNumber())).toLocaleString("ja-JP"),
+  return {remaining:Math.ceil(Number(q.remaining)).toLocaleString("ja-JP"),
+    current:Math.floor(Math.min(Number(q.target),Number(q.earned))).toLocaleString("ja-JP"),
     target:A(q.target).toNumber().toLocaleString("ja-JP")};
 }
 function refreshTimeUnlockUI(){
