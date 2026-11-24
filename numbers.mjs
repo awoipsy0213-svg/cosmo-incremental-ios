@@ -84,6 +84,24 @@ export function formatAmount(value,precision=2,notation="auto") {
   if(notation==="exponent")return `${mant}E${n.e>=0?"+":""}${exponent}`;
   return `${mant}e${exponent}`; // auto and scientific avoid unfamiliar M/B/T suffixes
 }
+/**
+ * Display-only Existence formatter, independent of the orb integer formatter.
+ * Small balances stay readable through 1,000,000 with at most three decimals.
+ * Engraving prices use upward rounding so a short label never understates
+ * the actual spend. Amount arithmetic and saved values are not rounded.
+ */
+export function formatExistenceDisplay(value,{roundUp=false}={}){
+  const n=A(value);
+  if(n.m===0)return "0";
+  if(n.cmp("0.001")<0)return "0.001未満";
+  if(n.cmp("1000000")<=0){
+    const amount=n.toNumber();
+    // Prices are conservatively shown in 0.001-Existence units.
+    const shown=roundUp?Math.ceil(amount*1000-1e-9)/1000:amount;
+    return shown.toLocaleString("ja-JP",{maximumFractionDigits:3});
+  }
+  return formatScientific3(n);
+}
 /** Compact scientific notation with exactly three significant figures. UI-only. */
 export function formatScientific3(value) {
   const n=A(value);
