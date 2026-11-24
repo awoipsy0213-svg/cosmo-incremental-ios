@@ -58,7 +58,7 @@ check("engraving gates automation; purchase and convergence settings reject inva
 check("cheap versus expensive purchase priority uses the affordable quote from both directions",()=>{
   const cheaper=state(),dearer=state();
   for(const s of [cheaper,dearer]){
-    own(s,"ENG-23");s.orbs="1e50";s.runOrbsEarned="0";s.lastWall=NOW;
+    own(s,"ENG-23");s.orbs=G.purchaseQuote(s,"moment",CONTENT.moment.at(-1).id,"1").cost;s.runOrbsEarned="0";s.lastWall=NOW;
   }
   const offers=CONTENT.moment.map(({id})=>({id,cost:A(G.purchaseQuote(cheaper,"moment",id,"1").cost)}))
     .sort((a,b)=>a.cost.cmp(b.cost));
