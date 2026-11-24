@@ -141,7 +141,11 @@ function settleOfflineAndPersist(now,{snapshot=false}={}){
 }
 function applySettings(){
   document.body.classList.toggle("lab-mode",mode==="lab");
-  if(mode==="lab")document.title="《理》 テストモード";
+  if(mode==="lab"){
+    document.title="《理》 テストモード";
+    const caption=document.querySelector(".brand-caption");
+    if(caption?.firstChild?.nodeType===3)caption.firstChild.nodeValue="TEST MODE";
+  }
   document.body.classList.toggle("not-compact",!state.settings.compact);
   document.body.classList.toggle("reduced-motion",state.settings.reducedMotion);
   document.body.classList.toggle("high-contrast",state.settings.highContrast);
@@ -821,7 +825,7 @@ function statisticsHTML(){
   const t=state.telemetry,rows=consecutiveOrbGains(t);
   const logarithmic=v=>{const a=A(v);return a.m>0?Math.max(0,a.e+Math.log10(a.m)+1):0;};
   const max=Math.max(1,...rows.filter(r=>r.gain!==null).map(r=>logarithmic(r.gain)));
-  return `<p class="panel-intro">累計獲得存在は収束で獲得した存在の総量です（最初の存在1を除く）。刻印で消費しても減りません。オーブの測定できなかった区間は補間しません。</p>
+  return `<p class="panel-intro">累計獲得存在は収束で獲得した存在の総量です（最初の存在1を除く）。刻印で消費しても減りません。${mode==="lab"?"テスト追加分も含みます。":""}オーブの測定できなかった区間は補間しません。</p>
     <div class="sub-grid">${values.map(([k,v])=>`<div class="kw-card"><small>${k}</small><strong>${v}</strong></div>`).join("")}</div>
     <h3>直近10分の獲得量 · 5秒ごと</h3>
     <div class="kw-card telemetry-card">
@@ -856,7 +860,7 @@ function settingsHTML(){
   <button class="wide-button" data-organizer="backup">保存・バックアップ・完全リセット</button>
   <button class="wide-button" data-organizer="lab">テストモード</button>
   <a class="link-button" href="./privacy.html">プライバシー・データ保存について</a>
-  ${mode==="lab"?'<a class="link-button" href="./">通常プレイに戻る</a>':""}
+  ${mode==="lab"?'<button class="wide-button" data-action="exit-test">通常プレイに戻る</button>':""}
   `;
 }
 function backupHTML(){
@@ -982,7 +986,7 @@ function labHTML(){
   <small>オーブは1e2000000まで、存在は1e6までの正の値を1回に追加できます。存在は累計獲得にも反映します。</small></div>
   <button class="wide-button" data-organizer="backup">テストデータの保存・完全リセット</button>
   <button type="button" class="wide-button" data-organizer="priceLab">刹那の価格シミュレーター</button><div class="row-grid">${actions.map(([id,t])=>`<button class="wide-button" data-lab="${id}">${t}</button>`).join("")}</div><p class="tiny">崩壊前に「宇宙 → 資源」でA/Bを選択。圧力10単位で×1.1は検証用の仮式。安定の残留対象は未決定なので、破壊処理には適用していません。</p>
-  <a class="link-button" href="./">通常プレイに戻る</a>`;
+  <button class="wide-button" data-action="exit-test">通常プレイに戻る</button>`;
 }
 
 function commonInfoHTML(){
@@ -1424,6 +1428,11 @@ async function dispatchAction(action){
     if(!save()||storageUnavailable)return toast("通常データを保存できません。先にバックアップしてください");
     location.assign("./?lab=1");return;
   }
+  if(action==="exit-test"){
+    if(mode!=="lab")return;
+    if(!save()||storageUnavailable)return toast("テストデータの保存に失敗しました");
+    location.assign("./");return;
+  }
   if(action==="protect-save"){
     if(readOnly||store.blocked||storageUnavailable)return toast("端末の保存を利用できません");
     try{checkpoint();store.protect(state,"manual");renderPanel(true);toast("保護バックアップを保存・確認しました");}
@@ -1619,6 +1628,7 @@ document.addEventListener("click",async e=>{
       if(!row)return toast("保護バックアップが見つかりません");
       decode(row.raw,mode);
       if(!await ask("保護バックアップから復元","現在のデータを退避してから、選んだ進行へ戻します。保護バックアップ自体は保持します。","復元する"))return;
+      if(!store.blocked&&!save())return toast("現在の進行を保護できないため復元を中止しました");
       state=store.restoreProtectedBackup(index);offlineReport=null;importDraft="";
       applySettings();render(true);showNotice(store.lastError||"保護バックアップから復元しました。");return;
     }
