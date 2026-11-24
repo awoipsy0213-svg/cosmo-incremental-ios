@@ -130,7 +130,8 @@ export const CONFIG = {
       minimumConvergenceFactor:0.75
     },
     // firstSourceは時導入と自動生産の接続を確認するための仮ルール。
-    timeUnlock: "firstSource",
+    timeUnlock: "runEarned",
+    timeUnlockRunOrbs: "1000000",
     universe: {startingMass:10, massGrowthPerSecond:1/60, massPerResource:1, ageClock:"real"},
     boost: {multiplier:2, consumptionRule:"additional-time"},
     // Explicit balance-test values, not canonical specification.
