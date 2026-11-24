@@ -67,7 +67,7 @@ check("new auto purchase honors grade and saves the selector unchanged",()=>{
 });
 
 check("moment grade picks the highest affordable authored rank, not a lower inflated tier",()=>{
-  const s=state();s.orbs="16000";s.moment.tap=100;
+  const s=state();s.orbs=G.purchaseQuote(s,"moment",CONTENT.moment[2].id,"1").cost;s.moment.tap=100;
   const ids=CONTENT.moment.map(x=>x.id);
   const all=G.affordablePriorityOrder(s,"moment","grade");
   assert.equal(all[0],ids.findLast(id=>G.purchaseQuote(s,"moment",id,"1").enabled));
