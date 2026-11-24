@@ -9,7 +9,7 @@ const yes=(value,label)=>{assert.ok(value,label);checks++;};
 const time=1800000000000;
 const sources=CONTENT.sources.map(x=>x.id);
 eq(sources.length,30,"all thirty source IDs");
-const s=G.createState(time,"normal");s.intro.complete=true;
+const s=G.createState(time,"normal");s.intro.complete=true;s.time.unlocked=true;
 eq(s.sourceCycle,{reached:[],unlocked:false},"new save cycle shape");
 eq(G.sourceCycleStatus(s).remaining,30,"initial cycle remaining 30");
 const max=CONFIG.confirmed.sourceMaxLevel;
