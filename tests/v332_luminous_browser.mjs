@@ -44,7 +44,7 @@ try{
    const fixture=await page.evaluate(async()=>{
      const G=await import("./game.mjs"),S=await import("./save.mjs");
      const s=G.createState(Date.now(),"normal");
-     s.intro.complete=true;s.time.unlocked=true;
+     s.intro.complete=true;s.time.unlocked=true;s.convergenceCount=1;
      s.settings.compact=true;s.settings.confirmEngravingPurchase=false;
      s.surplusExistence="2";
      G.addOrbs(s,"5000");
