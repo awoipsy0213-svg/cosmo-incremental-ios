@@ -16,7 +16,7 @@ check("all 30 engraving effects show player names without debug statuses",()=>{
 });
 check("engraving receipts produce only player-facing event names; engine IDs survive",()=>{
   const s=G.createState(1800000000000,"normal");
-  s.intro.complete=true;s.surplusExistence="100";
+  s.intro.complete=true;s.convergenceCount=1;s.surplusExistence="100";
   assert.ok(G.buyEngraving(s,"ENG-01").ok);
   assert.equal(s.engraving.levels["ENG-01"],1);
   assert.ok(G.buyEngravingTrialUpgrade(s,"ENG-01").ok);
