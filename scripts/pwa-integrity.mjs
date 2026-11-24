@@ -6,8 +6,8 @@ const original=readFileSync(swURL,"utf8");
 const files=[...original.match(/const CORE_FILES = \[([\s\S]*?)\];/)[1].matchAll(/"([^"]+)"/g)].map(m=>m[1]);
 const hash=bytes=>createHash("sha1").update("blob "+bytes.length+"\0").update(bytes).digest("hex");
 const expected=Object.fromEntries(files.map(path=>[path,hash(readFileSync(new URL(path,root)))]));
-const block="const CORE_BLOBS = {\n"+files.map(path=>"  "+JSON.stringify(path)+":"+JSON.stringify(expected[path])).join(",\n")+"\n};";
-const updated=original.replace(/const CORE_BLOBS = \{[\s\S]*?\};/,block);
+const block="const CORE_HASHES = [\n"+files.map(path=>"  "+JSON.stringify(expected[path])).join(",\n")+"\n];";
+const updated=original.replace(/const CORE_HASHES = \[[\s\S]*?\];/,block);
 if(process.argv.includes("--write")){
   writeFileSync(swURL,updated);writeFileSync(new URL("www/sw.js",root),updated);
   console.log("Updated PWA core fingerprints; bump APP_RELEASE/UI_REVISION for each new release.");
