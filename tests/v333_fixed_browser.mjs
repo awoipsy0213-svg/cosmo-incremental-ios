@@ -59,7 +59,7 @@ try{
    await page.evaluate(async()=>{
      const G=await import("./game.mjs");
      const s=G.createState(Date.now(),"lab");
-     s.intro.complete=true;s.surplusExistence="5";s.engraving.owned.push("ENG-05");s.engraving.levels["ENG-05"]=1;
+     s.intro.complete=true;s.time.unlocked=true;s.convergenceCount=1;s.surplusExistence="5";s.engraving.owned.push("ENG-05");s.engraving.levels["ENG-05"]=1;
      s.settings.showPurchaseHints=true;
      s.settings.compact=true;
      window.KOTOWARI_DEBUG.setLabState(s);
@@ -189,7 +189,7 @@ try{
    assert.ok(convergeBefore.observedFull?.includes("オーブ/秒"),label+" full observation available on title");
    await page.evaluate(async()=>{
      const G=await import("./game.mjs"),s=G.createState(Date.now(),"lab");
-     s.intro.complete=true;s.surplusExistence="5";
+     s.intro.complete=true;s.time.unlocked=true;s.convergenceCount=1;s.surplusExistence="5";
      s.orbs="1e120";s.totalOrbs="1e120";s.runOrbsEarned="1e120";
      window.KOTOWARI_DEBUG.setLabState(s);
    });
