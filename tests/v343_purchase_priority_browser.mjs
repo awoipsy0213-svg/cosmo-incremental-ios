@@ -22,7 +22,7 @@ try {
     const encoded=await page.evaluate(async()=>{
       const G=await import("./game.mjs"),Save=await import("./save.mjs");
       const s=G.createState(Date.now(),"normal");
-      s.intro.complete=true;s.orbs="30000";s.runOrbsEarned="30000";s.totalOrbs="30000";
+      s.intro.complete=true;s.orbs=G.purchaseQuote(s,"source","SOURCE_06","1").cost;s.runOrbsEarned=s.orbs;s.totalOrbs=s.orbs;
       s.engraving.owned=["ENG-05","ENG-17","ENG-23","ENG-26","ENG-27"];
       s.engraving.levels=Object.fromEntries(s.engraving.owned.map(id=>[id,1]));
       s.settings.automationEnabled=false;
@@ -51,7 +51,7 @@ try {
     assert.equal(await page.locator("#bulkBuyButton").isEnabled(),true);
     await page.locator("#bulkBuyButton").click();
     const levels=await page.evaluate(()=>window.KOTOWARI_DEBUG.state().sources);
-    assert.equal(levels.SOURCE_06.level,1,"grade-first buys source 6 for exactly 30000");
+    assert.equal(levels.SOURCE_06.level,1,"grade-first buys source 6 for its exact current initial cost");
     assert.equal(levels.SOURCE_05.level,0,"source 5 must not absorb the budget first");
     await page.locator("#automationQuick").click();
     await page.locator('[data-action="toggle-auto-details"]').click();
