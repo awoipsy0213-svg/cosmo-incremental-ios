@@ -26,10 +26,10 @@ const dev=params.get("dev")==="1"||mode==="lab";
 const childNames={moment:"刹那",sources:"源",engraving:"刻印",flow:"残滓",concepts:"概念",miracles:"奇跡",
   planets:"惑星",resources:"資源",observations:"観測",life:"生命",
   boost:"BOOST",achievements:"実績",chronicle:"記録",statistics:"統計",collection:"コレクション",
-  guide:"遊び方",settings:"設定",backup:"保存", "auto-existence":"存在","auto-time":"時","auto-universe":"宇宙","auto-life":"生命",spec:"設計状況",proposals:"研究・試案",lab:"開発テスト",priceLab:"価格試算"};
-const organizerItems=["boost","achievements","chronicle","statistics","collection","guide","settings","backup",...(mode==="lab"?["spec","proposals","priceLab","lab"]:[])];
-let memory={};let storage;
-try{storage=window.localStorage;}catch(e){storage={getItem:k=>memory[k]||null,setItem:(k,v)=>memory[k]=String(v),removeItem:k=>delete memory[k]};}
+  guide:"遊び方",settings:"設定",backup:"保存", "auto-existence":"存在","auto-time":"時","auto-universe":"宇宙","auto-life":"生命",spec:"設計状況",proposals:"研究・試案",lab:"テストモード",priceLab:"価格試算"};
+const organizerItems=["boost","achievements","chronicle","statistics","collection","guide","settings","backup",...(mode==="lab"?["spec","proposals","priceLab","lab"]:["lab"])];
+let memory={};let storage,storageFallback=false;
+try{storage=window.localStorage;}catch(e){storageFallback=true;storage={getItem:k=>memory[k]||null,setItem:(k,v)=>memory[k]=String(v),removeItem:k=>delete memory[k]};}
 const store=new SaveStore(storage,mode,globalThis.crypto?.randomUUID?.()||"tab-"+Date.now());
 let state,readOnly=false,storageUnavailable=false,lockRelease=null;
 let currentStage="existence",currentSub="moment",sheetState="closed",infoPanelOpen=false;
@@ -37,6 +37,7 @@ let lastFrame=Date.now(),hiddenAt=null,lastSavedAt=0,lastPanelRender=0,lastInter
 let toastTimer,noticeFadeTimer,noticeDismissTimer,importDraft="",offlineReport=null,updateWorker=null,confirmedAction=null;
 let interferencePartnerId=null,bulkScope="all",bulkPurchasePending=false;
 let navDigest="",notice="",busyBirth=false,automationDetailsOpen=false;
+let testGrantDraft="1e12",resetPending=false;
 const BOOST_QUICK_ICON=`<svg class="boost-quick-symbol" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M13 2 5 13h6l-1 9 9-12h-6V2z" fill="currentColor"/></svg>`;
 const HOLD_LEVEL_LIMIT=3000; // BOOST-Q673/674: one continuous long press, total acquired Lv
 let holdPurchase=null,skipClickFor=null;
@@ -140,6 +141,7 @@ function settleOfflineAndPersist(now,{snapshot=false}={}){
 }
 function applySettings(){
   document.body.classList.toggle("lab-mode",mode==="lab");
+  if(mode==="lab")document.title="《理》 テストモード";
   document.body.classList.toggle("not-compact",!state.settings.compact);
   document.body.classList.toggle("reduced-motion",state.settings.reducedMotion);
   document.body.classList.toggle("high-contrast",state.settings.highContrast);
@@ -815,11 +817,11 @@ function achievementHTML(){
   return `<p class="panel-intro">これまでの達成と発見を確認できます。</p><div class="kw-list">${CONTENT.achievements.map(x=>`<div class="kw-card"><div class="card-top"><strong>${state.achievements.includes(x.id)?"✦":"◇"} ${x.name}</strong><span class="badge">${state.achievements.includes(x.id)?"達成":"未達成"}</span></div><p>${x.description}</p><small>${state.achievements.includes(x.id)?"達成済み":x.id==="engravingObservation"?"条件：？？？":"未達成"}</small></div>`).join("")}</div>`;
 }
 function statisticsHTML(){
-  const values=[["タップ入力",state.counters.taps.toLocaleString("ja-JP")],["収束",state.convergenceCount.toLocaleString("ja-JP")+"回"],["累計オーブ",orbDisplay(state.totalOrbs)],["余剰存在",f(state.surplusExistence,3)],["源総Lv.",Object.values(state.sources).reduce((v,x)=>v+x.level,0).toLocaleString("ja-JP")],["概念形成",Object.values(state.time.concepts).filter(x=>x>0).length+" / 77"],["オンライン",duration(state.counters.onlineSeconds)],["オフライン",duration(state.counters.offlineSeconds)]];
+  const values=[["タップ入力",state.counters.taps.toLocaleString("ja-JP")],["収束",state.convergenceCount.toLocaleString("ja-JP")+"回"],["累計オーブ",orbDisplay(state.totalOrbs)],["累計獲得存在",formatExistenceDisplay(state.totalExistenceEarned)],["余剰存在",formatExistenceDisplay(state.surplusExistence)],["源総Lv.",Object.values(state.sources).reduce((v,x)=>v+x.level,0).toLocaleString("ja-JP")],["概念形成",Object.values(state.time.concepts).filter(x=>x>0).length+" / 77"],["オンライン",duration(state.counters.onlineSeconds)],["オフライン",duration(state.counters.offlineSeconds)]];
   const t=state.telemetry,rows=consecutiveOrbGains(t);
   const logarithmic=v=>{const a=A(v);return a.m>0?Math.max(0,a.e+Math.log10(a.m)+1):0;};
   const max=Math.max(1,...rows.filter(r=>r.gain!==null).map(r=>logarithmic(r.gain)));
-  return `<p class="panel-intro">統計は実際に付与されたオーブから計測します。長時間停止中やブラウザのスリープ区間の数値は補間しません。</p>
+  return `<p class="panel-intro">累計獲得存在は収束で獲得した存在の総量です（最初の存在1を除く）。刻印で消費しても減りません。オーブの測定できなかった区間は補間しません。</p>
     <div class="sub-grid">${values.map(([k,v])=>`<div class="kw-card"><small>${k}</small><strong>${v}</strong></div>`).join("")}</div>
     <h3>直近10分の獲得量 · 5秒ごと</h3>
     <div class="kw-card telemetry-card">
@@ -851,17 +853,33 @@ function settingsHTML(){
   ${labels.map(([id,name,desc])=>`<label class="kw-row"><span>${name}<small>${desc}</small></span><input type="checkbox" data-pref="${id}" ${state.settings[id]?"checked":""}></label>`).join("")}
   <label class="kw-row">数値表記<select class="input-select" data-pref="notation"><option value="auto" ${state.settings.notation==="auto"?"selected":""}>標準（100万以降e）</option><option value="scientific" ${state.settings.notation==="scientific"?"selected":""}>指数 e（1.23e12）</option><option value="exponent" ${state.settings.notation==="exponent"?"selected":""}>指数 E（1.23E+12）</option><option value="zeros" ${state.settings.notation==="zeros"?"selected":""}>0の個数（10^12）</option></select></label>
   <div class="kw-row"><span>通信<small>クラウド・課金は未接続</small></span><strong>${navigator.onLine?"オンライン":"オフライン"}</strong></div>
-  <button class="wide-button" data-organizer="backup">保存とバックアップ</button>
+  <button class="wide-button" data-organizer="backup">保存・バックアップ・完全リセット</button>
+  <button class="wide-button" data-organizer="lab">テストモード</button>
   <a class="link-button" href="./privacy.html">プライバシー・データ保存について</a>
   ${mode==="lab"?'<a class="link-button" href="./">通常プレイに戻る</a>':""}
   `;
 }
 function backupHTML(){
   const bs=store.backups();
+  let protectedRows=[],archiveError="";
+  try{protectedRows=store.protectedBackups();}catch(error){archiveError=error.message;}
+  const backupDisabled=readOnly||storageUnavailable||store.blocked||!!archiveError;
   return `<p class="panel-intro">この端末の自動保存＋3世代履歴。消去・故障に備え、JSONを外にも保存してください。クラウド同期ではありません。</p>
   ${state.migration?`<div class="status-note">旧版から移行済み。オーブ・源・概念等を引継ぎ。星屑・旧永久強化・惑星ランク等は推測変換せず、旧版のセーブに保管しています。</div>`:""}
   <div class="sub-grid"><button class="wide-button" data-action="export-save">JSONを書き出す</button><button class="wide-button" data-action="copy-save">文字列をコピー</button></div>
   <button class="wide-button" data-action="snapshot">いまの履歴を保存</button>
+  <button class="wide-button" data-action="protect-save" ${backupDisabled?"disabled":""}>保護バックアップを作成</button>
+  <h3>保護バックアップ · 自動削除なし</h3>
+  ${archiveError?`<p class="status-note">${esc(archiveError)}</p>`:protectedRows.length?[...protectedRows].map((row,i)=>({row,i})).reverse().map(({row,i})=>{
+    let candidate;try{candidate=decode(row.raw,mode);}catch(error){}
+    return `<div class="kw-card"><strong>${row.reason==="reset"?"リセット前":"手動"} · ${new Date(row.at).toLocaleString("ja-JP")}</strong>
+    ${candidate?`<small>累計獲得存在 ${formatExistenceDisplay(candidate.totalExistenceEarned)} · オーブ ${orbDisplay(candidate.orbs)}</small>`:"<small>破損・原本保護中</small>"}
+    <div class="sub-grid"><button class="wide-button" data-protected-export="${i}">JSON書出</button><button class="wide-button" data-protected-restore="${i}" ${!candidate||readOnly?"disabled":""}>復元する</button></div></div>`;
+  }).join(""):"<p>まだ保護バックアップはありません。</p>"}
+  <p class="tiny">自動保存履歴とは別管理です。端末の容量が不足した場合は操作を中止します。JSONを別の場所にも保管してください。</p>
+  <h3>完全リセット</h3>
+  <div class="kw-card"><strong>${mode==="lab"?"テストデータ":"通常データ"}を最初からやり直す</strong><small>全ステージ・強化・資産・統計・BOOST・設定が初期化されます。別モードとバックアップは保持します。</small>
+  <button class="wide-button" data-action="reset-game" ${backupDisabled?"disabled":""}>完全リセット</button></div>
   <h3>データを読み込む</h3><input id="importFile" type="file" accept=".json,application/json,text/plain" aria-label="セーブJSONを選ぶ">
   <textarea id="importText" aria-label="バックアップ文字列" placeholder="バックアップJSONを貼り付け">${esc(importDraft)}</textarea>
   <button class="wide-button" data-action="import-save">内容を検証して読み込む</button>
@@ -955,9 +973,14 @@ function priceLabHTML(){
 }
 
 function labHTML(){
-  if(mode!=="lab")return '<div class="status-note">通常のセーブを変更せず、検証用データで確認します。</div><a class="link-button" href="./?lab=1">設計検証モードへ</a>';
+  if(mode!=="lab")return '<div class="status-note">通常プレイとは別の保存データで試遊できます。初回は通常データのコピー（未保存なら新規）で開始します。テスト中の進行・追加資源は通常プレイに反映されません。</div><button class="wide-button" data-action="enter-test">テストモードを開始</button><small>テストを最初から行う場合は、テストモード内の完全リセットを利用してください。</small>';
   const actions=[["orbs","オーブ +1兆"],["existence","余剰存在 +10"],["sourceMax","源01をLv.100万"],["directions","6方向を検証解放"],["concept","衝突の残滓 +10"],["common","共通？？？ +100"],["world","世界時間を1秒へ"],["observe","観測名・刻印比較を解放"],["resources","全42資源 +100"],["mass","選択惑星を質量100に"],["collapse","崩壊イベントを検証"],["life","生命タブを表示"],["boost","BOOSTを満タン"],["offline","8時間オフラインを検証"]];
   return `<div class="status-note">独立した検証セーブです。仮の確率・受取方式・コスト・解放を試せます。ここでの達成は通常セーブに反映しません。</div><button class="wide-button" data-organizer="proposals">研究した候補効果の確認・有効化</button>
+  <div class="kw-card"><strong>テストモード専用の資源追加</strong>
+  <label class="kw-row"><span>追加する数量<small>例：1e1000000（オーブ）／10（存在）</small></span><input id="testGrantAmount" class="input-select" type="text" inputmode="text" autocomplete="off" maxlength="48" value="${esc(testGrantDraft)}" aria-label="テスト追加数量"></label>
+  <div class="sub-grid"><button class="wide-button" data-action="test-grant-orbs">オーブ追加</button><button class="wide-button" data-action="test-grant-existence">存在追加</button></div>
+  <small>オーブは1e2000000まで、存在は1e6までの正の値を1回に追加できます。存在は累計獲得にも反映します。</small></div>
+  <button class="wide-button" data-organizer="backup">テストデータの保存・完全リセット</button>
   <button type="button" class="wide-button" data-organizer="priceLab">刹那の価格シミュレーター</button><div class="row-grid">${actions.map(([id,t])=>`<button class="wide-button" data-lab="${id}">${t}</button>`).join("")}</div><p class="tiny">崩壊前に「宇宙 → 資源」でA/Bを選択。圧力10単位で×1.1は検証用の仮式。安定の残留対象は未決定なので、破壊処理には適用していません。</p>
   <a class="link-button" href="./">通常プレイに戻る</a>`;
 }
@@ -1396,6 +1419,42 @@ async function dispatchAction(action){
   if(action==="expand"){setSheet(sheetState==="full"?"half":"full");return;}
   if(action==="collapse-sheet"){setSheet("closed");return;}
   if(action==="dismiss-notice"){showNotice("");return;}
+  if(action==="enter-test"){
+    if(mode!=="normal")return;
+    if(!save()||storageUnavailable)return toast("通常データを保存できません。先にバックアップしてください");
+    location.assign("./?lab=1");return;
+  }
+  if(action==="protect-save"){
+    if(readOnly||store.blocked||storageUnavailable)return toast("端末の保存を利用できません");
+    try{checkpoint();store.protect(state,"manual");renderPanel(true);toast("保護バックアップを保存・確認しました");}
+    catch(error){toast("バックアップを中止しました："+error.message);}
+    return;
+  }
+  if(action==="reset-game"){
+    if(resetPending||confirmedAction)return;
+    if(readOnly||store.blocked||storageUnavailable)return toast("端末の保存を利用できないためリセットできません");
+    resetPending=true;stopHoldPurchase(null,true);
+    try{
+      const target=mode==="lab"?"テストデータ":"通常データ";
+      if(!await ask("完全リセット",target+"の全進行・強化・統計・設定を初期化します。先に復元用バックアップを保存します。別モードと過去のバックアップは残ります。","次へ"))return;
+      if(!await ask("最終確認",target+"を最初からやり直しますか？ バックアップが保存・検証できなければ何も初期化しません。","完全リセットする"))return;
+      checkpoint();
+      state=store.reset(state,Date.now());
+      currentStage="existence";currentSub="moment";infoPanelOpen=false;navDigest="";
+      offlineReport=null;importDraft="";testGrantDraft="1e12";momentSearch="";bulkScope="all";
+      priceLabReport=null;priceLabComparisons=null;automationDetailsOpen=false;
+      applySettings();setSheet("closed");lastSavedAt=Date.now();
+      $("saveIndicator").textContent="保存済";render(true);
+      showNotice("完全リセットしました。保存からリセット前のデータを復元できます。",{autoDismiss:true});
+    }catch(error){toast("リセットを中止しました："+error.message);}
+    finally{resetPending=false;}
+    return;
+  }
+  if(action==="test-grant-orbs"||action==="test-grant-existence"){
+    if(mode!=="lab"||readOnly||store.blocked)return toast("テストモード専用です");
+    testGrantDraft=$("testGrantAmount")?.value??testGrantDraft;
+    checkpoint();return resultDone(G.labGrant(state,action==="test-grant-orbs"?"orbs":"existence",testGrantDraft),"テスト資源を追加しました");
+  }
   if(action==="export-save"){
     if(store.blocked)return toast("主セーブ保護中です。下の「保護中の主セーブを救出」を利用してください");
     if(!save())return toast("保存を確認できないためバックアップを中止しました");
@@ -1549,6 +1608,20 @@ document.addEventListener("click",async e=>{
       if(readOnly||store.blocked)return toast("保存できません");
       checkpoint();resultDone(G.applyPurchasePreset(state,Number(b.dataset.presetApply)));return;
     }
+    if(b.dataset.protectedExport!==undefined){
+      const row=store.protectedBackups()[Number(b.dataset.protectedExport)];
+      if(!row)return toast("保護バックアップが見つかりません");
+      download(row.raw,`kotowari-${mode}-${row.reason}-${row.at}.json`);return;
+    }
+    if(b.dataset.protectedRestore!==undefined){
+      if(readOnly||storageUnavailable)return toast("端末の保存を利用できません");
+      const index=Number(b.dataset.protectedRestore),row=store.protectedBackups()[index];
+      if(!row)return toast("保護バックアップが見つかりません");
+      decode(row.raw,mode);
+      if(!await ask("保護バックアップから復元","現在のデータを退避してから、選んだ進行へ戻します。保護バックアップ自体は保持します。","復元する"))return;
+      state=store.restoreProtectedBackup(index);offlineReport=null;importDraft="";
+      applySettings();render(true);showNotice(store.lastError||"保護バックアップから復元しました。");return;
+    }
     if(b.dataset.action){await dispatchAction(b.dataset.action);return;}
     if(b.matches("[data-legacy-link]")){save(true);return;}
     if(b.dataset.momentDetail){
@@ -1679,6 +1752,7 @@ document.addEventListener("click",async e=>{
 });
 document.addEventListener("change",async e=>{
   const t=e.target;if(!state)return;
+  if(t.id==="testGrantAmount"){testGrantDraft=t.value;return;}
   if(t.id==="importFile"){
     const file=t.files?.[0];if(!file)return;
     if(file.size>4*1024*1024){toast("4MBを超えるファイルは読み込めません");return;}
@@ -1804,7 +1878,7 @@ async function setupPWA(){
 }
 await acquireLock();
 const loaded=store.load();
-state=loaded.state;storageUnavailable=!!loaded.storageUnavailable;
+state=loaded.state;storageUnavailable=storageFallback||!!loaded.storageUnavailable;
 currentSub=state.settings.existenceLastTab||"moment";
 if(loaded.warning)showNotice(loaded.warning,{autoDismiss:!loaded.blocked&&!loaded.storageUnavailable});
 if(readOnly)showNotice("ほかのタブがプレイ中のため閲覧専用です。そのタブを閉じてから再読み込みしてください。");
