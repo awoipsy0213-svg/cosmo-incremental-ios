@@ -3,7 +3,6 @@ const VERSION = "3.50.0-time-residue";
 const UI_REVISION = "-engraving-v342-grade-v343-existence-v344-balance-v351-balance-v352-save-v353-unlock-v354-pwa-v3541";
 const APP_RELEASE = "3.54.1";
 const PREFIX = "kotowari-handoff:" + new URL(self.registration.scope).pathname + ":";
-const CACHE = PREFIX + VERSION + UI_REVISION;
 const RELATIVE = [
   "index.html",
   "organic-original.css",
@@ -151,6 +150,12 @@ const CORE_BLOBS = {
   "app.mjs":"df0c008edd03791ff00f3e009425fd5718c678a4",
   "manifest.webmanifest":"30f6626cc056810975070bea1a77569affca700c"
 };
+// Separate cache namespaces even when a future maintainer regenerates the
+// core hashes without changing the human-facing release number.
+const coreFingerprint=Object.values(CORE_BLOBS).join("").split("").reduce(
+  (h,x)=>BigInt.asUintN(64,(h^BigInt(x.charCodeAt(0)))*1099511628211n),14695981039346656037n
+).toString(16);
+const CACHE=PREFIX+VERSION+UI_REVISION+":"+coreFingerprint;
 async function matchesCore(path,response){
   if(!response||!response.ok)return false;
   const bytes=new Uint8Array(await response.clone().arrayBuffer());
@@ -218,8 +223,15 @@ self.addEventListener("fetch", event => {
     const target=relative===""||relative==="index.html"?"index.html":
       relative==="legacy/"||relative==="legacy"?"legacy/index.html":null;
     if(target){
-      event.respondWith(caches.open(CACHE).then(async c=>
-        (await c.match(new URL(target,scope).href))||(target==="index.html"?new Response("Release cache unavailable. Open update.html while online.",{status:503}):fetch(request))));
+      event.respondWith(caches.open(CACHE).then(async c=>{
+        const targetURL=new URL(target,scope).href;
+        const cached=await c.match(targetURL);
+        if(cached)return cached;
+        if(target!=="index.html")return fetch(request);
+        const response=await fetch(new Request(targetURL,{cache:"reload"}));
+        if(!await matchesCore(target,response))return new Response("Release verification failed. Open update.html while online.",{status:503});
+        await c.put(targetURL,response.clone());return response;
+      }));
       return;
     }
   }
