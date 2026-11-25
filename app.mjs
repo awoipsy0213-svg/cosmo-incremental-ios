@@ -8,7 +8,7 @@ import {compareMomentPrice,compareMomentPriceProfiles,exportPriceReport,PRICE_MO
 import {MOMENT_GROUP_NAMES,cleanMomentPrefs,toggleMomentFavorite,moveMomentFavorite,momentVisible} from "./moment-filter.mjs";
 import {CONTENT} from "./content.mjs";
 import {PROPOSED,PLANET_EFFECT_PROPOSALS,resourcePrototype,trialPreview,boostTrialCost,proposedSourceSlots,FIRST_CONCEPT_PROPOSALS} from "./design-proposals.mjs";
-import {A,formatAmount,formatExistenceDisplay,formatOrbAmount} from "./numbers.mjs";
+import {A,formatAmount,formatExistenceDisplay,formatExistenceHudDisplay,formatOrbAmount} from "./numbers.mjs";
 import * as G from "./game.mjs";
 import {timeHexMarkup,patchTimeHex,timeHexFlowPanel,timeHexMiraclesPanel} from "./time-hex-v341.mjs";
 import {formatGrowthInt,growthCap} from "./time-growth-v350.mjs";
@@ -19,7 +19,7 @@ import {purchasePreview} from "./purchase-preview-v338.mjs";
 import {momentBrief,compactEffectValue} from "./purchase-clarity-v339.mjs";
 import {UNLOCK_COPY,uxSnapshot,uxChanges,unlockRatio,accumulateTapGain,guideSteps} from "./ux-polish-v355.mjs";
 
-const APP_RELEASE="3.55";
+const APP_RELEASE="3.55.1";
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const params=new URLSearchParams(location.search);
@@ -386,7 +386,7 @@ function renderWorld(){
   if(showShared){
     const timeSpeed=state.boost.active&&state.boost.seconds>0?G.boostTimeMultiplier(state):1;
     const metrics=[
-      ["existence",formatExistenceDisplay(G.existence(state)),"存在",""],
+      ["existence",formatExistenceHudDisplay(G.existence(state)),"存在",""],
       ["timeSpeed","×"+timeSpeed,"時間の経過速度",""]
     ];
     for(const [id,formatted,label,unit] of metrics){
@@ -1168,7 +1168,7 @@ function commonInfoHTML(){
   const timeSpeed=state.boost.active&&state.boost.seconds>0?G.boostTimeMultiplier(state):1;
   return '<section class="common-info-detail" aria-label="全ステージ共通情報の詳細">' +
     '<p class="panel-intro">存在と時間の流れを確認できます。</p>' +
-    '<div class="kw-card"><span>存在</span><strong>'+esc(formatExistenceDisplay(G.existence(state)))+'</strong></div>' +
+    '<div class="kw-card"><span>存在</span><strong>'+esc(formatExistenceHudDisplay(G.existence(state)))+'</strong></div>' +
     '<div class="kw-card"><span>時間の経過速度</span><strong>×'+esc(timeSpeed)+'</strong><small>BOOST使用中は時間が加速します。</small></div>' +
     '<button type="button" class="wide-button" data-action="return-stage-panel">ステージ操作に戻る</button></section>';
 }

@@ -1,7 +1,7 @@
 /* Versioned, scope-specific cache. Does not delete saves or another app's cache. */
 const VERSION = "3.50.0-time-residue";
-const UI_REVISION = "-engraving-v342-grade-v343-existence-v344-balance-v351-balance-v352-save-v353-unlock-v354-pwa-v3541-ux-v355-guide";
-const APP_RELEASE = "3.55";
+const UI_REVISION = "-engraving-v342-grade-v343-existence-v344-balance-v351-balance-v352-save-v353-unlock-v354-pwa-v3541-ux-v355-guide-hud-v3551";
+const APP_RELEASE = "3.55.1";
 const PREFIX = "kotowari-handoff:" + new URL(self.registration.scope).pathname + ":";
 const RELATIVE = [
   "index.html",
@@ -109,7 +109,7 @@ const CORE_FILES = [
 // for coherence with the checked-out Git tree, not as a trust signature.
 // Regenerate with scripts/pwa-integrity.mjs --write after changing core files.
 const CORE_HASHES = [
-  "cf7256059e594b769656ffa9d0d049d9ff6cd853",
+  "e7544afca644a2350d64acc367ea4db9a7a78cf4",
   "fa06847001eeeb5e8d0a272eef073fb4a3516454",
   "ca7a7a642f7385b502be1608d03c1d56c048890c",
   "ab5d561ffe0c982877ef7f8840564bd7d7e73a2a",
@@ -148,12 +148,12 @@ const CORE_HASHES = [
   "79aef34e8082662cc8863ad2f59f26eaa6ea107c",
   "31e35f97f907f7e8104100fb99d64053b2b4eea3",
   "de52a563c08e24c894845c1ba73820ba2c8e1d57",
-  "048d352eb031c420d289dff6bfdd66400c16dff0",
+  "8a425c89656582c1558169bb3ca1825878f6d715",
   "b0f57c72a1138370fc3b816ab7ca2b3b05069ca4",
   "d9941f8ef3570618aa72b25f018f7970a67b1141",
   "2ef4a4c8902665a2d7345426dc51a4a22079ee30",
   "cdded330240c0e3753a2065af8a9a7bee3ac7c72",
-  "aa84b5f73e09c8cc7714f5e9e85594000303484b",
+  "090110d459317470a4770157af7f2309f5e87c4a",
   "30f6626cc056810975070bea1a77569affca700c"
 ];
 const CORE_BLOBS=Object.fromEntries(CORE_FILES.map((path,i)=>[path,CORE_HASHES[i]]));

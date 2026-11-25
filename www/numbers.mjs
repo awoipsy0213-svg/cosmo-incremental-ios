@@ -108,6 +108,16 @@ export function formatExistenceDisplay(value,{roundUp=false}={}){
   }
   return formatScientific3(n);
 }
+/** Common Existence HUD: display-only integer balances from 100 to one million. */
+export function formatExistenceHudDisplay(value) {
+  const n=A(value);
+  if(n.cmp("100")>=0&&n.cmp("1000000")<=0){
+    // Amount is normalized to 14 significant digits; remove binary float noise
+    // before truncation, without changing the actual resource or save.
+    return Math.floor(Number(n.toNumber().toPrecision(14))).toLocaleString("ja-JP");
+  }
+  return formatExistenceDisplay(n);
+}
 /** Compact scientific notation with exactly three significant figures. UI-only. */
 export function formatScientific3(value) {
   const n=A(value);
