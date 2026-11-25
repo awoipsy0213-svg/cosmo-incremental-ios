@@ -1,7 +1,7 @@
 /* Versioned, scope-specific cache. Does not delete saves or another app's cache. */
 const VERSION = "3.50.0-time-residue";
-const UI_REVISION = "-engraving-v342-grade-v343-existence-v344-balance-v351-balance-v352-save-v353-unlock-v354-pwa-v3541-ux-v355-guide-hud-v3551-worlds-v356-comfort-v356-time-integrity-v3561";
-const APP_RELEASE = "3.56.1";
+const UI_REVISION = "-engraving-v342-grade-v343-existence-v344-balance-v351-balance-v352-save-v353-unlock-v354-pwa-v3541-ux-v355-guide-hud-v3551-worlds-v356-comfort-v356-time-integrity-v3561-automation-compact-v3562";
+const APP_RELEASE = "3.56.2";
 const PREFIX = "kotowari-handoff:" + new URL(self.registration.scope).pathname + ":";
 const RELATIVE = [
   "index.html",
@@ -109,7 +109,7 @@ const CORE_FILES = [
 // for coherence with the checked-out Git tree, not as a trust signature.
 // Regenerate with scripts/pwa-integrity.mjs --write after changing core files.
 const CORE_HASHES = [
-  "0f3a815374085da022c69823c4da2f9331abf4ab",
+  "a2f82088d9135a1fbad252521aeee7304d0ae58b",
   "fa06847001eeeb5e8d0a272eef073fb4a3516454",
   "ca7a7a642f7385b502be1608d03c1d56c048890c",
   "ab5d561ffe0c982877ef7f8840564bd7d7e73a2a",
@@ -119,7 +119,7 @@ const CORE_HASHES = [
   "f653b00c1240e985707a76adafbc392eb8df7977",
   "60d34b61eb6ebc47c6bc34d5cde4ecf87b25b85f",
   "229580d48577e6e7a7d1876ee4888fb354d7ae2d",
-  "25ec89c9ca96b8fc58881c40d65cabbef3d6fa9f",
+  "d2b483407b04b1a58cbe1d52050c68a45f128505",
   "e98badb9478fce2c336f5662913181c0ea2c1b70",
   "35d34cf0133c6b6b78aee4920bc16bdb44bcaf27",
   "89b909259865409b2f287545941964885279c99f",
@@ -128,11 +128,11 @@ const CORE_HASHES = [
   "3a7a820cfb21166490310f9d61bc33641d67584f",
   "b1a16b1526a83cde8be719a9d9095825a2aea00f",
   "8cc8a30456d59ccd18b1cc0810e92dbf2979aedb",
-  "ab7662f4fe8d611395b9bcb78a4f2ce64dcc00e6",
+  "89d2c7711c62588438eedf0c220a94d60bee79f6",
   "ed0c5c3a0a5607332d5ea7a208052a419e149213",
   "8158a7a10b57ab2e5b4f8df9718baa2b88c96e6d",
   "13fc01c6f1cace5462f314f4d019425fdc636d55",
-  "06850fdd290db8f3170c36d5cc45b649b4782756",
+  "a1dc2f7feabecf2048b6595d65f437d1531ca426",
   "d923f8545b5be8051acc228b66458dbc94daabc4",
   "68dbc362661c4ec0cd44cb33d0a1ec8dffc76d61",
   "2324eeffbb5540af32599cac7aade5226bb4360d",
@@ -153,7 +153,7 @@ const CORE_HASHES = [
   "d9941f8ef3570618aa72b25f018f7970a67b1141",
   "1a2d7b6f2abbde38a50ddaa6ff4911a5d92bed04",
   "cdded330240c0e3753a2065af8a9a7bee3ac7c72",
-  "b643351191c2c93f8c9f8f438cd055ccd59ac0df",
+  "480ce60ac7fe8ff8e2455a1f18e8997c506c27d9",
   "30f6626cc056810975070bea1a77569affca700c"
 ];
 const CORE_BLOBS=Object.fromEntries(CORE_FILES.map((path,i)=>[path,CORE_HASHES[i]]));

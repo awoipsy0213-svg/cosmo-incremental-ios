@@ -30,13 +30,14 @@ try{
       window.KOTOWARI_DEBUG.setLabState(s);
     });
     await page.locator("#automationQuick").click();
-    assert.equal(await page.locator(".automation-status").count(),4,label+" status summaries");
-    assert.equal(await page.locator(".stage-auto-tile").count(),4,label+" all-stage overview");
-    assert.match(await page.locator('[data-auto-overview="time"]').textContent(),/自然進行/);
-    assert.equal(await page.locator('[data-auto-overview="universe"]').isDisabled(),true);
-    assert.match(await page.locator('[data-auto-overview="universe"]').textContent(),/？？？/);
-    assert.equal(await page.locator(".automation-row[data-automation-buy]").count(),0,label+" detail collapsed by default");
+    assert.equal(await page.locator(".automation-status,.stage-auto-tile,[data-action='toggle-auto-details'],[data-auto-master-state]").count(),0,label+" no redundant summaries");
+    assert.equal(await page.locator("#sheetHeading").textContent(),"自動化");
+    assert.equal(await page.locator("#childTabs [data-child^='auto-']").count(),4);
+    assert.equal(await page.locator('[data-child="auto-universe"]').textContent(),"？？？");
+    assert.equal(await page.locator('[data-child="auto-life"]').textContent(),"？？？");
+    assert.equal(await page.locator(".automation-row[data-automation-buy]").count(),2,label+" direct controls");
     assert.equal(await page.locator('[data-auto-master]').isChecked(),true);
+    assert.equal(await page.locator(".automation-overview").textContent(),"全体自動化");
     const switchVisual=await page.locator('[data-auto-master]').evaluate(el=>({
       appearance:getComputedStyle(el).appearance,width:el.getBoundingClientRect().width,
       radius:getComputedStyle(el).borderRadius
@@ -44,10 +45,8 @@ try{
     assert.equal(switchVisual.appearance,"none",label+" toggle renders as a switch");
     assert.ok(switchVisual.width>=34,label+" switch touch track is visible");
 
-    assert.equal(await page.locator('[data-action="toggle-auto-details"]').getAttribute("aria-expanded"),"false");
     const overviewBefore=await page.locator(".automation-overview").boundingBox();
-    assert.equal(Math.round(overviewBefore.height),111,label+" fixed summary height");
-    await page.locator('[data-action="toggle-auto-details"]').click();
+    assert.equal(Math.round(overviewBefore.height),44,label+" compact master-only height");
     assert.equal(await page.locator(".automation-row[data-automation-buy]").count(),2);
     assert.equal(await page.locator(".automation-convergence").count(),1);
     assert.equal(await page.locator('[data-auto-mode]').count(),4,label+" four choice buttons");
@@ -59,7 +58,7 @@ try{
     });
     await page.locator('[data-auto-master]').uncheck();
     assert.equal(await page.evaluate(()=>window.KOTOWARI_DEBUG.state().settings.automationEnabled),false);
-    assert.match(await page.locator('[data-auto-master-state]').textContent(),/一時停止/);
+    assert.equal(await page.locator('[data-auto-master]').isChecked(),false);
     const after=await page.evaluate(()=>{
       const rect=element=>{const r=element.getBoundingClientRect();return [r.x,r.y,r.width,r.height];};
       const summary=document.querySelector(".automation-overview");
@@ -75,7 +74,7 @@ try{
     await page.locator('[data-auto-mode="minutes"]').click();
     await page.locator('[data-auto-converge="intervalMinutes"]').selectOption("3");
     assert.equal(await page.locator('[data-auto-mode="minutes"]').getAttribute("aria-pressed"),"true");
-    assert.equal(await page.locator(".automation-convergence").evaluate(el=>Math.round(el.getBoundingClientRect().height)),185);
+    assert.equal(await page.locator(".automation-convergence").evaluate(el=>Math.round(el.getBoundingClientRect().height)),164);
     const saved=await page.evaluate(()=>window.KOTOWARI_DEBUG.state());
     assert.equal(saved.settings.automationEnabled,false);
     assert.equal(saved.engraving.autoBuy.moment.priority,"grade");
@@ -86,8 +85,26 @@ try{
     for(const id of ["auto-time","auto-universe","auto-life","auto-existence"]){
       await page.locator('[data-child="'+id+'"]').click();
       assert.equal(await page.locator('[data-child="'+id+'"]').getAttribute("aria-pressed"),"true");
-      assert.equal(await page.locator(".automation-status").count(),4,label+" status remains visible");
+      assert.equal(await page.locator(".automation-status,.stage-auto-tile,[data-action='toggle-auto-details']").count(),0,label+" no duplication on any tab");
+      assert.equal(await page.locator('[data-auto-master]').count(),1);
+      assert.equal(await page.locator("#sheetHeading").textContent(),"自動化");
+      if(id==="auto-time"){
+        assert.match(await page.locator(".automation-empty").textContent(),/自然進行/);
+        assert.equal(await page.locator(".automation-row,.automation-convergence").count(),0);
+        assert.ok(await page.locator("#sheetBody").evaluate(e=>e.scrollHeight-e.clientHeight<=1));
+      }
+      if(["auto-universe","auto-life"].includes(id)){
+        assert.equal(await page.locator(".automation-empty").textContent(),"未解放");
+        assert.equal(await page.locator("[data-auto-planet-enabled]").count(),0);
+      }
     }
+    await page.locator("#expandButton").click();
+    assert.equal(await page.locator("#sheet").getAttribute("data-state"),"full");
+    assert.equal(await page.locator("#expandButton").isVisible(),true);
+    const expandBox=await page.locator("#expandButton").boundingBox();
+    assert.ok(expandBox.x>=0&&expandBox.y>=0&&expandBox.x+expandBox.width<=width+1&&expandBox.y+expandBox.height<=height+1,label+" expand arrow in viewport");
+    await page.locator("#expandButton").click();
+    assert.equal(await page.locator("#sheet").getAttribute("data-state"),"half");
     assert.ok((await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth))<=1,
       label+" no horizontal overflow");
     await page.reload({waitUntil:"domcontentloaded"});

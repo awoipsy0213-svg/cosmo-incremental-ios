@@ -11,7 +11,7 @@ for(const path of ["index.html","sw.js","luminous-glass-v332.css",
 }
 assert.ok(html.indexOf("matrix-v324.css")<html.indexOf("luminous-glass-v332.css") && html.indexOf("luminous-glass-v332.css")<html.indexOf("fixed-layout-v333.css"),
   "new theme must override legacy theme");
-assert.match(html,/3\.56\.1/);
+assert.match(html,/3\.56\.2/);
 assert.match(html,/name="theme-color" content="#f4f2ff"/);
 assert.match(sw,/const VERSION = "3\.50\.0-time-residue"/);
 assert.equal((sw.match(/"luminous-glass-v332\.css"/g)||[]).length,2,

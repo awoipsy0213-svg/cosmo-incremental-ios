@@ -113,13 +113,6 @@ body[data-ui-stage="life"] .child-tabs button.active{background:#217c6a!importan
 .shared-management-links{grid-template-columns:repeat(2,minmax(0,1fr));margin:8px 0}
 .shared-management-links button{min-height:40px;font-size:12px}
 body[data-ui-stage="universe"]:not(.sheet-open) .world-bottom{display:none}
-.stage-auto-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin:0 0 5px}
-.stage-auto-list .stage-auto-tile{min-width:0;height:57px;min-height:57px;max-height:57px;display:flex;gap:5px;align-items:center;text-align:left;padding:5px 6px;border:1px solid #a6a1c9;border-radius:9px;background:#f7f7fc!important;color:#393b63!important;overflow:hidden}
-.stage-auto-list .stage-auto-tile:disabled{opacity:.6}
-.stage-auto-symbol{flex:0 0 22px;font-size:18px;color:#7059b6;text-align:center}
-.stage-auto-copy{flex:1;min-width:0;display:grid;gap:2px;overflow:hidden}
-.stage-auto-copy strong{font-size:12px;white-space:nowrap}
-.stage-auto-copy small{font-size:9px;line-height:1.25;display:block;max-height:23px;overflow:hidden;overflow-wrap:anywhere;color:#535879!important}
 .kw-sheet-body .source-card .source-cycle-button{font-size:10px!important;font-weight:800;letter-spacing:-.05em}
 .kw-sheet-body .source-card .source-cycle-button:not(:disabled){background:#5e45ac!important;color:#fff!important;border-color:#5e45ac!important}
 @media(max-height:760px){body[data-ui-stage="time"].sheet-open .time-hex-canvas{width:min(62vw,175px,23dvh)}}
