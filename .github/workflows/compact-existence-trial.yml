@@ -1,0 +1,51 @@
+name: Compact Existence trial
+on:
+  pull_request:
+    branches: [main]
+    paths: ['playtest/compact-existence-v1/**','tests/compact_existence*','.github/workflows/compact-existence-trial.yml']
+  push:
+    branches: [main]
+    paths: ['playtest/compact-existence-v1/**','tests/compact_existence*','.github/workflows/compact-existence-trial.yml']
+  workflow_dispatch:
+jobs:
+  trial:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node tests/compact_existence.mjs
+      - run: npm install --no-save @playwright/test
+      - run: npx playwright install --with-deps chromium
+      - run: node tests/compact_existence_browser.mjs
+  published-trial:
+    if: github.event_name == 'push'
+    needs: trial
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Wait for Pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for n in $(seq 1 60); do
+            result=$(curl -fsSL --retry 3 -H "Authorization: Bearer ${GH_TOKEN}" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${GITHUB_SHA}&per_page=100" | jq -r '[.workflow_runs[]|select(.name=="pages build and deployment")]|sort_by(.id)|last|.conclusion // "pending"')
+            case "$result" in success) exit 0;; failure|cancelled|timed_out|skipped) exit 1;; esac
+            sleep 10
+          done
+          exit 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save @playwright/test
+      - run: npx playwright install --with-deps chromium
+      - run: node tests/compact_existence_browser.mjs
+        env:
+          KOTOWARI_SMOKE_BASE_URL: https://awoipsy0213-svg.github.io/cosmo-incremental-ios/
