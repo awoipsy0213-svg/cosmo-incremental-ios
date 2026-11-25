@@ -10,7 +10,7 @@
 <small>ホーム画面に追加したアプリとブラウザは、端末によって保存領域が異なる場合があります。いつも遊んでいる環境で操作してください。</small>
 </main><script>
 "use strict";
-const RELEASE="3.55",status=document.getElementById("status"),apply=document.getElementById("apply"),retry=document.getElementById("retry"),back=document.getElementById("back");
+const RELEASE="3.55.1",status=document.getElementById("status"),apply=document.getElementById("apply"),retry=document.getElementById("retry"),back=document.getElementById("back");
 const mode=new URLSearchParams(location.search).get("lab")==="1"?"lab":"normal";
 back.href="./"+(mode==="lab"?"?lab=1":"");
 let registration,selected=null,checking=false,activating=false;

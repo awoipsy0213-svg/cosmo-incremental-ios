@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {A,formatExistenceDisplay,formatOrbAmount} from "../numbers.mjs";
+import {A,formatExistenceDisplay,formatExistenceHudDisplay,formatOrbAmount} from "../numbers.mjs";
 import * as G from "../game.mjs";
 import {engravingPurchaseQuote,engravingTrialUpgradeQuote} from "../engraving-rules-v317.mjs";
 import {encode,decode} from "../save.mjs";
@@ -62,8 +62,8 @@ check("display rounding never changes actual purchase price, orb quantities or s
 
 check("all player-facing engraving costs and upper HUD use compact formatter",()=>{
   const app=read("app.mjs");
-  assert.ok(app.includes('["existence",formatExistenceDisplay(G.existence(state))'));
-  assert.ok(app.includes("esc(formatExistenceDisplay(G.existence(state)))"));
+  assert.ok(app.includes('["existence",formatExistenceHudDisplay(G.existence(state))'));
+  assert.ok(app.includes("esc(formatExistenceHudDisplay(G.existence(state)))"));
   assert.ok(app.includes('const shownPrice=price===undefined||price===null?"—":formatExistenceDisplay(price,{roundUp:true});'));
   assert.ok(app.includes("formatExistenceDisplay(q.price,{roundUp:true})"));
   assert.ok(app.includes("formatExistenceDisplay(quote.price,{roundUp:true})"));
@@ -76,5 +76,20 @@ check("Web/iOS mirrors are identical and PWA revision reflects the new formatter
   for(const path of ["app.mjs","numbers.mjs","sw.js"])
     assert.equal(read(path),read("www/"+path),path+" web/iOS mismatch");
   assert.match(read("sw.js"),/const UI_REVISION = "-engraving-v342-grade-v343-existence-v344(?:-[a-z0-9]+)*"/);
+});
+check("HUD switches to truncation from 100 while costs and stored values retain precision",()=>{
+  for(const [input,expected] of [
+    ["0","0"],["1.523","1.523"],["99.123","99.123"],["99.999","99.999"],
+    ["100","100"],["100.123","100"],["100.999","100"],["1234.567","1,234"],
+    ["65220.513","65,220"],["999999.999","999,999"],["1000000","1,000,000"],
+    ["1000000.001","1.00e+6"],["1e25","1.00e+25"]
+  ])assert.equal(formatExistenceHudDisplay(input),expected,input);
+  assert.equal(formatExistenceDisplay("100.123"),"100.123");
+  assert.equal(formatExistenceDisplay("100.1231",{roundUp:true}),"100.124");
+  const s=G.createState(1800000000000);
+  s.intro.complete=true;s.surplusExistence="65219.513";
+  const before=s.surplusExistence;
+  assert.equal(formatExistenceHudDisplay(G.existence(s)),"65,220");
+  assert.equal(s.surplusExistence,before);
 });
 console.log("PASS v344 all Existence UI format tests");
