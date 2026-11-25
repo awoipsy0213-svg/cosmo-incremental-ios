@@ -19,7 +19,7 @@ import {purchasePreview} from "./purchase-preview-v338.mjs";
 import {momentBrief,compactEffectValue} from "./purchase-clarity-v339.mjs";
 import {UNLOCK_COPY,uxSnapshot,uxChanges,unlockRatio,accumulateTapGain,guideSteps} from "./ux-polish-v355.mjs";
 
-const APP_RELEASE="3.55.1";
+const APP_RELEASE="3.56";
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const params=new URLSearchParams(location.search);
@@ -370,13 +370,15 @@ function renderWorld(){
   document.body.style.setProperty("--intro-light",String(.2+.8*Math.min(1,state.intro.touches/CONFIG.provisional.introTouches)));
   const stage=CONTENT.stages.find(x=>x.id===currentStage)||CONTENT.stages[0];
   document.body.dataset.cosmoStage=String(stage.number);
+  document.body.dataset.uiStage=currentStage;
   $("stageKicker").textContent=`STAGE 0${stage.number}`;
   const isTime=stage.id==="time";
   document.body.classList.toggle("time-hex-world",isTime);
   const stageScene=$("touchField");
-  stageScene.setAttribute("role",isTime?"group":"button");
-  stageScene.setAttribute("tabindex",isTime?"-1":"0");
-  stageScene.setAttribute("aria-label",isTime?"時の方向をタップして選択":stage.id==="existence"?"光へ干渉してオーブを生む":"この世界へ干渉してオーブを生む");
+  const isSceneOnly=["time","universe","life"].includes(currentStage);
+  stageScene.setAttribute("role",isSceneOnly?"group":"button");
+  stageScene.setAttribute("tabindex",isSceneOnly?"-1":"0");
+  stageScene.setAttribute("aria-label",isTime?"時の方向をタップして選択":currentStage==="universe"?"惑星の観測":currentStage==="life"?"生命の観測":"光へ干渉してオーブを生む");
   $("stageTitle").textContent=stage.name;
   $("activeStageTitle").textContent=`ステージ · ${stage.name}`;
   const rate=G.production(state),tap=G.tapPower(state);
@@ -478,6 +480,7 @@ function renderWorld(){
   // DEC-20261122-005: the permanent “理の状態” sidebar is removed.
   // Game state and history remain intact; only redundant on-screen copy is hidden.
   $("heroSigil").textContent=currentStage==="time"?"時":currentStage==="universe"?"宇":currentStage==="life"?"生":"理";
+  renderStageIdentity();
   const timeRoot=$("timeHexRoot");
   if(timeRoot){
     if(currentStage==="time"){
@@ -486,6 +489,24 @@ function renderWorld(){
       patchTimeHex(timeRoot,state.time,{readOnly:readOnly||store.blocked});
     }else timeRoot.hidden=true;
   }
+}
+// Fixed scene-level portal, separate from the touch target. Never grants resources.
+function renderStageIdentity(){
+  const panel=$("stageIdentityPanel");
+  if(!panel)return;
+  if(currentStage!=="universe"||!state.universe.unlocked){
+    panel.hidden=true;if(panel.firstChild)panel.replaceChildren();return;
+  }
+  panel.hidden=false;
+  const u=state.universe,selected=u.selectedPlanetId;
+  const markup='<div class="stage-planet-heading"><strong>惑星観測</strong><small>'+u.planets.length+' / '+u.maxPlanets+'</small></div>'+
+    '<div class="stage-planet-strip" role="group" aria-label="観測する惑星">'+
+    (u.planets.length?u.planets.map((p,i)=>'<button type="button" data-world-planet="'+esc(p.id)+'" aria-pressed="'+String(selected===p.id)+'" '+(readOnly||store.blocked?'disabled':'')+'><i aria-hidden="true"></i><span>惑星 '+(i+1)+'</span></button>').join(""):'<span class="stage-planet-empty">まだ惑星はありません</span>')+
+    '</div><nav class="stage-world-links" aria-label="宇宙の操作">'+
+    [["planets","惑星育成"],["resources","資源投入"],["observations","観測・干渉"]].map(([id,name])=>'<button type="button" data-world-open="'+id+'">'+name+'</button>').join("")+'</nav>';
+  if(panel.dataset.markup!==markup){panel.innerHTML=markup;panel.dataset.markup=markup;}
+  // Clearing on stage switches must not leave a stale digest.
+  if(!panel.firstChild)panel.innerHTML=markup;
 }
 function quoteText(q){
   if(q.count) return `+${q.count.toLocaleString("ja-JP")} · ${o(q.cost,"ceil")}`;
@@ -599,15 +620,37 @@ function sourcesHTML(){
   return `<button type="button" class="source-summary" data-source-summary aria-label="源の共振と一巡の詳細" title="源の共振と一巡の詳細">源の共振 ${resonance.completed}/${resonance.total} · 一巡 ${cycle.reached}/${cycle.total} · ⋯</button>
   <div class="row-grid compact-upgrades">${CONTENT.sources.map((x,i)=>{
     const v=state.sources[x.id];
-    const cycleReady=v.level===1000000&&cycle.unlocked&&!readOnly&&!store.blocked;
+    const cycleReady=G.sourceBreakthroughReady(state,x.id)&&!readOnly&&!store.blocked;
     return `<article class="kw-card source-card purchase-card" data-source-entry="${x.id}" data-purchase-card>
       <div class="card-top"><strong title="${esc(x.name)}">${String(i+1).padStart(2,"0")} ${esc(x.name)} ＋${v.plus.toLocaleString("ja-JP")}</strong><small data-source-level="${x.id}">Lv.${v.level.toLocaleString("ja-JP")}</small></div>
       <button type="button" class="more-button source-detail-button" data-source-detail="${x.id}" aria-label="${esc(x.name)}の詳細" title="効果の詳細">⋯</button>
-      <button type="button" class="source-cycle-button" data-breakthrough="${x.id}" ${!cycleReady?"disabled":""} aria-label="${esc(x.name)}の＋循環" title="${cycleReady?"＋循環を実行":v.level===1000000?"全30源一巡まで未解放":"Lv.1,000,000で＋循環が解放"}">↻</button>
+      <button type="button" class="source-cycle-button" data-breakthrough="${x.id}" ${!cycleReady?"disabled":""} aria-label="${esc(x.name)}の＋循環" title="${cycleReady?"限界突破：＋1・Lv1へ戻る":v.plus>=1000000?"＋値の上限に到達":"この源のLv.1,000,000で限界突破"}">＋1</button>
       <div class="source-rates" title="この源の現在の毎秒オーブ生成量と、次の節目での生産2倍効果"><span data-source-next="${x.id}" title="毎秒 ${esc(o(G.sourceProduction(state,x.id)))} オーブ">毎秒 ${esc(o(G.sourceProduction(state,x.id)))} オーブ</span><span data-source-total="${x.id}">${esc(sourceMilestoneLabel(x.id))}</span></div>
       ${cardQuote("source",x.id)}
     </article>`;
   }).join("")}</div>`;
+}
+// Read-only cross-stage summary, independent of automation preferences and unlock gates.
+function automationStageOverview(){
+  const master=state.settings.automationEnabled!==false,e=state.engraving,u=state.universe;
+  const enabled=(allowed,on)=>!allowed?"未解放":on?(master?"稼働":"一時停止"):"OFF";
+  const exists=[
+    ["刹那",enabled(engravingAutoMomentRate(state)>0,e.autoBuy.moment.enabled)],
+    ...(state.time.unlocked?[["源",enabled(engravingAutoSourceRate(state)>0,e.autoBuy.source.enabled)]]:[]),
+    ...(engravingUnlocked(state)?[["刻印",enabled(e.owned.includes("ENG-17")&&e.levels?.["ENG-17"]>0,e.autoEngraving.enabled)]]:[]),
+    ["収束",enabled(e.owned.includes(ENGRAVING_AUTO_CONVERGE_ID),e.autoConverge.enabled)]
+  ];
+  const entries=[
+    ["existence","存在","◇",true,exists],
+    ["time","時","◈",state.time.unlocked,[["自然進行","時間に連動"]]],
+    ["universe","宇宙","◎",u.unlocked,[["惑星生成",enabled(autoPlanetAvailable(u),u.autoGenerate)]]],
+    ["life","生命","✳",state.life.unlocked,[["自動化","設定なし"]]]
+  ];
+  return '<section class="stage-auto-list" aria-label="全ステージ自動化一覧">'+entries.map(([id,name,icon,unlocked,items])=>
+    '<button type="button" class="stage-auto-tile" data-auto-overview="'+id+'" '+(!unlocked?'disabled':'')+'>'+
+      '<span class="stage-auto-symbol" aria-hidden="true">'+(unlocked?icon:"?")+'</span><span class="stage-auto-copy"><strong>'+(unlocked?name:"？？？")+'</strong><small>'+
+      (unlocked?items.map(([k,v])=>esc(k+" "+v)).join(" · "):"未解放")+'</small></span><span aria-hidden="true">›</span></button>'
+  ).join("")+'</section>';
 }
 function automationHTML(){
   const tab=currentSub.slice(5),e=state.engraving,disabled=readOnly||store.blocked;
@@ -633,7 +676,7 @@ function automationHTML(){
     (engravingUnlocked(state)?status("刻印",e.owned.includes("ENG-17")&&e.levels?.["ENG-17"]>0,e.autoEngraving.enabled):"")+
     status("収束",convergeOwned,e.autoConverge.enabled)+'</div>'+
     '<button type="button" class="automation-details-button" data-action="toggle-auto-details" aria-expanded="'+
-    String(automationDetailsOpen)+'">'+(automationDetailsOpen?"設定を閉じる":"設定を開く")+'</button></section>';
+    String(automationDetailsOpen)+'">'+(automationDetailsOpen?"設定を閉じる":"設定を開く")+'</button></section>'+automationStageOverview();
   if(!automationDetailsOpen)return overview;
   if(tab==="existence"){
     const buy=(kind,label,rate,engravingId)=>{
@@ -1170,6 +1213,7 @@ function commonInfoHTML(){
     '<p class="panel-intro">存在と時間の流れを確認できます。</p>' +
     '<div class="kw-card"><span>存在</span><strong>'+esc(formatExistenceHudDisplay(G.existence(state)))+'</strong></div>' +
     '<div class="kw-card"><span>時間の経過速度</span><strong>×'+esc(timeSpeed)+'</strong><small>BOOST使用中は時間が加速します。</small></div>' +
+    '<div class="shared-management-links"><button type="button" data-action="open-automation">自動化一覧</button><button type="button" data-organizer="statistics">統計</button><button type="button" data-organizer="boost">BOOST</button><button type="button" data-organizer="settings">設定</button></div>' +
     '<button type="button" class="wide-button" data-action="return-stage-panel">ステージ操作に戻る</button></section>';
 }
 /** Presentation-only filtering; never edits or deletes historical saved events. */
@@ -1294,7 +1338,10 @@ function refreshPurchaseButtons(){
       const nextText=`毎秒 ${o(G.sourceProduction(state,id))} オーブ`;
       if(next&&next.textContent!==nextText){next.textContent=nextText;next.title=nextText;}
       const cycle=card?.querySelector("[data-breakthrough]");
-      if(cycle)cycle.disabled=state.sources[id].level!==1000000||!G.sourceCycleStatus(state).unlocked||readOnly||store.blocked;
+      if(cycle){
+        cycle.disabled=!G.sourceBreakthroughReady(state,id)||readOnly||store.blocked;
+        cycle.title=state.sources[id].plus>=1000000?"＋値の上限に到達":cycle.disabled?"この源のLv.1,000,000で限界突破":"限界突破：＋1・Lv1へ戻る";
+      }
     }
   }
   const summary=`購入可能 ${ready} / ${buttons.length} · 所持 ${o(state.orbs)} オーブ`;
@@ -1407,7 +1454,7 @@ const activePointers=new Set();
 $("touchField").addEventListener("pointerdown",e=>{
   if(e.pointerType==="mouse"&&e.button!==0)return;
   if(activePointers.has(e.pointerId))return;
-  if(currentStage==="time"&&e.target.closest("#timeHexRoot"))return;
+  if(["time","universe","life"].includes(currentStage))return;
   activePointers.add(e.pointerId);e.preventDefault();
   handleTap(e.clientX,e.clientY);
 });
@@ -1769,6 +1816,24 @@ document.addEventListener("click",async e=>{
       currentSub=b.dataset.timeOpen;infoPanelOpen=false;
       setSheet("half");render(true);return;
     }
+    if(b.dataset.autoOverview){
+      if(currentStage!=="automation"||!availableStages().some(x=>x.id===b.dataset.autoOverview))return;
+      stopHoldPurchase(null,true);
+      currentSub="auto-"+b.dataset.autoOverview;automationDetailsOpen=true;
+      if(!readOnly&&!store.blocked){state.settings.automationStage=b.dataset.autoOverview;save();}
+      renderPanel(true);return;
+    }
+    if(b.dataset.worldOpen){
+      if(currentStage!=="universe"||!state.universe.unlocked||!["planets","resources","observations"].includes(b.dataset.worldOpen))return;
+      stopHoldPurchase(null,true);infoPanelOpen=false;currentSub=b.dataset.worldOpen;
+      setSheet("half");render(true);return;
+    }
+    if(b.dataset.worldPlanet){
+      if(currentStage!=="universe"||!state.universe.unlocked||readOnly||store.blocked)return;
+      if(!state.universe.planets.some(p=>p.id===b.dataset.worldPlanet))return;
+      state.universe.selectedPlanetId=b.dataset.worldPlanet;save();currentSub="planets";
+      setSheet("half");render(true);return;
+    }
     if(b.dataset.child){
       stopHoldPurchase(null,true);
       if(uxActive&&!$("uxNotice").hidden)closeUX(false);
@@ -1869,7 +1934,7 @@ document.addEventListener("click",async e=>{
       const next=resonance.next?resonance.next.id+" Lv."+resonance.next.level+"（残り"+resonance.next.remaining+"Lv）":"全節目到達";
       await ask("源の共振・一巡","共振 "+resonance.completed+"/"+resonance.total+
         "\n次の節目："+next+"\n一巡 "+cycle.reached+"/"+cycle.total+
-        "\n＋循環："+(cycle.unlocked?"解放":"未解放"),"閉じる");
+        "\n各源は個別にLv100万で限界突破できます。一巡は達成記録です。","閉じる");
       return;
     }
     if(b.dataset.sourceDetail){
@@ -1877,7 +1942,7 @@ document.addEventListener("click",async e=>{
       const status=G.sourceFinalEffectStatus(state,x.id);
       const v=state.sources[x.id],ms=CONFIG.confirmed.sourceMilestones,done=ms.filter(k=>k<=v.level).length,next=ms.find(k=>k>v.level);
       const special=status?.unlocked&&status?.implemented?"\n＋循環の固有効果："+status.label:"";
-      await ask(x.name,`現在 Lv.${v.level.toLocaleString("ja-JP")} / ＋${v.plus}\n節目 ${done}/${ms.length} / 次 ${next||"MAX"}\n節目達成ごとに生産×2（累積 ×${o(G.sourceMilestoneMultiplier(v.level))}）\n＋倍率 ×${f(G.sourcePlusGain(v.plus))}\n現在 ${o(G.sourceProduction(state,x.id))} オーブ/秒\n次Lv増加 ${o(G.sourceNextGain(state,x.id))} オーブ/秒\n※節目で購入価格は変化しません。${special}`,"閉じる");return;
+      await ask(x.name,`現在 Lv.${v.level.toLocaleString("ja-JP")} / ＋${v.plus}\n節目 ${done}/${ms.length} / 次 ${next||"MAX"}\n節目達成ごとに生産×2（累積 ×${o(G.sourceMilestoneMultiplier(v.level))}）\n＋倍率 ×${f(G.sourcePlusGain(v.plus))}\n現在 ${o(G.sourceProduction(state,x.id))} オーブ/秒\n次Lv増加 ${o(G.sourceNextGain(state,x.id))} オーブ/秒\n※各源はLv100万で＋1、Lv1から再育成できます。現在の生産は一時的に大幅に低下します。\n※節目で購入価格は変化しません。${special}`,"閉じる");return;
     }
     if(readOnly){toast("別タブの書き込みを保護中です");return;}
     if(store.blocked && b.dataset.restore===undefined){toast("元セーブを保護中です。「保存」から復元してください。");return;}
@@ -1908,7 +1973,10 @@ document.addEventListener("click",async e=>{
       const id=b.dataset.breakthrough,x=CONTENT.sources.find(item=>item.id===id);
       if(!x)return toast("源を確認できません");
       const source=state.sources[id];
-      if(state.settings.confirmSourceBreakthrough&&!await ask("＋循環の確認",x.name+"：Lv."+source.level.toLocaleString("ja-JP")+" / ＋"+source.plus+" → ＋"+(source.plus+1)+"・Lv1から再開始します。","＋循環する"))return;
+      if(!G.sourceBreakthroughReady(state,id)||store.blocked)return toast("この源がLv100万になると限界突破できます");
+      const beforeState=state;
+      if(state.settings.confirmSourceBreakthrough&&!await ask("限界突破の確認",x.name+"：Lv."+source.level.toLocaleString("ja-JP")+" / ＋"+source.plus+" → ＋"+(source.plus+1)+"・Lv1から再育成します。\n現在の生産は大幅に低下します。取得済み固有効果は保持されます。","限界突破する"))return;
+      if(state!==beforeState||readOnly||store.blocked)return toast("進行状態が変わりました。もう一度確認してください");
       resultDone(G.breakthrough(state,id));return;
     }
     if(b.dataset.interference){

@@ -68,6 +68,27 @@ try{
     assert.doesNotMatch(detail,/次の効果節目|特別な効果：？？？/);
     await page.locator("#confirmYes").click();
     assert.ok((await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth))<=1);
+    const cycle=source.locator("[data-breakthrough]");
+    assert.equal(await cycle.isDisabled(),true,"individual cycle below cap disabled");
+    await page.evaluate(()=>{
+      const s=window.KOTOWARI_DEBUG.state();
+      s.sources.SOURCE_01.level=1000000;
+      s.settings.confirmSourceBreakthrough=true;
+      window.KOTOWARI_DEBUG.setLabState(s);
+    });
+    assert.equal(await cycle.isEnabled(),true,"first source alone at cap can break through");
+    assert.equal(await cycle.textContent(),"＋1");
+    await cycle.click();
+    assert.match(await page.locator("#confirmText").textContent(),/生産は大幅に低下/);
+    await page.locator("#confirmNo").click();
+    assert.equal(await page.evaluate(()=>window.KOTOWARI_DEBUG.state().sources.SOURCE_01.level),1000000);
+    await cycle.click();
+    await page.locator("#confirmYes").click();
+    const afterCycle=await page.evaluate(()=>window.KOTOWARI_DEBUG.state());
+    assert.equal(afterCycle.sources.SOURCE_01.level,1);
+    assert.equal(afterCycle.sources.SOURCE_01.plus,1);
+    assert.equal(afterCycle.sourceCycle.unlocked,false);
+    assert.equal(await cycle.isDisabled(),true);
     assert.deepEqual(errors,[],label+" JS errors");
     console.log("PASS v340",label,"numeric Source rate, integer-only orbs, milestone x2 gain, fixed action, no placeholder specials");
     await context.close();

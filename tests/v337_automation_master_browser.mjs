@@ -31,6 +31,10 @@ try{
     });
     await page.locator("#automationQuick").click();
     assert.equal(await page.locator(".automation-status").count(),4,label+" status summaries");
+    assert.equal(await page.locator(".stage-auto-tile").count(),4,label+" all-stage overview");
+    assert.match(await page.locator('[data-auto-overview="time"]').textContent(),/自然進行/);
+    assert.equal(await page.locator('[data-auto-overview="universe"]').isDisabled(),true);
+    assert.match(await page.locator('[data-auto-overview="universe"]').textContent(),/？？？/);
     assert.equal(await page.locator(".automation-row[data-automation-buy]").count(),0,label+" detail collapsed by default");
     assert.equal(await page.locator('[data-auto-master]').isChecked(),true);
     const switchVisual=await page.locator('[data-auto-master]').evaluate(el=>({

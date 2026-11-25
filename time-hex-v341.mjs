@@ -31,7 +31,7 @@ export function timeHexMarkup(){
     '<span class="time-hex-node-symbol" aria-hidden="true">'+["≈","◇","✦","⟡","❖","✧"][i]+'</span>'+
     '<strong data-hex-name>？</strong><small data-hex-weight></small></button>').join("");
   return '<section class="time-hex-stage" aria-label="時の六方向と配分">'+
-    '<div class="time-hex-caption"><span data-hex-discovery>認識 1 / 6</span><span data-hex-selection>配分 1 / 3</span></div>'+
+    '<div class="time-hex-elapsed"><small>経過時間</small><strong data-hex-elapsed>0 秒</strong></div><div class="time-hex-caption"><span data-hex-discovery>認識 1 / 6</span><span data-hex-selection>配分 1 / 3</span></div>'+
     '<div class="time-hex-canvas" role="group" aria-label="六角形の方向選択">'+
     '<svg class="time-hex-svg" viewBox="0 0 320 320" aria-hidden="true" focusable="false">'+
     '<circle class="time-hex-halo" cx="160" cy="160" r="133"/>'+
@@ -80,6 +80,7 @@ export function patchTimeHex(root,t,{readOnly=false}={}){
     const element=root.querySelector(selector);
     if(element&&element.textContent!==value)element.textContent=value;
   };
+  update("[data-hex-elapsed]",Math.floor(Number(t.elapsed)||0).toLocaleString("ja-JP")+" 秒");
   update("[data-hex-discovery]","認識 "+clamp(Number(t.revealedDirections)||1,1,6)+" / 6");
   update("[data-hex-selection]","配分 "+active.length+" / 3");
   update("[data-hex-core]",active.map(n=>n.name).join("・")||"流動");

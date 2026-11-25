@@ -44,7 +44,7 @@ try{
   assert.deepEqual(first.state.boost.upgrades,[0,0,0,0,0]);
   assert.deepEqual(first.state.boost.timeOnlyMigration.legacyUpgradeLevels,[3,2,1,0,0]);
   assert.equal(first.archive,raw,"original encoded bytes remain recoverable");
-  assert.match(await page.locator("#buildLabel").textContent(),/^3\.55$/);
+  assert.match(await page.locator("#buildLabel").textContent(),/^3\.56$/);
   await page.locator('.app-top [data-action="organizer"]').click();
   await page.locator('[data-organizer="boost"]').click();
   const content=await page.locator("#sheetBody").textContent();

@@ -66,7 +66,7 @@ try{
    });
    await page.locator('[data-stage="existence"]').click();
    await page.locator('[data-child="moment"]').click();
-   assert.match(await page.locator("#buildLabel").textContent(),/^3\.55$/);
+   assert.match(await page.locator("#buildLabel").textContent(),/^3\.56$/);
    assert.equal(await page.locator("#toast").evaluate(el=>getComputedStyle(el).pointerEvents),"none",label+" toast must never block taps");
    assert.equal(await page.locator(".moment-card").count(),30);
    assert.equal(await page.locator("[data-moment-favorite]").count(),0,"no favorite stars");

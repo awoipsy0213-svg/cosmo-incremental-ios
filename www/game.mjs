@@ -475,22 +475,24 @@ function recordSourceMax(s){
   const previous=!!s.sourceCycle?.unlocked;
   const status=sourceCycleStatus(s);
   s.sourceCycle={reached:status.reachedIds,unlocked:status.unlocked};
-  if(!previous&&status.unlocked)event(s,"源30種の一巡を達成。各源のLv.1,000,000から＋循環を選べるようになった。");
+  if(!previous&&status.unlocked)event(s,"全30種類の源が一巡を達成した。");
+}
+export function sourceBreakthroughReady(s,id) {
+  const x=s.sources?.[id];
+  return !!(s.time.unlocked&&x&&x.level===CONFIG.confirmed.sourceMaxLevel&&x.plus<1000000);
 }
 export function breakthrough(s,id) {
   if(!s.time.unlocked)return {ok:false,reason:"未解放"};
-  if(!s.sources?.[id])return {ok:false,reason:"源IDが不正です"};
-  if(s.sources[id].level<CONFIG.confirmed.sourceMaxLevel)return {ok:false,reason:"Lv.1,000,000で限界突破"};
-  const status=sourceCycleStatus(s);
-  if(!status.unlocked)return {ok:false,reason:"全30源の一巡達成まで残り"+status.remaining+"種"};
-  // Persist historic maximum levels before resetting the current level.
-  recordSourceMax(s);
-  const x=s.sources[id];
-  earnSourceFinal(s,id);
+  const x=s.sources?.[id];
+  if(!x)return {ok:false,reason:"源IDが不正です"};
+  if(x.level!==CONFIG.confirmed.sourceMaxLevel)return {ok:false,reason:"Lv.1,000,000で限界突破"};
   if(x.plus>=1000000)return {ok:false,reason:"＋値の保存上限に到達しています"};
+  // Each Source can now cycle individually. Preserve the all-30 achievement
+  // and its evidence; it is no longer a prerequisite.
+  recordSourceMax(s);
+  earnSourceFinal(s,id);
   x.plus++;x.level=1;
-  // Keep source effects and cycle history. The PLUS production coefficient
-  // remains unresolved in normal mode; never promote the lab's ×2 to official.
+  // Keep existing effects, cycle history and the existing linear PLUS multiplier.
   event(s,`${CONTENT.sources.find(x=>x.id===id).name} ＋${x.plus}：Lv.1から再び成長を始めた。`);
   return {ok:true,plus:x.plus,level:x.level};
 }
