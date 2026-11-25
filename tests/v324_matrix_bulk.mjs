@@ -61,6 +61,6 @@ check("Published SW and iOS copy include new CSS",()=>{
  for(const name of root)assert.equal(text(name),text("www/"+name),name);
  assert.match(text("sw.js"),/3\.50\.0-time-residue/);
  assert.match(text("sw.js"),/matrix-v324\.css/);
- assert.match(text("index.html"),/3\.56\.1/);
+ assert.match(text("index.html"),/3\.56\.2/);
 });
 console.log("PASS "+count+" Ver3.28 matrix and bulk invariants");

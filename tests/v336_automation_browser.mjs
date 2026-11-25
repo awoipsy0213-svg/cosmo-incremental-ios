@@ -42,7 +42,6 @@ try{
     const navRect=await page.locator("#automationQuick").boundingBox();
     assert.ok(navRect.width<=47&&navRect.width>=39,"compact automation icon width");
     await page.locator("#automationQuick").click();
-    await page.locator('[data-action="toggle-auto-details"]').click();
     assert.equal(await page.locator("#childTabs [data-child^='auto-']").count(),4);
     assert.match(await page.locator("#sheetHeading").textContent(),/自動化/);
     assert.equal(await page.locator("#childTabs [data-child='auto-existence']").getAttribute("aria-pressed"),"true");
@@ -71,10 +70,12 @@ try{
     for(const [tab,labelText] of [["auto-time","時"],["auto-universe","宇宙"],["auto-life","生命"],["auto-existence","存在"]]){
       await page.locator('#childTabs [data-child="'+tab+'"]').click();
       assert.equal(await page.locator('#childTabs [data-child="'+tab+'"]').getAttribute("aria-pressed"),"true");
-      assert.match(await page.locator("#sheetHeading").textContent(),new RegExp(labelText));
+      assert.equal(await page.locator("#sheetHeading").textContent(),"自動化");
+      assert.equal(await page.locator('#childTabs [data-child="'+tab+'"]').textContent(),["auto-universe","auto-life"].includes(tab)?"？？？":labelText);
     }
     await page.locator('#childTabs [data-child="auto-universe"]').click();
-    assert.equal(await page.locator('[data-auto-planet-enabled]').isDisabled(),true,"unavailable automation stays locked");
+    assert.equal(await page.locator('[data-auto-planet-enabled]').count(),0,"unavailable settings hidden");
+    assert.equal(await page.locator(".automation-empty").textContent(),"未解放");
     const over=await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);
     assert.ok(over<=1,"no horizontal overflow: "+over);
     await page.locator("#automationQuick").click();

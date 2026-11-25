@@ -54,7 +54,7 @@ try {
     assert.equal(levels.SOURCE_06.level,1,"grade-first buys source 6 for its exact current initial cost");
     assert.equal(levels.SOURCE_05.level,0,"source 5 must not absorb the budget first");
     await page.locator("#automationQuick").click();
-    await page.locator('[data-action="toggle-auto-details"]').click();
+    assert.equal(await page.locator('[data-action="toggle-auto-details"]').count(),0,"automation settings are directly visible");
     await page.locator('[data-auto-buy-kind="source"][data-auto-field="priority"]').selectOption("grade");
     await page.locator('[data-auto-engrave="priority"]').selectOption("grade");
     const choices=await page.evaluate(()=>window.KOTOWARI_DEBUG.state());

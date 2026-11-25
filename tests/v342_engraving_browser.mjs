@@ -52,7 +52,6 @@ try{
       window.KOTOWARI_DEBUG.setLabState(state);
     });
     await page.locator("#automationQuick").click();
-    await page.locator('[data-action="toggle-auto-details"]').click();
     const toggler=page.locator('[data-auto-engrave="enabled"]');
     const debugEngrave=await page.evaluate(()=>({
       owned:window.KOTOWARI_DEBUG?.state()?.engraving?.owned,
@@ -82,7 +81,6 @@ try{
     assert.equal(saved.presetSystem.activePreset,0);
     await page.reload({waitUntil:"domcontentloaded"});
     await page.locator("#automationQuick").click();
-    await page.locator('[data-action="toggle-auto-details"]').click();
     const restored=await page.evaluate(()=>window.KOTOWARI_DEBUG.state().engraving);
     assert.equal(restored.autoEngraving.enabled,true);
     assert.equal(restored.presetSystem.plan.moment.targets.tap,25);

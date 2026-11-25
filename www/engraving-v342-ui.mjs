@@ -10,18 +10,17 @@ export function engravingAutomationHTML(s,readOnly=false){
  const a=e.autoEngraving,off=readOnly||!unlocked;
  const minOptions=[...new Set(["0","0.001","0.005","0.025","0.125","0.5","1",a.minReserve])]
   .sort((a,b)=>Number(a)-Number(b)).map(value=>[value,value+" 存在"]);
- return '<section class="kw-card automation-row'+(unlocked?'':' is-locked')+'" aria-label="刻印の自動購入">'+
+ return '<section class="kw-card automation-row automation-engraving'+(unlocked?'':' is-locked')+'" aria-label="刻印の自動購入">'+
    '<div class="automation-line"><strong>刻印・自動購入</strong><small>'+
    (unlocked?'約'+(3/(1+0.12*(rate-1))).toFixed(2)+'ゲーム秒/回':'刻印「刻印自律」で解放')+'</small>'+
    '<label class="automation-toggle"><input type="checkbox" data-auto-engrave="enabled"'+
-   (a.enabled?' checked':'')+(off?' disabled':'')+' aria-label="刻印の自動購入をON/OFF"><span>ON</span></label></div>'+
+   (a.enabled?' checked':'')+(off?' disabled':'')+' aria-label="刻印の自動購入をON/OFF"></label></div>'+
    '<div class="automation-line automation-fields"><label>購入対象<select class="input-select" data-auto-engrave="mode"'+(off?' disabled':'')+'>'+
    options([["both","初回と強化"],["new","初回のみ"],["upgrade","追加強化のみ"]],a.mode)+'</select></label>'+
    '<label>購入優先<select class="input-select" data-auto-engrave="priority"'+(off?' disabled':'')+'>'+
    options([["unowned","未取得優先"],["cheap","価格の安い順"],["grade","高グレード順"]],a.priority)+'</select></label></div>'+
    '<div class="automation-line automation-fields"><label>残しておく存在<select class="input-select" data-auto-engrave="minReserve"'+(off?' disabled':'')+'>'+
    options(minOptions,a.minReserve)+'</select></label></div>'+
-   '<small>ONでも購入条件・所持存在の保護・Lv上限を優先。オフライン中は実行しません。</small>'+
    '</section>';
 }
 export function engravingPresetHTML(s,content,readOnly=false){
@@ -44,7 +43,7 @@ export function engravingPresetHTML(s,content,readOnly=false){
        '<label class="engraving-plan-exclude">対象外<input type="checkbox" data-plan-kind="'+kind+'" data-plan-id="'+esc(id)+'" data-plan-field="excluded"'+(exclude?' checked':'')+(off?' disabled':'')+' aria-label="'+esc(item.name)+'を自動購入対象から除外"></label></div>';
    }).join('')+'</div></details>';
  };
- return '<section class="kw-card automation-row'+(has?'':' is-locked')+'" aria-label="購入プリセット">'+
+ return '<section class="kw-card automation-row automation-preset'+(has?'':' is-locked')+'" aria-label="購入プリセット">'+
   '<div class="automation-line"><strong>周回設計</strong><small>'+(has?'最大3つの自動購入設定を保存':'刻印「周回設計」で解放')+'</small></div>'+
   (has?'<p class="tiny">設定後に「保存」を押してから「適用」してください。自動購入のON/OFFは個別に保持します。</p>'+
   '<div class="engraving-preset-slots">'+slots+'</div>'+

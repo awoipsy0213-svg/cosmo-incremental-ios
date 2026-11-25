@@ -107,11 +107,11 @@ check("backup failure blocks writes and preserves original save",()=>{
 check("UI/master implementation, fixed cards, PWA refresh and Capacitor parity",()=>{
   const app=load("app.mjs"),css=load("automation-center-v336.css"),sw=load("sw.js");
   assert.match(app,/data-auto-master/);
-  assert.match(app,/data-action="toggle-auto-details"/);
+  assert.doesNotMatch(app,/toggle-auto-details/);
   assert.match(app,/data-auto-mode/);
-  assert.match(app,/automation-status-line/);
-  assert.match(css,/height:111px/);
-  assert.match(css,/height:185px/);
+  assert.doesNotMatch(app,/automation-status-line|stage-auto-tile|automationStageOverview/);
+  assert.match(css,/height:44px;min-height:44px;max-height:44px/);
+  assert.match(css,/height:164px!important/);
   assert.match(css,/appearance:none!important/,"auto checkboxes have switch appearance");
   assert.match(sw,/3\.50\.0-time-residue/);
   assert.match(load("game.mjs"),/s\.settings\.automationEnabled===false/);
