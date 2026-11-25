@@ -365,12 +365,12 @@ function purchaseData(s,kind,id) {
     // 刹那の節目は未定。NEXTを10固定へ置換しない。
     milestones:CONFIG.provisional.momentMilestones};
 }
-export function purchaseQuote(s,kind,id,mode=s.purchaseMode) {
+function quotePurchase(s,kind,id,mode,fullMax=false) {
   if(!modeSet.has(mode))throw Error("購入モードが不正です");
   const p=purchaseData(s,kind,id),remain=Math.max(0,p.max-p.level);
   if(kind==="source"&&!s.time.unlocked)return {count:0,cost:"0",enabled:false,reason:"未解放"};
   p.base=p.base.mul(engravingPurchaseFactor(s));
-  let n=mode==="MAX"?maxAffordable(s.orbs,p.base,p.growth,p.level,Math.min(remain,MAX_LEVELS_PER_ACTION))
+  let n=mode==="MAX"?maxAffordable(s.orbs,p.base,p.growth,p.level,(fullMax?remain:Math.min(remain,MAX_LEVELS_PER_ACTION)))
     :mode==="10"?maxAffordable(s.orbs,p.base,p.growth,p.level,Math.min(10,remain))
     :Math.min(1,remain);
   if(mode==="NEXT"){
@@ -380,20 +380,28 @@ export function purchaseQuote(s,kind,id,mode=s.purchaseMode) {
   }
   if(!n)return {count:0,cost:remain?seriesCost(p.base,p.growth,p.level,1).toString():"0",enabled:false,reason:remain?"資源不足":"上限到達"};
   const cost=seriesCost(p.base,p.growth,p.level,n);
-  const limited=mode==="MAX"&&n===MAX_LEVELS_PER_ACTION&&remain>MAX_LEVELS_PER_ACTION&&
+  const limited=!fullMax&&mode==="MAX"&&n===MAX_LEVELS_PER_ACTION&&remain>MAX_LEVELS_PER_ACTION&&
     A(s.orbs).cmp(seriesCost(p.base,p.growth,p.level,MAX_LEVELS_PER_ACTION+1))>=0;
   return {count:n,cost:cost.toString(),enabled:s.intro.complete&&A(s.orbs).cmp(cost)>=0,
     limitReached:limited,reason:A(s.orbs).cmp(cost)>=0?"":"資源不足"};
+}
+export function purchaseQuote(s,kind,id,mode=s.purchaseMode){
+  return quotePurchase(s,kind,id,mode,false);
+}
+// Test-mode candidate only: production MAX remains unchanged until the
+// combined economy, automation and migration checks are approved.
+export function trialFullMaxQuote(s,kind,id){
+  if(s.mode!=="lab")return {count:0,cost:"0",enabled:false,reason:"テストモード専用"};
+  return quotePurchase(s,kind,id,"MAX",true);
 }
 // Returns whether the confirmed 90%-spend safeguard applies.
 export function maxPurchaseRequiresConfirmation(wallet,quote,mode="MAX"){
   return mode==="MAX"&&!!quote?.enabled&&A(wallet).cmp(0)>0&&
     A(quote.cost).mul(10).cmp(A(wallet).mul(9))>=0;
 }
-export function buy(s,kind,id) {
-  const q=purchaseQuote(s,kind,id);
+function applyPurchaseQuote(s,kind,id,q) {
   if(!q.enabled)return {ok:false,reason:q.reason||"導入が未完了です"};
-  spendOrbs(s,q.cost);
+  if(!spendOrbs(s,q.cost))return {ok:false,reason:"資源不足"};
   if(kind==="source"){
     s.sources[id].level+=q.count;s.counters.sourcePurchases+=q.count;
     if(s.sources[id].level>=CONFIG.confirmed.sourceMaxLevel){
@@ -409,6 +417,19 @@ export function buy(s,kind,id) {
   }
   recordRunPurchase(s,kind,id,q.count);
   return {ok:true,...q};
+}
+export function buy(s,kind,id){
+  return applyPurchaseQuote(s,kind,id,purchaseQuote(s,kind,id));
+}
+// Atomic candidate transaction for an explicit laboratory test only.
+// Work on a draft so failed accounting or effect updates cannot partially
+// modify the supplied state. No automatic call or normal-mode route.
+export function trialBuyFullMax(s,kind,id){
+  if(s.mode!=="lab")return {ok:false,reason:"テストモード専用"};
+  const draft=clone(s);
+  const result=applyPurchaseQuote(draft,kind,id,trialFullMaxQuote(draft,kind,id));
+  if(result.ok)Object.assign(s,draft);
+  return result;
 }
 /** Explicit, user-triggered bulk buy. Buys affordable individual levels in chosen price
  * priority order, so the first cheapest line cannot absorb the entire wallet via MAX.
