@@ -71,3 +71,45 @@ export function guideSteps(s,engravingReady,canConverge){
   if(engravingReady&&owned.length)add("engraving","刻印を確認","永続強化と便利機能を確認する。");
   return items.slice(0,3);
 }
+
+
+/** Presentation snapshots of already earned counts. Never infer legacy purchases. */
+export function residueSnapshot(t){
+  return {unlocked:!!t?.unlocked,totals:{...t?.growth?.totals},
+    recognized:{...t?.concepts,...t?.growth?.recognized},
+    common:String(t?.common||0),converted:String(t?.growth?.converted||0)};
+}
+export function residueGains(before,after){
+  if(!before||!after?.unlocked)return [];
+  const out=[];
+  const conversions=after.converted===before.converted?0n:BigInt(after.converted)-BigInt(before.converted);
+  if(conversions<0n)return [];
+  const common=BigInt(after.common)-BigInt(before.common)+100n*conversions;
+  if(common>0n)out.push({id:"common",count:common,first:false,recognized:false});
+  for(const [id,value] of Object.entries(after.totals)){
+    const prior=before.totals[id]||"0";
+    if(value===prior)continue;
+    const count=BigInt(value)-BigInt(prior);
+    if(count>0n)out.push({id,count,first:BigInt(prior)===0n,
+      recognized:!before.recognized[id]&&!!after.recognized[id]});
+  }
+  return out;
+}
+export function mergeResidueFeedback(pending,gains){
+  const map=new Map(pending);
+  for(const g of gains){
+    const old=map.get(g.id);
+    map.set(g.id,{id:g.id,count:(old?.count||0n)+g.count,
+      first:!!(old?.first||g.first),recognized:!!(old?.recognized||g.recognized)});
+  }
+  return map;
+}
+export function residueFeedbackRows(pending){
+  // Common gains must remain separate from individual/converted residues.
+  const rows=[...pending.values()].sort((a,b)=>Number(b.id==="common")-Number(a.id==="common")||
+    Number(b.recognized)-Number(a.recognized)||Number(b.first)-Number(a.first));
+  if(rows.length<=4)return rows;
+  const tail=rows.slice(3);
+  return [...rows.slice(0,3),{id:"aggregate",count:tail.reduce((n,g)=>n+g.count,0n),kinds:tail.length,
+    first:tail.some(g=>g.first),recognized:tail.some(g=>g.recognized)}];
+}

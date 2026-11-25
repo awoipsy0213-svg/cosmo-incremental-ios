@@ -11,13 +11,13 @@ import {PROPOSED,PLANET_EFFECT_PROPOSALS,resourcePrototype,trialPreview,boostTri
 import {A,formatAmount,formatExistenceDisplay,formatExistenceHudDisplay,formatOrbAmount} from "./numbers.mjs";
 import * as G from "./game.mjs";
 import {timeHexMarkup,patchTimeHex,timeHexFlowPanel,timeHexMiraclesPanel} from "./time-hex-v341.mjs";
-import {formatGrowthInt,growthCap} from "./time-growth-v350.mjs";
+import {formatGrowthInt,growthCap,residueIntervalSeconds} from "./time-growth-v350.mjs";
 import {engravingAutomationHTML,engravingPresetHTML} from "./engraving-v342-ui.mjs";
 import {SaveStore,KEYS,decode,encode} from "./save.mjs";
 import {shortDuration} from "./purchase-insights.mjs";
 import {purchasePreview} from "./purchase-preview-v338.mjs";
 import {momentBrief,compactEffectValue} from "./purchase-clarity-v339.mjs";
-import {UNLOCK_COPY,uxSnapshot,uxChanges,unlockRatio,accumulateTapGain,guideSteps} from "./ux-polish-v355.mjs";
+import {UNLOCK_COPY,uxSnapshot,uxChanges,unlockRatio,accumulateTapGain,guideSteps,residueSnapshot,residueGains,mergeResidueFeedback,residueFeedbackRows} from "./ux-polish-v355.mjs";
 
 const APP_RELEASE="3.56";
 const $=id=>document.getElementById(id);
@@ -43,6 +43,7 @@ let testGrantDraft="1e12",resetPending=false;
 let pwaRegistration=null,lastUpdateCheck=0,updateRequested=false,reloadForUpdate=false;
 let uxStateRef=null,uxPrevious=null,uxQueue=[],uxActive=null,uxPulseTimer=null,uxLastPulse=0,uxAudio=null;
 let uxGainBatch=null,uxGainTimer=null;
+let residuePrevious=null,residuePending=new Map(),residuePendingAt=0,residueVisibleUntil=0;
 const updatePath=()=> "./update.html"+(mode==="lab"?"?lab=1":"");
 const BOOST_QUICK_ICON=`<svg class="boost-quick-symbol" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M13 2 5 13h6l-1 9 9-12h-6V2z" fill="currentColor"/></svg>`;
 const HOLD_LEVEL_LIMIT=3000; // BOOST-Q673/674: one continuous long press, total acquired Lv
@@ -203,7 +204,8 @@ function readUXSnapshot(){
 function quietUX(){return state.settings.reducedMotion||state.settings.lowPower||window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;}
 function resetUX(){
   uxStateRef=state;uxPrevious=readUXSnapshot();uxQueue=[];uxActive=null;
-  $("uxNotice").hidden=true;clearUXGain();
+  $("uxNotice").hidden=true;clearUXGain();clearResidueFeedback();
+  residuePrevious=residueSnapshot(state.time);
   clearTimeout(uxPulseTimer);delete $("touchField").dataset.uxFeedback;
 }
 function prepareUXAudio(){
@@ -311,6 +313,47 @@ function updateUX(){
     if(changes.feedback)feedbackUX(changes.feedback,changes.feedback!=="purchase"||Date.now()-lastInteraction<550);
   }
   syncUXNotice();
+  updateResidueFeedback();
+}
+function hideResidueFeedback(){
+  $("residueFeedback").hidden=true;
+  $("residueFeedbackRows").replaceChildren();
+  residueVisibleUntil=0;
+}
+function clearResidueFeedback(){
+  residuePending=new Map();residuePendingAt=0;hideResidueFeedback();
+}
+function updateResidueFeedback(){
+  const next=residueSnapshot(state.time),before=residuePrevious;residuePrevious=next;
+  if(!state.settings.showResidueFeedback||!state.intro.complete||!next.unlocked||readOnly||store.blocked||document.hidden){
+    clearResidueFeedback();return;
+  }
+  const now=Date.now(),gains=residueGains(before,next);
+  if(gains.length){
+    if(!residuePending.size)residuePendingAt=now;
+    residuePending=mergeResidueFeedback(residuePending,gains);
+  }
+  // Never cover an important modal/unlock or full-height upgrade list.
+  // Already displayed entries are not replayed; only undisplayed gains queue.
+  if(uxNoticeBlocked()||busyBirth||!$("uxNotice").hidden){
+    if(!$("residueFeedback").hidden)hideResidueFeedback();
+    return;
+  }
+  if(residueVisibleUntil&&now>=residueVisibleUntil)hideResidueFeedback();
+  if(residueVisibleUntil||!residuePending.size||now-residuePendingAt<250)return;
+  const palette=["#9be9ff","#d7b5ff","#ffce8c","#9ee9bc","#ffb7d2","#c1caff"];
+  const rows=residueFeedbackRows(residuePending).map(g=>{
+    const concept=CONTENT.concepts.find(c=>c.id===g.id);
+    const symbol=concept?icon(concept):g.id==="common"?'<span class="residue-fallback">◇</span>':'<span class="residue-fallback">✧</span>';
+    const color=concept?palette[concept.iconIndex%palette.length]:g.id==="common"?"#e2e5ee":"#c9b3ff";
+    const note=g.id==="common"?"共通":g.id==="aggregate"?"他"+g.kinds+"種":g.recognized?"認識":g.first?"初発見":"";
+    const row=document.createElement("div");row.className="residue-feedback-row"+(g.recognized||g.first?" residue-new":"");
+    row.style.setProperty("--residue-tone",color);row.dataset.residueId=g.id;
+    row.innerHTML=symbol+'<strong>+'+esc(formatGrowthInt(g.count))+'</strong><small>'+esc(note)+'</small>';
+    return row;
+  });
+  $("residueFeedbackRows").replaceChildren(...rows);$("residueFeedback").hidden=false;
+  residueVisibleUntil=now+1500;residuePending=new Map();residuePendingAt=0;
 }
 function unlockProgressText(){
   const q=G.timeUnlockProgress(state);
@@ -486,7 +529,7 @@ function renderWorld(){
     if(currentStage==="time"){
       if(!timeRoot.firstElementChild)timeRoot.innerHTML=timeHexMarkup();
       timeRoot.hidden=false;
-      patchTimeHex(timeRoot,state.time,{readOnly:readOnly||store.blocked});
+      patchTimeHex(timeRoot,state.time,{readOnly:readOnly||store.blocked,interval:residueIntervalSeconds(state.time,CONTENT.concepts)});
     }else timeRoot.hidden=true;
   }
 }
@@ -844,7 +887,7 @@ function conceptHTML(){
       const total=t.growth?.totals?.[c.id]||String(t.residues[c.id]||0);
       const recognized=Boolean(t.growth?.recognized?.[c.id]||t.concepts[c.id]>0);
       const effect=G.conceptEffect(state,c.id),max=BigInt(total)>=growthCap(c);
-      const progress=Math.min(100,Math.max(0,(effect?.progress||0)*100));
+      const progress=recognized?Math.min(100,Math.max(0,(effect?.progress||0)*100)):Number(BigInt(total)>=10n?10n:BigInt(total))*10;
       const name=recognized?c.name:"？？？の残滓";
       const effectName=CONCEPT_EFFECT_NAMES[effect?.rule?.type]||"固有効果";
       const bonus=effect?.bonus?((effect.bonus)*100).toFixed(2)+"%":"0%";
@@ -852,10 +895,10 @@ function conceptHTML(){
       const info=recognized?effectName+" +"+bonus+" · "+status:"認識すると効果が明らかになります";
       return `<article class="kw-card concept-card time-growth-card" data-concept-id="${esc(c.id)}">
         <div class="card-top">${icon(c)}<strong class="${recognized?"":"unrecognized"}" title="${esc(name)}">${esc(name)}</strong></div>
-        <small>累計 ${esc(formatGrowthInt(total))} / ${esc(formatGrowthInt(growthCap(c)))}</small>
+        <small>${recognized?`累計 ${esc(formatGrowthInt(total))} / ${esc(formatGrowthInt(growthCap(c)))}`:BigInt(total)>=10n?`残滓 ${esc(formatGrowthInt(total))} 個`:`残滓 ${esc(formatGrowthInt(total))} / 10`}</small>
         <small title="${esc(info)}">${esc(info)}</small>
-        <div class="slim-progress" aria-label="効果成長 ${progress.toFixed(1)}%"><i style="width:${progress.toFixed(2)}%"></i></div>
-        <small>${max?"MAX · 超過分は永続熟練度へ":"累計に応じて自動成長"}</small>
+        <div class="slim-progress" aria-label="${recognized?"効果成長":"概念認識"} ${progress.toFixed(1)}%"><i style="width:${progress.toFixed(2)}%"></i></div>
+        <small>${recognized?(max?"MAX · 超過分は永続熟練度へ":"累計に応じて自動成長"):(BigInt(total)>=10n?"認識条件待ち":"10個で概念を認識")}</small>
       </article>`;
     }).join("")}</div>`:'<div class="empty-state"><p>まだ残滓は見つかっていません。</p></div>'}`;
 }
@@ -1068,10 +1111,15 @@ function guideHTML(){
   return '<div class="kw-list"><section class="kw-card ux-next-steps" aria-label="次の一歩"><strong>次の一歩</strong>'+next.map(x=>'<div class="ux-next-step"><span><strong>'+esc(x.title)+'</strong><small>'+esc(x.description)+'</small></span><button type="button" data-ux-target="'+esc(x.target)+'" aria-label="'+esc(x.title)+'へ">開く</button></div>').join("")+'</section>'+chapters.map(([title,body])=>'<div class="kw-card"><strong>'+esc(title)+'</strong><p>'+esc(body)+'</p></div>').join("")+'</div>';
 }
 function settingsHTML(){
-  const labels=[["confirmEngravingPurchase","刻印の初回購入を確認","OFFならワンタップで取得"],["confirmEngravingUpgrade","刻印の追加強化を確認","OFFならワンタップで強化"],["confirmBoostUpgrade","BOOST強化を確認","OFFならワンタップで強化"],["confirmSourceBreakthrough","源の＋循環を確認","最大レベルから再開始する操作"],["confirmInterference","惑星への干渉を確認","衝突・移転・崩壊・安定化"],["confirmCoreFormation","コア形成を確認","資源消費を伴う操作"],["confirmSaveImport","セーブ読込前に確認","現在の進行を入れ替えるため初期ON推奨"],["confirmSaveRestore","履歴復元前に確認","過去の保存状態へ戻るため初期ON推奨"],["confirmBulkPurchase","一括購入前に確認","OFF：タップですぐ購入。ON：数量・費用を確認してから購入します"],["confirmMaxPurchase","MAX購入前に確認","ON：所持資源の90%以上を使うMAX購入を確認します"],["compact","コンパクト表示","ほかの一覧の密度を調整"],["holdToBuy","長押しで連続購入","押している間だけ通常購入を繰り返します"],["hapticTap","操作時の振動","タップ・購入・節目・解放。対応端末のみ、初期OFF"],["feedbackSound","効果音","購入・節目・収束・解放。初期OFF"],["reducedMotion","動きを減らす","発光・波紋・開閉演出を抑える"],["highContrast","読みやすい境界線","文字と境界のコントラストを調整"],["lowPower","省電力","背景アニメーションを停止"],["confirmConvergence","収束前に確認","収束で失われる内容を確認する"],["showOffline","復帰時に報告","オフラインの進行とBOOSTを表示"]];
+  const labels=[["confirmEngravingPurchase","刻印の初回購入を確認","OFFならワンタップで取得"],["confirmEngravingUpgrade","刻印の追加強化を確認","OFFならワンタップで強化"],["confirmBoostUpgrade","BOOST強化を確認","OFFならワンタップで強化"],["confirmSourceBreakthrough","源の＋循環を確認","最大レベルから再開始する操作"],["confirmInterference","惑星への干渉を確認","衝突・移転・崩壊・安定化"],["confirmCoreFormation","コア形成を確認","資源消費を伴う操作"],["confirmSaveImport","セーブ読込前に確認","現在の進行を入れ替えるため初期ON推奨"],["confirmSaveRestore","履歴復元前に確認","過去の保存状態へ戻るため初期ON推奨"],["confirmBulkPurchase","一括購入前に確認","OFF：タップですぐ購入。ON：数量・費用を確認してから購入します"],["confirmMaxPurchase","MAX購入前に確認","初期OFF。ON：所持資源の90%以上を使うMAX購入を確認"],["compact","コンパクト表示","ほかの一覧の密度を調整"],["holdToBuy","長押しで連続購入","押している間だけ通常購入を繰り返します"],["hapticTap","操作時の振動","タップ・購入・節目・解放。対応端末のみ、初期OFF"],["feedbackSound","効果音","購入・節目・収束・解放。初期OFF"],["showResidueFeedback","残滓獲得演出","全ステージに獲得アイコンを表示。初期ON"],["reducedMotion","動きを減らす","発光・波紋・開閉演出を抑える"],["highContrast","読みやすい境界線","文字と境界のコントラストを調整"],["lowPower","省電力","背景アニメーションを停止"],["confirmConvergence","収束前に確認","収束で失われる内容を確認する"],["showOffline","復帰時に報告","オフラインの進行とBOOSTを表示"]];
+  const savePrefs=new Set(["confirmSaveImport","confirmSaveRestore","showOffline"]);
+  const visible=labels.filter(([id])=>!["confirmSourceBreakthrough","showResidueFeedback"].includes(id)||state.time.unlocked);
+  const group=(title,filter)=>`<h3 class="comfort-settings-heading">${title}</h3>`+visible.filter(([id])=>filter(id)).map(([id,name,desc])=>`<label class="kw-row"><span>${name}<small>${desc}</small></span><input type="checkbox" data-pref="${id}" ${state.settings[id]?"checked":""}></label>`).join("");
   return `<p class="panel-intro">表示や購入時の確認方法を変更できます。</p>
-  ${labels.filter(([id])=>id!=="confirmSourceBreakthrough"||state.time.unlocked).map(([id,name,desc])=>`<label class="kw-row"><span>${name}<small>${desc}</small></span><input type="checkbox" data-pref="${id}" ${state.settings[id]?"checked":""}></label>`).join("")}
+  ${group("購入・確認",id=>id.startsWith("confirm")&&!savePrefs.has(id))}
+  ${group("表示・操作",id=>!id.startsWith("confirm")&&!savePrefs.has(id))}
   <label class="kw-row">数値表記<select class="input-select" data-pref="notation"><option value="auto" ${state.settings.notation==="auto"?"selected":""}>標準（100万以降e）</option><option value="scientific" ${state.settings.notation==="scientific"?"selected":""}>指数 e（1.23e12）</option><option value="exponent" ${state.settings.notation==="exponent"?"selected":""}>指数 E（1.23E+12）</option><option value="zeros" ${state.settings.notation==="zeros"?"selected":""}>0の個数（10^12）</option></select></label>
+  ${group("保存・復帰",id=>savePrefs.has(id))}
   <div class="kw-row"><span>通信<small>クラウド・課金は未接続</small></span><strong>${navigator.onLine?"オンライン":"オフライン"}</strong></div>
   <button class="wide-button" data-organizer="backup">保存・バックアップ・完全リセット</button>
   <button class="wide-button" data-organizer="lab">テストモード</button>
@@ -2092,6 +2140,7 @@ document.addEventListener("change",async e=>{
     state.settings.momentFilter=t.value;save();renderPanel(true);return;
   }
   if(t.dataset.pref){
+    if(t.dataset.pref==="showResidueFeedback"){clearResidueFeedback();residuePrevious=residueSnapshot(state.time);}
     state.settings[t.dataset.pref]=t.type==="checkbox"?t.checked:t.value;applySettings();save();render(true);return;
   }
   if(t.dataset.direction!==undefined){
@@ -2120,12 +2169,12 @@ document.addEventListener("input",e=>{lastInteraction=Date.now();if(e.target.id=
   if(e.target.id==="momentSearch"){momentSearch=e.target.value.slice(0,60);refreshMomentVisibility();}
 });
 function hidePage(){
-  stopHoldPurchase(null,true);clearUXGain();
+  stopHoldPurchase(null,true);clearUXGain();clearResidueFeedback();
   if(!state||readOnly||store.blocked)return;
   const now=Date.now();
   if($("confirmDialog").open)state.lastWall=now;else G.advance(state,now,{offline:false});
   hiddenAt=now;state.boost.active=false;
-  save();
+  save();residuePrevious=residueSnapshot(state.time);
 }
 document.addEventListener("visibilitychange",()=>{
   if(document.hidden)hidePage();
