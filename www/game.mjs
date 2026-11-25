@@ -94,7 +94,7 @@ export function createState(now=Date.now(),mode="normal") {
     convergenceCount:0,purchaseMode:"1",
     time:{unlocked:false,revealedDirections:1,selected:[0],weights:[100,0,0,0,0,0],
       elapsed:0,worldSeconds:0,eventHappened:false,residues:{},concepts:{},common:0,
-      residueAccumulator:0,miracles:[],growth:freshTimeGrowth()},
+      residueAccumulator:0,miracles:[],allocationHistory:{},growth:freshTimeGrowth()},
     universe:{unlocked:false,planets:[],nextPlanetId:1,selectedPlanetId:null,
       maxPlanets:1,collapseCount:0,resources:{},discoveredResources:[],
       receiptMode:null,resourceAccumulator:0,unlockedRanks:[1],autoGenerate:false,autoAccumulator:0,autoReserve:0,knowledge:{},interference:{transfers:[],nextTransferId:1,lastInduceAt:0,stabilizeCooldowns:{}}},
@@ -559,11 +559,28 @@ export function converge(s) {
 export function setPurchaseMode(s,mode) {
   if(!modeSet.has(mode))return false;s.purchaseMode=mode;return true;
 }
+// Store only actually visited direction combinations, never infer past allocations.
+function allocationKey(selected){return [...selected].sort((a,b)=>a-b).join(",");}
+function rememberAllocation(t){
+  if(t.allocationHistory===undefined)t.allocationHistory={};
+  t.allocationHistory[allocationKey(t.selected)]=[...t.weights];
+}
+// Exact whole percentages for newly edited allocations; legacy values are kept
+// untouched until an explicit direction/weight operation.
+function quantizeAllocation(t){
+  const rows=t.selected.map(i=>({i,value:t.weights[i],floor:Math.floor(t.weights[i])}));
+  let left=100-rows.reduce((n,r)=>n+r.floor,0);
+  rows.sort((a,b)=>(b.value-b.floor)-(a.value-a.floor)||a.i-b.i);
+  for(const r of rows){if(left>0){r.floor++;left--;}}
+  for(let i=0;i<6;i++)t.weights[i]=0;
+  for(const r of rows)t.weights[r.i]=r.floor;
+}
 export function setDirection(s,index,on) {
   if(!Number.isInteger(index)||index<0||index>=s.time.revealedDirections)return {ok:false,reason:"まだ認識していない方向です"};
   const a=s.time.selected;
   if(on&&!a.includes(index)){
     if(a.length>=CONFIG.confirmed.maxDirections)return {ok:false,reason:"同時に選べる方向は3つまでです"};
+    rememberAllocation(s.time);
     if(a.length===1){
       s.time.weights[a[0]]=50;
       a.push(index);s.time.weights[index]=50;
@@ -573,9 +590,14 @@ export function setDirection(s,index,on) {
     }
   } else if(!on&&a.includes(index)){
     if(a.length===1)return {ok:false,reason:"少なくとも1方向を残してください"};
+    rememberAllocation(s.time);
     s.time.selected=a.filter(x=>x!==index);s.time.weights[index]=0;
-  }
-  normalizeWeights(s);return {ok:true};
+  }else return {ok:true};
+  const saved=s.time.allocationHistory[allocationKey(s.time.selected)];
+  if(saved)s.time.weights=[...saved];
+  else{normalizeWeights(s);quantizeAllocation(s.time);}
+  rememberAllocation(s.time);
+  return {ok:true};
 }
 export function normalizeWeights(s) {
   const selected=s.time.selected;
@@ -584,13 +606,17 @@ export function normalizeWeights(s) {
 }
 export function setWeight(s,index,value){
   if(!s.time.selected.includes(index)||!Number.isFinite(value)||value<0||value>100)return false;
+  value=Math.round(value);
   const others=s.time.selected.filter(i=>i!==index);
-  if(!others.length){s.time.weights[index]=100;return true;}
+  if(!others.length){s.time.weights[index]=100;rememberAllocation(s.time);return true;}
   const total=others.reduce((a,i)=>a+s.time.weights[i],0),left=100-value;
-  if(total<=0&&left>0)return false;
-  for(const i of others)s.time.weights[i]=left*(s.time.weights[i]/(total||1));
+  // Distribute the remaining integer percentage, including recovery from a 100/0 allocation.
+  const rows=others.map(i=>({i,value:left*(total>0?s.time.weights[i]/total:1/others.length)}));
+  let extra=left-rows.reduce((n,r)=>n+Math.floor(r.value),0);
+  rows.sort((a,b)=>(b.value-Math.floor(b.value))-(a.value-Math.floor(a.value))||a.i-b.i);
+  for(const r of rows){s.time.weights[r.i]=Math.floor(r.value)+(extra>0?1:0);if(extra>0)extra--;}
   s.time.weights[index]=value;
-  normalizeWeights(s);return true;
+  rememberAllocation(s.time);return true;
 }
 export function residueDistribution(s) {
   return growthWeights(s.time,CONTENT.concepts);
@@ -1710,6 +1736,17 @@ export function validateState(input,expectedMode=null) {
   const t=s.time;if(t&&t.miracles===undefined)t.miracles=[];if(!t||typeof t.unlocked!=="boolean"||!Number.isInteger(t.revealedDirections)||t.revealedDirections<1||t.revealedDirections>6)fail("時");
   if(!Array.isArray(t.selected)||!t.selected.length||t.selected.length>3||new Set(t.selected).size!==t.selected.length||t.selected.some(i=>!Number.isInteger(i)||i<0||i>=t.revealedDirections))fail("配分");
   if(!Array.isArray(t.weights)||t.weights.length!==6||t.weights.some(v=>!Number.isFinite(v)||v<0||v>100))fail("比率");
+  if(t.allocationHistory===undefined)t.allocationHistory={};
+  if(!t.allocationHistory||typeof t.allocationHistory!=="object"||Array.isArray(t.allocationHistory)||
+    Object.keys(t.allocationHistory).length>41)fail("方向配分の履歴");
+  for(const [key,weights] of Object.entries(t.allocationHistory)){
+    const ids=key.split(",").map(Number);
+    if(!/^[0-5](,[0-5]){0,2}$/.test(key)||new Set(ids).size!==ids.length||
+      allocationKey(ids)!==key||ids.some(i=>i>=t.revealedDirections)||
+      !Array.isArray(weights)||weights.length!==6||weights.some((v,i)=>
+        !Number.isFinite(v)||v<0||v>100||(!ids.includes(i)&&v!==0))||
+      Math.abs(weights.reduce((n,v)=>n+v,0)-100)>1e-8)fail("方向配分の履歴");
+  }
   for(const k of ["elapsed","worldSeconds","common","residueAccumulator"])if(!Number.isFinite(t[k])||t[k]<0)fail("時の数値");
   if(!Number.isSafeInteger(t.common))fail("共通残滓");
   if(!Array.isArray(t.miracles)||t.miracles.length>5||t.miracles.some(v=>!Number.isInteger(v)||v<1||v>5))fail("方向解放履歴");

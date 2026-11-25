@@ -127,13 +127,24 @@ function masteryScale(units){
   const inner=lgRatio>8?lgRatio:Math.log10(1+10**lgRatio);
   return Math.max(0,Math.log10(1+Math.max(0,inner)));
 }
+const UNIVERSE_EFFECTS=new Set(["planetGrowth","observation","resource","interference","pending"]);
+function directionsAvailable(t,c){
+  return !!t.unlocked&&c.principles.every(p=>{
+    const i=DIR.indexOf(p);
+    return i>=0&&i<t.revealedDirections;
+  });
+}
+function growthAvailable(s,c,type){
+  return type!=="pending"&&directionsAvailable(s.time,c)&&
+    (!UNIVERSE_EFFECTS.has(type)||!!s.universe.unlocked);
+}
 export function growthBonuses(s,concepts){
   const t=s.time;ensureTimeGrowth(t,concepts);
   const effect={event:0,interval:0,time:0,world:0,source:0,planetGrowth:0,
     observation:0,resource:0,interference:0,weight:0,auto:0,pending:0};
   for(const c of concepts){
     const index=idIndex(c.id);if(index<0||index>76)continue;
-    const type=CATEGORIES[index],f=growthProgress(t,c);if(!f)continue;
+    const type=CATEGORIES[index],f=growthProgress(t,c);if(!f||!growthAvailable(s,c,type))continue;
     const ids=c.principles.map(p=>DIR.indexOf(p)),selected=ids.every(i=>i>=0&&t.selected.includes(i)&&(t.weights[i]||0)>0);
     const min=selected?Math.min(...ids.map(i=>t.weights[i])):0;
     const selectedBonus=selected&&ids.length>1?1+GROWTH_TRIAL.selectionBonus*Math.min(1,min*ids.length/100):1;
@@ -142,6 +153,9 @@ export function growthBonuses(s,concepts){
     effect[type]+=max*f*selectedBonus;
   }
   for(let i=0;i<6;i++){
+    // The accumulated value is retained, even while its direction or target stage is locked.
+    if(!t.unlocked||i>=t.revealedDirections)continue;
+    if([1,2,5].includes(i)&&!s.universe.unlocked)continue;
     const h=masteryScale(t.growth.masteryUnits[i]);
     // Trial role mapping. BOOST acquisition/cost remains independent.
     if(i===0)effect.time+=.005*h;
@@ -158,9 +172,9 @@ export function growthEffect(s,c){
   const index=idIndex(c.id),t=s.time;
   if(index<0||index>76)return null;
   const type=CATEGORIES[index],progress=growthProgress(t,c),max=c.id==="TC001"?0.5:(INDIVIDUAL[type]||0);
-  const stage=["planetGrowth","observation","resource","interference","pending"].includes(type)?"宇宙":"時";
+  const stage=UNIVERSE_EFFECTS.has(type)?"宇宙":"時";
   return {type,progress,max,bonus:progress*max,recognized:conceptRecognized(t,c),
-    active:type!=="pending"&&(stage!=="宇宙"||s.universe.unlocked),stage};
+    active:growthAvailable(s,c,type),stage};
 }
 export function growthWeights(t,concepts){
   const positive=t.selected.filter(i=>(t.weights[i]||0)>0).sort((a,b)=>a-b);

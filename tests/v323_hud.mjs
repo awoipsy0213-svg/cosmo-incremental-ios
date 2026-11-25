@@ -65,6 +65,6 @@ check("Web and Capacitor payloads match and the PWA caches the new visuals",()=>
  assert.match(root("sw.js"),/3\.50\.0-time-residue/);
  assert.match(root("sw.js"),/stage-worlds\.css/);
  assert.match(root("sw.js"),/matrix-v324\.css/);
- assert.match(root("index.html"),/3\.56/);
+ assert.match(root("index.html"),/3\.56\.1/);
 });
 console.log("PASS "+passed+" Ver.3.23 HUD, settings and save compatibility checks");
