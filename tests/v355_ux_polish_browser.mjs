@@ -72,4 +72,54 @@ try{
   assert.equal(await p.locator("#uxGain").isVisible(),false);
   assert.deepEqual(errors,[]);await ctx.close();
   console.log("PASS v355 follow-up: deferred notice, source navigation, next action without purchase/convergence, grouped static gain and cleanup");
+
+  // Live engine acquisitions from a different stage, without using a fake UI notification.
+  const comfort=await browser.newContext({viewport:{width:375,height:812},reducedMotion:"reduce"});
+  const q=await comfort.newPage(),comfortErrors=[];q.on("pageerror",e=>comfortErrors.push(String(e)));
+  await q.goto(base+"?lab=1&dev=1");await q.waitForFunction(()=>window.KOTOWARI_DEBUG);
+  await q.evaluate(async()=>{
+    const G=await import("./game.mjs"),{CONTENT}=await import("./content.mjs"),{addTimeResidue}=await import("./time-growth-v350.mjs");
+    const s=G.createState(Date.now(),"lab");s.intro.complete=true;s.time.unlocked=true;s.settings.reducedMotion=true;
+    addTimeResidue(s.time,CONTENT.concepts[0],7n,CONTENT.concepts);
+    window.KOTOWARI_DEBUG.setLabState(s);
+  });
+  assert.equal(await q.locator("#residueFeedback").isVisible(),false,"loaded history must not replay");
+  await q.evaluate(()=>window.KOTOWARI_DEBUG.open("time","concepts"));
+  const unrecognized=q.locator('[data-concept-id="TC001"]');
+  assert.match(await unrecognized.textContent(),/7 \/ 10/);
+  assert.match(await unrecognized.locator(".slim-progress").getAttribute("aria-label"),/70\.0%/);
+  await q.evaluate(()=>window.KOTOWARI_DEBUG.open("organizer","settings"));
+  assert.equal(await q.locator('[data-pref="confirmMaxPurchase"]').isChecked(),false);
+  assert.equal(await q.locator('[data-pref="showResidueFeedback"]').isChecked(),true);
+  assert.equal(await q.locator(".comfort-settings-heading").count(),3);
+  await q.locator('[data-pref="showResidueFeedback"]').uncheck();
+  await q.evaluate(()=>window.KOTOWARI_DEBUG.open("existence","moment"));
+  await q.evaluate(async()=>{
+    const G=await import("./game.mjs");
+    const s=window.KOTOWARI_DEBUG.state();s.totalExistenceEarned="1e20";s.surplusExistence="1";
+    s.time.growth.intervalProgress=27.5;s.lastWall=Date.now();
+    window.KOTOWARI_DEBUG.setLabState(s);
+  });
+  await q.waitForFunction(()=>BigInt(window.KOTOWARI_DEBUG.state().time.growth.totals.TC001||0)>7n,{},{timeout:10000});
+  assert.equal(await q.locator("#residueFeedback").isVisible(),false,"OFF keeps real progression but hides feedback");
+  await q.evaluate(()=>window.KOTOWARI_DEBUG.open("organizer","settings"));
+  await q.locator('[data-pref="showResidueFeedback"]').check();
+  await q.evaluate(()=>window.KOTOWARI_DEBUG.open("existence","moment"));
+  await q.evaluate(()=>{
+    const s=window.KOTOWARI_DEBUG.state();
+    // Clear existing interval-growth residue for a controlled, separate fixture.
+    s.time.growth.totals={};s.time.growth.recognized={};s.time.concepts={};s.time.residues={};
+    s.time.growth.intervalProgress=27.5;s.lastWall=Date.now();
+    window.KOTOWARI_DEBUG.setLabState(s);
+  });
+  await q.locator("#residueFeedback").waitFor({state:"visible",timeout:10000});
+  assert.ok(await q.locator(".residue-feedback-row").count()<=4);
+  assert.equal(await q.locator("#residueFeedback").evaluate(e=>getComputedStyle(e).pointerEvents),"none");
+  assert.equal(await q.locator(".residue-feedback-row").first().evaluate(e=>getComputedStyle(e).animationName),"none");
+  assert.match(await q.locator("#residueFeedback").textContent(),/\+/);
+  await q.evaluate(()=>window.KOTOWARI_DEBUG.open("time","flow"));
+  assert.equal(await q.locator("[data-time-cycle-fill]").count(),1);
+  assert.deepEqual(comfortErrors,[]);
+  await comfort.close();
+  console.log("PASS v356 comfort live cross-stage residue feedback, OFF, settings groups, recognition progress and reduced motion");
 }finally{await browser?.close();server?.kill("SIGTERM");}

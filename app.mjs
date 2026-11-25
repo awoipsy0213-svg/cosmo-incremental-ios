@@ -8,18 +8,18 @@ import {compareMomentPrice,compareMomentPriceProfiles,exportPriceReport,PRICE_MO
 import {MOMENT_GROUP_NAMES,cleanMomentPrefs,toggleMomentFavorite,moveMomentFavorite,momentVisible} from "./moment-filter.mjs";
 import {CONTENT} from "./content.mjs";
 import {PROPOSED,PLANET_EFFECT_PROPOSALS,resourcePrototype,trialPreview,boostTrialCost,proposedSourceSlots,FIRST_CONCEPT_PROPOSALS} from "./design-proposals.mjs";
-import {A,formatAmount,formatExistenceDisplay,formatOrbAmount} from "./numbers.mjs";
+import {A,formatAmount,formatExistenceDisplay,formatExistenceHudDisplay,formatOrbAmount} from "./numbers.mjs";
 import * as G from "./game.mjs";
 import {timeHexMarkup,patchTimeHex,timeHexFlowPanel,timeHexMiraclesPanel} from "./time-hex-v341.mjs";
-import {formatGrowthInt,growthCap} from "./time-growth-v350.mjs";
+import {formatGrowthInt,growthCap,residueIntervalSeconds} from "./time-growth-v350.mjs";
 import {engravingAutomationHTML,engravingPresetHTML} from "./engraving-v342-ui.mjs";
 import {SaveStore,KEYS,decode,encode} from "./save.mjs";
 import {shortDuration} from "./purchase-insights.mjs";
 import {purchasePreview} from "./purchase-preview-v338.mjs";
 import {momentBrief,compactEffectValue} from "./purchase-clarity-v339.mjs";
-import {UNLOCK_COPY,uxSnapshot,uxChanges,unlockRatio,accumulateTapGain,guideSteps} from "./ux-polish-v355.mjs";
+import {UNLOCK_COPY,uxSnapshot,uxChanges,unlockRatio,accumulateTapGain,guideSteps,residueSnapshot,residueGains,mergeResidueFeedback,residueFeedbackRows} from "./ux-polish-v355.mjs";
 
-const APP_RELEASE="3.55";
+const APP_RELEASE="3.56";
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const params=new URLSearchParams(location.search);
@@ -43,6 +43,7 @@ let testGrantDraft="1e12",resetPending=false;
 let pwaRegistration=null,lastUpdateCheck=0,updateRequested=false,reloadForUpdate=false;
 let uxStateRef=null,uxPrevious=null,uxQueue=[],uxActive=null,uxPulseTimer=null,uxLastPulse=0,uxAudio=null;
 let uxGainBatch=null,uxGainTimer=null;
+let residuePrevious=null,residuePending=new Map(),residuePendingAt=0,residueVisibleUntil=0;
 const updatePath=()=> "./update.html"+(mode==="lab"?"?lab=1":"");
 const BOOST_QUICK_ICON=`<svg class="boost-quick-symbol" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M13 2 5 13h6l-1 9 9-12h-6V2z" fill="currentColor"/></svg>`;
 const HOLD_LEVEL_LIMIT=3000; // BOOST-Q673/674: one continuous long press, total acquired Lv
@@ -203,7 +204,8 @@ function readUXSnapshot(){
 function quietUX(){return state.settings.reducedMotion||state.settings.lowPower||window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;}
 function resetUX(){
   uxStateRef=state;uxPrevious=readUXSnapshot();uxQueue=[];uxActive=null;
-  $("uxNotice").hidden=true;clearUXGain();
+  $("uxNotice").hidden=true;clearUXGain();clearResidueFeedback();
+  residuePrevious=residueSnapshot(state.time);
   clearTimeout(uxPulseTimer);delete $("touchField").dataset.uxFeedback;
 }
 function prepareUXAudio(){
@@ -311,6 +313,47 @@ function updateUX(){
     if(changes.feedback)feedbackUX(changes.feedback,changes.feedback!=="purchase"||Date.now()-lastInteraction<550);
   }
   syncUXNotice();
+  updateResidueFeedback();
+}
+function hideResidueFeedback(){
+  $("residueFeedback").hidden=true;
+  $("residueFeedbackRows").replaceChildren();
+  residueVisibleUntil=0;
+}
+function clearResidueFeedback(){
+  residuePending=new Map();residuePendingAt=0;hideResidueFeedback();
+}
+function updateResidueFeedback(){
+  const next=residueSnapshot(state.time),before=residuePrevious;residuePrevious=next;
+  if(!state.settings.showResidueFeedback||!state.intro.complete||!next.unlocked||readOnly||store.blocked||document.hidden){
+    clearResidueFeedback();return;
+  }
+  const now=Date.now(),gains=residueGains(before,next);
+  if(gains.length){
+    if(!residuePending.size)residuePendingAt=now;
+    residuePending=mergeResidueFeedback(residuePending,gains);
+  }
+  // Never cover an important modal/unlock or full-height upgrade list.
+  // Already displayed entries are not replayed; only undisplayed gains queue.
+  if(uxNoticeBlocked()||busyBirth||!$("uxNotice").hidden){
+    if(!$("residueFeedback").hidden)hideResidueFeedback();
+    return;
+  }
+  if(residueVisibleUntil&&now>=residueVisibleUntil)hideResidueFeedback();
+  if(residueVisibleUntil||!residuePending.size||now-residuePendingAt<250)return;
+  const palette=["#9be9ff","#d7b5ff","#ffce8c","#9ee9bc","#ffb7d2","#c1caff"];
+  const rows=residueFeedbackRows(residuePending).map(g=>{
+    const concept=CONTENT.concepts.find(c=>c.id===g.id);
+    const symbol=concept?icon(concept):g.id==="common"?'<span class="residue-fallback">◇</span>':'<span class="residue-fallback">✧</span>';
+    const color=concept?palette[concept.iconIndex%palette.length]:g.id==="common"?"#e2e5ee":"#c9b3ff";
+    const note=g.id==="common"?"共通":g.id==="aggregate"?"他"+g.kinds+"種":g.recognized?"認識":g.first?"初発見":"";
+    const row=document.createElement("div");row.className="residue-feedback-row"+(g.recognized||g.first?" residue-new":"");
+    row.style.setProperty("--residue-tone",color);row.dataset.residueId=g.id;
+    row.innerHTML=symbol+'<strong>+'+esc(formatGrowthInt(g.count))+'</strong><small>'+esc(note)+'</small>';
+    return row;
+  });
+  $("residueFeedbackRows").replaceChildren(...rows);$("residueFeedback").hidden=false;
+  residueVisibleUntil=now+1500;residuePending=new Map();residuePendingAt=0;
 }
 function unlockProgressText(){
   const q=G.timeUnlockProgress(state);
@@ -370,13 +413,15 @@ function renderWorld(){
   document.body.style.setProperty("--intro-light",String(.2+.8*Math.min(1,state.intro.touches/CONFIG.provisional.introTouches)));
   const stage=CONTENT.stages.find(x=>x.id===currentStage)||CONTENT.stages[0];
   document.body.dataset.cosmoStage=String(stage.number);
+  document.body.dataset.uiStage=currentStage;
   $("stageKicker").textContent=`STAGE 0${stage.number}`;
   const isTime=stage.id==="time";
   document.body.classList.toggle("time-hex-world",isTime);
   const stageScene=$("touchField");
-  stageScene.setAttribute("role",isTime?"group":"button");
-  stageScene.setAttribute("tabindex",isTime?"-1":"0");
-  stageScene.setAttribute("aria-label",isTime?"時の方向をタップして選択":stage.id==="existence"?"光へ干渉してオーブを生む":"この世界へ干渉してオーブを生む");
+  const isSceneOnly=["time","universe","life"].includes(currentStage);
+  stageScene.setAttribute("role",isSceneOnly?"group":"button");
+  stageScene.setAttribute("tabindex",isSceneOnly?"-1":"0");
+  stageScene.setAttribute("aria-label",isTime?"時の方向をタップして選択":currentStage==="universe"?"惑星の観測":currentStage==="life"?"生命の観測":"光へ干渉してオーブを生む");
   $("stageTitle").textContent=stage.name;
   $("activeStageTitle").textContent=`ステージ · ${stage.name}`;
   const rate=G.production(state),tap=G.tapPower(state);
@@ -386,7 +431,7 @@ function renderWorld(){
   if(showShared){
     const timeSpeed=state.boost.active&&state.boost.seconds>0?G.boostTimeMultiplier(state):1;
     const metrics=[
-      ["existence",formatExistenceDisplay(G.existence(state)),"存在",""],
+      ["existence",formatExistenceHudDisplay(G.existence(state)),"存在",""],
       ["timeSpeed","×"+timeSpeed,"時間の経過速度",""]
     ];
     for(const [id,formatted,label,unit] of metrics){
@@ -478,14 +523,33 @@ function renderWorld(){
   // DEC-20261122-005: the permanent “理の状態” sidebar is removed.
   // Game state and history remain intact; only redundant on-screen copy is hidden.
   $("heroSigil").textContent=currentStage==="time"?"時":currentStage==="universe"?"宇":currentStage==="life"?"生":"理";
+  renderStageIdentity();
   const timeRoot=$("timeHexRoot");
   if(timeRoot){
     if(currentStage==="time"){
       if(!timeRoot.firstElementChild)timeRoot.innerHTML=timeHexMarkup();
       timeRoot.hidden=false;
-      patchTimeHex(timeRoot,state.time,{readOnly:readOnly||store.blocked});
+      patchTimeHex(timeRoot,state.time,{readOnly:readOnly||store.blocked,interval:residueIntervalSeconds(state.time,CONTENT.concepts)});
     }else timeRoot.hidden=true;
   }
+}
+// Fixed scene-level portal, separate from the touch target. Never grants resources.
+function renderStageIdentity(){
+  const panel=$("stageIdentityPanel");
+  if(!panel)return;
+  if(currentStage!=="universe"||!state.universe.unlocked){
+    panel.hidden=true;if(panel.firstChild)panel.replaceChildren();return;
+  }
+  panel.hidden=false;
+  const u=state.universe,selected=u.selectedPlanetId;
+  const markup='<div class="stage-planet-heading"><strong>惑星観測</strong><small>'+u.planets.length+' / '+u.maxPlanets+'</small></div>'+
+    '<div class="stage-planet-strip" role="group" aria-label="観測する惑星">'+
+    (u.planets.length?u.planets.map((p,i)=>'<button type="button" data-world-planet="'+esc(p.id)+'" aria-pressed="'+String(selected===p.id)+'" '+(readOnly||store.blocked?'disabled':'')+'><i aria-hidden="true"></i><span>惑星 '+(i+1)+'</span></button>').join(""):'<span class="stage-planet-empty">まだ惑星はありません</span>')+
+    '</div><nav class="stage-world-links" aria-label="宇宙の操作">'+
+    [["planets","惑星育成"],["resources","資源投入"],["observations","観測・干渉"]].map(([id,name])=>'<button type="button" data-world-open="'+id+'">'+name+'</button>').join("")+'</nav>';
+  if(panel.dataset.markup!==markup){panel.innerHTML=markup;panel.dataset.markup=markup;}
+  // Clearing on stage switches must not leave a stale digest.
+  if(!panel.firstChild)panel.innerHTML=markup;
 }
 function quoteText(q){
   if(q.count) return `+${q.count.toLocaleString("ja-JP")} · ${o(q.cost,"ceil")}`;
@@ -599,15 +663,37 @@ function sourcesHTML(){
   return `<button type="button" class="source-summary" data-source-summary aria-label="源の共振と一巡の詳細" title="源の共振と一巡の詳細">源の共振 ${resonance.completed}/${resonance.total} · 一巡 ${cycle.reached}/${cycle.total} · ⋯</button>
   <div class="row-grid compact-upgrades">${CONTENT.sources.map((x,i)=>{
     const v=state.sources[x.id];
-    const cycleReady=v.level===1000000&&cycle.unlocked&&!readOnly&&!store.blocked;
+    const cycleReady=G.sourceBreakthroughReady(state,x.id)&&!readOnly&&!store.blocked;
     return `<article class="kw-card source-card purchase-card" data-source-entry="${x.id}" data-purchase-card>
       <div class="card-top"><strong title="${esc(x.name)}">${String(i+1).padStart(2,"0")} ${esc(x.name)} ＋${v.plus.toLocaleString("ja-JP")}</strong><small data-source-level="${x.id}">Lv.${v.level.toLocaleString("ja-JP")}</small></div>
       <button type="button" class="more-button source-detail-button" data-source-detail="${x.id}" aria-label="${esc(x.name)}の詳細" title="効果の詳細">⋯</button>
-      <button type="button" class="source-cycle-button" data-breakthrough="${x.id}" ${!cycleReady?"disabled":""} aria-label="${esc(x.name)}の＋循環" title="${cycleReady?"＋循環を実行":v.level===1000000?"全30源一巡まで未解放":"Lv.1,000,000で＋循環が解放"}">↻</button>
+      <button type="button" class="source-cycle-button" data-breakthrough="${x.id}" ${!cycleReady?"disabled":""} aria-label="${esc(x.name)}の＋循環" title="${cycleReady?"限界突破：＋1・Lv1へ戻る":v.plus>=1000000?"＋値の上限に到達":"この源のLv.1,000,000で限界突破"}">＋1</button>
       <div class="source-rates" title="この源の現在の毎秒オーブ生成量と、次の節目での生産2倍効果"><span data-source-next="${x.id}" title="毎秒 ${esc(o(G.sourceProduction(state,x.id)))} オーブ">毎秒 ${esc(o(G.sourceProduction(state,x.id)))} オーブ</span><span data-source-total="${x.id}">${esc(sourceMilestoneLabel(x.id))}</span></div>
       ${cardQuote("source",x.id)}
     </article>`;
   }).join("")}</div>`;
+}
+// Read-only cross-stage summary, independent of automation preferences and unlock gates.
+function automationStageOverview(){
+  const master=state.settings.automationEnabled!==false,e=state.engraving,u=state.universe;
+  const enabled=(allowed,on)=>!allowed?"未解放":on?(master?"稼働":"一時停止"):"OFF";
+  const exists=[
+    ["刹那",enabled(engravingAutoMomentRate(state)>0,e.autoBuy.moment.enabled)],
+    ...(state.time.unlocked?[["源",enabled(engravingAutoSourceRate(state)>0,e.autoBuy.source.enabled)]]:[]),
+    ...(engravingUnlocked(state)?[["刻印",enabled(e.owned.includes("ENG-17")&&e.levels?.["ENG-17"]>0,e.autoEngraving.enabled)]]:[]),
+    ["収束",enabled(e.owned.includes(ENGRAVING_AUTO_CONVERGE_ID),e.autoConverge.enabled)]
+  ];
+  const entries=[
+    ["existence","存在","◇",true,exists],
+    ["time","時","◈",state.time.unlocked,[["自然進行","時間に連動"]]],
+    ["universe","宇宙","◎",u.unlocked,[["惑星生成",enabled(autoPlanetAvailable(u),u.autoGenerate)]]],
+    ["life","生命","✳",state.life.unlocked,[["自動化","設定なし"]]]
+  ];
+  return '<section class="stage-auto-list" aria-label="全ステージ自動化一覧">'+entries.map(([id,name,icon,unlocked,items])=>
+    '<button type="button" class="stage-auto-tile" data-auto-overview="'+id+'" '+(!unlocked?'disabled':'')+'>'+
+      '<span class="stage-auto-symbol" aria-hidden="true">'+(unlocked?icon:"?")+'</span><span class="stage-auto-copy"><strong>'+(unlocked?name:"？？？")+'</strong><small>'+
+      (unlocked?items.map(([k,v])=>esc(k+" "+v)).join(" · "):"未解放")+'</small></span><span aria-hidden="true">›</span></button>'
+  ).join("")+'</section>';
 }
 function automationHTML(){
   const tab=currentSub.slice(5),e=state.engraving,disabled=readOnly||store.blocked;
@@ -633,7 +719,7 @@ function automationHTML(){
     (engravingUnlocked(state)?status("刻印",e.owned.includes("ENG-17")&&e.levels?.["ENG-17"]>0,e.autoEngraving.enabled):"")+
     status("収束",convergeOwned,e.autoConverge.enabled)+'</div>'+
     '<button type="button" class="automation-details-button" data-action="toggle-auto-details" aria-expanded="'+
-    String(automationDetailsOpen)+'">'+(automationDetailsOpen?"設定を閉じる":"設定を開く")+'</button></section>';
+    String(automationDetailsOpen)+'">'+(automationDetailsOpen?"設定を閉じる":"設定を開く")+'</button></section>'+automationStageOverview();
   if(!automationDetailsOpen)return overview;
   if(tab==="existence"){
     const buy=(kind,label,rate,engravingId)=>{
@@ -801,7 +887,7 @@ function conceptHTML(){
       const total=t.growth?.totals?.[c.id]||String(t.residues[c.id]||0);
       const recognized=Boolean(t.growth?.recognized?.[c.id]||t.concepts[c.id]>0);
       const effect=G.conceptEffect(state,c.id),max=BigInt(total)>=growthCap(c);
-      const progress=Math.min(100,Math.max(0,(effect?.progress||0)*100));
+      const progress=recognized?Math.min(100,Math.max(0,(effect?.progress||0)*100)):Number(BigInt(total)>=10n?10n:BigInt(total))*10;
       const name=recognized?c.name:"？？？の残滓";
       const effectName=CONCEPT_EFFECT_NAMES[effect?.rule?.type]||"固有効果";
       const bonus=effect?.bonus?((effect.bonus)*100).toFixed(2)+"%":"0%";
@@ -809,10 +895,10 @@ function conceptHTML(){
       const info=recognized?effectName+" +"+bonus+" · "+status:"認識すると効果が明らかになります";
       return `<article class="kw-card concept-card time-growth-card" data-concept-id="${esc(c.id)}">
         <div class="card-top">${icon(c)}<strong class="${recognized?"":"unrecognized"}" title="${esc(name)}">${esc(name)}</strong></div>
-        <small>累計 ${esc(formatGrowthInt(total))} / ${esc(formatGrowthInt(growthCap(c)))}</small>
+        <small>${recognized?`累計 ${esc(formatGrowthInt(total))} / ${esc(formatGrowthInt(growthCap(c)))}`:BigInt(total)>=10n?`残滓 ${esc(formatGrowthInt(total))} 個`:`残滓 ${esc(formatGrowthInt(total))} / 10`}</small>
         <small title="${esc(info)}">${esc(info)}</small>
-        <div class="slim-progress" aria-label="効果成長 ${progress.toFixed(1)}%"><i style="width:${progress.toFixed(2)}%"></i></div>
-        <small>${max?"MAX · 超過分は永続熟練度へ":"累計に応じて自動成長"}</small>
+        <div class="slim-progress" aria-label="${recognized?"効果成長":"概念認識"} ${progress.toFixed(1)}%"><i style="width:${progress.toFixed(2)}%"></i></div>
+        <small>${recognized?(max?"MAX · 超過分は永続熟練度へ":"累計に応じて自動成長"):(BigInt(total)>=10n?"認識条件待ち":"10個で概念を認識")}</small>
       </article>`;
     }).join("")}</div>`:'<div class="empty-state"><p>まだ残滓は見つかっていません。</p></div>'}`;
 }
@@ -1025,10 +1111,15 @@ function guideHTML(){
   return '<div class="kw-list"><section class="kw-card ux-next-steps" aria-label="次の一歩"><strong>次の一歩</strong>'+next.map(x=>'<div class="ux-next-step"><span><strong>'+esc(x.title)+'</strong><small>'+esc(x.description)+'</small></span><button type="button" data-ux-target="'+esc(x.target)+'" aria-label="'+esc(x.title)+'へ">開く</button></div>').join("")+'</section>'+chapters.map(([title,body])=>'<div class="kw-card"><strong>'+esc(title)+'</strong><p>'+esc(body)+'</p></div>').join("")+'</div>';
 }
 function settingsHTML(){
-  const labels=[["confirmEngravingPurchase","刻印の初回購入を確認","OFFならワンタップで取得"],["confirmEngravingUpgrade","刻印の追加強化を確認","OFFならワンタップで強化"],["confirmBoostUpgrade","BOOST強化を確認","OFFならワンタップで強化"],["confirmSourceBreakthrough","源の＋循環を確認","最大レベルから再開始する操作"],["confirmInterference","惑星への干渉を確認","衝突・移転・崩壊・安定化"],["confirmCoreFormation","コア形成を確認","資源消費を伴う操作"],["confirmSaveImport","セーブ読込前に確認","現在の進行を入れ替えるため初期ON推奨"],["confirmSaveRestore","履歴復元前に確認","過去の保存状態へ戻るため初期ON推奨"],["confirmBulkPurchase","一括購入前に確認","OFF：タップですぐ購入。ON：数量・費用を確認してから購入します"],["confirmMaxPurchase","MAX購入前に確認","ON：所持資源の90%以上を使うMAX購入を確認します"],["compact","コンパクト表示","ほかの一覧の密度を調整"],["holdToBuy","長押しで連続購入","押している間だけ通常購入を繰り返します"],["hapticTap","操作時の振動","タップ・購入・節目・解放。対応端末のみ、初期OFF"],["feedbackSound","効果音","購入・節目・収束・解放。初期OFF"],["reducedMotion","動きを減らす","発光・波紋・開閉演出を抑える"],["highContrast","読みやすい境界線","文字と境界のコントラストを調整"],["lowPower","省電力","背景アニメーションを停止"],["confirmConvergence","収束前に確認","収束で失われる内容を確認する"],["showOffline","復帰時に報告","オフラインの進行とBOOSTを表示"]];
+  const labels=[["confirmEngravingPurchase","刻印の初回購入を確認","OFFならワンタップで取得"],["confirmEngravingUpgrade","刻印の追加強化を確認","OFFならワンタップで強化"],["confirmBoostUpgrade","BOOST強化を確認","OFFならワンタップで強化"],["confirmSourceBreakthrough","源の＋循環を確認","最大レベルから再開始する操作"],["confirmInterference","惑星への干渉を確認","衝突・移転・崩壊・安定化"],["confirmCoreFormation","コア形成を確認","資源消費を伴う操作"],["confirmSaveImport","セーブ読込前に確認","現在の進行を入れ替えるため初期ON推奨"],["confirmSaveRestore","履歴復元前に確認","過去の保存状態へ戻るため初期ON推奨"],["confirmBulkPurchase","一括購入前に確認","OFF：タップですぐ購入。ON：数量・費用を確認してから購入します"],["confirmMaxPurchase","MAX購入前に確認","初期OFF。ON：所持資源の90%以上を使うMAX購入を確認"],["compact","コンパクト表示","ほかの一覧の密度を調整"],["holdToBuy","長押しで連続購入","押している間だけ通常購入を繰り返します"],["hapticTap","操作時の振動","タップ・購入・節目・解放。対応端末のみ、初期OFF"],["feedbackSound","効果音","購入・節目・収束・解放。初期OFF"],["showResidueFeedback","残滓獲得演出","全ステージに獲得アイコンを表示。初期ON"],["reducedMotion","動きを減らす","発光・波紋・開閉演出を抑える"],["highContrast","読みやすい境界線","文字と境界のコントラストを調整"],["lowPower","省電力","背景アニメーションを停止"],["confirmConvergence","収束前に確認","収束で失われる内容を確認する"],["showOffline","復帰時に報告","オフラインの進行とBOOSTを表示"]];
+  const savePrefs=new Set(["confirmSaveImport","confirmSaveRestore","showOffline"]);
+  const visible=labels.filter(([id])=>!["confirmSourceBreakthrough","showResidueFeedback"].includes(id)||state.time.unlocked);
+  const group=(title,filter)=>`<h3 class="comfort-settings-heading">${title}</h3>`+visible.filter(([id])=>filter(id)).map(([id,name,desc])=>`<label class="kw-row"><span>${name}<small>${desc}</small></span><input type="checkbox" data-pref="${id}" ${state.settings[id]?"checked":""}></label>`).join("");
   return `<p class="panel-intro">表示や購入時の確認方法を変更できます。</p>
-  ${labels.filter(([id])=>id!=="confirmSourceBreakthrough"||state.time.unlocked).map(([id,name,desc])=>`<label class="kw-row"><span>${name}<small>${desc}</small></span><input type="checkbox" data-pref="${id}" ${state.settings[id]?"checked":""}></label>`).join("")}
+  ${group("購入・確認",id=>id.startsWith("confirm")&&!savePrefs.has(id))}
+  ${group("表示・操作",id=>!id.startsWith("confirm")&&!savePrefs.has(id))}
   <label class="kw-row">数値表記<select class="input-select" data-pref="notation"><option value="auto" ${state.settings.notation==="auto"?"selected":""}>標準（100万以降e）</option><option value="scientific" ${state.settings.notation==="scientific"?"selected":""}>指数 e（1.23e12）</option><option value="exponent" ${state.settings.notation==="exponent"?"selected":""}>指数 E（1.23E+12）</option><option value="zeros" ${state.settings.notation==="zeros"?"selected":""}>0の個数（10^12）</option></select></label>
+  ${group("保存・復帰",id=>savePrefs.has(id))}
   <div class="kw-row"><span>通信<small>クラウド・課金は未接続</small></span><strong>${navigator.onLine?"オンライン":"オフライン"}</strong></div>
   <button class="wide-button" data-organizer="backup">保存・バックアップ・完全リセット</button>
   <button class="wide-button" data-organizer="lab">テストモード</button>
@@ -1168,8 +1259,9 @@ function commonInfoHTML(){
   const timeSpeed=state.boost.active&&state.boost.seconds>0?G.boostTimeMultiplier(state):1;
   return '<section class="common-info-detail" aria-label="全ステージ共通情報の詳細">' +
     '<p class="panel-intro">存在と時間の流れを確認できます。</p>' +
-    '<div class="kw-card"><span>存在</span><strong>'+esc(formatExistenceDisplay(G.existence(state)))+'</strong></div>' +
+    '<div class="kw-card"><span>存在</span><strong>'+esc(formatExistenceHudDisplay(G.existence(state)))+'</strong></div>' +
     '<div class="kw-card"><span>時間の経過速度</span><strong>×'+esc(timeSpeed)+'</strong><small>BOOST使用中は時間が加速します。</small></div>' +
+    '<div class="shared-management-links"><button type="button" data-action="open-automation">自動化一覧</button><button type="button" data-organizer="statistics">統計</button><button type="button" data-organizer="boost">BOOST</button><button type="button" data-organizer="settings">設定</button></div>' +
     '<button type="button" class="wide-button" data-action="return-stage-panel">ステージ操作に戻る</button></section>';
 }
 /** Presentation-only filtering; never edits or deletes historical saved events. */
@@ -1294,7 +1386,10 @@ function refreshPurchaseButtons(){
       const nextText=`毎秒 ${o(G.sourceProduction(state,id))} オーブ`;
       if(next&&next.textContent!==nextText){next.textContent=nextText;next.title=nextText;}
       const cycle=card?.querySelector("[data-breakthrough]");
-      if(cycle)cycle.disabled=state.sources[id].level!==1000000||!G.sourceCycleStatus(state).unlocked||readOnly||store.blocked;
+      if(cycle){
+        cycle.disabled=!G.sourceBreakthroughReady(state,id)||readOnly||store.blocked;
+        cycle.title=state.sources[id].plus>=1000000?"＋値の上限に到達":cycle.disabled?"この源のLv.1,000,000で限界突破":"限界突破：＋1・Lv1へ戻る";
+      }
     }
   }
   const summary=`購入可能 ${ready} / ${buttons.length} · 所持 ${o(state.orbs)} オーブ`;
@@ -1407,7 +1502,7 @@ const activePointers=new Set();
 $("touchField").addEventListener("pointerdown",e=>{
   if(e.pointerType==="mouse"&&e.button!==0)return;
   if(activePointers.has(e.pointerId))return;
-  if(currentStage==="time"&&e.target.closest("#timeHexRoot"))return;
+  if(["time","universe","life"].includes(currentStage))return;
   activePointers.add(e.pointerId);e.preventDefault();
   handleTap(e.clientX,e.clientY);
 });
@@ -1769,6 +1864,24 @@ document.addEventListener("click",async e=>{
       currentSub=b.dataset.timeOpen;infoPanelOpen=false;
       setSheet("half");render(true);return;
     }
+    if(b.dataset.autoOverview){
+      if(currentStage!=="automation"||!availableStages().some(x=>x.id===b.dataset.autoOverview))return;
+      stopHoldPurchase(null,true);
+      currentSub="auto-"+b.dataset.autoOverview;automationDetailsOpen=true;
+      if(!readOnly&&!store.blocked){state.settings.automationStage=b.dataset.autoOverview;save();}
+      renderPanel(true);return;
+    }
+    if(b.dataset.worldOpen){
+      if(currentStage!=="universe"||!state.universe.unlocked||!["planets","resources","observations"].includes(b.dataset.worldOpen))return;
+      stopHoldPurchase(null,true);infoPanelOpen=false;currentSub=b.dataset.worldOpen;
+      setSheet("half");render(true);return;
+    }
+    if(b.dataset.worldPlanet){
+      if(currentStage!=="universe"||!state.universe.unlocked||readOnly||store.blocked)return;
+      if(!state.universe.planets.some(p=>p.id===b.dataset.worldPlanet))return;
+      state.universe.selectedPlanetId=b.dataset.worldPlanet;save();currentSub="planets";
+      setSheet("half");render(true);return;
+    }
     if(b.dataset.child){
       stopHoldPurchase(null,true);
       if(uxActive&&!$("uxNotice").hidden)closeUX(false);
@@ -1869,7 +1982,7 @@ document.addEventListener("click",async e=>{
       const next=resonance.next?resonance.next.id+" Lv."+resonance.next.level+"（残り"+resonance.next.remaining+"Lv）":"全節目到達";
       await ask("源の共振・一巡","共振 "+resonance.completed+"/"+resonance.total+
         "\n次の節目："+next+"\n一巡 "+cycle.reached+"/"+cycle.total+
-        "\n＋循環："+(cycle.unlocked?"解放":"未解放"),"閉じる");
+        "\n各源は個別にLv100万で限界突破できます。一巡は達成記録です。","閉じる");
       return;
     }
     if(b.dataset.sourceDetail){
@@ -1877,7 +1990,7 @@ document.addEventListener("click",async e=>{
       const status=G.sourceFinalEffectStatus(state,x.id);
       const v=state.sources[x.id],ms=CONFIG.confirmed.sourceMilestones,done=ms.filter(k=>k<=v.level).length,next=ms.find(k=>k>v.level);
       const special=status?.unlocked&&status?.implemented?"\n＋循環の固有効果："+status.label:"";
-      await ask(x.name,`現在 Lv.${v.level.toLocaleString("ja-JP")} / ＋${v.plus}\n節目 ${done}/${ms.length} / 次 ${next||"MAX"}\n節目達成ごとに生産×2（累積 ×${o(G.sourceMilestoneMultiplier(v.level))}）\n＋倍率 ×${f(G.sourcePlusGain(v.plus))}\n現在 ${o(G.sourceProduction(state,x.id))} オーブ/秒\n次Lv増加 ${o(G.sourceNextGain(state,x.id))} オーブ/秒\n※節目で購入価格は変化しません。${special}`,"閉じる");return;
+      await ask(x.name,`現在 Lv.${v.level.toLocaleString("ja-JP")} / ＋${v.plus}\n節目 ${done}/${ms.length} / 次 ${next||"MAX"}\n節目達成ごとに生産×2（累積 ×${o(G.sourceMilestoneMultiplier(v.level))}）\n＋倍率 ×${f(G.sourcePlusGain(v.plus))}\n現在 ${o(G.sourceProduction(state,x.id))} オーブ/秒\n次Lv増加 ${o(G.sourceNextGain(state,x.id))} オーブ/秒\n※各源はLv100万で＋1、Lv1から再育成できます。現在の生産は一時的に大幅に低下します。\n※節目で購入価格は変化しません。${special}`,"閉じる");return;
     }
     if(readOnly){toast("別タブの書き込みを保護中です");return;}
     if(store.blocked && b.dataset.restore===undefined){toast("元セーブを保護中です。「保存」から復元してください。");return;}
@@ -1908,7 +2021,10 @@ document.addEventListener("click",async e=>{
       const id=b.dataset.breakthrough,x=CONTENT.sources.find(item=>item.id===id);
       if(!x)return toast("源を確認できません");
       const source=state.sources[id];
-      if(state.settings.confirmSourceBreakthrough&&!await ask("＋循環の確認",x.name+"：Lv."+source.level.toLocaleString("ja-JP")+" / ＋"+source.plus+" → ＋"+(source.plus+1)+"・Lv1から再開始します。","＋循環する"))return;
+      if(!G.sourceBreakthroughReady(state,id)||store.blocked)return toast("この源がLv100万になると限界突破できます");
+      const beforeState=state;
+      if(state.settings.confirmSourceBreakthrough&&!await ask("限界突破の確認",x.name+"：Lv."+source.level.toLocaleString("ja-JP")+" / ＋"+source.plus+" → ＋"+(source.plus+1)+"・Lv1から再育成します。\n現在の生産は大幅に低下します。取得済み固有効果は保持されます。","限界突破する"))return;
+      if(state!==beforeState||readOnly||store.blocked)return toast("進行状態が変わりました。もう一度確認してください");
       resultDone(G.breakthrough(state,id));return;
     }
     if(b.dataset.interference){
@@ -2024,6 +2140,7 @@ document.addEventListener("change",async e=>{
     state.settings.momentFilter=t.value;save();renderPanel(true);return;
   }
   if(t.dataset.pref){
+    if(t.dataset.pref==="showResidueFeedback"){clearResidueFeedback();residuePrevious=residueSnapshot(state.time);}
     state.settings[t.dataset.pref]=t.type==="checkbox"?t.checked:t.value;applySettings();save();render(true);return;
   }
   if(t.dataset.direction!==undefined){
@@ -2052,12 +2169,12 @@ document.addEventListener("input",e=>{lastInteraction=Date.now();if(e.target.id=
   if(e.target.id==="momentSearch"){momentSearch=e.target.value.slice(0,60);refreshMomentVisibility();}
 });
 function hidePage(){
-  stopHoldPurchase(null,true);clearUXGain();
+  stopHoldPurchase(null,true);clearUXGain();clearResidueFeedback();
   if(!state||readOnly||store.blocked)return;
   const now=Date.now();
   if($("confirmDialog").open)state.lastWall=now;else G.advance(state,now,{offline:false});
   hiddenAt=now;state.boost.active=false;
-  save();
+  save();residuePrevious=residueSnapshot(state.time);
 }
 document.addEventListener("visibilitychange",()=>{
   if(document.hidden)hidePage();

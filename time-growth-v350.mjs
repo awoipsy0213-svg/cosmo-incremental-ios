@@ -250,12 +250,16 @@ function settleCommon(s,concepts,total,rng){
     (s.counters.conversions||0)+Number(conversions>BigInt(Number.MAX_SAFE_INTEGER)?BigInt(Number.MAX_SAFE_INTEGER):conversions));
   return recognized;
 }
+// One shared interval projection for simulation and the observation UI.
+export function residueIntervalSeconds(t,concepts){
+  return Math.max(GROWTH_TRIAL.minIntervalSeconds,
+    GROWTH_TRIAL.firstIntervalSeconds/(1+29*growthProgress(t,concepts[1])));
+}
 export function advanceTimeResidues(s,concepts,gameSeconds,rng=Math.random){
   const t=s.time,g=ensureTimeGrowth(t,concepts);
   const priorRecognized=settleCommon(s,concepts,toBig(t.common||0),rng);
   if(!(gameSeconds>0))return {events:"0",converted:g.converted,recognized:priorRecognized};
-  const interval=Math.max(GROWTH_TRIAL.minIntervalSeconds,
-    GROWTH_TRIAL.firstIntervalSeconds/(1+29*growthProgress(t,concepts[1])));
+  const interval=residueIntervalSeconds(t,concepts);
   const elapsed=g.intervalProgress+gameSeconds;
   const cycles=Math.floor(elapsed/interval);
   g.intervalProgress=elapsed-cycles*interval;

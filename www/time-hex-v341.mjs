@@ -31,7 +31,7 @@ export function timeHexMarkup(){
     '<span class="time-hex-node-symbol" aria-hidden="true">'+["≈","◇","✦","⟡","❖","✧"][i]+'</span>'+
     '<strong data-hex-name>？</strong><small data-hex-weight></small></button>').join("");
   return '<section class="time-hex-stage" aria-label="時の六方向と配分">'+
-    '<div class="time-hex-caption"><span data-hex-discovery>認識 1 / 6</span><span data-hex-selection>配分 1 / 3</span></div>'+
+    '<div class="time-hex-elapsed"><small>経過時間</small><strong data-hex-elapsed>0 秒</strong></div><div class="time-hex-caption"><span data-hex-discovery>認識 1 / 6</span><span data-hex-selection>配分 1 / 3</span></div>'+
     '<div class="time-hex-canvas" role="group" aria-label="六角形の方向選択">'+
     '<svg class="time-hex-svg" viewBox="0 0 320 320" aria-hidden="true" focusable="false">'+
     '<circle class="time-hex-halo" cx="160" cy="160" r="133"/>'+
@@ -43,7 +43,7 @@ export function timeHexMarkup(){
     '<div class="time-hex-core" aria-label="選択した方向"><span class="time-hex-core-symbol" aria-hidden="true">◈</span>'+
     '<strong data-hex-core>流動</strong><small data-hex-core-hint>選択中</small></div>'+
     nodes+'</div>'+
-    '<p class="time-hex-help">方向をタップして選択 · 最大3方向</p>'+
+    '<div class="time-hex-help time-observation-cycle"><span>干渉判定</span><span class="time-cycle-track" role="progressbar" aria-label="次の干渉判定までの進行（獲得を保証しません）" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i data-time-cycle-fill></i></span><small data-time-cycle-percent>0%</small></div>'+
     '<div class="time-hex-actions"><button type="button" class="time-hex-adjust" data-time-open="flow">配分調整</button>'+
     '<nav class="time-hex-shortcuts" aria-label="時の詳細">'+
     '<button type="button" data-time-open="flow">残滓</button>'+
@@ -52,7 +52,7 @@ export function timeHexMarkup(){
     '<p class="time-hex-world-progress" data-hex-world-status aria-live="off">世界は変化を続けている</p>'+
     '</section>';
 }
-export function patchTimeHex(root,t,{readOnly=false}={}){
+export function patchTimeHex(root,t,{readOnly=false,interval=30}={}){
   if(!root)return;
   const nodes=timeHexNodes(t,{readOnly});
   nodes.forEach(n=>{
@@ -80,6 +80,11 @@ export function patchTimeHex(root,t,{readOnly=false}={}){
     const element=root.querySelector(selector);
     if(element&&element.textContent!==value)element.textContent=value;
   };
+  const cycle=Math.floor(100*clamp((Number(t.growth?.intervalProgress)||0)/Math.max(1,interval),0,1));
+  update("[data-time-cycle-percent]",cycle+"%");
+  const fill=root.querySelector("[data-time-cycle-fill]");
+  if(fill){fill.style.width=cycle+"%";fill.parentElement.setAttribute("aria-valuenow",String(cycle));}
+  update("[data-hex-elapsed]",Math.floor(Number(t.elapsed)||0).toLocaleString("ja-JP")+" 秒");
   update("[data-hex-discovery]","認識 "+clamp(Number(t.revealedDirections)||1,1,6)+" / 6");
   update("[data-hex-selection]","配分 "+active.length+" / 3");
   update("[data-hex-core]",active.map(n=>n.name).join("・")||"流動");
@@ -105,7 +110,7 @@ export function timeHexFlowPanel(t,concepts,principles,icon,{readOnly=false}={})
     const total=t.growth?.totals?.[c.id]||String(t.residues[c.id]||0);
     const recognized=Boolean(t.growth?.recognized?.[c.id]||t.concepts[c.id]>0);
     const cap=growthCap(c),max=BigInt(total)>=cap;
-    const detail=recognized?(max?"MAX ・ 熟練度へ成長":"累計 "+formatGrowthInt(total)+" 個"):(formatGrowthInt(total)+" / 10個");
+    const detail=recognized?(max?"MAX ・ 熟練度へ成長":"累計 "+formatGrowthInt(total)+" 個"):(BigInt(total)>=10n?"認識条件待ち · "+formatGrowthInt(total)+"個":formatGrowthInt(total)+" / 10個");
     return '<div class="time-hex-residue-row">'+icon(c)+
       '<strong>'+h(recognized?c.name:"？？？の残滓")+'</strong><small>'+h(detail)+'</small></div>';
   }).join("");

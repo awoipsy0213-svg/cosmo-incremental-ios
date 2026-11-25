@@ -31,7 +31,7 @@ try{
     });
     const top=page.locator('[data-common-value="existence"]');
     await top.waitFor({state:"visible"});
-    assert.equal(await top.textContent(),"1,235.568",label+" HUD decimal");
+    assert.equal(await top.textContent(),"1,235",label+" HUD integer");
     const rect=await top.locator("..").boundingBox();
     const checkRect=async(step)=>{
       const now=await top.locator("..").boundingBox();
@@ -41,7 +41,7 @@ try{
       assert.ok(overflow<=1,label+" no horizontal overflow "+step);
     };
     await top.locator("..").locator("..").click();
-    assert.equal(await page.locator("#sheetBody .common-info-detail strong").first().textContent(),"1,235.568");
+    assert.equal(await page.locator("#sheetBody .common-info-detail strong").first().textContent(),"1,235");
     await page.locator('[data-action="return-stage-panel"]').click();
     await checkRect("detail");
     await page.evaluate(()=>{

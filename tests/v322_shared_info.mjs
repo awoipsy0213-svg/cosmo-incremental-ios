@@ -28,7 +28,7 @@ test("Two confirmed shared entries are visible after intro without creating save
   assert.match(source("astral-observatory.css"),/\.common-info-bar/);
   const s=createState();
   assert.equal(s.settings.confirmBulkPurchase,false);
-  assert.equal(s.settings.confirmMaxPurchase,true);
+  assert.equal(s.settings.confirmMaxPurchase,false);
   assert.equal(s.schemaVersion,31);
   assert.equal("commonInfo" in s,false);
   assert.equal("infoPanelOpen" in s,false);
@@ -39,7 +39,7 @@ test("Web and Capacitor copies are exactly synchronized",()=>{
 });
 test("A coherent version is used by HTML, SW and game config",()=>{
   assert.equal(CONFIG.version,"3.30.1");
-  assert.match(source("index.html"),/3\.55/);
+  assert.match(source("index.html"),/3\.56/);
   assert.match(source("sw.js"),/3\.50\.0-time-residue/);
   assert.match(source("sw.js"),/CORE_FILES/);
   assert.match(source("sw.js"),/stage-worlds\.css/);

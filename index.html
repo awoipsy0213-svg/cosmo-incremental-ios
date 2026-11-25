@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="理">
-<title>《理》— Fixed Glass Ver.3.34</title>
+<title>《理》</title>
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./neon-icon-192.png">
 <link rel="icon" href="./neon-icon-192.png">
@@ -31,7 +31,7 @@
 <body class="kw-app">
 <div id="appRoot">
   <div class="app-top">
-    <div class="brand"><span class="brand-mark">理</span><span class="brand-caption">KOTOWARI<span id="buildLabel" hidden aria-hidden="true">3.55</span></span></div>
+    <div class="brand"><span class="brand-mark">理</span><span class="brand-caption">KOTOWARI<span id="buildLabel" hidden aria-hidden="true">3.56</span></span></div>
     <div id="activeStageTitle" class="active-stage-title">ステージ · 存在</div>
     <div class="run-indicator" aria-label="収束した回数"><span>収束</span><strong id="hudRunCount">0</strong></div>
     <div class="top-actions"><span id="saveIndicator" role="status" aria-label="保存状態">準備中</span><button class="icon-button" data-action="organizer" aria-label="設定と保存を開く">≡</button></div>
@@ -78,6 +78,7 @@
        <div id="waves" aria-hidden="true"></div>
       <div id="uxGain" aria-hidden="true" hidden><strong id="uxGainValue"></strong><small id="uxGainEffects"></small></div>
     </div>
+    <section id="stageIdentityPanel" class="stage-identity-panel" hidden aria-label="惑星観測と操作"></section>
     <div class="world-bottom"><p id="worldHint" class="world-hint" hidden></p><button id="convergeMain" class="converge-button" data-action="converge" hidden></button></div>
   </main>
   <aside id="sheet" class="kw-sheet" data-state="closed" aria-label="ステージ操作パネル" hidden>
@@ -98,6 +99,7 @@
   <dialog id="confirmDialog" class="confirm-dialog" aria-labelledby="confirmTitle" aria-describedby="confirmText"><h2 id="confirmTitle"></h2><p id="confirmText" tabindex="0"></p><div class="dialog-actions"><button id="confirmNo" type="button" autofocus>戻る</button><button id="confirmYes" type="button">実行する</button></div></dialog>
   <div id="birthOverlay" class="birth-overlay" aria-hidden="true"><span>存在 <b>1</b></span></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <section id="residueFeedback" aria-hidden="true" hidden><small>時 · 残滓獲得</small><div id="residueFeedbackRows"></div></section>
   <section id="uxNotice" aria-labelledby="uxNoticeTitle" hidden><div class="ux-notice-head"><span id="uxNoticeIcon" aria-hidden="true"></span><div><h2 id="uxNoticeTitle" role="status"></h2><p id="uxNoticeCondition"></p></div></div><ul id="uxNoticeLines"></ul><div class="ux-notice-actions"><button id="uxNoticeLater" type="button">あとで</button><button id="uxNoticeSource" type="button" hidden>源を開く</button><button id="uxNoticeOpen" type="button">開く</button></div></section>
   <noscript>このゲームにはJavaScriptが必要です。</noscript>
 </div>
