@@ -28,7 +28,7 @@ test("Two confirmed shared entries are visible after intro without creating save
   assert.match(source("astral-observatory.css"),/\.common-info-bar/);
   const s=createState();
   assert.equal(s.settings.confirmBulkPurchase,false);
-  assert.equal(s.settings.confirmMaxPurchase,true);
+  assert.equal(s.settings.confirmMaxPurchase,false);
   assert.equal(s.schemaVersion,31);
   assert.equal("commonInfo" in s,false);
   assert.equal("infoPanelOpen" in s,false);

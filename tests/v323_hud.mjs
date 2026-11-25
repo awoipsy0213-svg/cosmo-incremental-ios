@@ -6,21 +6,21 @@ import {CONFIG} from "../balance-config.mjs";
 const root=(name)=>readFileSync(new URL("../"+name,import.meta.url),"utf8");
 let passed=0;
 function check(name,fn){fn();passed++;console.log("PASS "+name);}
-check("Both optional confirmations have safe backwards compatible defaults",()=>{
+check("Both optional confirmations default OFF; explicit saved settings remain intact",()=>{
  const s=createState(1800000000000);
  assert.equal(s.schemaVersion,31);
  assert.equal(s.settings.confirmBulkPurchase,false);
- assert.equal(s.settings.confirmMaxPurchase,true);
+ assert.equal(s.settings.confirmMaxPurchase,false);
  delete s.settings.confirmBulkPurchase;
  delete s.settings.confirmMaxPurchase;
  const prior=validateState(s,"normal");
  assert.equal(prior.settings.confirmBulkPurchase,false);
- assert.equal(prior.settings.confirmMaxPurchase,true);
+ assert.equal(prior.settings.confirmMaxPurchase,false);
  prior.settings.confirmBulkPurchase=true;
- prior.settings.confirmMaxPurchase=false;
+ prior.settings.confirmMaxPurchase=true;
  const reloaded=decode(encode(prior,"v323"),"normal");
  assert.equal(reloaded.settings.confirmBulkPurchase,true);
- assert.equal(reloaded.settings.confirmMaxPurchase,false);
+ assert.equal(reloaded.settings.confirmMaxPurchase,true);
  assert.equal(KEYS.normal,"kotowari_v31_normal");
  assert.equal(KEYS.lab,"kotowari_v31_lab");
 });
