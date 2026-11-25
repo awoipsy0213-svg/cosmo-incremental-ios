@@ -163,6 +163,7 @@ export function timeUnlockProgress(s){
   return {unlocked:s.time.unlocked,earned:earned.toString(),target:target.toString(),remaining:remaining.toString()};
 }
 export function checkTimeUnlock(s,now=Date.now()){
+  if(isCompact(s))return false; // Compact engine is the single unlock authority.
   if(!s.intro.complete||s.time.unlocked||A(s.runOrbsEarned??"0").cmp(CONFIG.provisional.timeUnlockRunOrbs)<0)return false;
   s.time.unlocked=true;event(s,"《時》と《源》を解放した。",now);
   return true;
