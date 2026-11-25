@@ -1,7 +1,7 @@
 /* Versioned, scope-specific cache. Does not delete saves or another app's cache. */
 const VERSION = "3.50.0-time-residue";
-const UI_REVISION = "-engraving-v342-grade-v343-existence-v344-balance-v351-balance-v352-save-v353-unlock-v354-pwa-v3541-ux-v355-guide-hud-v3551-worlds-v356-comfort-v356-time-integrity-v3561-automation-compact-v3562";
-const APP_RELEASE = "3.56.2";
+const UI_REVISION = "-engraving-v342-grade-v343-existence-v344-balance-v351-balance-v352-save-v353-unlock-v354-pwa-v3541-ux-v355-guide-hud-v3551-worlds-v356-comfort-v356-time-integrity-v3561-automation-compact-v3562-campaign-v357";
+const APP_RELEASE = "3.57";
 const PREFIX = "kotowari-handoff:" + new URL(self.registration.scope).pathname + ":";
 const RELATIVE = [
   "index.html",
@@ -67,14 +67,24 @@ const RELATIVE = [
   "legacy/manifest.webmanifest",
   "legacy/privacy.html",
   "legacy/script.js",
-  "legacy/style.css"
+  "legacy/style.css",
+  "compact-economy-v357.mjs",
+  "compact-campaign-v357.mjs",
+  "compact-campaign-ui-v357.mjs"
 ];
 const URLS = RELATIVE.map(path => new URL(path, self.registration.scope).href);
 // The core game must always be cached as one coherent version. Older archived
 // content and icons are helpful offline, but their absence must not prevent a
 // GitHub Pages update when an iPhone upload missed a subfolder.
 const CORE_FILES = [
-  "index.html", "organic-original.css", "mobile.css", "neon-theme.css", "live-ui.css", "astral-observatory.css", "stage-worlds.css", "matrix-v324.css",
+  "index.html",
+  "organic-original.css",
+  "mobile.css",
+  "neon-theme.css",
+  "live-ui.css",
+  "astral-observatory.css",
+  "stage-worlds.css",
+  "matrix-v324.css",
   "luminous-glass-v332.css",
   "fixed-layout-v333.css",
   "automation-center-v336.css",
@@ -91,7 +101,8 @@ const CORE_FILES = [
   "engraving-v342.css",
   "engraving-v342.mjs",
   "engraving-v342-ui.mjs",
-  "time-confirmed-v4.mjs", "universe-confirmed-v4.mjs",
+  "time-confirmed-v4.mjs",
+  "universe-confirmed-v4.mjs",
   "universe-progression-v316.mjs",
   "universe-interference-v318.mjs",
   "telemetry-v319.mjs",
@@ -102,14 +113,25 @@ const CORE_FILES = [
   "moment-filter.mjs",
   "price-lab.mjs",
   "design-proposals.mjs",
-  "RESEARCH_V35.md", "content.mjs", "balance-config.mjs", "numbers.mjs", "setsuna-engine.mjs", "setsuna-rules-v39.mjs", "game.mjs",
-  "save.mjs", "app.mjs", "manifest.webmanifest"
+  "RESEARCH_V35.md",
+  "content.mjs",
+  "balance-config.mjs",
+  "numbers.mjs",
+  "setsuna-engine.mjs",
+  "setsuna-rules-v39.mjs",
+  "game.mjs",
+  "save.mjs",
+  "app.mjs",
+  "manifest.webmanifest",
+  "compact-economy-v357.mjs",
+  "compact-campaign-v357.mjs",
+  "compact-campaign-ui-v357.mjs"
 ];
 // Build-time git blob IDs for the exact text assets. SHA-1 is used only
 // for coherence with the checked-out Git tree, not as a trust signature.
 // Regenerate with scripts/pwa-integrity.mjs --write after changing core files.
 const CORE_HASHES = [
-  "a2f82088d9135a1fbad252521aeee7304d0ae58b",
+  "ae4bc3b6a0f348eb042b477440ae7f169535be2b",
   "fa06847001eeeb5e8d0a272eef073fb4a3516454",
   "ca7a7a642f7385b502be1608d03c1d56c048890c",
   "ab5d561ffe0c982877ef7f8840564bd7d7e73a2a",
@@ -128,7 +150,7 @@ const CORE_HASHES = [
   "3a7a820cfb21166490310f9d61bc33641d67584f",
   "b1a16b1526a83cde8be719a9d9095825a2aea00f",
   "8cc8a30456d59ccd18b1cc0810e92dbf2979aedb",
-  "89d2c7711c62588438eedf0c220a94d60bee79f6",
+  "c4a43046e6c6fe65b2d3bb15c9df3a6f42cff398",
   "ed0c5c3a0a5607332d5ea7a208052a419e149213",
   "8158a7a10b57ab2e5b4f8df9718baa2b88c96e6d",
   "13fc01c6f1cace5462f314f4d019425fdc636d55",
@@ -151,10 +173,13 @@ const CORE_HASHES = [
   "8a425c89656582c1558169bb3ca1825878f6d715",
   "b0f57c72a1138370fc3b816ab7ca2b3b05069ca4",
   "d9941f8ef3570618aa72b25f018f7970a67b1141",
-  "1a2d7b6f2abbde38a50ddaa6ff4911a5d92bed04",
-  "cdded330240c0e3753a2065af8a9a7bee3ac7c72",
-  "480ce60ac7fe8ff8e2455a1f18e8997c506c27d9",
-  "30f6626cc056810975070bea1a77569affca700c"
+  "b78e4418249198e52107d3aeef282a2b34e5574f",
+  "a31fabd7b98170cbee8e9eaab007c7112454d2c5",
+  "0ab6a59fead2004080f9794b4bcbd855b0c27d04",
+  "30f6626cc056810975070bea1a77569affca700c",
+  "483d2e20bf6b5934a658bc38ee9bf2ee095a3d78",
+  "216869251e8e6bb806a4b637d1090f383d107430",
+  "01dce8f10d37b9199a5c34f2062f8a0d442e3b5d"
 ];
 const CORE_BLOBS=Object.fromEntries(CORE_FILES.map((path,i)=>[path,CORE_HASHES[i]]));
 // Separate cache namespaces even when a future maintainer regenerates the

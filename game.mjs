@@ -1,4 +1,6 @@
 import {CONFIG} from "./balance-config.mjs";
+import {C,isCompact,freshCompact,unpack,fromLog,toLog,executeCompact,validateCompact,compactQuote,compactBulkQuote,compactConvergenceQuote,compactAdvance,compactSetting} from "./compact-campaign-v357.mjs";
+export {isCompact,compactQuote,compactBulkQuote};
 import {TIME_EFFECTS,conceptLevelCost,conceptBonuses,conceptActive,residueWeights} from "./time-confirmed-v4.mjs";
 import {freshTimeGrowth,ensureTimeGrowth,addTimeResidue,resolveRecognitions,growthWeights,growthBonuses,growthEffect,advanceTimeResidues} from "./time-growth-v350.mjs";
 import {UNIVERSE_RESOURCE_RULES,eligibleResourceWeights,pickWeightedResource,investmentDelta,collapsePressureFactor,collapseHazardPerMinute} from "./universe-confirmed-v4.mjs";
@@ -82,8 +84,9 @@ export function engravingPlaytestFactor(s){
   return A(1).add(A(engravingTrialTotal(s)).mul(ENGRAVING_TRIAL.sharedBonusPerExtraLevel));
 }
 
-export function createState(now=Date.now(),mode="normal") {
-  return {
+export function createState(now=Date.now(),mode="normal",compact=false) {
+  if(compact&&mode!=="normal")throw Error("新経済版は独立した通常データ専用です");
+  const result={
     schemaVersion:CONFIG.schemaVersion,version:CONFIG.version,mode,
     createdAt:now,lastWall:now,revision:0,
     intro:{touches:0,complete:false},
@@ -118,6 +121,8 @@ export function createState(now=Date.now(),mode="normal") {
       momentFavorites:[],momentGroup:"0",momentFilter:"all"},
     migration:null
   };
+  if(compact){result.compactEconomy=freshCompact();result.purchaseMode="MAX";result.settings.bulkOrder="grade";}
+  return result;
 }
 export function event(s,text,now=Date.now()) {
   s.events.push({at:now,text:String(text).slice(0,500)});
@@ -164,6 +169,7 @@ export function checkTimeUnlock(s,now=Date.now()){
 }
 export function addOrbs(s,amount) {
   if(A(amount).cmp(0)<=0)return;
+  if(isCompact(s)){if(!s.intro.complete)return;commitCompact(s,executeCompact(s,c=>C.earn(c,toLog(amount))));return;}
   s.orbs=add(s.orbs,amount);s.totalOrbs=add(s.totalOrbs,amount);
   // Count every confirmed earning once, separately from spendable orbs.
   // Old saves may remain legacy-unverified until their first new convergence.
@@ -177,13 +183,14 @@ function spendOrbs(s,amount) {
   return true;
 }
 export function tapPower(s,now=Date.now()) {
+  if(isCompact(s))return fromLog(C.expectedTap(unpack(s)));
   const tap=SETSUNA.tapPreview(setsunaProjection(s,null,now),now)
     .mul(existenceMultiplier(s)).mul(finalTap(s)).mul(engravingPlaytestFactor(s)).mul(engravingTapFactor(s));
   return tap.add(production(s,now).mul(engravingTapSourceSeconds(s)));
 }
 // Each convergence gives a persistent, additive +1% per 0.01 surplus existence.
 // First existence (the protected 1) is not counted: 0.02 surplus => x1.02; 1 => x2.
-export function existenceMultiplier(s) { return A(1).add(s.totalExistenceEarned??"0"); }
+export function existenceMultiplier(s) { return isCompact(s)?A(C.factor(unpack(s))):A(1).add(s.totalExistenceEarned??"0"); }
 // 210 confirmed Setsuna decisions. Time-dependent state persists in schema 31.
 const SETSUNA_RUNTIME_KEYS=SETSUNA.RUNTIME_KEYS;
 export const freshMomentRuntime=()=>SETSUNA.runtimeDefaults();
@@ -249,6 +256,7 @@ export function momentAfterQuote(s,i,count){
   return gain.cmp(0)>0?effect+" / 基礎+"+formatOrbAmount(gain)+"/tap":effect;
 }
 export function momentComboView(s,now=Date.now()){
+  if(isCompact(s)){const c=unpack(s);return {combo:c.combo,remaining:Math.max(0,1.2-c.lastManualAge)*1000,window:1200,nextMark:null,untilNext:0,multiplier:C.comboFactor(c),stored:"0"};}
   const p=setsunaProjection(s,null,now),expires=p.comboExpire||p.comboUntil||0;
   const remaining=Math.max(0,expires-now);
   const combo=remaining>0?p.combo:0,nextMark=SETSUNA.COMBO_MARKS.find(mark=>mark>combo)??null;
@@ -316,6 +324,7 @@ export function sourceNextGain(s,id){
   return sourceOutputAtLevel(s,id,v.level+1).sub(sourceOutputAtLevel(s,id,v.level));
 }
 export function production(s,now=Date.now()) {
+  if(isCompact(s))return fromLog(C.production(unpack(s)));
   return baseProduction(s).mul(SETSUNA.sourceMultiplier(setsunaProjection(s,null,now),now));
 }
 export function criticalMultiplier(percent,multiplier,rng=Math.random,allowSub100=false) {
@@ -335,6 +344,11 @@ export function tap(s,now=Date.now(),rng=Math.random) {
       return {ok:true,foundation:true,gain:"0"};
     }
     return {ok:true,intro:true,progress:s.intro.touches/CONFIG.provisional.introTouches};
+  }
+  if(isCompact(s)){
+    const tx=executeCompact(s,c=>C.tap(c,rng));commitCompact(s,tx,now);
+    sampleActualOrbs(s.telemetry,now,s.totalOrbs);
+    return {ok:true,gain:fromLog(tx.result.gain).toString(),crit:tx.result.critical,combo:tx.c.combo,chain:tx.result.reflected};
   }
   const proj=setsunaProjection(s,null,now);proj.taps=Math.max(0,s.counters.taps-1);
   const hit=SETSUNA.tap(proj,now,rng);rememberSetsuna(s,proj);
@@ -391,6 +405,7 @@ export function maxPurchaseRequiresConfirmation(wallet,quote,mode="MAX"){
     A(quote.cost).mul(10).cmp(A(wallet).mul(9))>=0;
 }
 export function buy(s,kind,id) {
+  if(isCompact(s))return {ok:false,reason:"新経済版の操作を使用してください"};
   const q=purchaseQuote(s,kind,id);
   if(!q.enabled)return {ok:false,reason:q.reason||"導入が未完了です"};
   spendOrbs(s,q.cost);
@@ -414,6 +429,7 @@ export function buy(s,kind,id) {
  * priority order, so the first cheapest line cannot absorb the entire wallet via MAX.
  * Capped to protect slow phones; another tap resumes the rest. Does not automate play. */
 export function buyAll(s,kind,order="cheap",selectedIds=null) {
+  if(isCompact(s))return {ok:false,reason:"新経済版の操作を使用してください"};
   if(!s.engraving.owned.includes(BULK_ENGRAVING_ID))return {ok:false,reason:"一括解放の刻印が必要です"};
   if(!["cheap","grade","expensive","efficient","auto"].includes(order))return {ok:false,reason:"購入順が不正"};
   if(order==="efficient"&&!engravingAutoEfficient(s))
@@ -482,6 +498,7 @@ export function sourceBreakthroughReady(s,id) {
   return !!(s.time.unlocked&&x&&x.level===CONFIG.confirmed.sourceMaxLevel&&x.plus<1000000);
 }
 export function breakthrough(s,id) {
+  if(isCompact(s))return {ok:false,reason:"新経済版の操作を使用してください"};
   if(!s.time.unlocked)return {ok:false,reason:"未解放"};
   const x=s.sources?.[id];
   if(!x)return {ok:false,reason:"源IDが不正です"};
@@ -497,6 +514,7 @@ export function breakthrough(s,id) {
   return {ok:true,plus:x.plus,level:x.level};
 }
 export function convergenceQuote(s) {
+  if(isCompact(s))return compactConvergenceQuote(s);
   const c=CONFIG.provisional.convergence;
   const priceFactor=ownsSourceFinal(s,"SOURCE_02")?.5:1;
   const cost=A(c.baseCost).mul(priceFactor).mul(engravingConvergenceCostFactor(s));
@@ -527,6 +545,7 @@ export function converge(s) {
   checkTimeUnlock(s);
   const q=convergenceQuote(s);
   if(!q.steps)return {ok:false,reason:"収束に必要なオーブが不足しています"};
+  if(isCompact(s)){const tx=executeCompact(s,c=>C.converge(c));if(!tx.result)return {ok:false,reason:"収束条件未達"};commitCompact(s,tx);return {ok:true,...q};}
   s.surplusExistence=add(s.surplusExistence,q.reward);
   s.totalExistenceEarned=add(s.totalExistenceEarned,q.reward);
   const retain=s.mode==="lab"&&s.engraving.active.includes("retain");
@@ -1028,6 +1047,7 @@ function autoPlanetOnce(s,now) {
 // One-time purchases and reusable equipment are distinct. Existing four-node
 // lab experiments stay in engraving.active but do not count as owned engravings.
 export function buyEngraving(s,id) {
+  if(isCompact(s))return {ok:false,reason:"新経済版の操作を使用してください"};
   const q=engravingPurchaseQuote(s,id);
   if(!q.ok)return q;
   if(A(s.surplusExistence).cmp(q.price)<0)return {ok:false,reason:"余剰存在が不足しています"};
@@ -1038,6 +1058,7 @@ export function buyEngraving(s,id) {
   return {ok:true,id,price:q.price};
 }
 export function buyEngravingTrialUpgrade(s,id){
+  if(isCompact(s))return {ok:false,reason:"新経済版の操作を使用してください"};
   const q=engravingTrialUpgradeQuote(s,id);
   if(!q.ok)return q;
   s.surplusExistence=sub(s.surplusExistence,q.price);
@@ -1060,11 +1081,13 @@ export function confirmEngraving(){return {ok:false,reason:"刻印の装備切�
 export function cancelEngraving(){return {ok:false,reason:"刻印の装備切替は廃止されました"};}
 /** Global pause leaves per-feature options, fractional credits and purchase history intact. */
 export function configureAutomationMaster(s,enabled){
+  if(isCompact(s))return configureCompact(s,"master",enabled);
   if(typeof enabled!=="boolean")return {ok:false,reason:"全体ON/OFFの指定が不正です"};
   s.settings.automationEnabled=enabled;
   return {ok:true,enabled};
 }
 export function configureEngravingAutoBuy(s,{enabled,priority,mode,minReserve}={}){
+  if(isCompact(s))return {ok:false,reason:"新経済版の操作を使用してください"};
   const e=s.engraving,old=e.autoEngraving;
   if(engravingLevel(s,AUTOMATIC_ENGRAVING_ID)<1)return {ok:false,reason:"刻印自律の刻印が必要です"};
   const next={...old};
@@ -1133,6 +1156,7 @@ export function editPurchasePlan(s,kind,id,{targetLevel,excluded}={}){
   return {ok:true};
 }
 export function configureAutoPurchase(s,kind,{enabled,priority,intervalSeconds}={}){
+  if(isCompact(s))return {ok:false,reason:"新経済版の操作を使用してください"};
   if(!["moment","source"].includes(kind))return {ok:false,reason:"購入対象が不正です"};
   const a=s.engraving.autoBuy?.[kind];if(!a)return {ok:false,reason:"自動購入設定がありません"};
   const next={...a};
@@ -1162,6 +1186,7 @@ export function configureAutoPurchase(s,kind,{enabled,priority,intervalSeconds}=
   return {ok:true,...next};
 }
 export function configureAutoConvergence(s,{enabled,minReward,minSteps,mode,intervalSeconds,intervalMinutes,targetRunOrbs}={},now=Date.now()) {
+  if(isCompact(s))return {ok:false,reason:"新経済版の操作を使用してください"};
   const a=s.engraving.autoConverge,next={...a};
   if(minReward!==undefined){
     if(!validRewardThreshold(minReward))return {ok:false,reason:"報酬閾値は0.025以上で指定してください"};
@@ -1443,7 +1468,11 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
   // charging receive an extra resource multiplier.
   if(s.time.unlocked)gameSeconds*=1+growthBonuses(s,CONTENT.concepts).time;
   let gained=A(0);
-  if(s.intro.complete){
+  if(s.intro.complete&&isCompact(s)){
+    const factor=s.time.unlocked?1+growthBonuses(s,CONTENT.concepts).source:1;
+    const tx=executeCompact(s,c=>compactAdvance(c,gameSeconds,dt,factor));
+    commitCompact(s,tx,now);gained=tx.gained;
+  }else if(s.intro.complete){
     // Source production, autonomous taps and periodic effects use the same engine.
     // Online stage simulation uses the same effective time only once.
     const base=baseProduction(s),factor=existenceMultiplier(s);
@@ -1535,8 +1564,10 @@ export function advance(s,now=Date.now(),{offline=false,rng=Math.random}={}) {
       for(let i=0;i<ticks;i++)autoPlanetOnce(s,now);
     }
   }
-  if(s.intro.complete)runEngravingAutomation(s,gameSeconds,now,rng);
-  autoConvergenceTick(s,now,false);
+  if(!isCompact(s)){
+    if(s.intro.complete)runEngravingAutomation(s,gameSeconds,now,rng);
+    autoConvergenceTick(s,now,false);
+  }
   if(s.mode==="lab"){
     if(s.engraving.active.includes("autoTap"))addOrbs(s,tapPower(s).mul(gameSeconds));
     if(s.engraving.active.includes("autoSource")){
@@ -1993,5 +2024,46 @@ export function validateState(input,expectedMode=null) {
   // Preserve previously purchased Sources as evidence of the old unlock.
   if(s.intro.complete && Object.values(s.sources).some(x=>x.level>0||x.plus>0||x.effects.length>0))s.time.unlocked=true;
   checkTimeUnlock(s,s.lastWall);
+  if(isCompact(s))validateCompact(s);
   return s;
+}
+
+/** Apply a validated compact transaction once. Shared stage data is retained. */
+function commitCompact(s,tx,now=Date.now()){
+ const total=A(s.totalOrbs).add(tx.gained).toString(),spent=A(s.counters.orbsSpent).add(tx.spent).toString();
+ const wasUnlocked=s.time.unlocked;
+ s.compactEconomy=tx.data;
+ Object.assign(s,tx.m);
+ s.totalOrbs=total;s.counters.orbsSpent=spent;s.counters.sourcePurchases+=tx.sources;
+ s.settings.automationEnabled=tx.c.settings.master;
+ s.time.unlocked=tx.c.sourceUnlocked;
+ if(!wasUnlocked&&s.time.unlocked)event(s,"《時》と《源》を解放した。",now);
+ for(const q of tx.convergences){
+  recordConvergence(s.telemetry,{at:now,reward:q.reward,steps:q.steps});
+  achievement(s,"convergence","最初の通常収束を観測した。");
+  event(s,"収束：存在 +"+q.reward,now);
+ }
+}
+export function buyCompact(s,kind,id,mode=s.purchaseMode){
+ if(!isCompact(s)||!s.intro.complete)return {ok:false,reason:"利用できません"};
+ try{
+  const quote=compactQuote(s,kind,id,mode);
+  if(!quote.enabled)return {ok:false,reason:"資源不足または未解放"};
+  const tx=executeCompact(s,c=>C.buy(c,id,quote.breakthrough?"1":mode));
+  if(tx.result.count!==quote.count)return {ok:false,reason:"購入数が変化しました"};
+  commitCompact(s,tx);return {ok:true,count:tx.result.count,cost:quote.cost};
+ }catch(error){return {ok:false,reason:error.message};}
+}
+export function buyAllCompact(s,kind){
+ if(!isCompact(s)||!s.intro.complete||!["moment","source","engraving"].includes(kind))return {ok:false,reason:"利用できません"};
+ try{
+  const tx=executeCompact(s,c=>C.own(c,"bulk")?C.buyAll(c,kind,c.settings.priority[kind]):{count:0});
+  if(!tx.result.count)return {ok:false,reason:"購入対象がありません"};
+  commitCompact(s,tx);return {ok:true,count:tx.result.count,spent:fromLog(tx.result.spent).toString()};
+ }catch(error){return {ok:false,reason:error.message};}
+}
+export function configureCompact(s,key,value,kind){
+ if(!isCompact(s))return {ok:false,reason:"新経済版専用"};
+ try{const tx=executeCompact(s,c=>compactSetting(c,key,value,kind));commitCompact(s,tx);return {ok:true};}
+ catch(error){return {ok:false,reason:error.message};}
 }

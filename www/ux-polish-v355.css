@@ -138,3 +138,19 @@ body.reduced-motion .residue-feedback-row,body.low-power .residue-feedback-row{a
 .time-cycle-track i{display:block;height:100%;width:0;background:linear-gradient(90deg,#8ab8ff,#c7a0ff);border-radius:4px}
 .time-observation-cycle small{width:32px;text-align:right}
 .comfort-settings-heading{position:static;margin:12px 0 3px;padding:5px 3px;border-bottom:1px solid #9b8ab455;color:#665292;font-size:12px}
+
+/* Compact economy: compact horizontal cards, scoped to the independent campaign. */
+.compact-version-note{display:block;margin:4px 12px 10px;color:var(--muted);font-size:.72rem;line-height:1.45}
+.compact-campaign #bulkScopeButton[hidden]{display:none!important}
+.compact-campaign .compact-campaign-card{display:grid;grid-template-columns:minmax(0,1fr) minmax(100px,36%);gap:8px;align-items:stretch;padding:8px 10px;margin:0 0 6px;border:1px solid #bfb2dd65;border-radius:12px;background:#ffffff72;box-sizing:border-box;min-height:78px;height:auto}
+.compact-campaign .compact-campaign-info{display:grid;gap:3px;align-content:center;min-width:0}
+.compact-campaign .compact-campaign-info>*{min-width:0}
+.compact-campaign [data-c-name],.compact-campaign [data-c-effect],.compact-campaign [data-c-level],.compact-campaign [data-c-detail]{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.compact-campaign .compact-campaign-card button{min-width:0;min-height:54px;overflow:hidden;touch-action:manipulation}
+.compact-campaign .compact-campaign-card button>*{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.compact-campaign .compact-campaign-locked{opacity:.78}
+.compact-campaign .compact-campaign-locked button{opacity:.65}
+.compact-campaign .compact-campaign-section{font-size:.74rem;font-weight:700;margin:10px 2px 4px;color:var(--muted)}
+.compact-campaign .compact-campaign-auto-row{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:6px 4px;min-height:44px;border-bottom:1px solid #bfb2dd44}
+.compact-campaign .compact-campaign-auto-row select{min-width:0;max-width:45%}
+.compact-campaign .compact-campaign-auto-row input[type=number]{width:90px;min-width:0}

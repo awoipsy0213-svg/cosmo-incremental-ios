@@ -1,8 +1,9 @@
-import {createState,validateState,migrateLegacy} from "./game.mjs";
+import {createState,validateState,migrateLegacy,isCompact} from "./game.mjs";
 import {CONFIG} from "./balance-config.mjs";
 
 export const KEYS={
   normal:"kotowari_v31_normal",
+  compact:"kotowari_v31_compact_v1",
   lab:"kotowari_v31_lab",
   legacy:"cosmo_incremental_v01",
   legacyTest:"cosmo_incremental_test_v12",
@@ -18,31 +19,34 @@ export function encode(state,writer=""){
   const data=validateState(state,state.mode),body=JSON.stringify(data);
   return JSON.stringify({kind:"kotowari-save",version:31,checksum:checksum(body),writer,data});
 }
-export function decode(text,mode=null){
+export function decode(text,mode=null,compact=null){
+  const checked=input=>{const state=validateState(input,mode);if(compact!==null&&isCompact(state)!==compact)throw Error("新経済版と旧版のセーブは混ぜられません");return state;};
   if(typeof text!=="string"||text.length>4*1024*1024)throw Error("セーブが大きすぎるか、形式が不正です");
   const box=JSON.parse(text);
   if(box.kind==="kotowari-save"||box.kind==="kotowari-backup-v31"){
     const body=JSON.stringify(box.data);
     if(checksum(body)!==box.checksum)throw Error("セーブの破損を検出しました");
-    return validateState(box.data,mode);
+    return checked(box.data);
   }
-  if(box.schemaVersion===31)return validateState(box,mode);
+  if(box.schemaVersion===31)return checked(box);
   throw Error("Ver.3.1のセーブではありません");
 }
 export class SaveStore {
-  constructor(storage,mode="normal",writer="tab-"+Math.random().toString(36).slice(2)){
-    this.storage=storage;this.mode=mode;this.key=KEYS[mode];this.writer=writer;
+  constructor(storage,mode="normal",writer="tab-"+Math.random().toString(36).slice(2),{compact=false}={}){
+    if(compact&&mode!=="normal")throw Error("モード不正");
+    this.storage=storage;this.mode=mode;this.compact=compact;this.key=KEYS[compact?"compact":mode];this.writer=writer;
     this.expectedRevision=0;this.lastSnapshot=0;this.lastError="";this.blocked=false;
     this.legacyArchive=null;
   }
   read(key){return this.storage.getItem(key);}
+  assertEconomy(state){if(isCompact(state)!==this.compact||state.mode!==this.mode)throw Error("異なるゲーム版のデータです");}
   load(now=Date.now()){
     let raw;
     try {raw=this.read(this.key);}
-    catch(e){this.lastError=e.message;return {state:createState(now,this.mode),warning:"端末への保存を利用できません。バックアップを書き出してください。",storageUnavailable:true};}
+    catch(e){this.lastError=e.message;return {state:createState(now,this.mode,this.compact),warning:"端末への保存を利用できません。バックアップを書き出してください。",storageUnavailable:true};}
     if(raw){
       try{
-        const s=decode(raw,this.mode);this.expectedRevision=s.revision||0;
+        const s=decode(raw,this.mode,this.compact);this.expectedRevision=s.revision||0;
         // Preserve an untouched pre-v3.8 snapshot before first migration to 30 slots.
         // If backup cannot be verified, block writes rather than risking the sole save.
         const oldShape=JSON.parse(raw).data??JSON.parse(raw);
@@ -237,22 +241,23 @@ export class SaveStore {
           quarantined=this.read(key)===raw;
         }catch(e){/* Original bytes are still intact under this.key. */}
         const candidates=this.backups().filter(b=>{
-          try{decode(b.raw,this.mode);return true;}catch(e){return false;}
+          try{decode(b.raw,this.mode,this.compact);return true;}catch(e){return false;}
         }).length;
         const details=candidates?
           "検証可能な保存履歴が"+candidates+"件あります。復元内容を選んで明示的に復元してください。":
           "読み込み可能な保存履歴がありません。元データを外部へ書き出してください。";
-        return {state:createState(now,this.mode),blocked:true,recoverableBackups:candidates,
+        return {state:createState(now,this.mode,this.compact),blocked:true,recoverableBackups:candidates,
           warning:"主セーブを読み込めません。元データは上書きせず保護しています。"+
             (quarantined?"元データの別コピーも保存しました。":"")+
             details};
       }
     }
+    if(this.compact)return {state:createState(now,"normal",true)};
     if(this.mode==="lab"){
       try{
         const normal=this.read(KEYS.normal);
         if(normal){
-          const s=decode(normal,"normal");s.mode="lab";s.revision=0;s.lastWall=now;
+          const s=decode(normal,"normal",false);s.mode="lab";s.revision=0;s.lastWall=now;
           s.boost.active=false;s.engraving.draft=null;
           return {state:s,warning:"通常データのコピーから検証用セーブを開始しました。通常データには反映されません。"};
         }
@@ -277,6 +282,7 @@ export class SaveStore {
     return {state:createState(now,"normal")};
   }
   write(state,{snapshot=false}={}){
+    this.assertEconomy(state);
     if(this.blocked)throw Error("破損した元セーブを保護中です");
     const current=this.read(this.key);
     if(current){
@@ -339,6 +345,7 @@ export class SaveStore {
       throw Error("別タブの新しい保存を検出しました。この画面からは上書きしません。");
   }
   protect(state,reason="manual",now=Date.now()){
+    this.assertEconomy(state);
     if(this.blocked)throw Error("元セーブを保護中です");
     if(!["manual","reset"].includes(reason)||!Number.isFinite(now)||now<0)
       throw Error("バックアップの指定が不正です");
@@ -347,7 +354,7 @@ export class SaveStore {
     this.assertCurrentWriter(before);
     // Retain both the live state and original stored bytes if they differ.
     const raw=encode(state,this.writer);
-    decode(raw,this.mode);
+    decode(raw,this.mode,this.compact);
     const entry={at:now,reason,raw};
     if(before!==null&&before!==raw)entry.originalRaw=before;
     const rows=this.protectedBackups();
@@ -355,14 +362,14 @@ export class SaveStore {
     const history=JSON.stringify(rows),key=this.key+".protected-backups";
     this.storage.setItem(key,history);
     if(this.read(key)!==history)throw Error("保護バックアップを読み戻せません。元データを変更しません。");
-    decode(this.protectedBackups().at(-1).raw,this.mode);
+    decode(this.protectedBackups().at(-1).raw,this.mode,this.compact);
     return {index:rows.length-1,entry,before};
   }
   reset(state,now=Date.now()){
     // Archive first; no deletion of primary keys, legacy or the other mode.
     const saved=this.protect(state,"reset",now);
     if(this.read(this.key)!==saved.before)throw Error("別タブで保存が変化しました。リセットを中止します。");
-    const next=createState(now,this.mode);
+    const next=createState(now,this.mode,this.compact);
     const oldRev=saved.before===null?0:(JSON.parse(saved.before).data??JSON.parse(saved.before)).revision||0;
     next.revision=Math.max(state.revision||0,this.expectedRevision,oldRev)+1;
     const encoded=encode(next,this.writer);
@@ -371,7 +378,7 @@ export class SaveStore {
       this.storage.setItem(this.key,encoded);
       primaryWritten=true;
       if(this.read(this.key)!==encoded)throw Error("初期セーブの読み戻しに失敗しました");
-      decode(encoded,this.mode);
+      decode(encoded,this.mode,this.compact);
     }catch(error){
       // localStorage setItem is atomic on failure. A failed post-write
       // read-back must block autosave, and the verified archive remains.
@@ -395,10 +402,11 @@ export class SaveStore {
     return this.import(row.raw,now);
   }
   export(state){
+    this.assertEconomy(state);
     if(this.blocked)throw Error("元セーブ保護中です。未保存の仮データを通常バックアップとして出力できません");
     const data=validateState(state,this.mode);
     let legacy=null;
-    try{if(this.mode==="normal")legacy=JSON.parse(this.read(KEYS.legacyArchive)||"null");}catch(e){}
+    try{if(this.mode==="normal"&&!this.compact)legacy=JSON.parse(this.read(KEYS.legacyArchive)||"null");}catch(e){}
     return JSON.stringify({kind:"kotowari-backup-v31",version:31,exportedAt:new Date().toISOString(),
       checksum:checksum(JSON.stringify(data)),data,legacyArchive:legacy},null,2);
   }
@@ -406,9 +414,9 @@ export class SaveStore {
     let state,legacy=null;
     const parsed=JSON.parse(text);
     if(parsed.kind==="kotowari-save"||parsed.kind==="kotowari-backup-v31"||parsed.schemaVersion===31){
-      state=decode(text,this.mode);legacy=parsed.legacyArchive||null;
+      state=decode(text,this.mode,this.compact);legacy=parsed.legacyArchive||null;
     }else{
-      if(this.mode!=="normal")throw Error("旧版の移行は通常データで行ってください");
+      if(this.mode!=="normal"||this.compact)throw Error("旧版の移行は旧通常データで行ってください");
       if(parsed.mode==="test")throw Error("旧版のテストデータを通常データへ読み込むことはできません");
       state=migrateLegacy(parsed,now);
       legacy={at:now,raw:JSON.stringify(parsed.game||parsed),boost:parsed.boost?JSON.stringify(parsed.boost):null};
@@ -428,7 +436,7 @@ export class SaveStore {
       if(existing!==before)this.storage.setItem(key,before);
       if(this.read(key)!==before)throw Error("復元前の元データを検証できません。復元を中止しました");
     }
-    if(legacy&&this.mode==="normal")this.storage.setItem(KEYS.legacyArchive,JSON.stringify(legacy));
+    if(legacy&&this.mode==="normal"&&!this.compact)this.storage.setItem(KEYS.legacyArchive,JSON.stringify(legacy));
     let revision=0;
     try{revision=JSON.parse(before||"{}").data?.revision||0;}catch(e){}
     state.revision=Math.max(0,revision)+1;

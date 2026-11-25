@@ -10,6 +10,8 @@ import {CONTENT} from "./content.mjs";
 import {PROPOSED,PLANET_EFFECT_PROPOSALS,resourcePrototype,trialPreview,boostTrialCost,proposedSourceSlots,FIRST_CONCEPT_PROPOSALS} from "./design-proposals.mjs";
 import {A,formatAmount,formatExistenceDisplay,formatExistenceHudDisplay,formatOrbAmount} from "./numbers.mjs";
 import * as G from "./game.mjs";
+import {C as Compact,unpack as compactState,compactProjection} from "./compact-campaign-v357.mjs";
+import {compactKind,patchCompactCards,compactAutomationHTML} from "./compact-campaign-ui-v357.mjs";
 import {timeHexMarkup,patchTimeHex,timeHexFlowPanel,timeHexMiraclesPanel} from "./time-hex-v341.mjs";
 import {formatGrowthInt,growthCap,residueIntervalSeconds} from "./time-growth-v350.mjs";
 import {engravingAutomationHTML,engravingPresetHTML} from "./engraving-v342-ui.mjs";
@@ -19,20 +21,21 @@ import {purchasePreview} from "./purchase-preview-v338.mjs";
 import {momentBrief,compactEffectValue} from "./purchase-clarity-v339.mjs";
 import {UNLOCK_COPY,uxSnapshot,uxChanges,unlockRatio,accumulateTapGain,guideSteps,residueSnapshot,residueGains,mergeResidueFeedback,residueFeedbackRows} from "./ux-polish-v355.mjs";
 
-const APP_RELEASE="3.56.2";
+const APP_RELEASE="3.57";
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const params=new URLSearchParams(location.search);
 const mode=params.get("lab")==="1"?"lab":"normal";
+const compactMode=mode==="normal"&&params.get("compact")==="1";
 const dev=params.get("dev")==="1"||mode==="lab";
 const childNames={moment:"刹那",sources:"源",engraving:"刻印",flow:"残滓",concepts:"概念",miracles:"奇跡",
   planets:"惑星",resources:"資源",observations:"観測",life:"生命",
   boost:"BOOST",achievements:"実績",chronicle:"記録",statistics:"統計",collection:"コレクション",
   guide:"遊び方",settings:"設定",backup:"保存", "auto-existence":"存在","auto-time":"時","auto-universe":"宇宙","auto-life":"生命",spec:"設計状況",proposals:"研究・試案",lab:"テストモード",priceLab:"価格試算"};
-const organizerItems=["boost","achievements","chronicle","statistics","collection","guide","settings","backup",...(mode==="lab"?["spec","proposals","priceLab","lab"]:["lab"])];
+const organizerItems=["boost","achievements","chronicle","statistics","collection","guide","settings","backup",...(mode==="lab"?["spec","proposals","priceLab","lab"]:compactMode?[]:["lab"])];
 let memory={};let storage,storageFallback=false;
 try{storage=window.localStorage;}catch(e){storageFallback=true;storage={getItem:k=>memory[k]||null,setItem:(k,v)=>memory[k]=String(v),removeItem:k=>delete memory[k]};}
-const store=new SaveStore(storage,mode,globalThis.crypto?.randomUUID?.()||"tab-"+Date.now());
+const store=new SaveStore(storage,mode,globalThis.crypto?.randomUUID?.()||"tab-"+Date.now(),{compact:compactMode});
 let state,readOnly=false,storageUnavailable=false,lockRelease=null;
 let currentStage="existence",currentSub="moment",sheetState="closed",infoPanelOpen=false;
 let lastFrame=Date.now(),hiddenAt=null,lastSavedAt=0,lastPanelRender=0,lastInteraction=0;
@@ -44,7 +47,7 @@ let pwaRegistration=null,lastUpdateCheck=0,updateRequested=false,reloadForUpdate
 let uxStateRef=null,uxPrevious=null,uxQueue=[],uxActive=null,uxPulseTimer=null,uxLastPulse=0,uxAudio=null;
 let uxGainBatch=null,uxGainTimer=null;
 let residuePrevious=null,residuePending=new Map(),residuePendingAt=0,residueVisibleUntil=0;
-const updatePath=()=> "./update.html"+(mode==="lab"?"?lab=1":"");
+const updatePath=()=> "./update.html"+(mode==="lab"?"?lab=1":compactMode?"?compact=1":"");
 const BOOST_QUICK_ICON=`<svg class="boost-quick-symbol" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M13 2 5 13h6l-1 9 9-12h-6V2z" fill="currentColor"/></svg>`;
 const HOLD_LEVEL_LIMIT=3000; // BOOST-Q673/674: one continuous long press, total acquired Lv
 let holdPurchase=null,skipClickFor=null;
@@ -97,7 +100,7 @@ $("confirmDialog").addEventListener("cancel",e=>{e.preventDefault();finishConfir
 async function acquireLock(){
   if(!navigator.locks){readOnly=false;return;}
   await new Promise(resolve=>{
-    navigator.locks.request("kotowari-v31:"+mode,{ifAvailable:true},async lock=>{
+    navigator.locks.request("kotowari-v31:"+(compactMode?"compact":mode),{ifAvailable:true},async lock=>{
       if(!lock){readOnly=true;resolve();return;}
       readOnly=false;resolve();
       await new Promise(r=>lockRelease=r);
@@ -147,6 +150,8 @@ function settleOfflineAndPersist(now,{snapshot=false}={}){
   return {report,persisted};
 }
 function applySettings(){
+  document.body.classList.toggle("compact-campaign",compactMode);
+  if(compactMode){document.title="《理》 新経済版";const caption=document.querySelector(".brand-caption");if(caption?.firstChild?.nodeType===3)caption.firstChild.nodeValue="COMPACT";}
   document.body.classList.toggle("lab-mode",mode==="lab");
   if(mode==="lab"){
     document.title="《理》 テストモード";
@@ -198,6 +203,7 @@ function availableStages(){
 }
 // Presentation state is reset for a replacement save, not persisted as game progression.
 function readUXSnapshot(){
+  if(compactMode){const c=compactState(state);return uxSnapshot(compactProjection(state),c.engravingUnlocked,Compact.marks,["momentAuto","sourceAuto","engravingAuto"].some(k=>Compact.own(c,k)));}
   return uxSnapshot(state,engravingUnlocked(state),CONFIG.confirmed.sourceMilestones,
     engravingAutoMomentRate(state)>0||engravingAutoSourceRate(state)>0);
 }
@@ -384,9 +390,10 @@ function refreshTimeUnlockUI(){
     menu.querySelector("[data-unlock-earned]").textContent="当周回の累計獲得 "+current+" / "+target;
   }
 }
+function versionChoiceHTML(){return mode==="lab"?"":`<button class="wide-button" data-action="${compactMode?"exit-compact":"enter-compact"}">${compactMode?"旧版に戻る":"新経済版で遊ぶ"}<span>›</span></button><small class="compact-version-note">旧版と新経済版の進行は別々に保存されます。</small>`;}
 function openOrganizer(){
   stopHoldPurchase(null,true);
-  $("organizerLinks").innerHTML=(state.intro.complete&&!state.time.unlocked?`<div class="locked-stage-menu" data-time-unlock-menu><strong>？？？</strong><span data-unlock-remaining></span><small data-unlock-earned></small></div>`:"")+organizerItems.map(id=>`<button data-organizer="${id}">${esc(childNames[id])}<span>›</span></button>`).join("");
+  $("organizerLinks").innerHTML=versionChoiceHTML()+(state.intro.complete&&!state.time.unlocked?`<div class="locked-stage-menu" data-time-unlock-menu><strong>？？？</strong><span data-unlock-remaining></span><small data-unlock-earned></small></div>`:"")+organizerItems.map(id=>`<button data-organizer="${id}">${esc(childNames[id])}<span>›</span></button>`).join("");
   refreshTimeUnlockUI();$("organizerDrawer").showModal();
 }
 function openOrganizerPage(id){
@@ -446,7 +453,7 @@ function renderWorld(){
   const combo=G.momentComboView(state);
   const run=$("hudRunCount");if(run)run.textContent=state.convergenceCount.toLocaleString("ja-JP");
   const ratio=combo.window>0?Math.round(Math.max(0,Math.min(100,100*combo.remaining/combo.window))):0;
-  const milestone=combo.nextMark===null?" · 最終節目到達":` · 次${combo.nextMark}まで${combo.untilNext}回`;
+  const milestone=compactMode?"":combo.nextMark===null?" · 最終節目到達":` · 次${combo.nextMark}まで${combo.untilNext}回`;
   const comboHtml=combo.combo>0?`<span class="kw-combo">コンボ ${combo.combo.toLocaleString("ja-JP")} · ×${combo.multiplier.toFixed(2)}${milestone}<i class="kw-combo-track"><i style="width:${ratio}%"></i></i></span>`:"";
   const storedHtml=A(combo.stored).cmp(0)>0?`<span class="kw-stored">蓄積 ${o(combo.stored)}</span>`:"";
   $("convergeMain").hidden=!state.intro.complete||!["existence","organizer","automation"].includes(currentStage);
@@ -505,13 +512,13 @@ function renderWorld(){
   ];
   $("stageResourceList").innerHTML=stageRows.map(([label,value])=>`<div class="stage-stat"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`).join("");
   // Scene metadata is derived from existing saved state only; no mission or currency is fabricated.
-  const unlockedSourceCount=CONTENT.sources.filter(x=>state.sources[x.id]?.level>0).length;
-  const unlockedMomentCount=CONTENT.moment.filter(x=>state.moment[x.id]>0).length;
+  const unlockedSourceCount=compactMode?Object.values(compactState(state).sources).filter(x=>x.level>0).length:CONTENT.sources.filter(x=>state.sources[x.id]?.level>0).length;
+  const unlockedMomentCount=compactMode?Object.values(compactState(state).moment).filter(x=>x>0).length:CONTENT.moment.filter(x=>state.moment[x.id]>0).length;
   const conceptsCount=Object.keys(state.time.concepts).length;
   const progress=currentStage==="time"?{done:conceptsCount,total:77,title:"認識した概念"}:
     currentStage==="universe"?{done:state.universe.discoveredResources.length,total:42,title:"発見した資源"}:
     currentStage==="life"?{done:0,total:0,title:"未知"}:
-    {done:(state.time.unlocked?unlockedSourceCount:0)+unlockedMomentCount,total:state.time.unlocked?60:30,title:"強化した種類"};
+    {done:(state.time.unlocked?unlockedSourceCount:0)+unlockedMomentCount,total:compactMode?(state.time.unlocked?38:8):state.time.unlocked?60:30,title:"強化した種類"};
   $("matrixCaption").textContent=`${stage.name} のマトリクス`;
   $("matrixSummary").textContent=progress.total?`${progress.title} ${progress.done} / ${progress.total}`:"まだ観測できません";
   $("matrixFill").style.width=progress.total?`${Math.min(100,100*progress.done/progress.total).toFixed(1)}%`:"0%";
@@ -674,6 +681,7 @@ function sourcesHTML(){
   }).join("")}</div>`;
 }
 function automationHTML(){
+  if(compactMode&&currentSub==="auto-existence")return compactAutomationHTML(state,readOnly||store.blocked);
   const tab=currentSub.slice(5),e=state.engraving,disabled=readOnly||store.blocked;
   const master=state.settings.automationEnabled!==false;
   const selected=(a,b)=>String(a)===String(b)?" selected":"";
@@ -1025,7 +1033,7 @@ function achievementHTML(){
   return `<p class="panel-intro">これまでの達成と発見を確認できます。</p><div class="kw-list">${CONTENT.achievements.map(x=>`<div class="kw-card"><div class="card-top"><strong>${state.achievements.includes(x.id)?"✦":"◇"} ${x.name}</strong><span class="badge">${state.achievements.includes(x.id)?"達成":"未達成"}</span></div><p>${x.description}</p><small>${state.achievements.includes(x.id)?"達成済み":x.id==="engravingObservation"?"条件：？？？":"未達成"}</small></div>`).join("")}</div>`;
 }
 function statisticsHTML(){
-  const values=[["タップ入力",state.counters.taps.toLocaleString("ja-JP")],["収束",state.convergenceCount.toLocaleString("ja-JP")+"回"],["累計オーブ",orbDisplay(state.totalOrbs)],["累計獲得存在",formatExistenceDisplay(state.totalExistenceEarned)],["余剰存在",formatExistenceDisplay(state.surplusExistence)],...(state.time.unlocked?[["源総Lv.",Object.values(state.sources).reduce((v,x)=>v+x.level,0).toLocaleString("ja-JP")],["概念形成",Object.values(state.time.concepts).filter(x=>x>0).length+" / 77"]]:[]),["オンライン",duration(state.counters.onlineSeconds)],["オフライン",duration(state.counters.offlineSeconds)]];
+  const values=[["タップ入力",state.counters.taps.toLocaleString("ja-JP")],["収束",state.convergenceCount.toLocaleString("ja-JP")+"回"],["累計オーブ",orbDisplay(state.totalOrbs)],["累計獲得存在",formatExistenceDisplay(state.totalExistenceEarned)],["余剰存在",formatExistenceDisplay(state.surplusExistence)],...(state.time.unlocked?[["源総Lv.",Object.values(compactMode?compactState(state).sources:state.sources).reduce((v,x)=>v+x.level,0).toLocaleString("ja-JP")],["概念形成",Object.values(state.time.concepts).filter(x=>x>0).length+" / 77"]]:[]),["オンライン",duration(state.counters.onlineSeconds)],["オフライン",duration(state.counters.offlineSeconds)]];
   const t=state.telemetry,rows=consecutiveOrbGains(t);
   const logarithmic=v=>{const a=A(v);return a.m>0?Math.max(0,a.e+Math.log10(a.m)+1):0;};
   const max=Math.max(1,...rows.filter(r=>r.gain!==null).map(r=>logarithmic(r.gain)));
@@ -1066,7 +1074,7 @@ function guideHTML(){
   if(u.universe)chapters.push(["宇宙","惑星を生み、観測し、獲得した資源で干渉します。"]);
   if(u.life)chapters.push(["生命","新たな生命の段階を観測します。"]);
   if(state.intro.complete)chapters.push(["BOOST","アプリを閉じている間はBOOSTだけが蓄積します。使用するとゲーム内時間が加速します。"]);
-  const next=guideSteps(state,engravingUnlocked(state),G.convergenceQuote(state).steps>0);
+  const next=guideSteps(compactMode?compactProjection(state):state,engravingUnlocked(state),G.convergenceQuote(state).steps>0);
   return '<div class="kw-list"><section class="kw-card ux-next-steps" aria-label="次の一歩"><strong>次の一歩</strong>'+next.map(x=>'<div class="ux-next-step"><span><strong>'+esc(x.title)+'</strong><small>'+esc(x.description)+'</small></span><button type="button" data-ux-target="'+esc(x.target)+'" aria-label="'+esc(x.title)+'へ">開く</button></div>').join("")+'</section>'+chapters.map(([title,body])=>'<div class="kw-card"><strong>'+esc(title)+'</strong><p>'+esc(body)+'</p></div>').join("")+'</div>';
 }
 function settingsHTML(){
@@ -1081,7 +1089,8 @@ function settingsHTML(){
   ${group("保存・復帰",id=>savePrefs.has(id))}
   <div class="kw-row"><span>通信<small>クラウド・課金は未接続</small></span><strong>${navigator.onLine?"オンライン":"オフライン"}</strong></div>
   <button class="wide-button" data-organizer="backup">保存・バックアップ・完全リセット</button>
-  <button class="wide-button" data-organizer="lab">テストモード</button>
+  ${compactMode?"":'<button class="wide-button" data-organizer="lab">テストモード</button>'}
+  ${versionChoiceHTML()}
   <a class="link-button" href="./privacy.html">プライバシー・データ保存について</a>
   ${mode==="lab"?'<button class="wide-button" data-action="exit-test">通常プレイに戻る</button>':""}
   <div class="kw-row"><span>バージョン</span><strong data-app-release>${APP_RELEASE}</strong></div>
@@ -1100,7 +1109,7 @@ function backupHTML(){
   <button class="wide-button" data-action="protect-save" ${backupDisabled?"disabled":""}>保護バックアップを作成</button>
   <h3>保護バックアップ · 自動削除なし</h3>
   ${archiveError?`<p class="status-note">${esc(archiveError)}</p>`:protectedRows.length?[...protectedRows].map((row,i)=>({row,i})).reverse().map(({row,i})=>{
-    let candidate;try{candidate=decode(row.raw,mode);}catch(error){}
+    let candidate;try{candidate=decode(row.raw,mode,compactMode);}catch(error){}
     return `<div class="kw-card"><strong>${row.reason==="reset"?"リセット前":"手動"} · ${new Date(row.at).toLocaleString("ja-JP")}</strong>
     ${candidate?`<small>累計獲得存在 ${formatExistenceDisplay(candidate.totalExistenceEarned)} · オーブ ${orbDisplay(candidate.orbs)}</small>`:"<small>破損・原本保護中</small>"}
     <div class="sub-grid"><button class="wide-button" data-protected-export="${i}">JSON書出</button><button class="wide-button" data-protected-restore="${i}" ${!candidate||readOnly?"disabled":""}>復元する</button></div></div>`;
@@ -1120,7 +1129,7 @@ function backupHTML(){
   </div>
   ${bs.length?bs.map((x,i)=>{
     let candidate;
-    try{candidate=decode(x.raw,mode);}catch(e){candidate=null;}
+    try{candidate=decode(x.raw,mode,compactMode);}catch(e){candidate=null;}
     return `<div class="kw-card backup-comparison">
       <div class="card-top"><strong>履歴 ${i+1} · ${new Date(x.at).toLocaleString("ja-JP")}</strong>
         <span class="badge ${candidate?"confirmed":"pending"}">${candidate?"検証済":"破損"}</span></div>
@@ -1259,7 +1268,7 @@ function renderPanel(force=false){
   $("childTabs").hidden=false;
   // Currency/affordability is patched on the existing buttons every UI tick.
   // Do not rebuild the purchase cards while earning resources or holding a finger.
-  if(!force&&(holdPurchase||currentSub==="proposals"||currentStage==="existence"&&["moment","sources"].includes(currentSub)))return;
+  if(!force&&(holdPurchase||currentSub==="proposals"||currentStage==="existence"&&(compactMode?["moment","sources","engraving"]:["moment","sources"]).includes(currentSub)))return;
   if(!force&&(now-lastPanelRender<1700||now-lastInteraction<700||$("sheetBody").contains(document.activeElement)&&document.activeElement.matches("input,textarea,select")))return;
   lastPanelRender=now;
   const stage=CONTENT.stages.find(x=>x.id===currentStage);
@@ -1267,6 +1276,8 @@ function renderPanel(force=false){
   const visibleChildLabel=id=>currentStage==="automation"&&!availableStages().some(stage=>stage.id===id.slice(5))?"？？？":childLabel(id);
   $("childTabs").innerHTML=children.map(id=>`<button data-child="${id}" class="${currentSub===id?"active":""}" aria-pressed="${currentSub===id}">${esc(visibleChildLabel(id))}</button>`).join("");
   $("sheetHeading").textContent=currentStage==="automation"?"自動化":(currentStage==="organizer"?"管理":"強化")+" / "+childLabel(currentSub);
+  if(compactMode&&currentStage==="existence"&&compactKind(currentSub)){refreshCompactPanel(true);return;}
+  $("bulkScopeButton").hidden=compactMode;
   $("purchaseToolbar").hidden=currentStage!=="existence"||!["moment","sources"].includes(currentSub);
   const bulkAllowed=state.engraving.owned.includes("ENG-05");
   const bulkButton=$("bulkBuyButton");
@@ -1308,7 +1319,57 @@ function renderPanel(force=false){
   body.scrollTop=force&&body.dataset.sub!==currentSub?0:top;body.dataset.sub=currentSub;
   refreshMomentVisibility();
 }
+function refreshCompactPanel(force=false){
+  if(!state||infoPanelOpen||sheetState==="closed"||currentStage!=="existence")return;
+  const kind=compactKind(currentSub);if(!kind)return;
+  const c=compactState(state),blocked=readOnly||store.blocked,locked=kind==="engraving"&&!c.engravingUnlocked;
+  $("purchaseToolbar").hidden=locked;$("purchaseCycle").hidden=locked;$("bulkScopeButton").hidden=true;
+  $("purchaseCycle").textContent=({"1":"×1","10":"×10","NEXT":"NEXT","MAX":"MAX"})[state.purchaseMode];
+  $("purchaseCycle").setAttribute("aria-label","購入数 "+$("purchaseCycle").textContent+"。タップで切替");
+  const bulk=Compact.own(c,"bulk"),order=c.settings.priority[kind];
+  $("bulkBuyButton").disabled=blocked||!bulk||bulkPurchasePending;
+  $("bulkBuyButton").title=bulk?"このタブの購入可能な強化を一括購入":"一括購入の刻印で解放";
+  $("bulkOrderButton").disabled=blocked;
+  $("bulkOrderButton").textContent=order==="cheap"?"安い順":"上位順";
+  $("bulkOrderButton").title=order==="cheap"?"安い順":"高グレード順";
+  const body=$("sheetBody"),p=patchCompactCards(body,state,kind,blocked,force);
+  body.dataset.sub=currentSub;
+  const summary="購入可 "+p.ready+" / "+p.total;
+  if($("purchaseLiveSummary").textContent!==summary)$("purchaseLiveSummary").textContent=summary;
+}
+async function compactPurchase(kind,id){
+  if(!compactMode||readOnly||store.blocked||confirmedAction||infoPanelOpen||currentStage!=="existence"||kind!==compactKind(currentSub))return;
+  checkpoint();const m=state.purchaseMode,q=G.compactQuote(state,kind,id,m);
+  if(!q.enabled)return toast("購入できません");
+  const wallet=kind==="engraving"?state.surplusExistence:state.orbs;
+  const confirmation=q.breakthrough&&state.settings.confirmSourceBreakthrough||kind==="engraving"&&(q.level===0?state.settings.confirmEngravingPurchase:state.settings.confirmEngravingUpgrade)||m==="MAX"&&state.settings.confirmMaxPurchase&&A(q.cost).cmp(A(wallet).mul(.9))>=0;
+  if(confirmation){
+    const cost=kind==="engraving"?formatExistenceDisplay(q.cost,{roundUp:true}):o(q.cost,"ceil");
+    if(!await ask(q.breakthrough?"源の突破":"購入確認",q.name+" / "+q.count.toLocaleString("ja-JP")+" Lv / 費用 "+cost,"購入する"))return;
+    checkpoint();const next=G.compactQuote(state,kind,id,m);
+    if(currentStage!=="existence"||compactKind(currentSub)!==kind||state.purchaseMode!==m||next.count!==q.count||A(next.cost).cmp(q.cost)!==0)return toast("購入条件が変わりました。再度確認してください");
+  }
+  resultDone(G.buyCompact(state,kind,id,m));
+}
+async function compactBulkPurchase(){
+  const kind=compactKind(currentSub);
+  if(!kind||currentStage!=="existence"||readOnly||store.blocked||bulkPurchasePending||confirmedAction)return;
+  bulkPurchasePending=true;
+  try{
+    checkpoint();const order=compactState(state).settings.priority[kind];
+    if(state.settings.confirmBulkPurchase){
+      const q=G.compactBulkQuote(state,kind);
+      if(!q.ok)return toast(q.reason||"購入できません");
+      const cost=kind==="engraving"?formatExistenceDisplay(q.spent,{roundUp:true}):o(q.spent,"ceil");
+      if(!await ask("一括購入",q.count.toLocaleString("ja-JP")+" Lv / 費用 "+cost,"購入する"))return;
+      checkpoint();const next=G.compactBulkQuote(state,kind);
+      if(currentStage!=="existence"||compactKind(currentSub)!==kind||compactState(state).settings.priority[kind]!==order||!next.ok||next.count!==q.count||A(next.spent).cmp(q.spent)!==0)return toast("購入条件が変わりました。再度確認してください");
+    }
+    resultDone(G.buyAllCompact(state,kind));
+  }finally{bulkPurchasePending=false;refreshCompactPanel();}
+}
 function refreshPurchaseButtons(){
+  if(compactMode){refreshCompactPanel();return;}
   if(!state||sheetState==="closed"||currentStage!=="existence"||!["moment","sources"].includes(currentSub))return;
   const buttons=$("sheetBody").querySelectorAll("button[data-purchase]");
   let ready=0;
@@ -1551,6 +1612,20 @@ function download(text,name,type="application/json"){
   a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),15000);
 }
 async function dispatchAction(action){
+  if(action==="enter-compact"||action==="exit-compact"){
+    if(mode!=="normal"||readOnly||store.blocked)return;
+    if(action==="enter-compact"&&!compactMode&&!await ask("新経済版","新経済版は独立したセーブで始まります。旧版の進行は保持されます。","遊ぶ"))return;
+    if(!save(true))return;
+    location.assign(action==="enter-compact"?"./?compact=1":"./");return;
+  }
+  if(compactMode&&action==="enter-test")return;
+  if(compactMode&&action==="toggle-bulk-scope")return;
+  if(compactMode&&action==="toggle-bulk-order"){
+    const kind=compactKind(currentSub);if(!kind||readOnly||store.blocked)return;
+    const p=compactState(state).settings.priority[kind];
+    return resultDone(G.configureCompact(state,"priority",p==="cheap"?"grade":"cheap",kind));
+  }
+  if(compactMode&&action==="buy-all")return compactBulkPurchase();
   if(action==="organizer"){if(uxActive&&!$("uxNotice").hidden)closeUX(false);openOrganizer();return;}
   if(action==="open-automation"){if(uxActive&&!$("uxNotice").hidden)closeUX(false);openAutomation();return;}
   if(action==="open-common-info"){
@@ -1734,7 +1809,7 @@ async function dispatchAction(action){
     const q=G.convergenceQuote(state);
     if(!q.steps){toast("必要なオーブを集めてください");return;}
     const newRate=A(1).add(A(state.totalExistenceEarned||"0")).add(q.reward);
-    const text=`存在 +${f(q.reward,3)} を獲得します。\n以後のタップ・源生産は ×${f(newRate,3)}になります。\nオーブと刹那・源の周回内Lvをリセットします。\n最初の存在1・時・概念は残ります。`;
+    const text=compactMode?`存在 +${f(q.reward,3)} を獲得します。\nオーブ・刹那・源のLvと突破段階をリセットします。\n最初の存在1・刻印・時・概念は残ります。`:`存在 +${f(q.reward,3)} を獲得します。\n以後のタップ・源生産は ×${f(newRate,3)}になります。\nオーブと刹那・源の周回内Lvをリセットします。\n最初の存在1・時・概念は残ります。`;
     if(state.settings.confirmConvergence&&!await ask("収束する",text,"収束する"))return;
     if(resultDone(G.converge(state))){
       busyBirth=true;document.body.classList.add("is-converging");
@@ -1781,7 +1856,7 @@ async function dispatchAction(action){
     // Validate BEFORE asking to replace the active data.
     try{
       const p=JSON.parse(text);
-      if(p.kind==="kotowari-backup-v31"||p.kind==="kotowari-save"||p.schemaVersion===31)decode(text,mode);
+      if(p.kind==="kotowari-backup-v31"||p.kind==="kotowari-save"||p.schemaVersion===31)decode(text,mode,compactMode);
       else G.migrateLegacy(p);
       if(state.settings.confirmSaveImport&&!await ask("バックアップを読み込む","現在のデータを退避して、指定した進行へ切り替えます。検証データを通常データへは読み込めません。","読み込む"))return;
       state=store.import(text);applySettings();importDraft="";offlineReport=null;
@@ -1812,6 +1887,7 @@ async function dispatchAction(action){
 document.addEventListener("click",async e=>{
   const b=e.target.closest("button,a");if(!b)return;
   try{
+    if(b.dataset.compactBuy!==undefined){await compactPurchase(b.dataset.compactKind,b.dataset.compactBuy);return;}
     if(b.dataset.stage){if(uxActive&&!$("uxNotice").hidden)closeUX(false);setStage(b.dataset.stage);return;}
     if(b.dataset.timeDirection!==undefined){
       if(currentStage!=="time"||readOnly||store.blocked)return;
@@ -1900,7 +1976,7 @@ document.addEventListener("click",async e=>{
       if(readOnly||storageUnavailable)return toast("端末の保存を利用できません");
       const index=Number(b.dataset.protectedRestore),row=store.protectedBackups()[index];
       if(!row)return toast("保護バックアップが見つかりません");
-      decode(row.raw,mode);
+      decode(row.raw,mode,compactMode);
       if(!await ask("保護バックアップから復元","現在のデータを退避してから、選んだ進行へ戻します。保護バックアップ自体は保持します。","復元する"))return;
       if(!store.blocked&&!save())return toast("現在の進行を保護できないため復元を中止しました");
       state=store.restoreProtectedBackup(index);offlineReport=null;importDraft="";
@@ -2054,6 +2130,12 @@ document.addEventListener("change",async e=>{
   }
   if(readOnly||store.blocked){render(true);return;}
   checkpoint();
+  if(compactMode&&currentStage==="automation"&&currentSub==="auto-existence"){
+    if(t.dataset.compactAuto!==undefined)return resultDone(G.configureCompact(state,t.dataset.compactAuto,t.checked));
+    if(t.dataset.compactPriority!==undefined)return resultDone(G.configureCompact(state,"priority",t.value,t.dataset.compactPriority));
+    if(t.hasAttribute("data-compact-condition"))return resultDone(G.configureCompact(state,"condition",t.value));
+    if(t.hasAttribute("data-compact-threshold"))return resultDone(G.configureCompact(state,"threshold",t.value));
+  }
   if(t.hasAttribute("data-auto-master")){
     resultDone(G.configureAutomationMaster(state,t.checked));return;
   }
