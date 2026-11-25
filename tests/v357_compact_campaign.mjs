@@ -7,7 +7,7 @@ const NOW=Date.now();
 const s=G.createState(NOW,"normal",true);
 for(let i=0;i<8;i++)G.tap(s,NOW,()=>.99);
 assert.equal(s.intro.complete,true);
-assert.equal(G.tap(s,NOW,()=>.99).gain,"1");
+assert.equal(A(G.tap(s,NOW,()=>.99).gain).cmp(1),0);
 G.addOrbs(s,"1000000");
 assert.equal(s.time.unlocked,true);
 assert.equal(unpack(s).sourceUnlocked,true);

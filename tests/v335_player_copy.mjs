@@ -26,7 +26,7 @@ check("engraving receipts produce only player-facing event names; engine IDs sur
 });
 check("normal menu exposes test entry but hides internal research and design pages",()=>{
   const app=read("app.mjs");
-  assert.ok(app.includes('...(mode==="lab"?["spec","proposals","priceLab","lab"]:["lab"])'));
+  assert.ok(app.includes('...(mode==="lab"?["spec","proposals","priceLab","lab"]:compactMode?[]:["lab"])'));
   assert.ok(app.includes('const levelText=!owned?"Lv.0"'));
   assert.ok(app.includes('class="badge engraving-level'));
   assert.ok(app.includes('title="${esc(item.name)}">${esc(item.name)}</strong>'));
