@@ -32,7 +32,7 @@ try {
   await page.goto(base+"?compact=1&dev=1");
   await page.waitForFunction(()=>window.KOTOWARI_DEBUG?.state()?.compactEconomy);
   await page.evaluate(()=>window.KOTOWARI_DEBUG.open("existence","moment"));
-  assert.equal(await page.locator("#buildLabel").textContent(),"3.62");
+  assert.equal(await page.locator("#buildLabel").textContent(),"3.63");
   assert.equal(await page.evaluate(()=>getComputedStyle(document.body).colorScheme),"dark");
   assert.match(await page.locator("[data-main-convergence-reward]").textContent(),/かけら|存在/);
   assert.ok(await page.locator("#compactShardWallet").isVisible());
@@ -71,6 +71,25 @@ try {
   assert.equal(await page.locator("#purchaseCycle").textContent(),"MAX");
   assert.equal(await page.locator("[data-c-role]").first().textContent(),"基礎タップ");
   assert.match(await page.locator("[data-compact-buy]").first().getAttribute("aria-label"),/基礎タップ獲得量/);
+  // Compare every displayed purchase quote against the real transaction quote.
+  const checkQuotes=async kind=>{
+    const result=await page.evaluate(async kind=>{
+      const G=await import("./game.mjs"),U=await import("./compact-campaign-ui-v357.mjs"),C=await import("./compact-campaign-v357.mjs"),s=window.KOTOWARI_DEBUG.state(),c=C.unpack(s);
+      return [...document.querySelectorAll("[data-compact-card]")].every(n=>{
+        const b=n.querySelector("[data-compact-buy]"),price=n.querySelector("[data-c-cost]"),count=n.querySelector("[data-c-count]");
+        if(n.classList.contains("compact-campaign-locked"))return price.textContent==="？？？"&&count.textContent==="？？？"&&!price.querySelector(".compact-resource-glyph");
+        const row=C.C.cards(c,kind).find(r=>C.C.key(r)===b.dataset.compactBuy);
+        if(row.level===row.max)return price.textContent==="—"&&count.textContent==="—";
+        const q=G.compactQuote(s,kind,b.dataset.compactBuy,s.purchaseMode);
+        const expected=U.compactCostLabel(kind,q.count?q.cost:C.fromLog(C.C.cost(c,row,1)),s.settings.notation);
+        return price.textContent===expected&&count.textContent==="×"+q.count.toLocaleString("ja-JP")&&price.title.includes(expected)&&b.title.includes(expected);
+      });
+    },kind);
+    assert.ok(result,"price and count must match current transaction quote for "+kind);
+  };
+  for(let i=0;i<4;i++){await checkQuotes("moment");await page.locator("#purchaseCycle").click();}
+  assert.ok(await page.locator("[data-c-cost] .compact-resource-glyph.orb").count()>0);
+
   assert.ok(await page.locator(".compact-shared-existence").isVisible());
   assert.ok(await page.locator(".common-info-item").first().locator(".shared-glyph").isHidden());
   await page.locator("[data-compact-buy]").first().click();
@@ -78,6 +97,7 @@ try {
   await page.evaluate(()=>window.KOTOWARI_DEBUG.open("existence","engraving"));
   assert.equal(await page.locator("[data-compact-card]").count(),12);
   assert.ok(await page.locator("[data-c-cost] .compact-resource-glyph").count()>0,"engraving uses resource icons");
+  await checkQuotes("engraving");
   for(const card of await page.locator("[data-compact-card]").all()){
     const box=await card.boundingBox();assert.ok(box&&Math.abs(box.height-50)<=1,"50px fixed card "+width);
     const btn=await card.locator("button").boundingBox();assert.ok(btn&&btn.height>=44&&btn.width>=44,"44px touch target "+width);
@@ -129,6 +149,7 @@ try {
   assert.equal(await page.locator(".time-hex-node").count(),6);
   await page.evaluate(()=>window.KOTOWARI_DEBUG.open("existence","sources"));
   assert.equal(await page.locator("[data-compact-card]").count(),1);
+  await checkQuotes("source");
   await page.locator("[data-compact-buy]").first().click();
   await page.waitForFunction(()=>!document.querySelector("#compactSourceIncome").hidden);
   assert.ok(await page.locator("#compactSourceIncome").isVisible(),"source income visible after purchase");

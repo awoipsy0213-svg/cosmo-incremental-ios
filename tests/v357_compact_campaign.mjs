@@ -1,3 +1,4 @@
+import {compactCostLabel,compactOrbCost} from "../compact-campaign-ui-v357.mjs";
 import assert from "node:assert/strict";
 import * as G from "../game.mjs";
 import {C,unpack,fromLog,splitExistenceShards,formatShardAmount} from "../compact-campaign-v357.mjs";
@@ -131,3 +132,15 @@ console.log("PASS pacing: monotone price, bulk cost, preserved production, previ
  for(const v of ["1000001.025","1999999.999","1e1000"]){assert.equal(splitExistenceShards(v).shards,null,v);}
  console.log("PASS v360 shard rounding, no misleading mixed scientific fragments");
 }
+
+ // Shared currency display preserves the canonical normalized Amount and quote.
+ for(const [value,expected] of [["0","0"],["0.01","1"],["5","5"],["75","75"],["110","110"],["123.000000001","124"],["999999.9","1,000,000"],["1000000","1,000,000"],["1000000.1","101e+4"],["1100000","110e+4"],["9999999","100e+5"],["1e1000","100e+998"]]){
+  assert.equal(compactOrbCost(value),expected,value);
+ }
+ assert.equal(compactOrbCost("1100000","exponent"),"110E+4");
+ assert.equal(compactOrbCost("1100000","zeros"),"110×10^4");
+ assert.equal(compactCostLabel("moment","5"),"オーブ5");
+ assert.equal(compactCostLabel("source","75"),"オーブ75");
+ assert.equal(compactCostLabel("engraving","0.05"),"かけら50");
+ assert.equal(compactCostLabel("engraving","1.2341"),"存在1・かけら235");
+ console.log("PASS v363 canonical price labels, integer orbs, conservative rounding and units");

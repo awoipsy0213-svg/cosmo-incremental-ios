@@ -59,7 +59,7 @@ try{
   assert.equal(resumed.telemetry.offlineReports[0].orbs,"0");
   assert.equal(resumed.telemetry.offlineReports[0].effectiveSeconds,0);
   assert.ok(resumed.telemetry.offlineReports[0].boostEarned>=899);
-  assert.match(await page.locator("#buildLabel").textContent(),/^3\.62$/);
+  assert.match(await page.locator("#buildLabel").textContent(),/^3\.63$/);
   await page.locator('.app-top [data-action="organizer"]').click();
   await page.locator('[data-organizer="boost"]').click();
   const panel=await page.locator("#sheetBody").textContent();

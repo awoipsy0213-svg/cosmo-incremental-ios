@@ -1,16 +1,32 @@
-import {C,unpack,fromLog,compactQuote,formatShardAmount} from "./compact-campaign-v357.mjs";
+import {C,unpack,fromLog,formatShardAmount} from "./compact-campaign-v357.mjs";
+import {A} from "./numbers.mjs";
 const esc=x=>String(x).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const nf=x=>x.toLocaleString("ja-JP");
+// Display the upper bound of the canonical Amount, without binary-float ceil
+// artifacts or decimal orb prices. Never use the display result for transactions.
+export function compactOrbCost(value,notation="auto"){
+ const n=A(value);if(!n.m)return "0";if(n.e<0)return "1";
+ const [head,tail=""]=String(n.m).split("."),digits=BigInt(head+tail);
+ const ceilAt=shift=>{if(shift>=0)return digits*10n**BigInt(shift);const d=10n**BigInt(-shift);return (digits+d-1n)/d;};
+ if(n.e<6||n.e===6&&n.m===1)return nf(ceilAt(n.e-tail.length));
+ let units=ceilAt(2-tail.length),exponent=n.e-2;
+ if(units>=1000n){units=100n;exponent++;}
+ const mark=notation==="exponent"?"E":notation==="zeros"?"×10^":"e";
+ return String(units)+mark+(notation!=="zeros"&&exponent>=0?"+":"")+exponent;
+}
+export function compactCostLabel(kind,value,notation="auto"){
+ return kind==="engraving"?formatShardAmount(value,{roundUp:true}):"オーブ"+compactOrbCost(value,notation);
+}
 // Visual icons use the same resource identity as the wallet. The full Japanese
 // label remains in textContent, the accessible name and the tooltip.
 export function patchCompactAmount(node,label){
  if(node.dataset.currencyLabel===label&&node.textContent===label)return;
  node.dataset.currencyLabel=label;
  const prefix=label.startsWith("+")?"+":"",raw=prefix?label.slice(1):label;
- const segments=raw.split("・").map(part=>part.match(/^(存在|かけら)(.+)$/));
+ const segments=raw.split("・").map(part=>part.match(/^(存在|かけら|オーブ)(.+)$/));
  if(segments.every(Boolean)){
   node.classList.add("compact-resource-amount");
-  node.innerHTML=(prefix?'<span class="compact-amount-plus">+</span>':"")+segments.map((m,i)=>(i?'<span class="compact-resource-sr">・</span>':"")+'<span class="compact-amount-segment"><span class="compact-resource-glyph '+(m[1]==="存在"?"existence":"shard")+'" aria-hidden="true"></span><span class="compact-resource-sr">'+m[1]+'</span><span class="compact-amount-value">'+esc(m[2])+'</span></span>').join("");
+  node.innerHTML=(prefix?'<span class="compact-amount-plus">+</span>':"")+segments.map((m,i)=>(i?'<span class="compact-resource-sr">・</span>':"")+'<span class="compact-amount-segment"><span class="compact-resource-glyph '+({存在:"existence",かけら:"shard",オーブ:"orb"}[m[1]])+'" aria-hidden="true"></span><span class="compact-resource-sr">'+m[1]+'</span><span class="compact-amount-value">'+esc(m[2])+'</span></span>').join("");
  }else{
   node.classList.remove("compact-resource-amount");node.textContent=label;
  }
@@ -60,11 +76,18 @@ export function patchCompactCards(root,s,kind,blocked=false,_force=false,decoded
   const b=node.querySelector("button");
   const disabled=!!(blocked||!visible||!q.count);if(b.disabled!==disabled)b.disabled=disabled;
   if(!b.disabled)ready++;
-  const costLabel=!visible?"？？？":done?"—":(kind==="engraving"?formatShardAmount(fromLog(q.count?q.cost:C.cost(c,row,1)),{roundUp:true}):C.fmt(q.count?q.cost:C.cost(c,row,1),false,true));
-  if(kind==="engraving")patchCompactAmount(node.querySelector("[data-c-cost]"),costLabel);
-  else set(node,"[data-c-cost]",costLabel);
-  set(node,"[data-c-count]",!visible?"？？？":done?"—":"×"+nf(q.count));
-  const label=visible?detail+" / "+(row.fresh&&row.breakthrough?"限界突破":"購入 "+nf(q.count)+"Lv")+" "+costLabel:"？？？。未解放";
+  const costLabel=!visible?"？？？":done?"—":compactCostLabel(kind,fromLog(q.count?q.cost:C.cost(c,row,1)),s.settings?.notation);
+  const priceNode=node.querySelector("[data-c-cost]"),countNode=node.querySelector("[data-c-count]");
+  patchCompactAmount(priceNode,costLabel);
+  const countLabel=!visible?"？？？":done?"—":"×"+nf(q.count);
+  set(node,"[data-c-count]",countLabel);
+  const priceDetail=!visible?"？？？":done?"上限到達":q.count?"購入 "+nf(q.count)+"Lv・合計費用 "+costLabel:"購入可能 0Lv・次の1Lvの費用 "+costLabel;
+  const label=visible?detail+" / "+(row.fresh&&row.breakthrough?"限界突破 / ":"")+priceDetail:"？？？。未解放";
+  if(priceNode.title!==priceDetail)priceNode.title=priceDetail;
+  if(b.title!==label)b.title=label;
+  const long=String(costLabel).replace(/存在|かけら|オーブ/g,"").length>11,wideCount=countLabel.length>11;
+  if(priceNode.dataset.long!==String(long))priceNode.dataset.long=String(long);
+  if(countNode.dataset.long!==String(wideCount))countNode.dataset.long=String(wideCount);
   if(b.getAttribute("aria-label")!==label)b.setAttribute("aria-label",label);
  }
  if(rebuilt&&active){const focused=byKey.get(active)?.querySelector("button");if(focused&&!focused.disabled)focused.focus({preventScroll:true});}
