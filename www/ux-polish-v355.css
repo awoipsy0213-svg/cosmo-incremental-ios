@@ -389,3 +389,15 @@ body.compact-campaign #sheetBody [data-compact-card-kind="engraving"] [data-c-co
 @media(max-width:340px){body.compact-campaign #sheetBody .compact-name-label{gap:2px}body.compact-campaign #sheetBody .compact-campaign-name [data-c-meta]{max-width:43px}body.compact-campaign #sheetBody .compact-name-label [data-c-role]{font-size:8px}}
 
 body.compact-campaign #sheetBody .compact-name-label [data-c-role]:empty{display:none}
+
+/* v3.62: fixed automation controls, exact unit labels and convergence states. */
+body.compact-campaign #sheetBody .compact-campaign-auto-row{box-sizing:border-box;min-height:44px}
+body.compact-campaign #sheetBody .compact-campaign-condition{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;align-items:center;min-height:44px;padding:4px}
+body.compact-campaign #sheetBody .compact-campaign-condition>.input-select{width:100%;min-width:0}
+body.compact-campaign #sheetBody .compact-threshold-field{display:flex;gap:4px;align-items:center;min-width:0}
+body.compact-campaign #sheetBody .compact-threshold-field input{width:100%;min-width:0;font-variant-numeric:tabular-nums}
+body.compact-campaign #sheetBody .compact-threshold-field span{flex:none;font-size:10px;white-space:nowrap}
+body.compact-campaign #sheetBody :is([data-compact-threshold],[data-compact-condition],[data-compact-priority]):focus-visible{outline:2px solid #9b91e8;outline-offset:1px}
+body.compact-campaign #convergeMain[data-reward-ready="true"]:not(:disabled){border-color:#a296e7}
+body.compact-campaign #convergeMain[data-reward-ready="false"] .converge-gauge{opacity:.85}
+body.compact-campaign #convergeMain .converge-main-next [data-main-convergence-next]{font-variant-numeric:tabular-nums}

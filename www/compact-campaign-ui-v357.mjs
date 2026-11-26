@@ -70,8 +70,11 @@ export function patchCompactCards(root,s,kind,blocked=false,_force=false,decoded
  if(rebuilt&&active){const focused=byKey.get(active)?.querySelector("button");if(focused&&!focused.disabled)focused.focus({preventScroll:true});}
  return {ready,total:cards.length};
 }
-export function compactAutomationHTML(s,blocked){
- const c=unpack(s),disabled=blocked?" disabled":"";
+export const compactThresholdText=c=>c.settings.condition==="time"?String(c.settings.seconds):fromLog(c.settings.target).toString();
+const autoKeys=["moment","source","engraving","converge"];
+const autoOwned=(c,key)=>C.own(c,key==="converge"?"convergeAuto":key+"Auto");
+export function compactAutomationHTML(s,blocked,decoded=null){
+ const c=decoded??unpack(s),disabled=blocked?" disabled":"";
  const switchHTML=(key,on,locked=false)=>'<span class="automation-toggle"><input type="checkbox" role="switch" data-compact-auto="'+key+'" aria-label="'+(locked?"未解放の自動化":{moment:"刹那",source:"源",engraving:"刻印",converge:"自動収束"}[key])+'"'+(on?" checked":"")+(blocked||locked?" disabled":"")+'></span>';
  const options=(kind)=>[["cheap","安い順"],["grade","高グレード順"]].map(([k,v])=>'<option value="'+k+'"'+(c.settings.priority[kind]===k?" selected":"")+'>'+v+'</option>').join("");
  const row=(k,label)=>{
@@ -79,9 +82,36 @@ export function compactAutomationHTML(s,blocked){
   return '<div class="compact-campaign-auto-row"><strong>'+(unlocked?label:"？？？")+'</strong><select class="input-select" data-compact-priority="'+k+'" aria-label="'+(unlocked?label+"の購入順":"未解放の購入順")+'"'+(blocked||!unlocked?" disabled":"")+'>'+options(k)+'</select>'+switchHTML(k,c.settings[k],!unlocked)+'</div>';
  };
  const con=C.own(c,"convergeAuto"),cond=c.settings.condition;
- const target=cond==="time"?String(c.settings.seconds):fromLog(c.settings.target).toString();
- const master='<section class="automation-overview"><label class="automation-master-line"><strong>全体自動化</strong><span class="automation-toggle automation-master-toggle"><input type="checkbox" role="switch" data-auto-master aria-label="全体自動化"'+(c.settings.master?" checked":"")+disabled+'></span></label></section>';
+ const target=compactThresholdText(c);
+ const master='<section class="automation-overview"><label class="automation-master-line" title="個別設定を保持したまま自動化を一時停止・再開"><strong>全体自動化</strong><span class="automation-toggle automation-master-toggle"><input type="checkbox" role="switch" data-auto-master aria-label="全体自動化"'+(c.settings.master?" checked":"")+disabled+'></span></label></section>';
  return master+row("moment","刹那")+row("source","源")+row("engraving","刻印")+
  '<div class="compact-campaign-auto-row compact-converge-row"><strong>'+(con?"自動収束":"？？？")+'</strong>'+switchHTML("converge",c.settings.converge,!con)+'</div>'+
- (con?'<div class="compact-campaign-condition"><select class="input-select" data-compact-condition aria-label="収束条件"'+disabled+'><option value="time"'+(cond==="time"?" selected":"")+'>時間（秒）</option><option value="earned"'+(cond==="earned"?" selected":"")+'>累計獲得数</option></select><input class="input-select" data-compact-threshold type="text" inputmode="decimal" aria-label="収束しきい値" value="'+esc(target)+'"'+disabled+'></div>':"");
+ (con?'<div class="compact-campaign-condition"><select class="input-select" data-compact-condition aria-label="収束条件"'+disabled+'><option value="time"'+(cond==="time"?" selected":"")+'>時間（秒）</option><option value="earned"'+(cond==="earned"?" selected":"")+'>累計獲得数</option></select><label class="compact-threshold-field"><input class="input-select" data-compact-threshold type="text" inputmode="'+(cond==="time"?"decimal":"text")+'" autocomplete="off" spellcheck="false" aria-label="'+(cond==="time"?"収束間隔（秒）":"収束までの当周回獲得オーブ")+'" title="'+(cond==="time"?"0.1秒以上":"正の数値・指数表記可")+'" value="'+esc(target)+'"'+disabled+'><span aria-hidden="true">'+(cond==="time"?"秒":"オーブ")+'</span></label></div>':"");
+}
+
+// Only rebuild on an actual structure change (unlock or condition kind).
+// Keep focus and in-progress edits on passive refreshes; settings are saved
+// solely by the existing change handlers.
+export function patchCompactAutomation(root,s,blocked){
+ const c=unpack(s),shape=autoKeys.map(k=>autoOwned(c,k)?1:0).join("")+":"+c.settings.condition;
+ if(root.dataset.sub!=="auto-existence"||root.dataset.compactAutoShape!==shape||!root.querySelector("[data-auto-master]")){
+  const active=root.contains(document.activeElement)?document.activeElement:null;
+  const selector=active?.matches("[data-compact-condition]")?"[data-compact-condition]":active?.matches("[data-compact-threshold]")?"[data-compact-threshold]":null;
+  const top=root.dataset.sub==="auto-existence"?root.scrollTop:0;
+  root.innerHTML=compactAutomationHTML(s,blocked,c);
+  root.dataset.sub="auto-existence";root.dataset.compactAutoShape=shape;root.scrollTop=top;
+  if(selector){const n=root.querySelector(selector);if(n&&!n.disabled)n.focus({preventScroll:true});}
+ }
+ const set=(node,prop,value)=>{if(node&&node[prop]!==value)node[prop]=value;};
+ const master=root.querySelector("[data-auto-master]");
+ set(master,"checked",c.settings.master);set(master,"disabled",!!blocked);
+ for(const k of autoKeys){
+  const locked=!autoOwned(c,k),sw=root.querySelector('[data-compact-auto="'+k+'"]'),priority=root.querySelector('[data-compact-priority="'+k+'"]');
+  set(sw,"checked",c.settings[k]);set(sw,"disabled",!!blocked||locked);
+  set(priority,"value",c.settings.priority[k]);set(priority,"disabled",!!blocked||locked);
+ }
+ const condition=root.querySelector("[data-compact-condition]"),threshold=root.querySelector("[data-compact-threshold]");
+ set(condition,"value",c.settings.condition);set(condition,"disabled",!!blocked);
+ set(threshold,"disabled",!!blocked);
+ if(threshold&&document.activeElement!==threshold)set(threshold,"value",compactThresholdText(c));
 }

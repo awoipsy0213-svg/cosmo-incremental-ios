@@ -2,7 +2,7 @@
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#060c24"><title>理 — 更新確認</title><style>
 *{box-sizing:border-box}body{margin:0;padding:24px 18px;background:#eef2f8;color:#202b45;font:16px/1.65 -apple-system,BlinkMacSystemFont,sans-serif}main{max-width:540px;margin:auto;background:white;padding:24px;border-radius:16px}h1{font-size:22px;margin:0 0 10px}p{margin:12px 0}button,a{display:block;width:100%;text-align:center;padding:14px;margin:12px 0;border:1px solid #a9b5d0;border-radius:10px;font:inherit;color:inherit;background:white}button:not(:disabled){background:#293c71;color:white}button:disabled{opacity:.55}small{color:#596784}#status{white-space:pre-line}strong{font-variant-numeric:tabular-nums}
 </style></head><body><main>
-<h1>理 — 更新確認</h1><p>配信バージョン：<strong id="release">3.61</strong></p>
+<h1>理 — 更新確認</h1><p>配信バージョン：<strong id="release">3.62</strong></p>
 <p id="status" role="status" aria-live="polite">最新版を確認しています。</p>
 <p>ゲーム画面で保存を済ませ、他のゲーム画面を閉じてから更新してください。セーブデータやバックアップを削除する操作は行いません。</p>
 <button id="apply" disabled>最新版へ更新</button><button id="retry">もう一度確認</button>
@@ -10,7 +10,7 @@
 <small>ホーム画面に追加したアプリとブラウザは、端末によって保存領域が異なる場合があります。いつも遊んでいる環境で操作してください。</small>
 </main><script>
 "use strict";
-const RELEASE="3.61",status=document.getElementById("status"),apply=document.getElementById("apply"),retry=document.getElementById("retry"),back=document.getElementById("back");
+const RELEASE="3.62",status=document.getElementById("status"),apply=document.getElementById("apply"),retry=document.getElementById("retry"),back=document.getElementById("back");
 const mode=new URLSearchParams(location.search).get("lab")==="1"?"lab":"normal";
 const params=new URLSearchParams(location.search);
 back.href="./"+(mode==="lab"?"?lab=1":params.get("legacy")==="1"||params.get("compact")==="0"?"?legacy=1":"?compact=1");

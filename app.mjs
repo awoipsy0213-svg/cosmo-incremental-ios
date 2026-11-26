@@ -11,7 +11,7 @@ import {PROPOSED,PLANET_EFFECT_PROPOSALS,resourcePrototype,trialPreview,boostTri
 import {A,formatAmount,formatExistenceDisplay,formatExistenceHudDisplay,formatOrbAmount} from "./numbers.mjs";
 import * as G from "./game.mjs";
 import {C as Compact,unpack as compactState,compactProjection,splitExistenceShards,formatShardAmount} from "./compact-campaign-v357.mjs";
-import {compactKind,patchCompactCards,compactAutomationHTML,patchCompactAmount} from "./compact-campaign-ui-v357.mjs";
+import {compactKind,patchCompactCards,compactAutomationHTML,patchCompactAmount,patchCompactAutomation,compactThresholdText} from "./compact-campaign-ui-v357.mjs";
 import {timeHexMarkup,patchTimeHex,timeHexFlowPanel,timeHexMiraclesPanel} from "./time-hex-v341.mjs";
 import {formatGrowthInt,growthCap,residueIntervalSeconds} from "./time-growth-v350.mjs";
 import {engravingAutomationHTML,engravingPresetHTML} from "./engraving-v342-ui.mjs";
@@ -21,7 +21,7 @@ import {purchasePreview} from "./purchase-preview-v338.mjs";
 import {momentBrief,compactEffectValue} from "./purchase-clarity-v339.mjs";
 import {UNLOCK_COPY,uxSnapshot,uxChanges,unlockRatio,accumulateTapGain,guideSteps,residueSnapshot,residueGains,mergeResidueFeedback,residueFeedbackRows} from "./ux-polish-v355.mjs";
 
-const APP_RELEASE="3.61";
+const APP_RELEASE="3.62";
 const $=id=>document.getElementById(id);
 // Keep stable DOM nodes during idle refreshes; only owned display regions use this cache.
 const renderedHTML=new WeakMap();
@@ -521,8 +521,10 @@ function renderWorld(){
     if(compactMode)patchCompactAmount(mainReward,rewardLabel);
     else if(mainReward.textContent!==rewardLabel)mainReward.textContent=rewardLabel;
     if(mainNext.textContent!==nextOrbs+" オーブ")mainNext.textContent=nextOrbs+" オーブ";
-    mainConverge.querySelector("[data-main-convergence-gauge]").style.width=gauge.percent.toFixed(2)+"%";
-    const convergeInfo=`収束で${compactMode?"":"存在 "}${rewardLabel}。次の報酬まで ${nextOrbs} オーブ。`+(q.historyVerified?"":"旧周回の獲得履歴は未確認です。現在の確認済み獲得分だけを数えています。");
+    const gaugeNode=mainConverge.querySelector("[data-main-convergence-gauge]"),gaugeWidth=gauge.percent.toFixed(2)+"%";
+    if(gaugeNode.style.width!==gaugeWidth)gaugeNode.style.width=gaugeWidth;
+    if(compactMode){patchAttr(mainConverge,"data-reward-ready",q.steps>0);patchAttr(mainNext,"title","次の収束報酬まで "+nextOrbs+" オーブ");}
+    const convergeInfo=`${compactMode?(q.steps>0?"収束可能。":"収束条件未達。"):""}収束で${compactMode?"":"存在 "}${rewardLabel}。次の報酬まで ${nextOrbs} オーブ。`+(q.historyVerified?"":"旧周回の獲得履歴は未確認です。現在の確認済み獲得分だけを数えています。");
     if(mainConverge.title!==convergeInfo)mainConverge.title=convergeInfo;
     if(mainConverge.getAttribute("aria-label")!==convergeInfo)mainConverge.setAttribute("aria-label",convergeInfo);
   }else if(currentStage==="time"){
@@ -1329,6 +1331,11 @@ function renderPanel(force=false){
   patchHTML($("childTabs"),children.map(id=>`<button data-child="${id}" class="${currentSub===id?"active":""}" aria-pressed="${currentSub===id}">${esc(visibleChildLabel(id))}</button>`).join(""));
   $("sheetHeading").textContent=currentStage==="automation"?"自動化":(currentStage==="organizer"?"管理":"強化")+" / "+childLabel(currentSub);
   if(compactMode&&currentStage==="existence"&&compactKind(currentSub)){refreshCompactPanel(true);return;}
+  if(compactMode&&currentStage==="automation"&&currentSub==="auto-existence"){
+    $("purchaseToolbar").hidden=true;$("purchaseCycle").hidden=true;$("bulkScopeButton").hidden=true;
+    patchCompactAutomation($("sheetBody"),state,readOnly||store.blocked);
+    return;
+  }
   $("bulkScopeButton").hidden=compactMode;
   $("purchaseToolbar").hidden=currentStage!=="existence"||!["moment","sources"].includes(currentSub);
   const bulkAllowed=state.engraving.owned.includes("ENG-05");
@@ -2193,7 +2200,12 @@ document.addEventListener("change",async e=>{
     if(t.dataset.compactAuto!==undefined)return resultDone(G.configureCompact(state,t.dataset.compactAuto,t.checked));
     if(t.dataset.compactPriority!==undefined)return resultDone(G.configureCompact(state,"priority",t.value,t.dataset.compactPriority));
     if(t.hasAttribute("data-compact-condition"))return resultDone(G.configureCompact(state,"condition",t.value));
-    if(t.hasAttribute("data-compact-threshold"))return resultDone(G.configureCompact(state,"threshold",t.value));
+    if(t.hasAttribute("data-compact-threshold")){
+      // A rejected input is not a saved setting. Restore the canonical value.
+      const res=G.configureCompact(state,"threshold",t.value);
+      t.value=compactThresholdText(compactState(state));
+      return resultDone(res);
+    }
   }
   if(t.hasAttribute("data-auto-master")){
     resultDone(G.configureAutomationMaster(state,t.checked));return;
