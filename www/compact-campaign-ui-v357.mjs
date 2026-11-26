@@ -1,4 +1,4 @@
-import {C,unpack,fromLog,compactQuote} from "./compact-campaign-v357.mjs";
+import {C,unpack,fromLog,compactQuote,formatShardAmount} from "./compact-campaign-v357.mjs";
 const esc=x=>String(x).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const nf=x=>x.toLocaleString("ja-JP");
 export const compactKind=sub=>({moment:"moment",sources:"source",engraving:"engraving"})[sub];
@@ -40,7 +40,7 @@ export function patchCompactCards(root,s,kind,blocked=false,force=false){
   const b=node.querySelector("button");
   b.disabled=blocked||!visible||!q.count;
   if(!b.disabled)ready++;
-  set(node,"[data-c-cost]",!visible?"？？？":done?"—":C.fmt(q.count?q.cost:C.cost(c,row,1),kind==="engraving",true));
+  set(node,"[data-c-cost]",!visible?"？？？":done?"—":(kind==="engraving"?formatShardAmount(fromLog(q.count?q.cost:C.cost(c,row,1)),{roundUp:true}):C.fmt(q.count?q.cost:C.cost(c,row,1),false,true)));
   set(node,"[data-c-count]",!visible?"？？？":done?"—":"×"+nf(q.count));
   b.setAttribute("aria-label",name+" "+(row.fresh&&row.breakthrough?"限界突破":"購入 "+nf(q.count)+"Lv")+" "+b.querySelector("[data-c-cost]").textContent);
  }

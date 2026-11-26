@@ -1,6 +1,6 @@
 // Compact campaign integration. No access to localStorage or trial grants.
 import {G as C} from "./compact-economy-v357.mjs";
-import {A,Amount,seriesCost} from "./numbers.mjs";
+import {A,Amount,seriesCost,formatExistenceDisplay} from "./numbers.mjs";
 export {C};
 export const isCompact=s=>!!s&&Object.prototype.hasOwnProperty.call(s,"compactEconomy");
 export const fromLog=x=>Amount.fromLog10(x);
@@ -96,4 +96,31 @@ export function compactProjection(s){
  return {...s,moment:Object.fromEntries(c.moment.map((v,i)=>[i,v])),
   sources:Object.fromEntries(c.sources.map((v,i)=>[i,{level:v.level,plus:v.rank<0?0:Math.floor(v.rank/30)}])),
   engraving:{...s.engraving,owned:[...(C.own(c,"bulk")?["ENG-05"]:[]),...(c.engraving.some(Boolean)?["compact"]:[])],levels:Object.fromEntries(c.engraving.map((v,i)=>[i,v]))}};
+}
+
+// DEC-20261126-014/015: display decomposition of the canonical wallet.
+// No quantization of balances, quotes, lifetime, time input, or saved data.
+export function splitExistenceShards(value,{roundUp=false}={}){
+ const n=A(value),nf=x=>x.toLocaleString("ja-JP");
+ if(!n.m)return {whole:"0",shards:0,subShard:false};
+ if(n.e>10)return {whole:formatExistenceDisplay(n,{roundUp}),shards:null,subShard:false};
+ if(n.e< -3)return {whole:"0",shards:0,subShard:true};
+ // Amount is normalized to 14 significant decimal digits. Use those
+ // digits, not binary multiplication, to avoid losing a boundary shard.
+ const [head,tail=""]=String(n.m).split(".");
+ const digits=BigInt(head+tail),shift=n.e+3-tail.length;
+ const divisor=shift<0?10n**BigInt(-shift):1n;
+ let units=shift>=0?digits*10n**BigInt(shift):digits/divisor;
+ const remainder=shift<0&&digits%divisor!==0n;
+ if(roundUp&&remainder)units++;
+ const whole=units/1000n,shards=Number(units%1000n);
+ const wholeText=whole<=1000000n?nf(whole):formatExistenceDisplay(whole.toString(),{roundUp});
+ return {whole:wholeText,shards,subShard:remainder&&!roundUp};
+}
+export function formatShardAmount(value,{roundUp=false,full=false}={}){
+ const p=splitExistenceShards(value,{roundUp});
+ const fragments=p.shards===null?"":p.shards===0&&p.subShard?"かけら1未満":"かけら"+p.shards.toLocaleString("ja-JP");
+ if(full)return "存在"+p.whole+(fragments?"・"+fragments:"");
+ if(p.whole==="0")return fragments||"かけら0";
+ return "存在"+p.whole+(p.shards||p.subShard?"・"+fragments:"");
 }

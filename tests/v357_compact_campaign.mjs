@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import * as G from "../game.mjs";
-import {C,unpack} from "../compact-campaign-v357.mjs";
+import {C,unpack,fromLog,splitExistenceShards,formatShardAmount} from "../compact-campaign-v357.mjs";
 import {A} from "../numbers.mjs";
 import {SaveStore,KEYS,encode,decode} from "../save.mjs";
 const NOW=Date.now();
@@ -94,3 +94,26 @@ const cycle=C.fresh();cycle.sourceUnlocked=true;cycle.orbs=C.parse("1e500");
 for(let rank=0;rank<30;rank++){const q=C.buy(cycle,"source:"+rank,"MAX");assert.equal(q.count,10000,"rank "+rank);}
 assert.equal(C.buy(cycle,"source:30","1").count,1);assert.equal(cycle.sources[0].rank,30);
 console.log("PASS pacing: monotone price, bulk cost, preserved production, preview purity, all 30 ranks and manual cycle");
+
+{
+ assert.equal(formatShardAmount("0.030"),"かけら30");
+ assert.equal(formatShardAmount("0.125"),"かけら125");
+ assert.equal(formatShardAmount("0.999"),"かけら999");
+ assert.equal(formatShardAmount("1.000"),"存在1");
+ assert.equal(formatShardAmount("1.025"),"存在1・かけら25");
+ assert.equal(formatShardAmount("0.0009"),"かけら1未満");
+ assert.equal(formatShardAmount("0.00101",{roundUp:true}),"かけら2");
+ assert.equal(formatShardAmount("0.050",{roundUp:true}),"かけら50");
+ assert.equal(formatShardAmount("1e1000",{full:true}).startsWith("存在"),true);
+ const c=C.fresh();c.existence=C.parse(".98");c.lifetime=c.existence;
+ c.runEarned=Math.log10(1e6*(1.2**30-1)/.2)+1e-9;
+ assert.equal(C.convergenceQuote(c).steps,30);
+ assert.ok(C.converge(c));
+ assert.equal(formatShardAmount(fromLog(c.existence)),"存在1・かけら10");
+ assert.equal(C.decode(C.encode(c)).existence,c.existence);
+ const d=C.fresh();d.existence=C.parse(".0004");
+ d.existence=C.add(d.existence,C.parse(".0007"));
+ assert.equal(formatShardAmount(fromLog(d.existence)),"かけら1");
+ assert.equal(C.decode(C.encode(d)).existence,d.existence);
+ console.log("PASS shard split, conservative prices and saved fractional carry");
+}
