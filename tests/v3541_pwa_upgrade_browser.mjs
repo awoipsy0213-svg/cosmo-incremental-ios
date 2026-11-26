@@ -9,7 +9,7 @@ import {chromium} from "@playwright/test";
 
 const root=fileURLToPath(new URL("../",import.meta.url));
 const old=mkdtempSync(join(tmpdir(),"kotowari-old-"));
-const OLD="c915a3732444b7189bc8fe516e78556e8c486eac",release="3.59";
+const OLD="c915a3732444b7189bc8fe516e78556e8c486eac",release="3.60";
 const oldSW=execFileSync("git",["show",OLD+":sw.js"],{cwd:root,encoding:"utf8"});
 const files=[...oldSW.match(/const CORE_FILES = \[([\s\S]*?)\];/)[1].matchAll(/"([^"]+)"/g)].map(m=>m[1]);
 const archive=execFileSync("git",["archive","--format=tar",OLD,"sw.js",...files],{cwd:root,maxBuffer:32*1024*1024});
@@ -33,7 +33,7 @@ try{
   const ctx=await browser.newContext({viewport:{width:375,height:812},serviceWorkers:"allow"});
   const page=await ctx.newPage(),errors=[];
   page.on("pageerror",e=>errors.push(String(e)));
-  await page.goto(base+"?dev=1");
+  await page.goto(base+"?legacy=1&dev=1");
   await page.waitForFunction(()=>window.KOTOWARI_DEBUG&&navigator.serviceWorker.controller);
   assert.match(await page.locator("#buildLabel").textContent(),/3\.34/);
   const raw=await page.evaluate(async()=>{
@@ -80,7 +80,7 @@ try{
   // independently reachable recovery page discovers the waiting release.
   phase="new";
   const recovery=await ctx.newPage();
-  await recovery.goto(base+"update.html");
+  await recovery.goto(base+"update.html?legacy=1");
   await recovery.locator("#apply").waitFor();
   await recovery.waitForFunction(()=>!document.getElementById("apply").disabled,{},{timeout:90000});
   await recovery.locator("#apply").click();
@@ -91,7 +91,7 @@ try{
   await recovery.waitForFunction(()=>!document.getElementById("apply").disabled,{},{timeout:90000});
   await recovery.locator("#apply").click();
   await recovery.waitForFunction(()=>document.getElementById("status").textContent.includes("更新完了"),{},{timeout:90000});
-  await recovery.goto(base+"?dev=1");
+  await recovery.goto(base+"?legacy=1&dev=1");
   await recovery.waitForFunction(()=>window.KOTOWARI_DEBUG?.state().moment.tap===4);
   assert.equal(await recovery.locator("#buildLabel").textContent(),release);
   const restored=await recovery.evaluate(()=>window.KOTOWARI_DEBUG.state());

@@ -14,7 +14,7 @@ try{
     const ctx=await browser.newContext({viewport:{width,height}});
     const page=await ctx.newPage(),errors=[];
     page.on("pageerror",e=>errors.push(String(e)));
-    await page.goto(base+"?dev=1",{waitUntil:"domcontentloaded"});
+    await page.goto(base+"?legacy=1&dev=1",{waitUntil:"domcontentloaded"});
     await page.waitForFunction(()=>window.KOTOWARI_DEBUG);
     const raw=await page.evaluate(async()=>{
       const G=await import("./game.mjs"),S=await import("./save.mjs");

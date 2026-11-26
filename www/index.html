@@ -31,7 +31,7 @@
 <body class="kw-app">
 <div id="appRoot">
   <div class="app-top">
-    <div class="brand"><span class="brand-mark">理</span><span class="brand-caption">KOTOWARI<span id="buildLabel" hidden aria-hidden="true">3.59</span></span></div>
+    <div class="brand"><span class="brand-mark">理</span><span class="brand-caption">KOTOWARI<span id="buildLabel" hidden aria-hidden="true">3.60</span></span></div>
     <div id="activeStageTitle" class="active-stage-title">ステージ · 存在</div>
     <div class="run-indicator" aria-label="収束した回数"><span>収束</span><strong id="hudRunCount">0</strong></div>
     <div class="top-actions"><span id="saveIndicator" role="status" aria-label="保存状態">準備中</span><button class="icon-button" data-action="organizer" aria-label="設定と保存を開く">≡</button></div>
@@ -47,6 +47,13 @@
       <span id="stageKicker" class="stage-kicker">STAGE 01</span>
       <h1 id="stageTitle">存在</h1>
       <div class="stage-hud">
+        <section id="compactShardWallet" class="compact-shard-wallet" aria-label="存在と存在のかけら" hidden>
+          <div class="compact-shard-values">
+            <div class="compact-shard-part"><span class="compact-resource-glyph existence" aria-hidden="true"></span><span class="compact-shard-copy"><small>存在</small><strong id="compactWalletWhole">0</strong></span></div>
+            <div class="compact-shard-part"><span class="compact-resource-glyph shard" aria-hidden="true"></span><span class="compact-shard-copy"><small>かけら</small><span class="compact-shard-number"><strong id="compactWalletShards">0</strong><small id="compactShardLimit">/ 1,000</small></span></span></div>
+          </div>
+          <div id="compactShardTrack" class="compact-shard-track" role="progressbar" aria-label="次の存在までのかけら" aria-valuemin="0" aria-valuemax="1000" aria-valuenow="0" data-available="true"><i id="compactShardFill"></i></div>
+        </section>
         <div class="stage-hud-primary"><span id="stageResourceLabel" class="stage-resource-label">オーブ</span><div id="primaryValue" class="primary-value">0</div><div id="worldDetails" class="world-details"></div></div>
         <div id="stageResourceList" class="stage-resource-list" aria-label="このステージの主要な数値"></div>
         <div id="compactIncome" class="compact-income" aria-label="オーブの獲得速度" hidden>

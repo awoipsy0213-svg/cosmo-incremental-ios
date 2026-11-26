@@ -11,7 +11,7 @@ try{
   for(const [width,height] of [[320,568],[375,812],[1024,900],[812,375]]){
     const ctx=await browser.newContext({viewport:{width,height},reducedMotion:"reduce"});
     const p=await ctx.newPage(),errors=[];p.on("pageerror",e=>errors.push(String(e)));
-    await p.goto(base+"?dev=1");await p.waitForFunction(()=>window.KOTOWARI_DEBUG);
+    await p.goto(base+"?legacy=1&dev=1");await p.waitForFunction(()=>window.KOTOWARI_DEBUG);
     const raw=await p.evaluate(async()=>{const G=await import("./game.mjs"),S=await import("./save.mjs");const s=G.createState(Date.now());s.intro.complete=true;s.settings.confirmConvergence=false;G.addOrbs(s,"999999");return S.encode(s,"ux-test");});
     await p.addInitScript(raw=>{if(!sessionStorage.getItem("ux-fixture")){localStorage.setItem("kotowari_v31_normal",raw);sessionStorage.setItem("ux-fixture","yes");}},raw);
     await p.reload();await p.waitForFunction(()=>window.KOTOWARI_DEBUG?.state().intro.complete);

@@ -332,3 +332,44 @@ body.compact-campaign.compact-light #sheetBody .compact-campaign-buy{display:gri
 body.compact-campaign.compact-light #sheetBody .compact-campaign-buy:not(:disabled){background:linear-gradient(145deg,#765bbd,#536caa);color:#fff}
 body.compact-campaign.compact-light #sheetBody .compact-campaign-buy:not(:disabled) :is(strong,small){color:#fff}
 body.compact-campaign.compact-light #sheetBody .compact-campaign-buy:disabled{background:#e5e6ef;color:#56617d;opacity:1}
+
+/* v3.60 / DEC-016 — one stage-local wallet; presentation only. */
+#compactShardWallet[hidden]{display:none!important}
+body.compact-campaign .compact-shard-wallet{
+ --wallet-bg:#1b2942;--wallet-edge:#64799e;--wallet-text:#f1f5ff;
+ --wallet-dim:#bdcce8;--wallet-shard:#d0bfff;--wallet-track:#384663;--wallet-fill:#b9a4ff;
+ box-sizing:border-box;width:100%;height:62px;min-height:62px;max-height:62px;
+ display:grid;grid-template-rows:minmax(0,1fr) 4px;gap:5px;
+ padding:6px 8px;margin:0 0 4px;border:1px solid var(--wallet-edge);border-radius:9px;
+ background:var(--wallet-bg);color:var(--wallet-text);font-variant-numeric:tabular-nums;text-align:left;
+}
+body.compact-campaign.compact-light .compact-shard-wallet{
+ --wallet-bg:#f7f5ff;--wallet-edge:#a7a2ca;--wallet-text:#303f75;
+ --wallet-dim:#545c7e;--wallet-shard:#6350ad;--wallet-track:#e1ddf0;--wallet-fill:#8066c8;
+}
+body.compact-campaign.high-contrast .compact-shard-wallet{border-color:currentColor}
+.compact-shard-values{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:6px;align-items:center;min-width:0}
+.compact-shard-part{display:flex;align-items:center;gap:5px;min-width:0;height:36px}
+.compact-shard-part+.compact-shard-part{border-left:1px solid var(--wallet-edge);padding-left:6px}
+.compact-shard-copy{display:grid;min-width:0;flex:1;gap:1px;align-content:center}
+.compact-shard-copy small{color:var(--wallet-dim);font-size:10px;line-height:11px;white-space:nowrap}
+.compact-shard-copy strong{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--wallet-text);font-size:clamp(13px,4vw,17px);line-height:20px;letter-spacing:-.025em}
+.compact-shard-number{display:flex;gap:3px;align-items:baseline;min-width:0}
+.compact-shard-number strong{color:var(--wallet-shard)}
+.compact-shard-number small{font-size:9px;flex:none}
+.compact-resource-glyph{display:inline-block;flex:none;width:1em;height:1em;box-sizing:border-box;vertical-align:-.1em}
+.compact-resource-glyph.existence{border-radius:50%;background:radial-gradient(circle at 34% 30%,#fff 5%,#d8ecff 24%,#7d9ceb 55%,#3f5899 90%);border:1px solid #91addb}
+.compact-resource-glyph.shard{clip-path:polygon(50% 0,100% 38%,50% 100%,0 38%);background:linear-gradient(115deg,#f2eaff 0 45%,#aa90ec 46% 72%,#7054b9 73%)}
+.compact-shard-part>.compact-resource-glyph{width:18px;height:18px}
+.compact-shard-part>.compact-resource-glyph.shard{width:14px;height:19px}
+.compact-shard-track{height:4px;border-radius:3px;background:var(--wallet-track);overflow:hidden}
+.compact-shard-track i{display:block;height:100%;width:0;background:var(--wallet-fill);border-radius:3px}
+.compact-shard-track[data-available="false"]{opacity:.5}
+.compact-resource-sr{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip-path:inset(50%);white-space:nowrap}
+body.compact-campaign .compact-resource-amount{display:flex!important;align-items:center;justify-content:center;gap:2px;min-width:0;max-width:100%;white-space:nowrap!important}
+.compact-amount-segment{display:inline-flex;align-items:center;gap:1px;min-width:0}
+.compact-amount-value{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body.compact-campaign #sheetBody .compact-campaign-buy [data-c-cost].compact-resource-amount{font-size:11px;letter-spacing:-.025em}
+body.compact-campaign #sheetBody .compact-campaign-buy .compact-resource-glyph{width:9px;height:9px}
+body.compact-campaign .converge-main-reward [data-main-convergence-reward].compact-resource-amount{justify-content:flex-start}
+@media(max-width:340px){.compact-shard-wallet{padding-inline:5px!important}.compact-shard-values{gap:4px}.compact-shard-part{gap:3px}.compact-shard-part+.compact-shard-part{padding-left:4px}.compact-shard-number{gap:2px}.compact-shard-part>.compact-resource-glyph{width:15px;height:15px}.compact-shard-part>.compact-resource-glyph.shard{width:12px;height:16px}}

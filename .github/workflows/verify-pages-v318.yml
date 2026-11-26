@@ -107,6 +107,7 @@ jobs:
           node tests/v328_confirmed_browser.mjs
           node tests/v327_time_only_browser.mjs
           node tests/v320_browser_recovery.mjs
+          node tests/v357_compact_campaign_browser.mjs
       - name: Upload published luminous UI screenshots and density metrics
         if: always()
         uses: actions/upload-artifact@v4

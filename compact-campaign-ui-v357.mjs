@@ -1,6 +1,21 @@
 import {C,unpack,fromLog,compactQuote,formatShardAmount} from "./compact-campaign-v357.mjs";
 const esc=x=>String(x).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const nf=x=>x.toLocaleString("ja-JP");
+// Visual icons use the same resource identity as the wallet. The full Japanese
+// label remains in textContent, the accessible name and the tooltip.
+export function patchCompactAmount(node,label){
+ if(node.dataset.currencyLabel===label&&node.textContent===label)return;
+ node.dataset.currencyLabel=label;
+ const prefix=label.startsWith("+")?"+":"",raw=prefix?label.slice(1):label;
+ const segments=raw.split("・").map(part=>part.match(/^(存在|かけら)(.+)$/));
+ if(segments.every(Boolean)){
+  node.classList.add("compact-resource-amount");
+  node.innerHTML=(prefix?'<span class="compact-amount-plus">+</span>':"")+segments.map((m,i)=>(i?'<span class="compact-resource-sr">・</span>':"")+'<span class="compact-amount-segment"><span class="compact-resource-glyph '+(m[1]==="存在"?"existence":"shard")+'" aria-hidden="true"></span><span class="compact-resource-sr">'+m[1]+'</span><span class="compact-amount-value">'+esc(m[2])+'</span></span>').join("");
+ }else{
+  node.classList.remove("compact-resource-amount");node.textContent=label;
+ }
+ node.title=label;node.setAttribute("aria-label",label);
+}
 export const compactKind=sub=>({moment:"moment",sources:"source",engraving:"engraving"})[sub];
 const cardName=(k,c)=>k==="source"?"源"+String(c.i+1).padStart(2,"0")+(c.rank>=30?" ＋"+nf(Math.floor(c.rank/30)):""):(k==="moment"?C.M:C.E)[c.i][0];
 const description=(k,c)=>k==="source"?"実質グレード "+nf(c.rank+1):(k==="moment"?C.M:C.E)[c.i][1];
@@ -40,9 +55,11 @@ export function patchCompactCards(root,s,kind,blocked=false,force=false){
   const b=node.querySelector("button");
   b.disabled=blocked||!visible||!q.count;
   if(!b.disabled)ready++;
-  set(node,"[data-c-cost]",!visible?"？？？":done?"—":(kind==="engraving"?formatShardAmount(fromLog(q.count?q.cost:C.cost(c,row,1)),{roundUp:true}):C.fmt(q.count?q.cost:C.cost(c,row,1),false,true)));
+  const costLabel=!visible?"？？？":done?"—":(kind==="engraving"?formatShardAmount(fromLog(q.count?q.cost:C.cost(c,row,1)),{roundUp:true}):C.fmt(q.count?q.cost:C.cost(c,row,1),false,true));
+  if(kind==="engraving")patchCompactAmount(node.querySelector("[data-c-cost]"),costLabel);
+  else set(node,"[data-c-cost]",costLabel);
   set(node,"[data-c-count]",!visible?"？？？":done?"—":"×"+nf(q.count));
-  b.setAttribute("aria-label",name+" "+(row.fresh&&row.breakthrough?"限界突破":"購入 "+nf(q.count)+"Lv")+" "+b.querySelector("[data-c-cost]").textContent);
+  b.setAttribute("aria-label",name+" "+(row.fresh&&row.breakthrough?"限界突破":"購入 "+nf(q.count)+"Lv")+" "+costLabel);
  }
  return {ready,total:cards.length};
 }

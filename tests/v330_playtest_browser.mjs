@@ -15,7 +15,7 @@ try{
   const context=await browser.newContext({viewport:{width,height}});
   const page=await context.newPage(),errors=[];
   page.on("pageerror",err=>errors.push(String(err)));
-  assert.equal((await page.goto(base+"?dev=1",{waitUntil:"domcontentloaded"}))?.status(),200);
+  assert.equal((await page.goto(base+"?legacy=1&dev=1",{waitUntil:"domcontentloaded"}))?.status(),200);
   await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
   const raw=await page.evaluate(async()=>{
    const G=await import("./game.mjs"),S=await import("./save.mjs");
@@ -33,7 +33,7 @@ try{
   },raw);
   await page.reload({waitUntil:"domcontentloaded"});
   await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
-  assert.match(await page.locator("#buildLabel").textContent(),/^3\.59$/);
+  assert.match(await page.locator("#buildLabel").textContent(),/^3\.60$/);
   assert.equal(await page.locator("#worldStatus").count(),0,"status panel should be removed");
   assert.equal(await page.locator(".world-sideboards").isVisible(),false);
   const obs=await page.locator("#worldObserve").textContent();

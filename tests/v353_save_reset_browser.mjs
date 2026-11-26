@@ -15,7 +15,7 @@ try{
     const page=await ctx.newPage(),errors=[];
     page.on("pageerror",e=>errors.push(String(e)));
     const saved=()=>page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
-    await page.goto(base+"?dev=1",{waitUntil:"domcontentloaded"});await saved();
+    await page.goto(base+"?legacy=1&dev=1",{waitUntil:"domcontentloaded"});await saved();
     const data=await page.evaluate(async()=>{
       const G=await import("./game.mjs"),S=await import("./save.mjs");
       const s=G.createState(Date.now(),"normal");s.intro.complete=true;s.intro.touches=8;

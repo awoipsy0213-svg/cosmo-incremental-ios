@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import {spawn} from "node:child_process";
 import {chromium} from "@playwright/test";
 const port=process.env.KOTOWARI_V357_PORT||"8857";
-const base="http://127.0.0.1:"+port+"/";
-const server=spawn("python3",["-m","http.server",port,"--bind","127.0.0.1"],{stdio:"ignore"});
+const publicRoot=process.env.KOTOWARI_SMOKE_BASE_URL||"";
+const base=publicRoot||"http://127.0.0.1:"+port+"/";
+const server=publicRoot?null:spawn("python3",["-m","http.server",port,"--bind","127.0.0.1"],{stdio:"ignore"});
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
 let browser;
 try {
@@ -13,9 +14,10 @@ try {
  for(const width of [320,375,430]){
   const ctx=await browser.newContext({viewport:{width,height:812},serviceWorkers:"block"}),page=await ctx.newPage(),errors=[];
   page.on("pageerror",e=>errors.push(String(e)));
-  await page.goto(base+"?compact=1&dev=1");
+  await page.goto(base+"?dev=1");
   await page.waitForFunction(()=>window.KOTOWARI_DEBUG?.state()?.compactEconomy);
   assert.ok(await page.locator("#compactIncome").isHidden(),"income hidden during intro");
+  assert.ok(await page.locator("#compactShardWallet").isHidden(),"wallet hidden during intro");
   await page.goto(base+"numbers.mjs");
   await page.evaluate(async()=>{
     const G=await import("./game.mjs"),S=await import("./save.mjs");
@@ -30,13 +32,20 @@ try {
   await page.goto(base+"?compact=1&dev=1");
   await page.waitForFunction(()=>window.KOTOWARI_DEBUG?.state()?.compactEconomy);
   await page.evaluate(()=>window.KOTOWARI_DEBUG.open("existence","moment"));
-  assert.equal(await page.locator("#buildLabel").textContent(),"3.59");
+  assert.equal(await page.locator("#buildLabel").textContent(),"3.60");
   assert.equal(await page.evaluate(()=>getComputedStyle(document.body).colorScheme),"dark");
   assert.match(await page.locator("[data-main-convergence-reward]").textContent(),/かけら|存在/);
+  assert.ok(await page.locator("#compactShardWallet").isVisible());
+  assert.equal(await page.locator("#compactShardWallet").evaluate(el=>el.getBoundingClientRect().height),62);
+  assert.equal(await page.locator("[data-common-value=existence]").textContent(),await page.locator("#compactWalletWhole").textContent());
+  assert.equal(await page.locator("[data-common-value=existence]").evaluate(el=>el.parentElement.querySelector("small").textContent),"存在");
+  assert.doesNotMatch(await page.locator("[data-common-value=existence]").evaluate(el=>el.closest("button").title),/かけら/);
   await page.evaluate(()=>window.KOTOWARI_DEBUG.open("organizer","settings"));
   await page.locator("[data-compact-theme]").selectOption("light");
   assert.equal(await page.evaluate(()=>getComputedStyle(document.body).colorScheme),"light");
+  assert.ok(await page.locator("#compactShardWallet").isHidden(),"wallet hidden in settings");
   await page.evaluate(()=>window.KOTOWARI_DEBUG.open("existence","moment"));
+  assert.equal(await page.locator("#compactShardWallet").evaluate(el=>el.getBoundingClientRect().height),62);
   assert.equal((await page.locator("[data-compact-card]").first().boundingBox()).height,50);
   assert.equal((await page.locator("[data-compact-buy]").first().boundingBox()).height,44);
   await page.evaluate(()=>window.KOTOWARI_DEBUG.save());
@@ -57,6 +66,7 @@ try {
   assert.ok(await page.evaluate(()=>window.KOTOWARI_DEBUG.state().compactEconomy.moment[0]>3000));
   await page.evaluate(()=>window.KOTOWARI_DEBUG.open("existence","engraving"));
   assert.equal(await page.locator("[data-compact-card]").count(),12);
+  assert.ok(await page.locator("[data-c-cost] .compact-resource-glyph").count()>0,"engraving uses resource icons");
   for(const card of await page.locator("[data-compact-card]").all()){
     const box=await card.boundingBox();assert.ok(box&&Math.abs(box.height-50)<=1,"50px fixed card "+width);
     const btn=await card.locator("button").boundingBox();assert.ok(btn&&btn.height>=44&&btn.width>=44,"44px touch target "+width);
@@ -70,6 +80,7 @@ try {
   await page.evaluate(()=>window.KOTOWARI_DEBUG.open("time","flow"));
   assert.equal(await page.evaluate(()=>window.KOTOWARI_DEBUG.state().time.unlocked),true);
   assert.ok(await page.locator("#compactIncome").isHidden(),"existence rates must not leak into time");
+  assert.ok(await page.locator("#compactShardWallet").isHidden(),"shards must not leak into time");
   assert.ok(await page.locator(".time-hex-core-symbol").isHidden());
   assert.equal(await page.locator(".time-hex-node").count(),6);
   await page.evaluate(()=>window.KOTOWARI_DEBUG.open("existence","sources"));
@@ -91,5 +102,62 @@ try {
   assert.deepEqual(errors,[]);
   await ctx.close();
  }
+ // Independent exact-boundary fixture. Route through the real settings UI.
+ {
+  const ctx=await browser.newContext({viewport:{width:375,height:812},serviceWorkers:"block"}),page=await ctx.newPage(),errors=[];
+  page.on("pageerror",e=>errors.push(String(e)));
+  await page.goto(base+"numbers.mjs");
+  await page.evaluate(async()=>{
+   const G=await import("./game.mjs"),S=await import("./save.mjs"),M=await import("./compact-campaign-v357.mjs");
+   const now=Date.now(),s=G.createState(now,"normal",true);
+   s.intro.complete=true;s.intro.touches=8;G.addOrbs(s,"1000000");
+   const c=M.unpack(s);c.existence=M.C.parse(".999");c.lifetime=c.existence;c.convergenceCount=1;c.engravingUnlocked=true;
+   Object.assign(s,M.mirrors(c),{compactEconomy:M.pack(c)});
+   s.settings.confirmConvergence=false;s.settings.reducedMotion=true;
+   localStorage.setItem(S.KEYS.compact,S.encode(s,"boundary"));
+   const old=G.createState(now,"normal");old.intro.complete=true;old.intro.touches=8;old.orbs="12345";old.totalOrbs="12345";old.runOrbsEarned="12345";
+   localStorage.setItem(S.KEYS.normal,S.encode(old,"old-fixture"));
+  });
+  const oldRaw=await page.evaluate(()=>localStorage.getItem("kotowari_v31_normal"));
+  await page.goto(base);
+  await page.waitForFunction(()=>document.body.classList.contains("compact-campaign")&&document.querySelector("#compactWalletShards")?.textContent==="999");
+  assert.equal(await page.locator("#compactWalletWhole").textContent(),"1");
+  assert.equal(await page.locator("#compactShardTrack").getAttribute("aria-valuenow"),"999");
+  assert.equal(await page.locator("#compactShardFill").evaluate(el=>el.style.width),"99.9%");
+  assert.match(await page.locator("[data-main-convergence-reward]").textContent(),/かけら1/);
+  await page.locator("#convergeMain").click();
+  await page.waitForFunction(()=>document.querySelector("#compactWalletWhole")?.textContent==="2"&&document.querySelector("#compactWalletShards")?.textContent==="0");
+  assert.equal(await page.locator("#compactShardTrack").getAttribute("aria-valuenow"),"0");
+  assert.equal(await page.locator("[data-common-value=existence]").textContent(),"2");
+  assert.equal(await page.evaluate(()=>localStorage.getItem("kotowari_v31_normal")),oldRaw);
+  await page.reload();
+  await page.waitForFunction(()=>document.querySelector("#compactWalletWhole")?.textContent==="2");
+  await page.locator('button[data-action="organizer"]').first().click();
+  assert.equal(await page.locator('#organizerLinks [data-action="exit-compact"]').count(),0,"old version is not on the top-level menu");
+  await page.locator('#organizerLinks [data-organizer="settings"]').click();
+  await page.locator('[data-action="exit-compact"]').click();
+  await page.locator("#confirmYes").click();
+  await page.waitForURL(/legacy=1/);
+  await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
+  assert.ok(await page.locator("#compactShardWallet").isHidden());
+  assert.equal(await page.evaluate(()=>document.body.classList.contains("compact-campaign")),false);
+  assert.equal(await page.locator("#primaryValue").textContent(),"12,345");
+  const compactRaw=await page.evaluate(()=>localStorage.getItem("kotowari_v31_compact_v1"));
+  await page.locator('button[data-action="organizer"]').first().click();
+  await page.locator('#organizerLinks [data-action="enter-compact"]').click();
+  await page.locator("#confirmYes").click();
+  await page.waitForURL(/compact=1/);
+  await page.waitForFunction(()=>document.querySelector("#compactWalletWhole")?.textContent==="2");
+  const saved=await page.evaluate(async raw=>{const S=await import("./save.mjs");const before=S.decode(raw,"normal",true),after=S.decode(localStorage.getItem(S.KEYS.compact),"normal",true);return {before:before.surplusExistence,after:after.surplusExistence,lifetime:after.totalExistenceEarned};},compactRaw);
+  assert.equal(saved.before,saved.after);assert.equal(saved.after,"1e0");assert.equal(saved.lifetime,"1e0");
+  await page.goto(base+"?compact=0&dev=1");
+  await page.waitForFunction(()=>window.KOTOWARI_DEBUG);
+  assert.equal(await page.evaluate(()=>window.KOTOWARI_DEBUG.storeKey),"kotowari_v31_normal");
+  assert.ok(await page.locator("#compactShardWallet").isHidden());
+  await page.goto(base+"update.html?legacy=1");
+  assert.match(await page.locator("#back").getAttribute("href"),/legacy=1/);
+  assert.deepEqual(errors,[]);
+  await ctx.close();
+ }
  console.log("PASS compact campaign browser: mobile cards, purchase, automation, stages, persistence and isolation");
-}finally{await browser?.close();server.kill();}
+}finally{await browser?.close();server?.kill();}

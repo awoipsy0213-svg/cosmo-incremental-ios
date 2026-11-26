@@ -17,7 +17,7 @@ try {
     const ctx=await browser.newContext({viewport:{width,height}});
     const page=await ctx.newPage(),errors=[];
     page.on("pageerror",err=>errors.push(String(err)));
-    assert.equal((await page.goto(base+"?dev=1",{waitUntil:"domcontentloaded"}))?.status(),200);
+    assert.equal((await page.goto(base+"?legacy=1&dev=1",{waitUntil:"domcontentloaded"}))?.status(),200);
     await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
     const encoded=await page.evaluate(async()=>{
       const G=await import("./game.mjs"),Save=await import("./save.mjs");

@@ -117,3 +117,17 @@ console.log("PASS pacing: monotone price, bulk cost, preserved production, previ
  assert.equal(C.decode(C.encode(d)).existence,d.existence);
  console.log("PASS shard split, conservative prices and saved fractional carry");
 }
+
+// DEC-016: conservative shard labels at sub-shard and scientific boundaries.
+{
+ for(const [value,normal,cost] of [
+  ["0","かけら0","かけら0"],["0.0009","かけら1未満","かけら1"],
+  ["0.9999999","かけら999","存在1"],["1.0258","存在1・かけら25","存在1・かけら26"],
+  ["1000000.025","存在1,000,000・かけら25","存在1,000,000・かけら25"],
+  ["1000001.025","存在約1.00e+6","存在約1.01e+6"],
+  ["1999999.999","存在約1.99e+6","存在約2.00e+6"],
+  ["1e12","存在1.00e+12","存在1.00e+12"]
+ ]){assert.equal(formatShardAmount(value),normal,value);assert.equal(formatShardAmount(value,{roundUp:true}),cost,value);}
+ for(const v of ["1000001.025","1999999.999","1e1000"]){assert.equal(splitExistenceShards(v).shards,null,v);}
+ console.log("PASS v360 shard rounding, no misleading mixed scientific fragments");
+}

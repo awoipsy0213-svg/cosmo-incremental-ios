@@ -20,7 +20,7 @@ try{
    const context=await browser.newContext({viewport:{width,height}});
    const page=await context.newPage(),errors=[];
    page.on("pageerror",e=>errors.push(String(e)));
-   assert.equal((await page.goto(root,{waitUntil:"domcontentloaded"}))?.status(),200);
+   assert.equal((await page.goto(root+"?legacy=1",{waitUntil:"domcontentloaded"}))?.status(),200);
    await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
    const fixture=await page.evaluate(async()=>{
      const G=await import("./game.mjs"),S=await import("./save.mjs");
@@ -32,7 +32,7 @@ try{
    await page.addInitScript(raw=>localStorage.setItem("kotowari_v31_normal",raw),fixture);
    await page.reload({waitUntil:"domcontentloaded"});
    await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
-   assert.match(await page.locator("#buildLabel").textContent(),/^3\.59$/);
+   assert.match(await page.locator("#buildLabel").textContent(),/^3\.60$/);
    assert.equal(await page.locator(".common-info-item").count(),2);
    const layout=await page.evaluate(()=>({
      scroll:document.documentElement.scrollWidth,

@@ -11,7 +11,7 @@ import {PROPOSED,PLANET_EFFECT_PROPOSALS,resourcePrototype,trialPreview,boostTri
 import {A,formatAmount,formatExistenceDisplay,formatExistenceHudDisplay,formatOrbAmount} from "./numbers.mjs";
 import * as G from "./game.mjs";
 import {C as Compact,unpack as compactState,compactProjection,splitExistenceShards,formatShardAmount} from "./compact-campaign-v357.mjs";
-import {compactKind,patchCompactCards,compactAutomationHTML} from "./compact-campaign-ui-v357.mjs";
+import {compactKind,patchCompactCards,compactAutomationHTML,patchCompactAmount} from "./compact-campaign-ui-v357.mjs";
 import {timeHexMarkup,patchTimeHex,timeHexFlowPanel,timeHexMiraclesPanel} from "./time-hex-v341.mjs";
 import {formatGrowthInt,growthCap,residueIntervalSeconds} from "./time-growth-v350.mjs";
 import {engravingAutomationHTML,engravingPresetHTML} from "./engraving-v342-ui.mjs";
@@ -21,12 +21,12 @@ import {purchasePreview} from "./purchase-preview-v338.mjs";
 import {momentBrief,compactEffectValue} from "./purchase-clarity-v339.mjs";
 import {UNLOCK_COPY,uxSnapshot,uxChanges,unlockRatio,accumulateTapGain,guideSteps,residueSnapshot,residueGains,mergeResidueFeedback,residueFeedbackRows} from "./ux-polish-v355.mjs";
 
-const APP_RELEASE="3.59";
+const APP_RELEASE="3.60";
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const params=new URLSearchParams(location.search);
 const mode=params.get("lab")==="1"?"lab":"normal";
-const compactMode=mode==="normal"&&params.get("compact")==="1";
+const compactMode=mode==="normal"&&params.get("legacy")!=="1"&&params.get("compact")!=="0";
 const dev=params.get("dev")==="1"||mode==="lab";
 const childNames={moment:"刹那",sources:"源",engraving:"刻印",flow:"残滓",concepts:"概念",miracles:"奇跡",
   planets:"惑星",resources:"資源",observations:"観測",life:"生命",
@@ -49,8 +49,9 @@ let testGrantDraft="1e12",resetPending=false;
 let pwaRegistration=null,lastUpdateCheck=0,updateRequested=false,reloadForUpdate=false;
 let uxStateRef=null,uxPrevious=null,uxQueue=[],uxActive=null,uxPulseTimer=null,uxLastPulse=0,uxAudio=null;
 let uxGainBatch=null,uxGainTimer=null;
+let shardHUDPrevious=null,shardHUDLastPulse=0;
 let residuePrevious=null,residuePending=new Map(),residuePendingAt=0,residueVisibleUntil=0;
-const updatePath=()=> "./update.html"+(mode==="lab"?"?lab=1":compactMode?"?compact=1":"");
+const updatePath=()=> "./update.html"+(mode==="lab"?"?lab=1":compactMode?"?compact=1":"?legacy=1");
 const BOOST_QUICK_ICON=`<svg class="boost-quick-symbol" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M13 2 5 13h6l-1 9 9-12h-6V2z" fill="currentColor"/></svg>`;
 const HOLD_LEVEL_LIMIT=3000; // BOOST-Q673/674: one continuous long press, total acquired Lv
 let holdPurchase=null,skipClickFor=null;
@@ -396,10 +397,10 @@ function refreshTimeUnlockUI(){
     menu.querySelector("[data-unlock-earned]").textContent="当周回の累計獲得 "+current+" / "+target;
   }
 }
-function versionChoiceHTML(){return mode==="lab"?"":`<button class="wide-button" data-action="${compactMode?"exit-compact":"enter-compact"}">${compactMode?"旧版に戻る":"新経済版で遊ぶ"}<span>›</span></button><small class="compact-version-note">旧版と新経済版の進行は別々に保存されます。</small>`;}
+function versionChoiceHTML(){return mode==="lab"?"":`<button class="wide-button" data-action="${compactMode?"exit-compact":"enter-compact"}">${compactMode?"旧バージョンを開く":"最新版へ戻る"}<span>›</span></button><small class="compact-version-note">旧版と新経済版の進行は別々に保存されます。</small>`;}
 function openOrganizer(){
   stopHoldPurchase(null,true);
-  $("organizerLinks").innerHTML=versionChoiceHTML()+(state.intro.complete&&!state.time.unlocked?`<div class="locked-stage-menu" data-time-unlock-menu><strong>？？？</strong><span data-unlock-remaining></span><small data-unlock-earned></small></div>`:"")+organizerItems.map(id=>`<button data-organizer="${id}">${esc(childNames[id])}<span>›</span></button>`).join("");
+  $("organizerLinks").innerHTML=(compactMode?"":versionChoiceHTML())+(state.intro.complete&&!state.time.unlocked?`<div class="locked-stage-menu" data-time-unlock-menu><strong>？？？</strong><span data-unlock-remaining></span><small data-unlock-earned></small></div>`:"")+organizerItems.map(id=>`<button data-organizer="${id}">${esc(childNames[id])}<span>›</span></button>`).join("");
   refreshTimeUnlockUI();$("organizerDrawer").showModal();
 }
 function openOrganizerPage(id){
@@ -455,21 +456,41 @@ function renderWorld(){
   const showShared=state.intro.complete;
   $("commonInfoBar").hidden=!showShared;
   document.body.classList.toggle("has-common-info",showShared);
+  const wallet=G.existence(state),parts=compactMode?splitExistenceShards(wallet):null;
+  const shardHUD=$("compactShardWallet"),showShards=!!parts&&incomeActive;
+  shardHUD.hidden=!showShards;
+  if(showShards){
+    const count=parts.shards,shardText=count===null?"—":count===0&&parts.subShard?"1未満":count.toLocaleString("ja-JP");
+    const whole=$("compactWalletWhole"),fragment=$("compactWalletShards"),track=$("compactShardTrack"),fill=$("compactShardFill");
+    if(whole.textContent!==parts.whole)whole.textContent=parts.whole;
+    if(fragment.textContent!==shardText)fragment.textContent=shardText;
+    shardHUD.title=formatShardAmount(wallet,{full:true});
+    $("compactShardLimit").textContent=count===null?"":"/ 1,000";
+    track.dataset.available=String(count!==null);
+    if(count===null)track.removeAttribute("aria-valuenow");else track.setAttribute("aria-valuenow",String(count));
+    track.setAttribute("aria-valuetext",count===null?"科学表記では端数を表示しません":shardText+" / 1,000");
+    const percent=(count===null?0:count/10)+"%";if(fill.style.width!==percent)fill.style.width=percent;
+    const exactWhole=count===null?null:Number(parts.whole.replaceAll(",","")),now=Date.now(),prev=shardHUDPrevious;
+    if(prev?.state===state&&exactWhole!==null&&prev.whole!==null&&exactWhole>prev.whole&&state.convergenceCount>prev.convergences&&now-shardHUDLastPulse>1500){
+      shardHUDLastPulse=now;
+      if(!state.settings.reducedMotion&&!state.settings.lowPower&&!matchMedia("(prefers-reduced-motion: reduce)").matches)
+        shardHUD.animate?.([{boxShadow:"0 0 0 1px #b8a9f7"},{boxShadow:"0 0 15px 2px #b8a9f780"},{boxShadow:"none"}],{duration:450});
+    }
+    shardHUDPrevious={state,whole:exactWhole,convergences:state.convergenceCount};
+  }else shardHUDPrevious=null;
   if(showShared){
     const timeSpeed=state.boost.active&&state.boost.seconds>0?G.boostTimeMultiplier(state):1;
-    const wallet=G.existence(state),parts=compactMode?splitExistenceShards(wallet):null;
     const metrics=[
-      ["existence",parts?parts.whole:formatExistenceHudDisplay(wallet),parts&&parts.shards!==null?"存在・かけら"+(parts.shards===0&&parts.subShard?"1未満":parts.shards.toLocaleString("ja-JP")):"存在",""],
+      ["existence",parts?parts.whole:formatExistenceHudDisplay(wallet),"存在",""],
       ["timeSpeed","×"+timeSpeed,"時間の経過速度",""]
     ];
     for(const [id,formatted,label,unit] of metrics){
       const node=document.querySelector('[data-common-value="'+id+'"]');
       if(!node)continue;
-      node.textContent=formatted;
+      if(node.textContent!==formatted)node.textContent=formatted;
       const button=node.closest("button");
-      if(id==="existence"&&compactMode){button.querySelector(".common-info-copy small").textContent=label;button.title=formatShardAmount(wallet,{full:true});}
-      else button.title=label+"："+formatted+unit;
-      button.setAttribute("aria-label",(id==="existence"&&compactMode?button.title:label+" "+formatted+unit)+"。詳細を開く");
+      button.title=label+"："+formatted+unit;
+      button.setAttribute("aria-label",label+" "+formatted+unit+"。詳細を開く");
     }
   }
   const combo=G.momentComboView(state);
@@ -478,7 +499,7 @@ function renderWorld(){
   const milestone=compactMode?"":combo.nextMark===null?" · 最終節目到達":` · 次${combo.nextMark}まで${combo.untilNext}回`;
   const comboHtml=combo.combo>0?`<span class="kw-combo">コンボ ${combo.combo.toLocaleString("ja-JP")} · ×${combo.multiplier.toFixed(2)}${milestone}<i class="kw-combo-track"><i style="width:${ratio}%"></i></i></span>`:"";
   const storedHtml=A(combo.stored).cmp(0)>0?`<span class="kw-stored">蓄積 ${o(combo.stored)}</span>`:"";
-  $("convergeMain").hidden=!state.intro.complete||!["existence","organizer","automation"].includes(currentStage);
+  $("convergeMain").hidden=!state.intro.complete||(compactMode?currentStage!=="existence":!["existence","organizer","automation"].includes(currentStage));
   if(["existence","organizer","automation"].includes(currentStage)){
     $("primaryValue").textContent=orbDisplay(state.orbs);
     $("worldDetails").innerHTML=`<span class="wallet">オーブ <b>${orbDisplay(state.orbs)}</b></span><span>${state.runOrbsEvidence==="verified"?"周回獲得 "+orbDisplay(state.runOrbsEarned)+" オーブ":"旧周回・確認済獲得 "+orbDisplay(state.runOrbsEarned)+" オーブ"}</span><span>干渉 +${o(tap)}</span>${comboHtml}${storedHtml}`;
@@ -493,7 +514,8 @@ function renderWorld(){
     const nextOrbs=o(q.nextRemaining,"ceil"),rewardLabel="+"+(compactMode?formatShardAmount(q.reward):f(q.reward,3));
     const mainReward=mainConverge.querySelector("[data-main-convergence-reward]");
     const mainNext=mainConverge.querySelector("[data-main-convergence-next]");
-    if(mainReward.textContent!==rewardLabel)mainReward.textContent=rewardLabel;
+    if(compactMode)patchCompactAmount(mainReward,rewardLabel);
+    else if(mainReward.textContent!==rewardLabel)mainReward.textContent=rewardLabel;
     if(mainNext.textContent!==nextOrbs+" オーブ")mainNext.textContent=nextOrbs+" オーブ";
     mainConverge.querySelector("[data-main-convergence-gauge]").style.width=gauge.percent.toFixed(2)+"%";
     const convergeInfo=`収束で${compactMode?"":"存在 "}${rewardLabel}。次の報酬まで ${nextOrbs} オーブ。`+(q.historyVerified?"":"旧周回の獲得履歴は未確認です。現在の確認済み獲得分だけを数えています。");
@@ -1250,7 +1272,7 @@ function commonInfoHTML(){
   const timeSpeed=state.boost.active&&state.boost.seconds>0?G.boostTimeMultiplier(state):1;
   return '<section class="common-info-detail" aria-label="全ステージ共通情報の詳細">' +
     '<p class="panel-intro">存在と時間の流れを確認できます。</p>' +
-    '<div class="kw-card"><span>存在</span><strong>'+esc(compactMode?formatShardAmount(G.existence(state),{full:true}):formatExistenceHudDisplay(G.existence(state)))+'</strong></div>' +
+    '<div class="kw-card"><span>存在</span><strong>'+esc(compactMode?splitExistenceShards(G.existence(state)).whole:formatExistenceHudDisplay(G.existence(state)))+'</strong></div>' +
     '<div class="kw-card"><span>時間の経過速度</span><strong>×'+esc(timeSpeed)+'</strong><small>BOOST使用中は時間が加速します。</small></div>' +
     '<div class="shared-management-links"><button type="button" data-action="open-automation">自動化一覧</button><button type="button" data-organizer="statistics">統計</button><button type="button" data-organizer="boost">BOOST</button><button type="button" data-organizer="settings">設定</button></div>' +
     '<button type="button" class="wide-button" data-action="return-stage-panel">ステージ操作に戻る</button></section>';
@@ -1639,9 +1661,10 @@ function download(text,name,type="application/json"){
 async function dispatchAction(action){
   if(action==="enter-compact"||action==="exit-compact"){
     if(mode!=="normal"||readOnly||store.blocked)return;
-    if(action==="enter-compact"&&!compactMode&&!await ask("新経済版","新経済版は独立したセーブで始まります。旧版の進行は保持されます。","遊ぶ"))return;
+    if(action==="enter-compact"&&!compactMode&&!await ask("新経済版","新経済版と旧版の進行は別々に保存されます。","開く"))return;
+    if(action==="exit-compact"&&compactMode&&!await ask("旧バージョン","現在の進行を保存し、独立した旧版を開きます。","開く"))return;
     if(!save(true))return;
-    location.assign(action==="enter-compact"?"./?compact=1":"./");return;
+    location.assign(action==="enter-compact"?"./?compact=1":"./?legacy=1");return;
   }
   if(compactMode&&action==="enter-test")return;
   if(compactMode&&action==="toggle-bulk-scope")return;
@@ -1774,7 +1797,7 @@ async function dispatchAction(action){
   if(action==="exit-test"){
     if(mode!=="lab")return;
     if(!save()||storageUnavailable)return toast("テストデータの保存に失敗しました");
-    location.assign("./");return;
+    location.assign("./?legacy=1");return;
   }
   if(action==="protect-save"){
     if(readOnly||store.blocked||storageUnavailable)return toast("端末の保存を利用できません");
