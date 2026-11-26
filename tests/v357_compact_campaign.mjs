@@ -63,3 +63,34 @@ assert.ok(G.isCompact(restored));assert.equal(restored.convergenceCount,2);
 assert.equal(db.getItem(KEYS.normal),old);assert.equal(db.getItem(KEYS.lab),lab);
 assert.throws(()=>new SaveStore(db,"normal","legacy").write(s));
 console.log("v3.57 compact campaign: economy, stages, full MAX and independent saves");
+
+const close=(a,b,msg)=>assert.ok(Math.abs(a-b)<1e-8,msg+" "+a+" vs "+b);
+const econ=C.fresh();econ.sourceUnlocked=true;econ.engravingUnlocked=true;
+const row=(kind,i,level,rank=i)=>({kind,i,rank,level,max:kind==="source"?C.CAP:C.LIM,ready:true});
+close(C.unit(econ,row("source",0,0)),Math.log10(75),"source01 initial");
+close(C.unit(econ,row("source",1,0)),Math.log10(15*10**5.3*1.1),"higher source initial");
+close(C.unit(econ,row("moment",0,1))-C.unit(econ,row("moment",0,0)),Math.log10(1.052),"moment ratio");
+close(C.unit(econ,row("engraving",0,1)),Math.log10(.001*(1+1/5)**3),"engraving ratio");
+for(const rank of [0,1,29,30]){
+ let prev=-Infinity;
+ for(let l=0;l<10000;l++){const v=C.unit(econ,row("source",rank%30,l,rank));assert.ok(v>prev,"monotone "+rank+" "+l);prev=v;}
+ for(const l of [0,24,99,442,999,5999,9990]){
+  const c=row("source",rank%30,l,rank);
+  let cost=C.Z;for(let i=0;i<10;i++)cost=C.add(cost,C.unit(econ,c,l+i));
+  close(C.cost(econ,c,10),cost,"source prefix vs sequential");
+  const a=C.sourceOutput(econ,rank,l),b=C.sourceOutput(econ,rank,l+10);
+  assert.ok(b>a,"growth");
+ }
+}
+for(const kind of ["moment","engraving"]){
+ const c=row(kind,0,123);let v=C.Z;for(let i=0;i<100;i++)v=C.add(v,C.unit(econ,c,123+i));
+ close(C.cost(econ,c,100),v,kind+" prefix");
+}
+const c0=row("source",0,442);const expected=C.sourceOutput(econ,0,442);
+assert.ok(Math.abs(10**expected-331808)<3,"existing source output preserved");
+const original=C.encode(econ),preview=C.effectPreview(econ,c0,10);
+assert.ok(preview.current.endsWith("/s")&&preview.delta.startsWith("+"));assert.equal(C.encode(econ),original);
+const cycle=C.fresh();cycle.sourceUnlocked=true;cycle.orbs=C.parse("1e500");
+for(let rank=0;rank<30;rank++){const q=C.buy(cycle,"source:"+rank,"MAX");assert.equal(q.count,10000,"rank "+rank);}
+assert.equal(C.buy(cycle,"source:30","1").count,1);assert.equal(cycle.sources[0].rank,30);
+console.log("PASS pacing: monotone price, bulk cost, preserved production, preview purity, all 30 ranks and manual cycle");

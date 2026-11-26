@@ -291,3 +291,25 @@ body.compact-campaign.high-contrast #sheetBody :is(.muted,small,.panel-intro){co
 body.compact-campaign.reduced-motion .matrix-hero-cube,
 body.compact-campaign.low-power .matrix-hero-cube{animation:none!important}
 @media(prefers-reduced-motion:reduce){body.compact-campaign .matrix-hero-cube{animation:none!important}}
+
+/* DEC-20261126-011/012: compact two-row cards, fixed mobile touch target. */
+body.compact-campaign #sheetBody .compact-campaign-card{
+ height:50px;min-height:50px;max-height:50px;grid-template-columns:minmax(0,1fr) clamp(84px,27%,96px);
+ gap:5px;padding:2px 5px;margin:0 0 4px;border-radius:8px;align-items:center;overflow:hidden;
+}
+body.compact-campaign #sheetBody .compact-campaign-info{display:grid;grid-template-rows:17px 17px;gap:1px;align-content:center;min-width:0;overflow:hidden}
+body.compact-campaign #sheetBody .compact-campaign-name{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,auto) minmax(0,auto);gap:4px;align-items:center}
+body.compact-campaign #sheetBody .compact-campaign-name [data-c-name]{font-size:12px;line-height:17px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.compact-campaign #sheetBody .compact-campaign-name [data-c-level]{font-size:11px;line-height:17px;max-width:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+body.compact-campaign #sheetBody [data-c-meta]{font-size:10px;line-height:17px;min-width:0;max-width:62px}
+body.compact-campaign #sheetBody .compact-campaign-effects{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:4px;font-variant-numeric:tabular-nums}
+body.compact-campaign #sheetBody .compact-campaign-effects span{font-size:12px;line-height:17px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body.compact-campaign #sheetBody [data-c-delta]{text-align:right;color:#91e6b8}
+body.compact-campaign #sheetBody .compact-campaign-buy{
+ box-sizing:border-box;width:100%;height:44px;min-height:44px;max-height:44px;min-width:0;
+ padding:1px 3px;gap:0;border-radius:6px;line-height:1.2;
+}
+body.compact-campaign #sheetBody .compact-campaign-buy strong{font-size:12px;line-height:15px}
+body.compact-campaign #sheetBody .compact-campaign-buy small{font-size:11px;line-height:14px}
+body.compact-campaign #sheetBody .compact-campaign-section{margin:3px 2px 2px;font-size:10px;line-height:12px}
+@media(max-width:340px){body.compact-campaign #sheetBody .compact-campaign-card{gap:3px;padding-inline:3px;grid-template-columns:minmax(0,1fr) 84px}body.compact-campaign #sheetBody .compact-campaign-name{gap:2px}body.compact-campaign #sheetBody .compact-campaign-name [data-c-name]{font-size:11px}body.compact-campaign #sheetBody .compact-campaign-name [data-c-level]{font-size:10px}}

@@ -1,6 +1,6 @@
 /* Versioned, scope-specific cache. Does not delete saves or another app's cache. */
 const VERSION = "3.50.0-time-residue";
-const UI_REVISION = "-engraving-v342-grade-v343-existence-v344-balance-v351-balance-v352-save-v353-unlock-v354-pwa-v3541-ux-v355-guide-hud-v3551-worlds-v356-comfort-v356-time-integrity-v3561-automation-compact-v3562-campaign-v357-obsidian-v358";
+const UI_REVISION = "-engraving-v342-grade-v343-existence-v344-balance-v351-balance-v352-save-v353-unlock-v354-pwa-v3541-ux-v355-guide-hud-v3551-worlds-v356-comfort-v356-time-integrity-v3561-automation-compact-v3562-campaign-v357-obsidian-v358-density-pacing";
 const APP_RELEASE = "3.58";
 const PREFIX = "kotowari-handoff:" + new URL(self.registration.scope).pathname + ":";
 const RELATIVE = [
@@ -150,7 +150,7 @@ const CORE_HASHES = [
   "3a7a820cfb21166490310f9d61bc33641d67584f",
   "b1a16b1526a83cde8be719a9d9095825a2aea00f",
   "8cc8a30456d59ccd18b1cc0810e92dbf2979aedb",
-  "822c390500bfa39699b2f741154cc30b22a7a4d3",
+  "ee241de9d39ee6ef78efc48aaa47824af73f4a3e",
   "ed0c5c3a0a5607332d5ea7a208052a419e149213",
   "8158a7a10b57ab2e5b4f8df9718baa2b88c96e6d",
   "13fc01c6f1cace5462f314f4d019425fdc636d55",
@@ -177,9 +177,9 @@ const CORE_HASHES = [
   "a31fabd7b98170cbee8e9eaab007c7112454d2c5",
   "c3fe4ef57190caaec7f7b3071a79c8902d95bf2c",
   "30f6626cc056810975070bea1a77569affca700c",
-  "483d2e20bf6b5934a658bc38ee9bf2ee095a3d78",
+  "dd875322173ecb2366b1dfea2d87ae2d10999e36",
   "216869251e8e6bb806a4b637d1090f383d107430",
-  "01dce8f10d37b9199a5c34f2062f8a0d442e3b5d"
+  "09debc281304d3d9a9c8966c1ad914d3fc84643b"
 ];
 const CORE_BLOBS=Object.fromEntries(CORE_FILES.map((path,i)=>[path,CORE_HASHES[i]]));
 // Separate cache namespaces even when a future maintainer regenerates the

@@ -5,7 +5,7 @@ export const compactKind=sub=>({moment:"moment",sources:"source",engraving:"engr
 const cardName=(k,c)=>k==="source"?"源"+String(c.i+1).padStart(2,"0")+(c.rank>=30?" ＋"+nf(Math.floor(c.rank/30)):""):(k==="moment"?C.M:C.E)[c.i][0];
 const description=(k,c)=>k==="source"?"実質グレード "+nf(c.rank+1):(k==="moment"?C.M:C.E)[c.i][1];
 function rows(c,kind){return C.cards(c,kind).sort((a,b)=>Number(!!b.fresh)-Number(!!a.fresh)||b.rank-a.rank);}
-function markup(row,kind){return '<article class="compact-campaign-card" data-compact-card="'+esc(C.key(row))+'"><div class="compact-campaign-info"><div class="compact-campaign-name"><strong data-c-name></strong><small data-c-level></small></div><div data-c-effect></div><small data-c-meta></small></div><button type="button" class="compact-campaign-buy" data-compact-buy="'+esc(C.key(row))+'" data-compact-kind="'+kind+'"><strong data-c-cost></strong><small data-c-count></small></button></article>';}
+function markup(row,kind){return '<article class="compact-campaign-card" data-compact-card="'+esc(C.key(row))+'"><div class="compact-campaign-info"><div class="compact-campaign-name"><strong data-c-name></strong><small data-c-level></small><small data-c-meta></small></div><div class="compact-campaign-effects"><span data-c-effect></span><span data-c-delta></span></div></div><button type="button" class="compact-campaign-buy" data-compact-buy="'+esc(C.key(row))+'" data-compact-kind="'+kind+'"><strong data-c-cost></strong><small data-c-count></small></button></article>';}
 export function patchCompactCards(root,s,kind,blocked=false,force=false){
  const c=unpack(s),cards=rows(c,kind),signature=kind+":"+cards.map(C.key).join(",");
  if(force||root.dataset.compactSignature!==signature||!root.querySelector("[data-compact-list]")){
@@ -30,17 +30,19 @@ export function patchCompactCards(root,s,kind,blocked=false,force=false){
   const q=C.quote(c,row,row.fresh&&row.breakthrough?"1":s.purchaseMode);
   const done=row.level===row.max,feature=kind==="engraving"&&C.E[row.i][3]==="feature";
   const name=visible?cardName(kind,row):"？？？";
-  const lv=visible?(feature?(done?"解放済":"未取得"):"Lv."+nf(row.level)+(kind==="source"?"/10,000":"")):"？？？";
-  const effect=visible?(row.fresh?description(kind,row):C.effect(c,row)):"？？？";
-  const meta=visible?(kind==="source"?(row.fresh&&row.breakthrough?"限界突破 · Lv1":done?"完成":("次の節目 "+nf(C.marks.find(v=>v>row.level)||10000))):description(kind,row)):"次の解放";
+  const lv=visible?nf(row.level)+"/"+(kind==="source"?"10,000":feature?"1":"∞"):"？？？";
+  const effect=visible?C.effectPreview(c,row,q.count):{current:"？？？",delta:"？？？"};
+  const next=done||feature?null:kind==="source"?(row.fresh&&row.breakthrough?1:C.marks.find(v=>v>row.level)):Math.min(row.max,row.level+10-row.level%10);
+  const meta=visible?(next===null||next===undefined?"—":"N "+nf(next)):"？？？";
   node.classList.toggle("compact-campaign-locked",!visible);
-  set(node,"[data-c-name]",name);set(node,"[data-c-level]",lv);set(node,"[data-c-effect]",effect);set(node,"[data-c-meta]",meta);
+  set(node,"[data-c-name]",name);set(node,"[data-c-level]",lv);set(node,"[data-c-effect]",effect.current);set(node,"[data-c-delta]",effect.delta);set(node,"[data-c-meta]",meta);
+  node.title=visible?name+" "+lv+" "+(kind==="source"?"次の節目":feature?"":"次の購入境界")+" "+meta+" / "+description(kind,row)+" / "+effect.current+" → 増分 "+effect.delta:"次の解放";
   const b=node.querySelector("button");
   b.disabled=blocked||!visible||!q.count;
   if(!b.disabled)ready++;
   set(node,"[data-c-cost]",!visible?"？？？":done?"—":C.fmt(q.count?q.cost:C.cost(c,row,1),kind==="engraving",true));
-  set(node,"[data-c-count]",!visible?"？？？":done?(feature?"解放済":"完成"):row.fresh&&row.breakthrough?"限界突破":"購入 ×"+nf(q.count));
-  b.setAttribute("aria-label",name+" "+(row.fresh&&row.breakthrough?"限界突破":"購入 "+nf(q.count)+"Lv"));
+  set(node,"[data-c-count]",!visible?"？？？":done?"—":"×"+nf(q.count));
+  b.setAttribute("aria-label",name+" "+(row.fresh&&row.breakthrough?"限界突破":"購入 "+nf(q.count)+"Lv")+" "+b.querySelector("[data-c-cost]").textContent);
  }
  return {ready,total:cards.length};
 }

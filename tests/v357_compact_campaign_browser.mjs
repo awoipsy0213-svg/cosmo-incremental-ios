@@ -43,6 +43,12 @@ try {
   assert.ok(await page.evaluate(()=>window.KOTOWARI_DEBUG.state().compactEconomy.moment[0]>3000));
   await page.evaluate(()=>window.KOTOWARI_DEBUG.open("existence","engraving"));
   assert.equal(await page.locator("[data-compact-card]").count(),12);
+  for(const card of await page.locator("[data-compact-card]").all()){
+    const box=await card.boundingBox();assert.ok(box&&Math.abs(box.height-50)<=1,"50px fixed card "+width);
+    const btn=await card.locator("button").boundingBox();assert.ok(btn&&btn.height>=44&&btn.width>=44,"44px touch target "+width);
+    assert.equal(await card.locator("[data-c-delta]").count(),1);
+    assert.equal(await card.locator(".compact-campaign-info > *").count(),2);
+  }
   await page.evaluate(()=>window.KOTOWARI_DEBUG.open("automation","auto-existence"));
   assert.equal(await page.locator("[data-compact-auto]").count(),4);
   await page.locator("[data-auto-master]").uncheck();
@@ -58,6 +64,9 @@ try {
   await page.waitForFunction(()=>!document.querySelector("#compactSourceIncome").hidden);
   assert.ok(await page.locator("#compactSourceIncome").isVisible(),"source income visible after purchase");
   assert.notEqual(await page.locator("#compactSourceIncome strong").textContent(),"0");
+  assert.ok(await page.locator("[data-compact-card] [data-c-level]").last().textContent().then(v=>v.includes("/10,000")));
+  assert.ok(await page.locator("[data-compact-card] [data-c-effect]").last().textContent().then(v=>v.endsWith("/s")));
+  assert.ok(await page.locator("[data-compact-card] [data-c-delta]").last().count());
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
   await page.evaluate(()=>window.KOTOWARI_DEBUG.save());
   await page.reload();await page.waitForFunction(()=>window.KOTOWARI_DEBUG?.state()?.compactEconomy);
