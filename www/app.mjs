@@ -11,7 +11,7 @@ import {PROPOSED,PLANET_EFFECT_PROPOSALS,resourcePrototype,trialPreview,boostTri
 import {A,formatAmount,formatExistenceDisplay,formatExistenceHudDisplay,formatOrbAmount} from "./numbers.mjs";
 import * as G from "./game.mjs";
 import {C as Compact,unpack as compactState,compactProjection,splitExistenceShards,formatShardAmount} from "./compact-campaign-v357.mjs";
-import {compactKind,patchCompactCards,compactAutomationHTML,patchCompactAmount,patchCompactAutomation,compactThresholdText} from "./compact-campaign-ui-v357.mjs";
+import {compactKind,patchCompactCards,compactAutomationHTML,patchCompactAmount,patchCompactAutomation,compactThresholdText,compactCostLabel} from "./compact-campaign-ui-v357.mjs";
 import {timeHexMarkup,patchTimeHex,timeHexFlowPanel,timeHexMiraclesPanel} from "./time-hex-v341.mjs";
 import {formatGrowthInt,growthCap,residueIntervalSeconds} from "./time-growth-v350.mjs";
 import {engravingAutomationHTML,engravingPresetHTML} from "./engraving-v342-ui.mjs";
@@ -21,7 +21,7 @@ import {purchasePreview} from "./purchase-preview-v338.mjs";
 import {momentBrief,compactEffectValue} from "./purchase-clarity-v339.mjs";
 import {UNLOCK_COPY,uxSnapshot,uxChanges,unlockRatio,accumulateTapGain,guideSteps,residueSnapshot,residueGains,mergeResidueFeedback,residueFeedbackRows} from "./ux-polish-v355.mjs";
 
-const APP_RELEASE="3.62";
+const APP_RELEASE="3.63";
 const $=id=>document.getElementById(id);
 // Keep stable DOM nodes during idle refreshes; only owned display regions use this cache.
 const renderedHTML=new WeakMap();
@@ -1403,7 +1403,7 @@ async function compactPurchase(kind,id){
   const wallet=kind==="engraving"?state.surplusExistence:state.orbs;
   const confirmation=q.breakthrough&&state.settings.confirmSourceBreakthrough||kind==="engraving"&&(q.level===0?state.settings.confirmEngravingPurchase:state.settings.confirmEngravingUpgrade)||m==="MAX"&&state.settings.confirmMaxPurchase&&A(q.cost).cmp(A(wallet).mul(.9))>=0;
   if(confirmation){
-    const cost=kind==="engraving"?formatShardAmount(q.cost,{roundUp:true}):o(q.cost,"ceil");
+    const cost=compactCostLabel(kind,q.cost,state.settings.notation);
     if(!await ask(q.breakthrough?"源の突破":"購入確認",q.name+" / "+q.count.toLocaleString("ja-JP")+" Lv / 費用 "+cost,"購入する"))return;
     checkpoint();const next=G.compactQuote(state,kind,id,m);
     if(currentStage!=="existence"||compactKind(currentSub)!==kind||state.purchaseMode!==m||next.count!==q.count||A(next.cost).cmp(q.cost)!==0)return toast("購入条件が変わりました。再度確認してください");
@@ -1419,7 +1419,7 @@ async function compactBulkPurchase(){
     if(state.settings.confirmBulkPurchase){
       const q=G.compactBulkQuote(state,kind);
       if(!q.ok)return toast(q.reason||"購入できません");
-      const cost=kind==="engraving"?formatShardAmount(q.spent,{roundUp:true}):o(q.spent,"ceil");
+      const cost=compactCostLabel(kind,q.spent,state.settings.notation);
       if(!await ask("一括購入",q.count.toLocaleString("ja-JP")+" Lv / 費用 "+cost,"購入する"))return;
       checkpoint();const next=G.compactBulkQuote(state,kind);
       if(currentStage!=="existence"||compactKind(currentSub)!==kind||compactState(state).settings.priority[kind]!==order||!next.ok||next.count!==q.count||A(next.spent).cmp(q.spent)!==0)return toast("購入条件が変わりました。再度確認してください");

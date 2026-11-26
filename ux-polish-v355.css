@@ -401,3 +401,12 @@ body.compact-campaign #sheetBody :is([data-compact-threshold],[data-compact-cond
 body.compact-campaign #convergeMain[data-reward-ready="true"]:not(:disabled){border-color:#a296e7}
 body.compact-campaign #convergeMain[data-reward-ready="false"] .converge-gauge{opacity:.85}
 body.compact-campaign #convergeMain .converge-main-next [data-main-convergence-next]{font-variant-numeric:tabular-nums}
+
+/* v3.63: consistent currency glyphs and fixed two-line price/count cells. */
+.compact-resource-glyph.orb{border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff7d9 8%,#f4d384 28%,#d79c47 65%,#97652b 95%);border:1px solid #b58b43}
+body.compact-campaign #sheetBody .compact-campaign-card{grid-template-columns:minmax(0,1fr) clamp(94px,30%,110px)}
+body.compact-campaign #sheetBody [data-compact-card-kind="engraving"]{grid-template-columns:minmax(0,1fr) clamp(108px,35%,126px)}
+body.compact-campaign #sheetBody .compact-campaign-buy [data-c-cost]{min-width:0;max-width:100%;font-variant-numeric:tabular-nums}
+body.compact-campaign #sheetBody .compact-campaign-buy [data-c-count]{min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums}
+body.compact-campaign #sheetBody .compact-campaign-buy [data-c-cost][data-long="true"],body.compact-campaign #sheetBody .compact-campaign-buy [data-c-count][data-long="true"]{font-size:9px;letter-spacing:-.04em}
+@media(max-width:340px){body.compact-campaign #sheetBody .compact-campaign-card{grid-template-columns:minmax(0,1fr) 94px}body.compact-campaign #sheetBody [data-compact-card-kind="engraving"]{grid-template-columns:minmax(0,1fr) 108px}}
