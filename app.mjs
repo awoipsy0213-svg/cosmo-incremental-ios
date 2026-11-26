@@ -10,7 +10,7 @@ import {CONTENT} from "./content.mjs";
 import {PROPOSED,PLANET_EFFECT_PROPOSALS,resourcePrototype,trialPreview,boostTrialCost,proposedSourceSlots,FIRST_CONCEPT_PROPOSALS} from "./design-proposals.mjs";
 import {A,formatAmount,formatExistenceDisplay,formatExistenceHudDisplay,formatOrbAmount} from "./numbers.mjs";
 import * as G from "./game.mjs";
-import {C as Compact,unpack as compactState,compactProjection} from "./compact-campaign-v357.mjs";
+import {C as Compact,unpack as compactState,compactProjection,splitExistenceShards,formatShardAmount} from "./compact-campaign-v357.mjs";
 import {compactKind,patchCompactCards,compactAutomationHTML} from "./compact-campaign-ui-v357.mjs";
 import {timeHexMarkup,patchTimeHex,timeHexFlowPanel,timeHexMiraclesPanel} from "./time-hex-v341.mjs";
 import {formatGrowthInt,growthCap,residueIntervalSeconds} from "./time-growth-v350.mjs";
@@ -21,7 +21,7 @@ import {purchasePreview} from "./purchase-preview-v338.mjs";
 import {momentBrief,compactEffectValue} from "./purchase-clarity-v339.mjs";
 import {UNLOCK_COPY,uxSnapshot,uxChanges,unlockRatio,accumulateTapGain,guideSteps,residueSnapshot,residueGains,mergeResidueFeedback,residueFeedbackRows} from "./ux-polish-v355.mjs";
 
-const APP_RELEASE="3.58";
+const APP_RELEASE="3.59";
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const params=new URLSearchParams(location.search);
@@ -35,6 +35,9 @@ const childNames={moment:"刹那",sources:"源",engraving:"刻印",flow:"残滓"
 const organizerItems=["boost","achievements","chronicle","statistics","collection","guide","settings","backup",...(mode==="lab"?["spec","proposals","priceLab","lab"]:compactMode?[]:["lab"])];
 let memory={};let storage,storageFallback=false;
 try{storage=window.localStorage;}catch(e){storageFallback=true;storage={getItem:k=>memory[k]||null,setItem:(k,v)=>memory[k]=String(v),removeItem:k=>delete memory[k]};}
+const compactThemeKey="kotowari.compact.theme.v1";
+let compactTheme="dark";
+if(compactMode){try{if(storage.getItem(compactThemeKey)==="light")compactTheme="light";}catch{}}
 const store=new SaveStore(storage,mode,globalThis.crypto?.randomUUID?.()||"tab-"+Date.now(),{compact:compactMode});
 let state,readOnly=false,storageUnavailable=false,lockRelease=null;
 let currentStage="existence",currentSub="moment",sheetState="closed",infoPanelOpen=false;
@@ -57,6 +60,7 @@ const o=(n,rounding="floor")=>formatOrbAmount(n,rounding,state?.settings.notatio
 // Display-only orb integer formatting. Fractional balance and purchase prices never change.
 // Specific UI rounding policy remains unresolved: truncation is provisional.
 const orbDisplay=value=>o(value);
+const existenceText=(value,options={})=>compactMode?formatShardAmount(value,options):formatExistenceDisplay(value,options);
 const duration=seconds=>{
   seconds=Math.max(0,Math.floor(seconds));
   const h=Math.floor(seconds/3600),m=Math.floor(seconds%3600/60),s=seconds%60;
@@ -151,7 +155,8 @@ function settleOfflineAndPersist(now,{snapshot=false}={}){
 }
 function applySettings(){
   document.body.classList.toggle("compact-campaign",compactMode);
-  if(compactMode)document.querySelector('meta[name="theme-color"]')?.setAttribute("content","#0b1020");
+  document.body.classList.toggle("compact-light",compactMode&&compactTheme==="light");
+  if(compactMode)document.querySelector('meta[name="theme-color"]')?.setAttribute("content",compactTheme==="light"?"#f4f2ff":"#0b1020");
   if(compactMode){document.title="《理》 新経済版";const caption=document.querySelector(".brand-caption");if(caption?.firstChild?.nodeType===3)caption.firstChild.nodeValue="COMPACT";}
   document.body.classList.toggle("lab-mode",mode==="lab");
   if(mode==="lab"){
@@ -452,8 +457,9 @@ function renderWorld(){
   document.body.classList.toggle("has-common-info",showShared);
   if(showShared){
     const timeSpeed=state.boost.active&&state.boost.seconds>0?G.boostTimeMultiplier(state):1;
+    const wallet=G.existence(state),parts=compactMode?splitExistenceShards(wallet):null;
     const metrics=[
-      ["existence",formatExistenceHudDisplay(G.existence(state)),"存在",""],
+      ["existence",parts?parts.whole:formatExistenceHudDisplay(wallet),parts&&parts.shards!==null?"存在・かけら"+(parts.shards===0&&parts.subShard?"1未満":parts.shards.toLocaleString("ja-JP")):"存在",""],
       ["timeSpeed","×"+timeSpeed,"時間の経過速度",""]
     ];
     for(const [id,formatted,label,unit] of metrics){
@@ -461,8 +467,9 @@ function renderWorld(){
       if(!node)continue;
       node.textContent=formatted;
       const button=node.closest("button");
-      button.title=label+"："+formatted+unit;
-      button.setAttribute("aria-label",label+" "+formatted+unit+"。詳細を開く");
+      if(id==="existence"&&compactMode){button.querySelector(".common-info-copy small").textContent=label;button.title=formatShardAmount(wallet,{full:true});}
+      else button.title=label+"："+formatted+unit;
+      button.setAttribute("aria-label",(id==="existence"&&compactMode?button.title:label+" "+formatted+unit)+"。詳細を開く");
     }
   }
   const combo=G.momentComboView(state);
@@ -483,13 +490,13 @@ function renderWorld(){
     if(!mainConverge.querySelector("[data-main-convergence-reward]")){
       mainConverge.innerHTML=`<span class="converge-main-reward"><strong>収束</strong><span data-main-convergence-reward>+0</span></span><span class="converge-main-next"><small>NEXT</small><span data-main-convergence-next>0 オーブ</span></span><span class="converge-gauge" aria-hidden="true"><i data-main-convergence-gauge style="width:0%"></i></span>`;
     }
-    const nextOrbs=o(q.nextRemaining,"ceil"),rewardLabel="+"+f(q.reward,3);
+    const nextOrbs=o(q.nextRemaining,"ceil"),rewardLabel="+"+(compactMode?formatShardAmount(q.reward):f(q.reward,3));
     const mainReward=mainConverge.querySelector("[data-main-convergence-reward]");
     const mainNext=mainConverge.querySelector("[data-main-convergence-next]");
     if(mainReward.textContent!==rewardLabel)mainReward.textContent=rewardLabel;
     if(mainNext.textContent!==nextOrbs+" オーブ")mainNext.textContent=nextOrbs+" オーブ";
     mainConverge.querySelector("[data-main-convergence-gauge]").style.width=gauge.percent.toFixed(2)+"%";
-    const convergeInfo=`収束で存在 ${rewardLabel}。次の報酬まで ${nextOrbs} オーブ。`+(q.historyVerified?"":"旧周回の獲得履歴は未確認です。現在の確認済み獲得分だけを数えています。");
+    const convergeInfo=`収束で${compactMode?"":"存在 "}${rewardLabel}。次の報酬まで ${nextOrbs} オーブ。`+(q.historyVerified?"":"旧周回の獲得履歴は未確認です。現在の確認済み獲得分だけを数えています。");
     if(mainConverge.title!==convergeInfo)mainConverge.title=convergeInfo;
     if(mainConverge.getAttribute("aria-label")!==convergeInfo)mainConverge.setAttribute("aria-label",convergeInfo);
   }else if(currentStage==="time"){
@@ -1048,7 +1055,7 @@ function achievementHTML(){
   return `<p class="panel-intro">これまでの達成と発見を確認できます。</p><div class="kw-list">${CONTENT.achievements.map(x=>`<div class="kw-card"><div class="card-top"><strong>${state.achievements.includes(x.id)?"✦":"◇"} ${x.name}</strong><span class="badge">${state.achievements.includes(x.id)?"達成":"未達成"}</span></div><p>${x.description}</p><small>${state.achievements.includes(x.id)?"達成済み":x.id==="engravingObservation"?"条件：？？？":"未達成"}</small></div>`).join("")}</div>`;
 }
 function statisticsHTML(){
-  const values=[["タップ入力",state.counters.taps.toLocaleString("ja-JP")],["収束",state.convergenceCount.toLocaleString("ja-JP")+"回"],["累計オーブ",orbDisplay(state.totalOrbs)],["累計獲得存在",formatExistenceDisplay(state.totalExistenceEarned)],["余剰存在",formatExistenceDisplay(state.surplusExistence)],...(state.time.unlocked?[["源総Lv.",Object.values(compactMode?compactState(state).sources:state.sources).reduce((v,x)=>v+x.level,0).toLocaleString("ja-JP")],["概念形成",Object.values(state.time.concepts).filter(x=>x>0).length+" / 77"]]:[]),["オンライン",duration(state.counters.onlineSeconds)],["オフライン",duration(state.counters.offlineSeconds)]];
+  const values=[["タップ入力",state.counters.taps.toLocaleString("ja-JP")],["収束",state.convergenceCount.toLocaleString("ja-JP")+"回"],["累計オーブ",orbDisplay(state.totalOrbs)],["累計獲得存在",existenceText(state.totalExistenceEarned,{full:true})],["余剰存在",existenceText(state.surplusExistence,{full:true})],...(state.time.unlocked?[["源総Lv.",Object.values(compactMode?compactState(state).sources:state.sources).reduce((v,x)=>v+x.level,0).toLocaleString("ja-JP")],["概念形成",Object.values(state.time.concepts).filter(x=>x>0).length+" / 77"]]:[]),["オンライン",duration(state.counters.onlineSeconds)],["オフライン",duration(state.counters.offlineSeconds)]];
   const t=state.telemetry,rows=consecutiveOrbGains(t);
   const logarithmic=v=>{const a=A(v);return a.m>0?Math.max(0,a.e+Math.log10(a.m)+1):0;};
   const max=Math.max(1,...rows.filter(r=>r.gain!==null).map(r=>logarithmic(r.gain)));
@@ -1100,6 +1107,7 @@ function settingsHTML(){
   return `<p class="panel-intro">表示や購入時の確認方法を変更できます。</p>
   ${group("購入・確認",id=>id.startsWith("confirm")&&!savePrefs.has(id))}
   ${group("表示・操作",id=>!id.startsWith("confirm")&&!savePrefs.has(id))}
+  ${compactMode?`<label class="kw-row"><span>配色<small>進行を変えずに切り替えます</small></span><select class="input-select" data-compact-theme aria-label="配色"><option value="dark" ${compactTheme==="dark"?"selected":""}>ダーク（標準）</option><option value="light" ${compactTheme==="light"?"selected":""}>ライト（旧配色）</option></select></label>`:""}
   <label class="kw-row">数値表記<select class="input-select" data-pref="notation"><option value="auto" ${state.settings.notation==="auto"?"selected":""}>標準（100万以降e）</option><option value="scientific" ${state.settings.notation==="scientific"?"selected":""}>指数 e（1.23e12）</option><option value="exponent" ${state.settings.notation==="exponent"?"selected":""}>指数 E（1.23E+12）</option><option value="zeros" ${state.settings.notation==="zeros"?"selected":""}>0の個数（10^12）</option></select></label>
   ${group("保存・復帰",id=>savePrefs.has(id))}
   <div class="kw-row"><span>通信<small>クラウド・課金は未接続</small></span><strong>${navigator.onLine?"オンライン":"オフライン"}</strong></div>
@@ -1126,7 +1134,7 @@ function backupHTML(){
   ${archiveError?`<p class="status-note">${esc(archiveError)}</p>`:protectedRows.length?[...protectedRows].map((row,i)=>({row,i})).reverse().map(({row,i})=>{
     let candidate;try{candidate=decode(row.raw,mode,compactMode);}catch(error){}
     return `<div class="kw-card"><strong>${row.reason==="reset"?"リセット前":"手動"} · ${new Date(row.at).toLocaleString("ja-JP")}</strong>
-    ${candidate?`<small>累計獲得存在 ${formatExistenceDisplay(candidate.totalExistenceEarned)} · オーブ ${orbDisplay(candidate.orbs)}</small>`:"<small>破損・原本保護中</small>"}
+    ${candidate?`<small>累計獲得存在 ${existenceText(candidate.totalExistenceEarned)} · オーブ ${orbDisplay(candidate.orbs)}</small>`:"<small>破損・原本保護中</small>"}
     <div class="sub-grid"><button class="wide-button" data-protected-export="${i}">JSON書出</button><button class="wide-button" data-protected-restore="${i}" ${!candidate||readOnly?"disabled":""}>復元する</button></div></div>`;
   }).join(""):"<p>まだ保護バックアップはありません。</p>"}
   <p class="tiny">自動保存履歴とは別管理です。端末の容量が不足した場合は操作を中止します。JSONを別の場所にも保管してください。</p>
@@ -1139,7 +1147,7 @@ function backupHTML(){
   <h3>保存履歴 · 候補を比較して選択</h3>
   <div class="kw-card backup-comparison"><strong>現在の主セーブ</strong>
   ${store.blocked?"<small>読み込み不可・原本保護中。仮の初期状態を比較対象にしません。</small>":
-    `<small>余剰存在 ${f(state.surplusExistence,3)} · オーブ ${orbDisplay(state.orbs)} · 収束 ${state.convergenceCount}回</small>
+    `<small>余剰存在 ${compactMode?formatShardAmount(state.surplusExistence):f(state.surplusExistence,3)} · オーブ ${orbDisplay(state.orbs)} · 収束 ${state.convergenceCount}回</small>
     <small>源Lv合計 ${Object.values(state.sources).reduce((n,v)=>n+v.level,0).toLocaleString("ja-JP")} · 概念 ${Object.values(state.time.concepts).filter(v=>v>0).length}/77 · 惑星 ${state.universe.planets.length}個</small>`}
   </div>
   ${bs.length?bs.map((x,i)=>{
@@ -1148,7 +1156,7 @@ function backupHTML(){
     return `<div class="kw-card backup-comparison">
       <div class="card-top"><strong>履歴 ${i+1} · ${new Date(x.at).toLocaleString("ja-JP")}</strong>
         <span class="badge ${candidate?"confirmed":"pending"}">${candidate?"検証済":"破損"}</span></div>
-      ${candidate?`<small>余剰存在 ${f(candidate.surplusExistence,3)} · オーブ ${orbDisplay(candidate.orbs)} · 収束 ${candidate.convergenceCount}回</small>
+      ${candidate?`<small>余剰存在 ${compactMode?formatShardAmount(candidate.surplusExistence):f(candidate.surplusExistence,3)} · オーブ ${orbDisplay(candidate.orbs)} · 収束 ${candidate.convergenceCount}回</small>
       <small>源Lv合計 ${Object.values(candidate.sources).reduce((n,v)=>n+v.level,0).toLocaleString("ja-JP")} · 概念 ${Object.values(candidate.time.concepts).filter(v=>v>0).length}/77 · 惑星 ${candidate.universe.planets.length}個</small>
       <small>保存世代 ${candidate.revision} · データ形式 ${candidate.schemaVersion}</small>`:
       "<small>この履歴は検証に失敗しました。復元対象にはできません。元データは変更しません。</small>"}
@@ -1242,7 +1250,7 @@ function commonInfoHTML(){
   const timeSpeed=state.boost.active&&state.boost.seconds>0?G.boostTimeMultiplier(state):1;
   return '<section class="common-info-detail" aria-label="全ステージ共通情報の詳細">' +
     '<p class="panel-intro">存在と時間の流れを確認できます。</p>' +
-    '<div class="kw-card"><span>存在</span><strong>'+esc(formatExistenceHudDisplay(G.existence(state)))+'</strong></div>' +
+    '<div class="kw-card"><span>存在</span><strong>'+esc(compactMode?formatShardAmount(G.existence(state),{full:true}):formatExistenceHudDisplay(G.existence(state)))+'</strong></div>' +
     '<div class="kw-card"><span>時間の経過速度</span><strong>×'+esc(timeSpeed)+'</strong><small>BOOST使用中は時間が加速します。</small></div>' +
     '<div class="shared-management-links"><button type="button" data-action="open-automation">自動化一覧</button><button type="button" data-organizer="statistics">統計</button><button type="button" data-organizer="boost">BOOST</button><button type="button" data-organizer="settings">設定</button></div>' +
     '<button type="button" class="wide-button" data-action="return-stage-panel">ステージ操作に戻る</button></section>';
@@ -1253,7 +1261,9 @@ function chronicleHTML(){
   const entries=[...state.events].reverse().map(e=>{
     const raw=String(e.text??"");
     if(mode!=="lab" && /【検証】|試験強化|暫定バランス|実装状態|未実装|原文照合|仕様が未決定/.test(raw))return null;
-    const text=raw.startsWith("Ver.3.1へ安全に移行")?"以前の進行データを引き継ぎました。":raw.replace(/ENG-\d{2}/g,id=>names[id]||"刻印");
+    const compactReward=compactMode&&raw.match(/^収束：存在 \+((?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?)$/i);
+    let formattedReward=null;if(compactReward){try{formattedReward="収束：+"+formatShardAmount(compactReward[1]);}catch{}}
+    const text=formattedReward??(raw.startsWith("Ver.3.1へ安全に移行")?"以前の進行データを引き継ぎました。":raw.replace(/ENG-\d{2}/g,id=>names[id]||"刻印"));
     return {...e,text};
   }).filter(Boolean);
   if(!entries.length)return '<div class="empty-state"><p>まだ出来事は記録されていません。</p></div>';
@@ -1359,7 +1369,7 @@ async function compactPurchase(kind,id){
   const wallet=kind==="engraving"?state.surplusExistence:state.orbs;
   const confirmation=q.breakthrough&&state.settings.confirmSourceBreakthrough||kind==="engraving"&&(q.level===0?state.settings.confirmEngravingPurchase:state.settings.confirmEngravingUpgrade)||m==="MAX"&&state.settings.confirmMaxPurchase&&A(q.cost).cmp(A(wallet).mul(.9))>=0;
   if(confirmation){
-    const cost=kind==="engraving"?formatExistenceDisplay(q.cost,{roundUp:true}):o(q.cost,"ceil");
+    const cost=kind==="engraving"?formatShardAmount(q.cost,{roundUp:true}):o(q.cost,"ceil");
     if(!await ask(q.breakthrough?"源の突破":"購入確認",q.name+" / "+q.count.toLocaleString("ja-JP")+" Lv / 費用 "+cost,"購入する"))return;
     checkpoint();const next=G.compactQuote(state,kind,id,m);
     if(currentStage!=="existence"||compactKind(currentSub)!==kind||state.purchaseMode!==m||next.count!==q.count||A(next.cost).cmp(q.cost)!==0)return toast("購入条件が変わりました。再度確認してください");
@@ -1375,7 +1385,7 @@ async function compactBulkPurchase(){
     if(state.settings.confirmBulkPurchase){
       const q=G.compactBulkQuote(state,kind);
       if(!q.ok)return toast(q.reason||"購入できません");
-      const cost=kind==="engraving"?formatExistenceDisplay(q.spent,{roundUp:true}):o(q.spent,"ceil");
+      const cost=kind==="engraving"?formatShardAmount(q.spent,{roundUp:true}):o(q.spent,"ceil");
       if(!await ask("一括購入",q.count.toLocaleString("ja-JP")+" Lv / 費用 "+cost,"購入する"))return;
       checkpoint();const next=G.compactBulkQuote(state,kind);
       if(currentStage!=="existence"||compactKind(currentSub)!==kind||compactState(state).settings.priority[kind]!==order||!next.ok||next.count!==q.count||A(next.spent).cmp(q.spent)!==0)return toast("購入条件が変わりました。再度確認してください");
@@ -1824,7 +1834,7 @@ async function dispatchAction(action){
     const q=G.convergenceQuote(state);
     if(!q.steps){toast("必要なオーブを集めてください");return;}
     const newRate=A(1).add(A(state.totalExistenceEarned||"0")).add(q.reward);
-    const text=compactMode?`存在 +${f(q.reward,3)} を獲得します。\nオーブ・刹那・源のLvと突破段階をリセットします。\n最初の存在1・刻印・時・概念は残ります。`:`存在 +${f(q.reward,3)} を獲得します。\n以後のタップ・源生産は ×${f(newRate,3)}になります。\nオーブと刹那・源の周回内Lvをリセットします。\n最初の存在1・時・概念は残ります。`;
+    const text=compactMode?`+${formatShardAmount(q.reward)} を獲得します。\nオーブ・刹那・源のLvと突破段階をリセットします。\n最初の存在1・刻印・時・概念は残ります。`:`存在 +${f(q.reward,3)} を獲得します。\n以後のタップ・源生産は ×${f(newRate,3)}になります。\nオーブと刹那・源の周回内Lvをリセットします。\n最初の存在1・時・概念は残ります。`;
     if(state.settings.confirmConvergence&&!await ask("収束する",text,"収束する"))return;
     if(resultDone(G.converge(state))){
       busyBirth=true;document.body.classList.add("is-converging");
@@ -2130,6 +2140,12 @@ document.addEventListener("click",async e=>{
 });
 document.addEventListener("change",async e=>{
   const t=e.target;if(!state)return;
+  if(t.hasAttribute("data-compact-theme")&&compactMode){
+    if(!["dark","light"].includes(t.value))return;
+    compactTheme=t.value;
+    try{storage.setItem(compactThemeKey,compactTheme);}catch{toast("配色の保存ができません。この画面だけ反映します。");}
+    applySettings();render(true);return;
+  }
   if(t.id==="testGrantAmount"){testGrantDraft=t.value;return;}
   if(t.id==="importFile"){
     const file=t.files?.[0];if(!file)return;
