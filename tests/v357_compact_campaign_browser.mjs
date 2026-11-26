@@ -36,6 +36,9 @@ try {
   await page.evaluate(()=>window.KOTOWARI_DEBUG.open("organizer","settings"));
   await page.locator("[data-compact-theme]").selectOption("light");
   assert.equal(await page.evaluate(()=>getComputedStyle(document.body).colorScheme),"light");
+  await page.evaluate(()=>window.KOTOWARI_DEBUG.open("existence","moment"));
+  assert.equal((await page.locator("[data-compact-card]").first().boundingBox()).height,50);
+  assert.equal((await page.locator("[data-compact-buy]").first().boundingBox()).height,44);
   await page.evaluate(()=>window.KOTOWARI_DEBUG.save());
   await page.reload();await page.waitForFunction(()=>window.KOTOWARI_DEBUG?.state()?.compactEconomy);
   assert.equal(await page.evaluate(()=>getComputedStyle(document.body).colorScheme),"light");

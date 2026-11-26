@@ -469,7 +469,7 @@ function renderWorld(){
       const button=node.closest("button");
       if(id==="existence"&&compactMode){button.querySelector(".common-info-copy small").textContent=label;button.title=formatShardAmount(wallet,{full:true});}
       else button.title=label+"："+formatted+unit;
-      button.setAttribute("aria-label",button.title+"。詳細を開く");
+      button.setAttribute("aria-label",(id==="existence"&&compactMode?button.title:label+" "+formatted+unit)+"。詳細を開く");
     }
   }
   const combo=G.momentComboView(state);
@@ -1261,8 +1261,9 @@ function chronicleHTML(){
   const entries=[...state.events].reverse().map(e=>{
     const raw=String(e.text??"");
     if(mode!=="lab" && /【検証】|試験強化|暫定バランス|実装状態|未実装|原文照合|仕様が未決定/.test(raw))return null;
-    const compactReward=compactMode&&raw.match(/^収束：存在 \+([\d.eE+\-]+)$/);
-    const text=compactReward?"収束：+"+formatShardAmount(compactReward[1]):raw.startsWith("Ver.3.1へ安全に移行")?"以前の進行データを引き継ぎました。":raw.replace(/ENG-\d{2}/g,id=>names[id]||"刻印");
+    const compactReward=compactMode&&raw.match(/^収束：存在 \+((?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?)$/i);
+    let formattedReward=null;if(compactReward){try{formattedReward="収束：+"+formatShardAmount(compactReward[1]);}catch{}}
+    const text=formattedReward??(raw.startsWith("Ver.3.1へ安全に移行")?"以前の進行データを引き継ぎました。":raw.replace(/ENG-\d{2}/g,id=>names[id]||"刻印"));
     return {...e,text};
   }).filter(Boolean);
   if(!entries.length)return '<div class="empty-state"><p>まだ出来事は記録されていません。</p></div>';

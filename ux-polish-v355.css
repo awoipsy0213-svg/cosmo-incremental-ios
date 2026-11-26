@@ -327,3 +327,8 @@ body.compact-campaign.compact-light .compact-income-item strong{color:#303f75}
 body.compact-campaign.compact-light #sheetBody [data-c-delta]{color:#26734d}
 body.compact-campaign .common-info-copy small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 body.compact-campaign .converge-main-reward [data-main-convergence-reward]{white-space:normal;overflow-wrap:anywhere;line-height:1.1;font-size:11px;max-height:2.3em}
+
+body.compact-campaign.compact-light #sheetBody .compact-campaign-buy{display:grid;align-content:center;justify-items:center;font-variant-numeric:tabular-nums;border:1px solid #a79bd1}
+body.compact-campaign.compact-light #sheetBody .compact-campaign-buy:not(:disabled){background:linear-gradient(145deg,#765bbd,#536caa);color:#fff}
+body.compact-campaign.compact-light #sheetBody .compact-campaign-buy:not(:disabled) :is(strong,small){color:#fff}
+body.compact-campaign.compact-light #sheetBody .compact-campaign-buy:disabled{background:#e5e6ef;color:#56617d;opacity:1}

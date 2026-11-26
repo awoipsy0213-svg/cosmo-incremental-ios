@@ -87,10 +87,10 @@ try{
   await context.setOffline(false);
   await online.goto(root+"update.html",{waitUntil:"domcontentloaded"});
   await online.waitForFunction(()=>document.getElementById("status")?.textContent.includes("最新版に更新済み"),{},{timeout:90000});
-  assert.equal(await online.locator("#release").textContent(),"3.58");
+  assert.equal(await online.locator("#release").textContent(),"3.59");
   await online.locator("#back").click();
   await online.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
-  assert.equal(await online.locator("#buildLabel").textContent(),"3.58");
+  assert.equal(await online.locator("#buildLabel").textContent(),"3.59");
   assert.deepEqual(offlineErrors,[]);
   console.log("PASS browser independent release-check page, active release and return");
   await context.close();
