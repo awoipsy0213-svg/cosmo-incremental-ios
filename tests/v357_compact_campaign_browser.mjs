@@ -32,7 +32,7 @@ try {
   await page.goto(base+"?compact=1&dev=1");
   await page.waitForFunction(()=>window.KOTOWARI_DEBUG?.state()?.compactEconomy);
   await page.evaluate(()=>window.KOTOWARI_DEBUG.open("existence","moment"));
-  assert.equal(await page.locator("#buildLabel").textContent(),"3.61");
+  assert.equal(await page.locator("#buildLabel").textContent(),"3.62");
   assert.equal(await page.evaluate(()=>getComputedStyle(document.body).colorScheme),"dark");
   assert.match(await page.locator("[data-main-convergence-reward]").textContent(),/かけら|存在/);
   assert.ok(await page.locator("#compactShardWallet").isVisible());
@@ -88,6 +88,39 @@ try {
   assert.equal(await page.locator("[data-compact-auto]").count(),4);
   await page.locator("[data-auto-master]").uncheck();
   assert.equal(await page.evaluate(()=>window.KOTOWARI_DEBUG.state().compactEconomy.settings.master),false);
+  // Master switch preserves individual settings and the same DOM controls.
+  const master=page.locator("[data-auto-master]"),auto=page.locator('[data-compact-auto="moment"]'),priority=page.locator('[data-compact-priority="moment"]');
+  const threshold=page.locator("[data-compact-threshold]"),condition=page.locator("[data-compact-condition]");
+  await page.evaluate(()=>{window.__autoMaster=document.querySelector("[data-auto-master]");window.__autoPriority=document.querySelector('[data-compact-priority="moment"]');});
+  await auto.check();await priority.selectOption("cheap");
+  assert.ok(await page.evaluate(()=>window.__autoMaster===document.querySelector("[data-auto-master]")&&window.__autoPriority===document.querySelector('[data-compact-priority="moment"]')));
+  assert.equal(await page.evaluate(()=>window.KOTOWARI_DEBUG.state().compactEconomy.settings.master),false);
+  assert.equal(await page.evaluate(()=>window.KOTOWARI_DEBUG.state().compactEconomy.settings.moment),true);
+  await threshold.fill("0.01");await threshold.press("Tab");
+  assert.equal(await threshold.inputValue(),"300");
+  assert.equal(await page.evaluate(()=>window.KOTOWARI_DEBUG.state().compactEconomy.settings.seconds),300);
+  await threshold.fill("12.5");await threshold.press("Tab");
+  assert.equal(await threshold.inputValue(),"12.5");
+  assert.equal(await page.evaluate(()=>window.KOTOWARI_DEBUG.state().compactEconomy.settings.seconds),12.5);
+  await condition.selectOption("earned");
+  assert.equal(await threshold.getAttribute("inputmode"),"text");
+  assert.equal(await page.locator(".compact-threshold-field span").textContent(),"オーブ");
+  await threshold.fill("1e8");await threshold.press("Tab");
+  assert.equal(await page.evaluate(()=>window.KOTOWARI_DEBUG.state().compactEconomy.settings.target),8);
+  await threshold.fill("0");await threshold.press("Tab");
+  assert.equal(await threshold.inputValue(),"1e8");
+  await condition.selectOption("time");
+  assert.equal(await threshold.inputValue(),"12.5");
+  assert.equal(await page.locator(".compact-threshold-field span").textContent(),"秒");
+  await threshold.fill("12.");
+  await page.waitForTimeout(1800);
+  assert.equal(await threshold.inputValue(),"12.");
+  await threshold.fill("12.5");await threshold.press("Tab");
+  await master.check();await master.uncheck();
+  assert.ok(await auto.isChecked());
+  assert.equal(await priority.inputValue(),"cheap");
+  assert.equal(await page.evaluate(()=>window.KOTOWARI_DEBUG.state().compactEconomy.settings.moment),true);
+
   await page.evaluate(()=>window.KOTOWARI_DEBUG.open("time","flow"));
   assert.equal(await page.evaluate(()=>window.KOTOWARI_DEBUG.state().time.unlocked),true);
   assert.ok(await page.locator("#compactIncome").isHidden(),"existence rates must not leak into time");
