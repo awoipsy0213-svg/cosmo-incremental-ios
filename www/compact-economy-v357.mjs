@@ -15,6 +15,18 @@ const E=[["干渉の理","永続タップ倍率",.001,"growth","tap"],["源泉�
 const eid=Object.fromEntries(E.map((x,i)=>[x[4],i])),el=(s,k)=>s.engraving[eid[k]]||0,own=(s,k)=>el(s,k)>0,eff=l=>l<=16?l:16*Math.sqrt(1+(l-16)/8);
 const units=new Float64Array(CAP+1),prefix=new Float64Array(CAP+1),phase=new Float64Array(CAP+1);units[0]=prefix[0]=Z;let mi=0;
 for(let l=1;l<=CAP;l++){units[l]=l===1?0:units[l-1]+lg(l<=100?1.020:l<=1000?1.022:1.024);prefix[l]=add(prefix[l-1],units[l]);if(marks[mi]===l)mi++;phase[l]=mi===marks.length?0:(l-(marks[mi-1]??1))/(marks[mi]-(marks[mi-1]??1))}
+// DEC-20261126-012: separate the purchase curve from the original production basis.
+const MOMENT_PRICE_RATE=1.052,ENGRAVING_PRICE_DIVISOR=5;
+const priceUnits=[new Float64Array(CAP+1),new Float64Array(CAP+1)],pricePrefix=[new Float64Array(CAP+1),new Float64Array(CAP+1)];
+for(let k=0;k<2;k++){
+ priceUnits[k][0]=pricePrefix[k][0]=Z;
+ for(let l=1;l<=CAP;l++){
+  const L=l-1,F=1+2*L/(L+100)*2000/(L+2000),H=.00008*Math.max(0,L-1500)/Math.LN10,B=k===0?1+4*Math.exp(-L/120):1.10;
+  priceUnits[k][l]=units[l]+lg(F*B)+H;
+  pricePrefix[k][l]=add(pricePrefix[k][l-1],priceUnits[k][l]);
+ }
+}
+const priceIndex=k=>k===0?0:1;
 const base=k=>lg(15)+4*k+(k>0?1.3:0),discount=s=>1-.3*el(s,"discount")/(el(s,"discount")+20);
 const fresh=()=>({version:1,orbs:Z,runEarned:Z,existence:Z,lifetime:Z,sourceUnlocked:false,engravingUnlocked:false,moment:Array(8).fill(0),engraving:Array(12).fill(0),sources:Array.from({length:30},()=>({rank:-1,level:0})),front:-1,convergenceCount:0,combo:0,taps:0,lastManualAge:99,runAge:0,autoAge:0,autoCredit:0,alternate:false,settings:{master:true,moment:false,source:false,engraving:false,converge:false,priority:{moment:"grade",source:"grade",engraving:"cheap"},condition:"time",seconds:300,target:6}});
 const factor=s=>Math.sqrt(1+2*(s.lifetime===Z?0:add(0,s.lifetime)*Math.LN10));
@@ -27,12 +39,12 @@ const comboFactor=s=>1+.25*Math.sqrt(s.moment[2])*s.combo/(s.combo+20),linked=s=
 const expectedTap=s=>add(tapBase(s)+lg(1+critRate(s)*(critMulti(s)-1)),linked(s));
 function earn(s,g){if(g===Z)return;const w=add(s.orbs,g),r=add(s.runEarned,g);if(!valid(w)||!valid(r))throw Error("資源範囲外");s.orbs=w;s.runEarned=r;record(s,"earned",g);if(r>=6)s.sourceUnlocked=true}
 function tap(s,rng=Math.random){s.combo=s.lastManualAge<=1.2?Math.min(LIM,s.combo+1):1;s.lastManualAge=0;s.taps=Math.min(LIM,s.taps+1);const critical=rng()<critRate(s),reflected=s.moment[5]>0&&s.taps%10===0;let g=tapBase(s)+lg(comboFactor(s)*(critical?critMulti(s):1)*(reflected?1+echo(s):1));g=add(g,linked(s));earn(s,g);return {gain:g,critical,reflected}}
-function nextSource(s){const k=s.front+1,i=k%30,o=s.sources[i];if(!s.sourceUnlocked||base(k)+units[CAP]>MAX)return null;return {kind:"source",i,rank:k,level:0,max:CAP,fresh:true,breakthrough:k>=30,ready:k<30||o.rank===k-30&&o.level===CAP}}
+function nextSource(s){const k=s.front+1,i=k%30,o=s.sources[i];if(!s.sourceUnlocked||base(k)+priceUnits[priceIndex(k)][CAP]>MAX)return null;return {kind:"source",i,rank:k,level:0,max:CAP,fresh:true,breakthrough:k>=30,ready:k<30||o.rank===k-30&&o.level===CAP}}
 function cards(s,kind,{automatic=false}={}){if(kind==="source"){if(!s.sourceUnlocked)return [];const a=s.sources.flatMap((v,i)=>v.rank<0?[]:[{kind,i,rank:v.rank,level:v.level,max:CAP,ready:true}]);const n=nextSource(s);if(n&&(!automatic||!n.breakthrough))a.push(n);return a}if(!["moment","engraving"].includes(kind))return [];if(kind==="engraving"&&!s.engravingUnlocked)return [];const levels=s[kind],i=levels.findIndex(v=>!v),max=j=>kind==="engraving"&&E[j][3]==="feature"?1:LIM,a=levels.flatMap((v,j)=>v?[{kind,i:j,rank:j,level:v,max:max(j),ready:true}]:[]);if(i>=0)a.push({kind,i,rank:i,level:0,max:max(i),fresh:true,ready:kind!=="moment"||i!==7||s.sourceUnlocked});return a}
 const key=c=>c.kind+":"+(c.kind==="source"?c.rank:c.i),wallet=(s,k)=>k==="engraving"?s.existence:s.orbs,mod=(s,k)=>k==="engraving"?0:lg(discount(s));
-function unit(s,c,l=c.level){if(l>=c.max)return Infinity;return mod(s,c.kind)+(c.kind==="source"?base(c.rank)+units[l+1]:c.kind==="moment"?lg(M[c.i][2])+l*lg(1.045):lg(E[c.i][2])+3*lg(1+l/6))}
+function unit(s,c,l=c.level){if(l>=c.max)return Infinity;return mod(s,c.kind)+(c.kind==="source"?base(c.rank)+priceUnits[priceIndex(c.rank)][l+1]:c.kind==="moment"?lg(M[c.i][2])+l*lg(MOMENT_PRICE_RATE):lg(E[c.i][2])+3*lg(1+l/ENGRAVING_PRICE_DIVISOR))}
 const cubes=n=>{const a=BigInt(n);return (a*(a+1n)/2n)**2n};
-function cost(s,c,n){if(!n)return Z;if(n===1)return unit(s,c);if(c.kind==="source")return mod(s,c.kind)+base(c.rank)+sub(prefix[c.level+n],prefix[c.level]);if(c.kind==="moment"){const d=Math.log(1.045);return unit(s,c,c.level+n-1)+lg(-Math.expm1(-d*n)/(-Math.expm1(-d)))}return lg(E[c.i][2])+lg(Number(cubes(BigInt(c.level)+BigInt(n)+5n)-cubes(BigInt(c.level)+5n)))-lg(216)}
+function cost(s,c,n){if(!n)return Z;if(n===1)return unit(s,c);if(c.kind==="source"){const p=pricePrefix[priceIndex(c.rank)];return mod(s,c.kind)+base(c.rank)+sub(p[c.level+n],p[c.level]);}if(c.kind==="moment"){const d=Math.log(MOMENT_PRICE_RATE);return unit(s,c,c.level+n-1)+lg(-Math.expm1(-d*n)/(-Math.expm1(-d)))}return lg(E[c.i][2])+lg(Number(cubes(BigInt(c.level)+BigInt(n)+4n)-cubes(BigInt(c.level)+4n)))-3*lg(ENGRAVING_PRICE_DIVISOR)}
 function bound(hi,p){let lo=0;while(lo<hi){const mid=lo+Math.ceil((hi-lo)/2);if(p(mid))lo=mid;else hi=mid-1}return lo}
 function quote(s,c,mode="MAX",limit=c.max-c.level){if(!c.ready||c.level>=c.max)return {count:0,cost:Z};let n=Math.min(c.max-c.level,limit);if(mode==="1")n=Math.min(n,1);if(mode==="10")n=Math.min(n,10);if(mode==="NEXT")n=Math.min(n,c.kind==="source"?(marks.find(x=>x>c.level)??CAP)-c.level:Math.min(c.max-c.level,10-c.level%10));const count=bound(n,k=>cost(s,c,k)<=wallet(s,c.kind));return {count,cost:cost(s,c,count)}}
 function debit(s,k,v){const w=wallet(s,k);if(v>w)throw Error("残高不足");s[k==="engraving"?"existence":"orbs"]=sub(w,v);if(k!=="engraving")record(s,"spent",v)}
@@ -60,9 +72,39 @@ function autoConvergence(s,t){
  }
 }
 function effect(s,c){const l=c.level,i=c.i;if(c.kind==="source")return fmt(sourceOutput(s,c.rank,l))+" / 秒";if(c.kind==="moment")return [fmt(lg(1+2*l))+" / 基礎タップ","×"+(1+.12*Math.sqrt(l)).toFixed(2),"最大 ×"+(1+.25*Math.sqrt(l)).toFixed(2),(100*critRate(s)).toFixed(1)+"%","×"+critMulti(s).toFixed(2),"10回ごと ×"+(l?1+echo(s):1).toFixed(2),autoRate(s).toFixed(2)+"回 / 秒",link(s).toFixed(4)+"秒分 / タップ"][i];const e=eff(l);switch(E[i][4]){case "tap":case "source":return "×"+(1+.06*e).toFixed(3);case "reward":return "×"+(1+.08*e).toFixed(3);case "discount":return "−"+((1-discount(s))*100).toFixed(2)+"%";case "transcend":return "鈍化係数 ÷"+(1+.12*Math.sqrt(e)).toFixed(3);case "inherit":return "初期 Lv."+Math.floor(Math.sqrt(e));case "autoTap":return "+"+(.4*Math.sqrt(e)).toFixed(3)+"回 / 秒";default:return l?"解放済み":"未取得"}}
+// Pure card quote: no purchase, RNG, save or observer side effects.
+function effectPreview(s,c,n){
+ const l=c.level,after=l+n,i=c.i;
+ const delta=(a,b,unit="",digits=3)=>{const d=b-a;if(!n)return "—";if(!d)return "0"+unit;const abs=Math.abs(d),v=Number(abs.toPrecision(digits));return (d>0?"+":"−")+v.toLocaleString("ja-JP",{maximumFractionDigits:12})+unit};
+ const scalar=(fn,unit="",prefix="",suffix="")=>{const a=fn(l),b=fn(after);return {current:prefix+Number(a.toPrecision(4)).toLocaleString("ja-JP",{maximumFractionDigits:12})+suffix+unit,delta:delta(a,b,unit)}};
+ const logDelta=(a,b,unit)=>{if(!n)return "—";if(a===b)return "0"+unit;return (b>a?"+":"−")+fmt(sub(Math.max(a,b),Math.min(a,b)))+unit};
+ if(c.kind==="source"){
+  const prev=c.fresh&&c.breakthrough?s.sources[i]:null,a=prev?sourceOutput(s,prev.rank,prev.level):sourceOutput(s,c.rank,l),b=n?sourceOutput(s,c.rank,after):a;
+  return {current:fmt(a)+"/s",delta:logDelta(a,b,"/s")};
+ }
+ if(c.kind==="moment"){
+  if(i===0)return {current:fmt(lg(1+2*l))+"/tap",delta:n?"+"+fmt(lg(2*n))+"/tap":"—"};
+  if(i===1)return scalar(v=>1+.12*Math.sqrt(v),"","×");
+  if(i===2)return scalar(v=>1+.25*Math.sqrt(v),"","最大×");
+  if(i===3)return scalar(v=>65*v/(v+60),"%");
+  if(i===4)return scalar(v=>2+.16*Math.sqrt(v),"","×");
+  if(i===5)return scalar(v=>v?2+.05*Math.sqrt(v):1,"","×","/10回");
+  if(i===6)return scalar(v=>v>0?.5+2*v/(v+50):0,"回/s");
+  return scalar(v=>.04*v/(v+100),"s/tap");
+ }
+ switch(E[i][4]){
+  case "tap":case "source":return scalar(v=>1+.06*eff(v),"","×");
+  case "reward":return scalar(v=>1+.08*eff(v),"","×");
+  case "discount":return scalar(v=>30*v/(v+20),"%","軽減");
+  case "transcend":return scalar(v=>1+.12*Math.sqrt(eff(v)),"","鈍化÷");
+  case "inherit":return scalar(v=>Math.floor(Math.sqrt(eff(v))),"Lv");
+  case "autoTap":return scalar(v=>.4*Math.sqrt(eff(v)),"回/s");
+  default:return {current:l?"解放済":"未取得",delta:n?"解放":"—"};
+ }
+}
 const encode=s=>JSON.stringify(s,(_,v)=>v===Z?null:v);
 function decode(raw){const x=JSON.parse(raw),s=fresh(),lv=(v,m)=>Number.isSafeInteger(v)&&v>=0&&v<=m;if(x?.version!==1)throw Error("試験データ形式不正");for(const k of ["orbs","runEarned","existence","lifetime"]){const n=x[k]===null?Z:x[k];if(!valid(n))throw Error("資源不正");s[k]=n}if(!Array.isArray(x.moment)||x.moment.length!==8||x.moment.some(v=>!lv(v,LIM))||!Array.isArray(x.engraving)||x.engraving.length!==12||x.engraving.some((v,i)=>!lv(v,E[i][3]==="feature"?1:LIM)))throw Error("Lv不正");if(!Array.isArray(x.sources)||x.sources.length!==30||!Number.isSafeInteger(x.front)||x.front< -1||x.front>Math.floor(MAX/4)-100)throw Error("源不正");for(let i=0;i<30;i++){const v=x.sources[i],r=x.front<i?-1:i+30*Math.floor((x.front-i)/30);if(v?.rank!==r||!lv(v.level,CAP)||(r===-1)!==(v.level===0))throw Error("循環不正")}for(const k of ["sourceUnlocked","engravingUnlocked","alternate"]){if(typeof x[k]!=="boolean")throw Error("解放不正");s[k]=x[k]}if(!s.sourceUnlocked&&x.front>=0||!s.engravingUnlocked&&x.engraving.some(Boolean))throw Error("未解放資産");for(const k of ["convergenceCount","combo","taps"]){if(!lv(x[k],LIM))throw Error("履歴不正");s[k]=x[k]}for(const k of ["lastManualAge","runAge","autoAge","autoCredit"]){if(!Number.isFinite(x[k])||x[k]<0)throw Error("時間不正");s[k]=x[k]}s.moment=x.moment.slice();s.engraving=x.engraving.slice();s.sources=x.sources.map(v=>({...v}));s.front=x.front;for(const k of ["master","moment","source","engraving","converge"]){if(typeof x.settings?.[k]!=="boolean")throw Error("設定不正");s.settings[k]=x.settings[k]}for(const k of ["moment","source","engraving"]){if(!["cheap","grade"].includes(x.settings?.priority?.[k]))throw Error("優先不正");s.settings.priority[k]=x.settings.priority[k]}if(!["time","earned"].includes(x.settings?.condition)||!Number.isFinite(x.settings.seconds)||x.settings.seconds<.1||!valid(x.settings.target)||x.settings.target===Z)throw Error("収束条件不正");s.settings.condition=x.settings.condition;s.settings.seconds=x.settings.seconds;s.settings.target=x.settings.target;return s}
 function grant(s,k,v){const n=parse(v);if(k==="orbs")earn(s,n);else if(k==="existence"&&s.engravingUnlocked){const e=add(s.existence,n);if(!valid(e))throw Error("範囲外");s.existence=e}else throw Error("初回収束が必要です")}
-return {Z,CAP,LIM,MAX,marks,M,E,eid,eff,el,own,add,sub,parse,fmt,fresh,encode,decode,earn,tap,tick,buy,buyAll,cards,key,quote,cost,unit,production,sourceOutput,expectedTap,autoRate,convergenceQuote,converge,effect,observe,autoConvergence,factor,comboFactor}
+return {Z,CAP,LIM,MAX,marks,M,E,eid,eff,el,own,add,sub,parse,fmt,fresh,encode,decode,earn,tap,tick,buy,buyAll,cards,key,quote,cost,unit,production,sourceOutput,expectedTap,autoRate,convergenceQuote,converge,effect,effectPreview,observe,autoConvergence,factor,comboFactor}
 }
 export const G=factory();

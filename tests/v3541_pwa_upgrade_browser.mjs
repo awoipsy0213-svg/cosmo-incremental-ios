@@ -9,7 +9,7 @@ import {chromium} from "@playwright/test";
 
 const root=fileURLToPath(new URL("../",import.meta.url));
 const old=mkdtempSync(join(tmpdir(),"kotowari-old-"));
-const OLD="c915a3732444b7189bc8fe516e78556e8c486eac",release="3.57";
+const OLD="c915a3732444b7189bc8fe516e78556e8c486eac",release="3.58";
 const oldSW=execFileSync("git",["show",OLD+":sw.js"],{cwd:root,encoding:"utf8"});
 const files=[...oldSW.match(/const CORE_FILES = \[([\s\S]*?)\];/)[1].matchAll(/"([^"]+)"/g)].map(m=>m[1]);
 const archive=execFileSync("git",["archive","--format=tar",OLD,"sw.js",...files],{cwd:root,maxBuffer:32*1024*1024});

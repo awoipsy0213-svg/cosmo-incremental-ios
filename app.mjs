@@ -21,7 +21,7 @@ import {purchasePreview} from "./purchase-preview-v338.mjs";
 import {momentBrief,compactEffectValue} from "./purchase-clarity-v339.mjs";
 import {UNLOCK_COPY,uxSnapshot,uxChanges,unlockRatio,accumulateTapGain,guideSteps,residueSnapshot,residueGains,mergeResidueFeedback,residueFeedbackRows} from "./ux-polish-v355.mjs";
 
-const APP_RELEASE="3.57";
+const APP_RELEASE="3.58";
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const params=new URLSearchParams(location.search);
@@ -151,6 +151,7 @@ function settleOfflineAndPersist(now,{snapshot=false}={}){
 }
 function applySettings(){
   document.body.classList.toggle("compact-campaign",compactMode);
+  if(compactMode)document.querySelector('meta[name="theme-color"]')?.setAttribute("content","#0b1020");
   if(compactMode){document.title="《理》 新経済版";const caption=document.querySelector(".brand-caption");if(caption?.firstChild?.nodeType===3)caption.firstChild.nodeValue="COMPACT";}
   document.body.classList.toggle("lab-mode",mode==="lab");
   if(mode==="lab"){
@@ -432,6 +433,20 @@ function renderWorld(){
   $("stageTitle").textContent=stage.name;
   $("activeStageTitle").textContent=`ステージ · ${stage.name}`;
   const rate=G.production(state),tap=G.tapPower(state);
+  // DEC-20261126-010: stage-local income, shown only when the corresponding gain is active.
+  const income=$("compactIncome"),incomeActive=compactMode&&currentStage==="existence"&&state.intro.complete;
+  const showTap=incomeActive&&A(tap).cmp(0)>0;
+  const showSource=incomeActive&&state.time.unlocked&&A(rate).cmp(0)>0;
+  income.hidden=!showTap&&!showSource;
+  const patchIncome=(id,visible,value)=>{
+    const item=$(id);item.hidden=!visible;
+    if(!visible)return;
+    const n=item.querySelector("strong"),label=A(value).cmp(1)<0?"1未満":o(value);
+    if(n.textContent!==label)n.textContent=label;
+    if(n.title!==label)n.title=label;
+  };
+  patchIncome("compactTapIncome",showTap,tap);
+  patchIncome("compactSourceIncome",showSource,rate);
   const showShared=state.intro.complete;
   $("commonInfoBar").hidden=!showShared;
   document.body.classList.toggle("has-common-info",showShared);
@@ -529,7 +544,7 @@ function renderWorld(){
   $("worldObserve").innerHTML=observeRows.map(([label,value,full])=>`<div class="scene-stat" title="${esc(full)}"><span>${esc(label)}</span><strong title="${esc(full)}">${esc(value)}</strong></div>`).join("");
   // DEC-20261122-005: the permanent “理の状態” sidebar is removed.
   // Game state and history remain intact; only redundant on-screen copy is hidden.
-  $("heroSigil").textContent=currentStage==="time"?"時":currentStage==="universe"?"宇":currentStage==="life"?"生":"理";
+  $("heroSigil").textContent=compactMode?"":currentStage==="time"?"時":currentStage==="universe"?"宇":currentStage==="life"?"生":"理";
   renderStageIdentity();
   const timeRoot=$("timeHexRoot");
   if(timeRoot){

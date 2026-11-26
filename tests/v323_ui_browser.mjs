@@ -32,7 +32,7 @@ try{
    await page.addInitScript(raw=>localStorage.setItem("kotowari_v31_normal",raw),fixture);
    await page.reload({waitUntil:"domcontentloaded"});
    await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
-   assert.match(await page.locator("#buildLabel").textContent(),/^3\.57$/);
+   assert.match(await page.locator("#buildLabel").textContent(),/^3\.58$/);
    assert.equal(await page.locator(".common-info-item").count(),2);
    const layout=await page.evaluate(()=>({
      scroll:document.documentElement.scrollWidth,

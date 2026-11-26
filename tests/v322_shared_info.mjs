@@ -39,7 +39,7 @@ test("Web and Capacitor copies are exactly synchronized",()=>{
 });
 test("A coherent version is used by HTML, SW and game config",()=>{
   assert.equal(CONFIG.version,"3.30.1");
-  assert.match(source("index.html"),/3\.57/);
+  assert.match(source("index.html"),/3\.58/);
   assert.match(source("sw.js"),/3\.50\.0-time-residue/);
   assert.match(source("sw.js"),/CORE_FILES/);
   assert.match(source("sw.js"),/stage-worlds\.css/);
