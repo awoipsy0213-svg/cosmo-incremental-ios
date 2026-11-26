@@ -1,7 +1,7 @@
 /* Versioned, scope-specific cache. Does not delete saves or another app's cache. */
 const VERSION = "3.50.0-time-residue";
-const UI_REVISION = "-engraving-v342-grade-v343-existence-v344-balance-v351-balance-v352-save-v353-unlock-v354-pwa-v3541-ux-v355-guide-hud-v3551-worlds-v356-comfort-v356-time-integrity-v3561-automation-compact-v3562-campaign-v357";
-const APP_RELEASE = "3.57";
+const UI_REVISION = "-engraving-v342-grade-v343-existence-v344-balance-v351-balance-v352-save-v353-unlock-v354-pwa-v3541-ux-v355-guide-hud-v3551-worlds-v356-comfort-v356-time-integrity-v3561-automation-compact-v3562-campaign-v357-obsidian-v358";
+const APP_RELEASE = "3.58";
 const PREFIX = "kotowari-handoff:" + new URL(self.registration.scope).pathname + ":";
 const RELATIVE = [
   "index.html",
@@ -131,7 +131,7 @@ const CORE_FILES = [
 // for coherence with the checked-out Git tree, not as a trust signature.
 // Regenerate with scripts/pwa-integrity.mjs --write after changing core files.
 const CORE_HASHES = [
-  "ae4bc3b6a0f348eb042b477440ae7f169535be2b",
+  "aee9b3b6c359b86983100e552910c6a128697880",
   "fa06847001eeeb5e8d0a272eef073fb4a3516454",
   "ca7a7a642f7385b502be1608d03c1d56c048890c",
   "ab5d561ffe0c982877ef7f8840564bd7d7e73a2a",
@@ -150,7 +150,7 @@ const CORE_HASHES = [
   "3a7a820cfb21166490310f9d61bc33641d67584f",
   "b1a16b1526a83cde8be719a9d9095825a2aea00f",
   "8cc8a30456d59ccd18b1cc0810e92dbf2979aedb",
-  "c4a43046e6c6fe65b2d3bb15c9df3a6f42cff398",
+  "822c390500bfa39699b2f741154cc30b22a7a4d3",
   "ed0c5c3a0a5607332d5ea7a208052a419e149213",
   "8158a7a10b57ab2e5b4f8df9718baa2b88c96e6d",
   "13fc01c6f1cace5462f314f4d019425fdc636d55",
@@ -175,7 +175,7 @@ const CORE_HASHES = [
   "d9941f8ef3570618aa72b25f018f7970a67b1141",
   "efde0525da1a3c30b4dc15037beb7b4d78de6589",
   "a31fabd7b98170cbee8e9eaab007c7112454d2c5",
-  "0ab6a59fead2004080f9794b4bcbd855b0c27d04",
+  "c3fe4ef57190caaec7f7b3071a79c8902d95bf2c",
   "30f6626cc056810975070bea1a77569affca700c",
   "483d2e20bf6b5934a658bc38ee9bf2ee095a3d78",
   "216869251e8e6bb806a4b637d1090f383d107430",

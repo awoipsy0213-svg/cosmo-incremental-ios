@@ -13,6 +13,9 @@ try {
  for(const width of [320,375,430]){
   const ctx=await browser.newContext({viewport:{width,height:812},serviceWorkers:"block"}),page=await ctx.newPage(),errors=[];
   page.on("pageerror",e=>errors.push(String(e)));
+  await page.goto(base+"?compact=1&dev=1");
+  await page.waitForFunction(()=>window.KOTOWARI_DEBUG?.state()?.compactEconomy);
+  assert.ok(await page.locator("#compactIncome").isHidden(),"income hidden during intro");
   await page.goto(base+"numbers.mjs");
   await page.evaluate(async()=>{
     const G=await import("./game.mjs"),S=await import("./save.mjs");
@@ -27,6 +30,13 @@ try {
   await page.goto(base+"?compact=1&dev=1");
   await page.waitForFunction(()=>window.KOTOWARI_DEBUG?.state()?.compactEconomy);
   await page.evaluate(()=>window.KOTOWARI_DEBUG.open("existence","moment"));
+  assert.equal(await page.locator("#buildLabel").textContent(),"3.58");
+  assert.equal(await page.evaluate(()=>getComputedStyle(document.body).colorScheme),"dark");
+  assert.equal(await page.locator("#heroSigil").textContent(),"");
+  assert.ok(await page.locator("#heroSigil").isHidden());
+  assert.ok(await page.locator("#compactTapIncome").isVisible(),"tap income visible after intro");
+  assert.ok(await page.locator("#compactSourceIncome").isHidden(),"no source income before a productive source is acquired");
+  assert.notEqual(await page.locator("#compactTapIncome strong").textContent(),"0");
   assert.equal(await page.locator("[data-compact-card]").count(),1);
   assert.ok(await page.locator("#bulkScopeButton").isHidden());
   await page.locator("[data-compact-buy]").first().click();
@@ -39,12 +49,21 @@ try {
   assert.equal(await page.evaluate(()=>window.KOTOWARI_DEBUG.state().compactEconomy.settings.master),false);
   await page.evaluate(()=>window.KOTOWARI_DEBUG.open("time","flow"));
   assert.equal(await page.evaluate(()=>window.KOTOWARI_DEBUG.state().time.unlocked),true);
+  assert.ok(await page.locator("#compactIncome").isHidden(),"existence rates must not leak into time");
+  assert.ok(await page.locator(".time-hex-core-symbol").isHidden());
+  assert.equal(await page.locator(".time-hex-node").count(),6);
   await page.evaluate(()=>window.KOTOWARI_DEBUG.open("existence","sources"));
   assert.equal(await page.locator("[data-compact-card]").count(),1);
+  await page.locator("[data-compact-buy]").first().click();
+  await page.waitForFunction(()=>!document.querySelector("#compactSourceIncome").hidden);
+  assert.ok(await page.locator("#compactSourceIncome").isVisible(),"source income visible after purchase");
+  assert.notEqual(await page.locator("#compactSourceIncome strong").textContent(),"0");
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
   await page.evaluate(()=>window.KOTOWARI_DEBUG.save());
   await page.reload();await page.waitForFunction(()=>window.KOTOWARI_DEBUG?.state()?.compactEconomy);
   assert.ok(await page.evaluate(()=>window.KOTOWARI_DEBUG.state().compactEconomy.moment[0]>3000));
+  await page.evaluate(()=>window.KOTOWARI_DEBUG.open("existence","sources"));
+  assert.ok(await page.locator("#compactSourceIncome").isVisible(),"income persists on reload");
   assert.equal(await page.evaluate(async()=>localStorage.getItem((await import("./save.mjs")).KEYS.normal)),old);
   assert.deepEqual(errors,[]);
   await ctx.close();
