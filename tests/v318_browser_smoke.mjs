@@ -21,11 +21,11 @@ try {
     const page=await context.newPage();
     const pageErrors=[];
     page.on("pageerror",error=>pageErrors.push(String(error)));
-    const res=await page.goto(root,{waitUntil:"domcontentloaded"});
+    const res=await page.goto(root+"?legacy=1",{waitUntil:"domcontentloaded"});
     assert.equal(res?.status(),200);
     await page.locator("#buildLabel").waitFor({state:"attached"});
     await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
-    assert.match(await page.locator("#buildLabel").textContent(),/^3\.59$/);
+    assert.match(await page.locator("#buildLabel").textContent(),/^3\.60$/);
     assert.ok((await page.locator("#appRoot").boundingBox())?.width>0);
     const width=await page.evaluate(()=>document.documentElement.scrollWidth);
     assert.ok(width<=viewport.width+2,label+" horizontal overflow: "+width);

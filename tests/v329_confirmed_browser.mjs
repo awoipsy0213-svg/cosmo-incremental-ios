@@ -14,7 +14,7 @@ try{
   const context=await browser.newContext({viewport:{width,height}});
   const page=await context.newPage(),errors=[];
   page.on("pageerror",e=>errors.push(String(e)));
-  assert.equal((await page.goto(base+"?dev=1",{waitUntil:"domcontentloaded"}))?.status(),200);
+  assert.equal((await page.goto(base+"?legacy=1&dev=1",{waitUntil:"domcontentloaded"}))?.status(),200);
   await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
   const fixture=await page.evaluate(async()=>{
    const G=await import("./game.mjs"),S=await import("./save.mjs");
@@ -38,7 +38,7 @@ try{
   },fixture);
   await page.reload({waitUntil:"domcontentloaded"});
   await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
-  assert.match(await page.locator("#buildLabel").textContent(),/^3\.59$/);
+  assert.match(await page.locator("#buildLabel").textContent(),/^3\.60$/);
   await page.locator('[data-stage="existence"]').click();
   await page.locator('[data-child="moment"]').click();
   assert.equal(await page.locator(".moment-card").count(),30);

@@ -18,7 +18,7 @@ try {
     const context=await browser.newContext({viewport:{width,height},isMobile:true,deviceScaleFactor:2});
     const page=await context.newPage();
     const errors=[];page.on("pageerror",error=>errors.push(String(error)));
-    assert.equal((await page.goto(root,{waitUntil:"domcontentloaded"}))?.status(),200);
+    assert.equal((await page.goto(root+"?legacy=1",{waitUntil:"domcontentloaded"}))?.status(),200);
     await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
     await page.evaluate(()=>{
       const dlg=document.querySelector("#confirmDialog");

@@ -39,7 +39,7 @@ try{
    const context=await browser.newContext({viewport:{width,height},deviceScaleFactor:1});
    const page=await context.newPage(),errors=[];
    page.on("pageerror",error=>errors.push(String(error)));
-   await page.goto(base+"?dev=1",{waitUntil:"domcontentloaded"});
+   await page.goto(base+"?legacy=1&dev=1",{waitUntil:"domcontentloaded"});
    await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
    const fixture=await page.evaluate(async()=>{
      const G=await import("./game.mjs"),S=await import("./save.mjs");
@@ -58,7 +58,7 @@ try{
    },fixture);
    await page.reload({waitUntil:"domcontentloaded"});
    await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
-   assert.match(await page.locator("#buildLabel").textContent(),/^3\.59$/);
+   assert.match(await page.locator("#buildLabel").textContent(),/^3\.60$/);
    await page.locator('[data-stage="existence"]').click();
    await page.locator('[data-child="moment"]').click();
    assert.equal(await page.locator(".moment-card").count(),30);
@@ -119,7 +119,7 @@ try{
        ctx=await browser.newContext({viewport:{width,height},deviceScaleFactor:1});
        const oldPage=await ctx.newPage();
        await oldPage.addInitScript(raw=>localStorage.setItem("kotowari_v31_normal",raw),fixture);
-       await oldPage.goto(live,{waitUntil:"domcontentloaded",timeout:14000});
+       await oldPage.goto(live+"?legacy=1",{waitUntil:"domcontentloaded",timeout:14000});
        await oldPage.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中",{timeout:8000});
        const oldBuild=await oldPage.locator("#buildLabel").textContent();
        if(!oldBuild.includes("3.33")){

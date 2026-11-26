@@ -16,7 +16,7 @@ try{
   const context=await browser.newContext({viewport:{width,height}});
   const page=await context.newPage(),errors=[];
   page.on("pageerror",err=>errors.push(String(err)));
-  assert.equal((await page.goto(base+"?dev=1",{waitUntil:"domcontentloaded"}))?.status(),200);
+  assert.equal((await page.goto(base+"?legacy=1&dev=1",{waitUntil:"domcontentloaded"}))?.status(),200);
   await page.waitForFunction(()=>document.querySelector("#saveIndicator")?.textContent!=="準備中");
   const raw=await page.evaluate(async()=>{
     const G=await import("./game.mjs"),S=await import("./save.mjs");
@@ -44,7 +44,7 @@ try{
   assert.deepEqual(first.state.boost.upgrades,[0,0,0,0,0]);
   assert.deepEqual(first.state.boost.timeOnlyMigration.legacyUpgradeLevels,[3,2,1,0,0]);
   assert.equal(first.archive,raw,"original encoded bytes remain recoverable");
-  assert.match(await page.locator("#buildLabel").textContent(),/^3\.59$/);
+  assert.match(await page.locator("#buildLabel").textContent(),/^3\.60$/);
   await page.locator('.app-top [data-action="organizer"]').click();
   await page.locator('[data-organizer="boost"]').click();
   const content=await page.locator("#sheetBody").textContent();
