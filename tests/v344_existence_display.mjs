@@ -62,8 +62,9 @@ check("display rounding never changes actual purchase price, orb quantities or s
 
 check("all player-facing engraving costs and upper HUD use compact formatter",()=>{
   const app=read("app.mjs");
-  assert.ok(app.includes('["existence",formatExistenceHudDisplay(G.existence(state))'));
-  assert.ok(app.includes("esc(formatExistenceHudDisplay(G.existence(state)))"));
+  assert.ok(app.includes('["existence",parts?parts.whole:formatExistenceHudDisplay(wallet)'));
+  assert.ok(app.includes('parts=compactMode?splitExistenceShards(wallet):null'));
+  assert.ok(app.includes('esc(compactMode?formatShardAmount(G.existence(state),{full:true}):formatExistenceHudDisplay(G.existence(state)))'));
   assert.ok(app.includes('const shownPrice=price===undefined||price===null?"—":formatExistenceDisplay(price,{roundUp:true});'));
   assert.ok(app.includes("formatExistenceDisplay(q.price,{roundUp:true})"));
   assert.ok(app.includes("formatExistenceDisplay(quote.price,{roundUp:true})"));
