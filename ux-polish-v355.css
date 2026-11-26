@@ -373,3 +373,19 @@ body.compact-campaign #sheetBody .compact-campaign-buy [data-c-cost].compact-res
 body.compact-campaign #sheetBody .compact-campaign-buy .compact-resource-glyph{width:9px;height:9px}
 body.compact-campaign .converge-main-reward [data-main-convergence-reward].compact-resource-amount{justify-content:flex-start}
 @media(max-width:340px){.compact-shard-wallet{padding-inline:5px!important}.compact-shard-values{gap:4px}.compact-shard-part{gap:3px}.compact-shard-part+.compact-shard-part{padding-left:4px}.compact-shard-number{gap:2px}.compact-shard-part>.compact-resource-glyph{width:15px;height:15px}.compact-shard-part>.compact-resource-glyph.shard{width:12px;height:16px}}
+
+/* v3.61: clearer upgrade semantics and consistent resource identity. */
+.compact-shared-existence{display:none}
+body.compact-campaign .common-info-item:has(.compact-shared-existence) .shared-glyph{display:none}
+body.compact-campaign .common-info-item .compact-shared-existence{display:inline-block;width:20px;height:20px;flex:none}
+body.compact-campaign #sheetBody .compact-name-label{display:flex;align-items:baseline;gap:4px;min-width:0;overflow:hidden}
+body.compact-campaign #sheetBody .compact-name-label [data-c-name]{flex:0 1 auto}
+body.compact-campaign #sheetBody .compact-name-label [data-c-role]{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px;line-height:17px;font-weight:400;color:#6b7297}
+body.compact-campaign:not(.compact-light) #sheetBody .compact-name-label [data-c-role]{color:#b5c3e3}
+body.compact-campaign #sheetBody .compact-campaign-name [data-c-meta]{max-width:55px}
+body.compact-campaign #sheetBody [data-compact-card-kind="engraving"]{grid-template-columns:minmax(0,1fr) clamp(104px,34%,120px)}
+body.compact-campaign .compact-resource-amount .compact-amount-segment{min-width:0;max-width:100%}
+body.compact-campaign #sheetBody [data-compact-card-kind="engraving"] [data-c-cost].compact-resource-amount:has(.compact-amount-segment+.compact-resource-sr+.compact-amount-segment){font-size:9.5px}
+@media(max-width:340px){body.compact-campaign #sheetBody .compact-name-label{gap:2px}body.compact-campaign #sheetBody .compact-campaign-name [data-c-meta]{max-width:43px}body.compact-campaign #sheetBody .compact-name-label [data-c-role]{font-size:8px}}
+
+body.compact-campaign #sheetBody .compact-name-label [data-c-role]:empty{display:none}

@@ -32,7 +32,7 @@ try {
   await page.goto(base+"?compact=1&dev=1");
   await page.waitForFunction(()=>window.KOTOWARI_DEBUG?.state()?.compactEconomy);
   await page.evaluate(()=>window.KOTOWARI_DEBUG.open("existence","moment"));
-  assert.equal(await page.locator("#buildLabel").textContent(),"3.60");
+  assert.equal(await page.locator("#buildLabel").textContent(),"3.61");
   assert.equal(await page.evaluate(()=>getComputedStyle(document.body).colorScheme),"dark");
   assert.match(await page.locator("[data-main-convergence-reward]").textContent(),/かけら|存在/);
   assert.ok(await page.locator("#compactShardWallet").isVisible());
@@ -62,6 +62,17 @@ try {
   assert.notEqual(await page.locator("#compactTapIncome strong").textContent(),"0");
   assert.equal(await page.locator("[data-compact-card]").count(),1);
   assert.ok(await page.locator("#bulkScopeButton").isHidden());
+  // Mode changes update existing cards instead of remounting the list.
+  await page.evaluate(()=>{window.__stableCard=document.querySelector("[data-compact-card]");window.__stableTab=document.querySelector("[data-child=moment]");window.__stableStat=document.querySelector("#stageResourceList .stage-stat");});
+  for(let i=0;i<4;i++){
+    await page.locator("#purchaseCycle").click();
+    assert.ok(await page.evaluate(()=>window.__stableCard===document.querySelector("[data-compact-card]")&&window.__stableTab===document.querySelector("[data-child=moment]")&&window.__stableStat===document.querySelector("#stageResourceList .stage-stat")),"stable card, tab and unchanged HUD nodes");
+  }
+  assert.equal(await page.locator("#purchaseCycle").textContent(),"MAX");
+  assert.equal(await page.locator("[data-c-role]").first().textContent(),"基礎タップ");
+  assert.match(await page.locator("[data-compact-buy]").first().getAttribute("aria-label"),/基礎タップ獲得量/);
+  assert.ok(await page.locator(".compact-shared-existence").isVisible());
+  assert.ok(await page.locator(".common-info-item").first().locator(".shared-glyph").isHidden());
   await page.locator("[data-compact-buy]").first().click();
   assert.ok(await page.evaluate(()=>window.KOTOWARI_DEBUG.state().compactEconomy.moment[0]>3000));
   await page.evaluate(()=>window.KOTOWARI_DEBUG.open("existence","engraving"));
@@ -122,6 +133,11 @@ try {
   await page.goto(base);
   await page.waitForFunction(()=>document.body.classList.contains("compact-campaign")&&document.querySelector("#compactWalletShards")?.textContent==="999");
   assert.equal(await page.locator("#compactWalletWhole").textContent(),"1");
+  // The separate 999-shard fixture has no automation engravings.
+  const lockedLabels=await page.evaluate(async()=>{const S=await import("./save.mjs");const M=await import("./compact-campaign-ui-v357.mjs");const state=S.decode(localStorage.getItem(S.KEYS.compact),"normal",true);const div=document.createElement("div");div.innerHTML=M.compactAutomationHTML(state,false);return [...div.querySelectorAll("[data-compact-auto],[data-compact-priority]")].map(n=>({disabled:n.disabled,label:n.getAttribute("aria-label")}));});
+  assert.equal(lockedLabels.length,7);
+  assert.ok(lockedLabels.every(x=>x.disabled&&x.label.startsWith("未解放")));
+
   assert.equal(await page.locator("#compactShardTrack").getAttribute("aria-valuenow"),"999");
   assert.equal(await page.locator("#compactShardFill").evaluate(el=>el.style.width),"99.9%");
   assert.match(await page.locator("[data-main-convergence-reward]").textContent(),/かけら1/);

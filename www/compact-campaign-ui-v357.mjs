@@ -19,11 +19,15 @@ export function patchCompactAmount(node,label){
 export const compactKind=sub=>({moment:"moment",sources:"source",engraving:"engraving"})[sub];
 const cardName=(k,c)=>k==="source"?"源"+String(c.i+1).padStart(2,"0")+(c.rank>=30?" ＋"+nf(Math.floor(c.rank/30)):""):(k==="moment"?C.M:C.E)[c.i][0];
 const description=(k,c)=>k==="source"?"実質グレード "+nf(c.rank+1):(k==="moment"?C.M:C.E)[c.i][1];
+const roleLabel=(k,c)=>k==="source"?"":k==="moment"?["基礎タップ","タップ倍率","コンボ","会心率","会心倍率","追加獲得","自動タップ","生産転写"][c.i]:["タップ倍率","源倍率","収束報酬","","自動タップ","費用軽減","","","成長鈍化","初期Lv","",""][c.i];
 function rows(c,kind){return C.cards(c,kind).sort((a,b)=>Number(!!b.fresh)-Number(!!a.fresh)||b.rank-a.rank);}
-function markup(row,kind){return '<article class="compact-campaign-card" data-compact-card="'+esc(C.key(row))+'"><div class="compact-campaign-info"><div class="compact-campaign-name"><strong data-c-name></strong><small data-c-level></small><small data-c-meta></small></div><div class="compact-campaign-effects"><span data-c-effect></span><span data-c-delta></span></div></div><button type="button" class="compact-campaign-buy" data-compact-buy="'+esc(C.key(row))+'" data-compact-kind="'+kind+'"><strong data-c-cost></strong><small data-c-count></small></button></article>';}
-export function patchCompactCards(root,s,kind,blocked=false,force=false){
- const c=unpack(s),cards=rows(c,kind),signature=kind+":"+cards.map(C.key).join(",");
- if(force||root.dataset.compactSignature!==signature||!root.querySelector("[data-compact-list]")){
+function markup(row,kind){return '<article class="compact-campaign-card" data-compact-card="'+esc(C.key(row))+'" data-compact-card-kind="'+kind+'"><div class="compact-campaign-info"><div class="compact-campaign-name"><div class="compact-name-label"><strong data-c-name></strong><small data-c-role></small></div><small data-c-level></small><small data-c-meta></small></div><div class="compact-campaign-effects"><span data-c-effect></span><span data-c-delta></span></div></div><button type="button" class="compact-campaign-buy" data-compact-buy="'+esc(C.key(row))+'" data-compact-kind="'+kind+'"><strong data-c-cost></strong><small data-c-count></small></button></article>';}
+export function patchCompactCards(root,s,kind,blocked=false,_force=false,decoded=null){
+ const c=decoded??unpack(s),cards=rows(c,kind),signature=kind+":"+cards.map(row=>C.key(row)+":"+(row.fresh?1:0)).join(",");
+ const active=root.contains(document.activeElement)?document.activeElement?.dataset.compactBuy:null;
+ let rebuilt=false;
+ if(root.dataset.compactSignature!==signature||!root.querySelector("[data-compact-list]")){
+  rebuilt=true;
   const top=root.dataset.compactSignature?.startsWith(kind+":")?root.scrollTop:0;
   root.innerHTML='<div class="compact-campaign-list" data-compact-list>'+(
    kind==="engraving"&&c.engravingUnlocked?
@@ -37,39 +41,42 @@ export function patchCompactCards(root,s,kind,blocked=false,force=false){
   root.dataset.compactSignature=signature;root.scrollTop=top;
  }
  const byKey=new Map([...root.querySelectorAll("[data-compact-card]")].map(n=>[n.dataset.compactCard,n]));
- const set=(el,selector,value)=>{const n=el.querySelector(selector);if(n.textContent!==value)n.textContent=value;};
+ const set=(el,selector,value)=>{const n=el.querySelector(selector);if(n.textContent!==value)n.textContent=value;if(n.title!==value)n.title=value;};
  let ready=0;
  for(const row of cards){
   const node=byKey.get(C.key(row));if(!node)continue;
   const visible=!row.fresh||row.ready&&C.quote(c,row,"1").count>0;
-  const q=C.quote(c,row,row.fresh&&row.breakthrough?"1":s.purchaseMode);
+  const q=visible?C.quote(c,row,row.fresh&&row.breakthrough?"1":s.purchaseMode):{count:0};
   const done=row.level===row.max,feature=kind==="engraving"&&C.E[row.i][3]==="feature";
   const name=visible?cardName(kind,row):"？？？";
-  const lv=visible?nf(row.level)+"/"+(kind==="source"?"10,000":feature?"1":"∞"):"？？？";
+  const lv=visible?"Lv."+nf(row.level)+"/"+(kind==="source"?"10,000":feature?"1":"∞"):"？？？";
   const effect=visible?C.effectPreview(c,row,q.count):{current:"？？？",delta:"？？？"};
   const next=done||feature?null:kind==="source"?(row.fresh&&row.breakthrough?1:C.marks.find(v=>v>row.level)):Math.min(row.max,row.level+10-row.level%10);
   const meta=visible?(next===null||next===undefined?"—":"N "+nf(next)):"？？？";
   node.classList.toggle("compact-campaign-locked",!visible);
-  set(node,"[data-c-name]",name);set(node,"[data-c-level]",lv);set(node,"[data-c-effect]",effect.current);set(node,"[data-c-delta]",effect.delta);set(node,"[data-c-meta]",meta);
-  node.title=visible?name+" "+lv+" "+(kind==="source"?"次の節目":feature?"":"次の購入境界")+" "+meta+" / "+description(kind,row)+" / "+effect.current+" → 増分 "+effect.delta:"次の解放";
+  set(node,"[data-c-name]",name);set(node,"[data-c-role]",visible?roleLabel(kind,row):"");set(node,"[data-c-level]",lv);set(node,"[data-c-effect]",effect.current);set(node,"[data-c-delta]",effect.delta);set(node,"[data-c-meta]",meta);
+  const detail=visible?name+" "+lv+" "+(kind==="source"?"次の節目":feature?"":"次の購入境界")+" "+meta+" / "+description(kind,row)+" / "+effect.current+" → 増分 "+effect.delta:"次の解放";
+  if(node.title!==detail)node.title=detail;
   const b=node.querySelector("button");
-  b.disabled=blocked||!visible||!q.count;
+  const disabled=!!(blocked||!visible||!q.count);if(b.disabled!==disabled)b.disabled=disabled;
   if(!b.disabled)ready++;
   const costLabel=!visible?"？？？":done?"—":(kind==="engraving"?formatShardAmount(fromLog(q.count?q.cost:C.cost(c,row,1)),{roundUp:true}):C.fmt(q.count?q.cost:C.cost(c,row,1),false,true));
   if(kind==="engraving")patchCompactAmount(node.querySelector("[data-c-cost]"),costLabel);
   else set(node,"[data-c-cost]",costLabel);
   set(node,"[data-c-count]",!visible?"？？？":done?"—":"×"+nf(q.count));
-  b.setAttribute("aria-label",name+" "+(row.fresh&&row.breakthrough?"限界突破":"購入 "+nf(q.count)+"Lv")+" "+costLabel);
+  const label=visible?detail+" / "+(row.fresh&&row.breakthrough?"限界突破":"購入 "+nf(q.count)+"Lv")+" "+costLabel:"？？？。未解放";
+  if(b.getAttribute("aria-label")!==label)b.setAttribute("aria-label",label);
  }
+ if(rebuilt&&active){const focused=byKey.get(active)?.querySelector("button");if(focused&&!focused.disabled)focused.focus({preventScroll:true});}
  return {ready,total:cards.length};
 }
 export function compactAutomationHTML(s,blocked){
  const c=unpack(s),disabled=blocked?" disabled":"";
- const switchHTML=(key,on,locked=false)=>'<span class="automation-toggle"><input type="checkbox" role="switch" data-compact-auto="'+key+'" aria-label="'+({moment:"刹那",source:"源",engraving:"刻印",converge:"自動収束"}[key])+'"'+(on?" checked":"")+(blocked||locked?" disabled":"")+'></span>';
+ const switchHTML=(key,on,locked=false)=>'<span class="automation-toggle"><input type="checkbox" role="switch" data-compact-auto="'+key+'" aria-label="'+(locked?"未解放の自動化":{moment:"刹那",source:"源",engraving:"刻印",converge:"自動収束"}[key])+'"'+(on?" checked":"")+(blocked||locked?" disabled":"")+'></span>';
  const options=(kind)=>[["cheap","安い順"],["grade","高グレード順"]].map(([k,v])=>'<option value="'+k+'"'+(c.settings.priority[kind]===k?" selected":"")+'>'+v+'</option>').join("");
  const row=(k,label)=>{
   const unlocked=C.own(c,k+"Auto");
-  return '<div class="compact-campaign-auto-row"><strong>'+(unlocked?label:"？？？")+'</strong><select class="input-select" data-compact-priority="'+k+'" aria-label="'+label+'の購入順"'+(blocked||!unlocked?" disabled":"")+'>'+options(k)+'</select>'+switchHTML(k,c.settings[k],!unlocked)+'</div>';
+  return '<div class="compact-campaign-auto-row"><strong>'+(unlocked?label:"？？？")+'</strong><select class="input-select" data-compact-priority="'+k+'" aria-label="'+(unlocked?label+"の購入順":"未解放の購入順")+'"'+(blocked||!unlocked?" disabled":"")+'>'+options(k)+'</select>'+switchHTML(k,c.settings[k],!unlocked)+'</div>';
  };
  const con=C.own(c,"convergeAuto"),cond=c.settings.condition;
  const target=cond==="time"?String(c.settings.seconds):fromLog(c.settings.target).toString();

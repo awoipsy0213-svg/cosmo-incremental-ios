@@ -1,7 +1,7 @@
 /* Versioned, scope-specific cache. Does not delete saves or another app's cache. */
 const VERSION = "3.50.0-time-residue";
-const UI_REVISION = "-engraving-v342-grade-v343-existence-v344-balance-v351-balance-v352-save-v353-unlock-v354-pwa-v3541-ux-v355-guide-hud-v3551-worlds-v356-comfort-v356-time-integrity-v3561-automation-compact-v3562-campaign-v357-obsidian-v358-density-pacing-shards-theme-v359-wallet-default-v360";
-const APP_RELEASE = "3.60";
+const UI_REVISION = "-engraving-v342-grade-v343-existence-v344-balance-v351-balance-v352-save-v353-unlock-v354-pwa-v3541-ux-v355-guide-hud-v3551-worlds-v356-comfort-v356-time-integrity-v3561-automation-compact-v3562-campaign-v357-obsidian-v358-density-pacing-shards-theme-v359-wallet-default-v360-polish-v361";
+const APP_RELEASE = "3.61";
 const PREFIX = "kotowari-handoff:" + new URL(self.registration.scope).pathname + ":";
 const RELATIVE = [
   "index.html",
@@ -131,7 +131,7 @@ const CORE_FILES = [
 // for coherence with the checked-out Git tree, not as a trust signature.
 // Regenerate with scripts/pwa-integrity.mjs --write after changing core files.
 const CORE_HASHES = [
-  "f241ec7851f62c0eeea61048bdb133f2955ebdfe",
+  "ab36eac2829d5b380b4add54c1190f697956be3b",
   "fa06847001eeeb5e8d0a272eef073fb4a3516454",
   "ca7a7a642f7385b502be1608d03c1d56c048890c",
   "ab5d561ffe0c982877ef7f8840564bd7d7e73a2a",
@@ -150,7 +150,7 @@ const CORE_HASHES = [
   "3a7a820cfb21166490310f9d61bc33641d67584f",
   "b1a16b1526a83cde8be719a9d9095825a2aea00f",
   "8cc8a30456d59ccd18b1cc0810e92dbf2979aedb",
-  "dfc74deb61c516d07252a48fea9c6076b5384ae1",
+  "6ce8fbe91dcd3f7ea61809fdfcc4e09ae838fb85",
   "ed0c5c3a0a5607332d5ea7a208052a419e149213",
   "8158a7a10b57ab2e5b4f8df9718baa2b88c96e6d",
   "13fc01c6f1cace5462f314f4d019425fdc636d55",
@@ -175,11 +175,11 @@ const CORE_HASHES = [
   "d9941f8ef3570618aa72b25f018f7970a67b1141",
   "efde0525da1a3c30b4dc15037beb7b4d78de6589",
   "a31fabd7b98170cbee8e9eaab007c7112454d2c5",
-  "f091a8090df68a1518ebcf5c8c33c80f6ca7aaa6",
+  "7db22db62effc2bbea638d0424ee3e39fbdda3a6",
   "30f6626cc056810975070bea1a77569affca700c",
   "dd875322173ecb2366b1dfea2d87ae2d10999e36",
   "e684d3f2f8f5aa2064e0ba9156b48edabff259c6",
-  "0534f9fa2388bec5cddc7bf71cb098d8164f9242"
+  "ca4e1ec9ffd177ccd38e8bbac94a4f4d1432e41e"
 ];
 const CORE_BLOBS=Object.fromEntries(CORE_FILES.map((path,i)=>[path,CORE_HASHES[i]]));
 // Separate cache namespaces even when a future maintainer regenerates the

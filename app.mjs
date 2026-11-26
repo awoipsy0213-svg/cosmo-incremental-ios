@@ -21,8 +21,13 @@ import {purchasePreview} from "./purchase-preview-v338.mjs";
 import {momentBrief,compactEffectValue} from "./purchase-clarity-v339.mjs";
 import {UNLOCK_COPY,uxSnapshot,uxChanges,unlockRatio,accumulateTapGain,guideSteps,residueSnapshot,residueGains,mergeResidueFeedback,residueFeedbackRows} from "./ux-polish-v355.mjs";
 
-const APP_RELEASE="3.60";
+const APP_RELEASE="3.61";
 const $=id=>document.getElementById(id);
+// Keep stable DOM nodes during idle refreshes; only owned display regions use this cache.
+const renderedHTML=new WeakMap();
+const patchText=(node,value)=>{const v=String(value);if(node.textContent!==v||renderedHTML.has(node)){node.textContent=v;renderedHTML.delete(node);}};
+const patchHTML=(node,html)=>{if(renderedHTML.get(node)!==html){node.innerHTML=html;renderedHTML.set(node,html);}};
+const patchAttr=(node,key,value)=>{const v=String(value);if(node.getAttribute(key)!==v)node.setAttribute(key,v);};
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const params=new URLSearchParams(location.search);
 const mode=params.get("lab")==="1"?"lab":"normal";
@@ -464,11 +469,11 @@ function renderWorld(){
     const whole=$("compactWalletWhole"),fragment=$("compactWalletShards"),track=$("compactShardTrack"),fill=$("compactShardFill");
     if(whole.textContent!==parts.whole)whole.textContent=parts.whole;
     if(fragment.textContent!==shardText)fragment.textContent=shardText;
-    shardHUD.title=formatShardAmount(wallet,{full:true});
-    $("compactShardLimit").textContent=count===null?"":"/ 1,000";
-    track.dataset.available=String(count!==null);
-    if(count===null)track.removeAttribute("aria-valuenow");else track.setAttribute("aria-valuenow",String(count));
-    track.setAttribute("aria-valuetext",count===null?"科学表記では端数を表示しません":shardText+" / 1,000");
+    patchAttr(shardHUD,"title",formatShardAmount(wallet,{full:true}));
+    patchText($("compactShardLimit"),count===null?"":"/ 1,000");
+    patchAttr(track,"data-available",count!==null);
+    if(count===null){if(track.hasAttribute("aria-valuenow"))track.removeAttribute("aria-valuenow");}else patchAttr(track,"aria-valuenow",count);
+    patchAttr(track,"aria-valuetext",count===null?"科学表記では端数を表示しません":shardText+" / 1,000");
     const percent=(count===null?0:count/10)+"%";if(fill.style.width!==percent)fill.style.width=percent;
     const exactWhole=count===null?null:Number(parts.whole.replaceAll(",","")),now=Date.now(),prev=shardHUDPrevious;
     if(prev?.state===state&&exactWhole!==null&&prev.whole!==null&&exactWhole>prev.whole&&state.convergenceCount>prev.convergences&&now-shardHUDLastPulse>1500){
@@ -489,24 +494,23 @@ function renderWorld(){
       if(!node)continue;
       if(node.textContent!==formatted)node.textContent=formatted;
       const button=node.closest("button");
-      button.title=label+"："+formatted+unit;
-      button.setAttribute("aria-label",label+" "+formatted+unit+"。詳細を開く");
+      patchAttr(button,"title",label+"："+formatted+unit);
+      patchAttr(button,"aria-label",label+" "+formatted+unit+"。詳細を開く");
     }
   }
   const combo=G.momentComboView(state);
-  const run=$("hudRunCount");if(run)run.textContent=state.convergenceCount.toLocaleString("ja-JP");
+  const run=$("hudRunCount");if(run)patchText(run,state.convergenceCount.toLocaleString("ja-JP"));
   const ratio=combo.window>0?Math.round(Math.max(0,Math.min(100,100*combo.remaining/combo.window))):0;
   const milestone=compactMode?"":combo.nextMark===null?" · 最終節目到達":` · 次${combo.nextMark}まで${combo.untilNext}回`;
   const comboHtml=combo.combo>0?`<span class="kw-combo">コンボ ${combo.combo.toLocaleString("ja-JP")} · ×${combo.multiplier.toFixed(2)}${milestone}<i class="kw-combo-track"><i style="width:${ratio}%"></i></i></span>`:"";
   const storedHtml=A(combo.stored).cmp(0)>0?`<span class="kw-stored">蓄積 ${o(combo.stored)}</span>`:"";
   $("convergeMain").hidden=!state.intro.complete||(compactMode?currentStage!=="existence":!["existence","organizer","automation"].includes(currentStage));
   if(["existence","organizer","automation"].includes(currentStage)){
-    $("primaryValue").textContent=orbDisplay(state.orbs);
-    $("worldDetails").innerHTML=`<span class="wallet">オーブ <b>${orbDisplay(state.orbs)}</b></span><span>${state.runOrbsEvidence==="verified"?"周回獲得 "+orbDisplay(state.runOrbsEarned)+" オーブ":"旧周回・確認済獲得 "+orbDisplay(state.runOrbsEarned)+" オーブ"}</span><span>干渉 +${o(tap)}</span>${comboHtml}${storedHtml}`;
+    patchText($("primaryValue"),orbDisplay(state.orbs));
+    patchHTML($("worldDetails"),`<span class="wallet">オーブ <b>${orbDisplay(state.orbs)}</b></span><span>${state.runOrbsEvidence==="verified"?"周回獲得 "+orbDisplay(state.runOrbsEarned)+" オーブ":"旧周回・確認済獲得 "+orbDisplay(state.runOrbsEarned)+" オーブ"}</span><span>干渉 +${o(tap)}</span>${comboHtml}${storedHtml}`);
     $("worldHint").textContent="";
-    const q=G.convergenceQuote(state);
+    const gauge=G.convergenceProgress(state),q=gauge;
     $("convergeMain").disabled=!q.steps||readOnly||store.blocked;
-    const gauge=G.convergenceProgress(state);
     const mainConverge=$("convergeMain");
     if(!mainConverge.querySelector("[data-main-convergence-reward]")){
       mainConverge.innerHTML=`<span class="converge-main-reward"><strong>収束</strong><span data-main-convergence-reward>+0</span></span><span class="converge-main-next"><small>NEXT</small><span data-main-convergence-next>0 オーブ</span></span><span class="converge-gauge" aria-hidden="true"><i data-main-convergence-gauge style="width:0%"></i></span>`;
@@ -522,17 +526,17 @@ function renderWorld(){
     if(mainConverge.title!==convergeInfo)mainConverge.title=convergeInfo;
     if(mainConverge.getAttribute("aria-label")!==convergeInfo)mainConverge.setAttribute("aria-label",convergeInfo);
   }else if(currentStage==="time"){
-    $("primaryValue").textContent=Math.floor(state.time.elapsed).toLocaleString("ja-JP");
-    $("worldDetails").textContent=state.time.revealedDirections>=6?
+    patchText($("primaryValue"),Math.floor(state.time.elapsed).toLocaleString("ja-JP"));
+    patchText($("worldDetails"),state.time.revealedDirections>=6?
       "世界時間 "+Math.min(1,state.time.worldSeconds).toFixed(6)+" / 1秒":
-      "認識した方向 "+state.time.revealedDirections+" / 6";
+      "認識した方向 "+state.time.revealedDirections+" / 6");
     $("worldHint").textContent="方向を選び、残滓から概念を認識する。";
   }else if(currentStage==="universe"){
-    $("primaryValue").textContent=String(state.universe.planets.length);
-    $("worldDetails").innerHTML=`<span class="wallet">宇宙資源 · 時間で蓄積</span><span>惑星 ${state.universe.planets.length} / ${state.universe.maxPlanets} · 資源 ${state.universe.discoveredResources.length} / 42</span>`;
+    patchText($("primaryValue"),String(state.universe.planets.length));
+    patchHTML($("worldDetails"),`<span class="wallet">宇宙資源 · 時間で蓄積</span><span>惑星 ${state.universe.planets.length} / ${state.universe.maxPlanets} · 資源 ${state.universe.discoveredResources.length} / 42</span>`);
     $("worldHint").textContent="観測し、理解し、干渉する。";
   }else{
-    $("primaryValue").textContent="—";$("worldDetails").textContent="未知の変化が、自己を維持し始める。";
+    patchText($("primaryValue"),"—");patchText($("worldDetails"),"未知の変化が、自己を維持し始める。");
     $("worldHint").textContent="未知の生命を観測する。";
   }
   const stageLabels={existence:"オーブ",time:"経過時間 · 秒",universe:"惑星数",life:"生命の兆し",organizer:"オーブ",automation:"オーブ"};
@@ -554,26 +558,27 @@ function renderWorld(){
     ["干渉1タップ",o(tap)+" オーブ/タップ"],
     ["コンボ",combo.combo.toLocaleString("ja-JP")]
   ];
-  $("stageResourceList").innerHTML=stageRows.map(([label,value])=>`<div class="stage-stat"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`).join("");
+  patchHTML($("stageResourceList"),stageRows.map(([label,value])=>`<div class="stage-stat"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`).join(""));
   // Scene metadata is derived from existing saved state only; no mission or currency is fabricated.
-  const unlockedSourceCount=compactMode?Object.values(compactState(state).sources).filter(x=>x.level>0).length:CONTENT.sources.filter(x=>state.sources[x.id]?.level>0).length;
-  const unlockedMomentCount=compactMode?Object.values(compactState(state).moment).filter(x=>x>0).length:CONTENT.moment.filter(x=>state.moment[x.id]>0).length;
+  const compactView=compactMode?compactState(state):null;
+  const unlockedSourceCount=compactMode?Object.values(compactView.sources).filter(x=>x.level>0).length:CONTENT.sources.filter(x=>state.sources[x.id]?.level>0).length;
+  const unlockedMomentCount=compactMode?Object.values(compactView.moment).filter(x=>x>0).length:CONTENT.moment.filter(x=>state.moment[x.id]>0).length;
   const conceptsCount=Object.keys(state.time.concepts).length;
   const progress=currentStage==="time"?{done:conceptsCount,total:77,title:"認識した概念"}:
     currentStage==="universe"?{done:state.universe.discoveredResources.length,total:42,title:"発見した資源"}:
     currentStage==="life"?{done:0,total:0,title:"未知"}:
     {done:(state.time.unlocked?unlockedSourceCount:0)+unlockedMomentCount,total:compactMode?(state.time.unlocked?38:8):state.time.unlocked?60:30,title:"強化した種類"};
-  $("matrixCaption").textContent=`${stage.name} のマトリクス`;
-  $("matrixSummary").textContent=progress.total?`${progress.title} ${progress.done} / ${progress.total}`:"まだ観測できません";
+  patchText($("matrixCaption"),`${stage.name} のマトリクス`);
+  patchText($("matrixSummary"),progress.total?`${progress.title} ${progress.done} / ${progress.total}`:"まだ観測できません");
   $("matrixFill").style.width=progress.total?`${Math.min(100,100*progress.done/progress.total).toFixed(1)}%`:"0%";
   const observeRows=currentStage==="existence"||currentStage==="organizer"?[
     ...(state.time.unlocked?[["源の生成/秒",o(rate),`源の生成 ${o(rate)} オーブ/秒`]]:[]),
     ["干渉1タップ",o(tap),`干渉1タップ ${o(tap)} オーブ/タップ`]
   ]:stageRows.slice(0,3).map(([name,value])=>[name,value,`${name} ${value}`]);
-  $("worldObserve").innerHTML=observeRows.map(([label,value,full])=>`<div class="scene-stat" title="${esc(full)}"><span>${esc(label)}</span><strong title="${esc(full)}">${esc(value)}</strong></div>`).join("");
+  patchHTML($("worldObserve"),observeRows.map(([label,value,full])=>`<div class="scene-stat" title="${esc(full)}"><span>${esc(label)}</span><strong title="${esc(full)}">${esc(value)}</strong></div>`).join(""));
   // DEC-20261122-005: the permanent “理の状態” sidebar is removed.
   // Game state and history remain intact; only redundant on-screen copy is hidden.
-  $("heroSigil").textContent=compactMode?"":currentStage==="time"?"時":currentStage==="universe"?"宇":currentStage==="life"?"生":"理";
+  patchText($("heroSigil"),compactMode?"":currentStage==="time"?"時":currentStage==="universe"?"宇":currentStage==="life"?"生":"理");
   renderStageIdentity();
   const timeRoot=$("timeHexRoot");
   if(timeRoot){
@@ -1321,7 +1326,7 @@ function renderPanel(force=false){
   const stage=CONTENT.stages.find(x=>x.id===currentStage);
   const children=currentStage==="organizer"?organizerItems:currentStage==="automation"?["auto-existence","auto-time","auto-universe","auto-life"]:currentStage==="time"?["flow","concepts","miracles"]:stage.children.filter(id=>id!=="sources"||state.time.unlocked);
   const visibleChildLabel=id=>currentStage==="automation"&&!availableStages().some(stage=>stage.id===id.slice(5))?"？？？":childLabel(id);
-  $("childTabs").innerHTML=children.map(id=>`<button data-child="${id}" class="${currentSub===id?"active":""}" aria-pressed="${currentSub===id}">${esc(visibleChildLabel(id))}</button>`).join("");
+  patchHTML($("childTabs"),children.map(id=>`<button data-child="${id}" class="${currentSub===id?"active":""}" aria-pressed="${currentSub===id}">${esc(visibleChildLabel(id))}</button>`).join(""));
   $("sheetHeading").textContent=currentStage==="automation"?"自動化":(currentStage==="organizer"?"管理":"強化")+" / "+childLabel(currentSub);
   if(compactMode&&currentStage==="existence"&&compactKind(currentSub)){refreshCompactPanel(true);return;}
   $("bulkScopeButton").hidden=compactMode;
@@ -1379,7 +1384,7 @@ function refreshCompactPanel(force=false){
   $("bulkOrderButton").disabled=blocked;
   $("bulkOrderButton").textContent=order==="cheap"?"安い順":"上位順";
   $("bulkOrderButton").title=order==="cheap"?"安い順":"高グレード順";
-  const body=$("sheetBody"),p=patchCompactCards(body,state,kind,blocked,force);
+  const body=$("sheetBody"),p=patchCompactCards(body,state,kind,blocked,force,c);
   body.dataset.sub=currentSub;
   const summary="購入可 "+p.ready+" / "+p.total;
   if($("purchaseLiveSummary").textContent!==summary)$("purchaseLiveSummary").textContent=summary;
